@@ -1364,15 +1364,23 @@ const EventEditor: React.FC<{
             </div>
 
             {/* PRINT OVERLAY MODAL */}
-            <AnimatePresence>
-                {showPrintModal && typeof document !== 'undefined' && createPortal(
-                    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/55 backdrop-blur-sm print-modal-parent">
+            {typeof document !== 'undefined' && createPortal(
+                <AnimatePresence>
+                    {showPrintModal && (
                         <motion.div
-                            initial={{ opacity: 0, scale: 0.95 }}
-                            animate={{ opacity: 1, scale: 1 }}
-                            exit={{ opacity: 0, scale: 0.95 }}
-                            className="bg-white dark:bg-gray-900 text-gray-900 dark:text-white rounded-[2rem] w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col shadow-2xl border border-gray-200 dark:border-gray-800 printable-card-parent"
+                            key="print-modal-overlay"
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/55 backdrop-blur-sm print-modal-parent"
                         >
+                            <motion.div
+                                key="print-modal-card"
+                                initial={{ opacity: 0, scale: 0.95 }}
+                                animate={{ opacity: 1, scale: 1 }}
+                                exit={{ opacity: 0, scale: 0.95 }}
+                                className="bg-white dark:bg-gray-900 text-gray-900 dark:text-white rounded-[2rem] w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col shadow-2xl border border-gray-200 dark:border-gray-800 printable-card-parent"
+                            >
                             {/* HEADING BANNER - HIDE ON PRINT */}
                             <div className="p-6 bg-gray-50 dark:bg-gray-950 border-b border-gray-200 dark:border-gray-800 flex justify-between items-center printable-screen-only">
                                 <div className="flex items-center gap-3">
@@ -1553,11 +1561,12 @@ const EventEditor: React.FC<{
                                     <div>Sida 1 av 1</div>
                                 </div>
                             </div>
+                            </motion.div>
                         </motion.div>
-                    </div>,
-                    document.body
-                )}
-            </AnimatePresence>
+                    )}
+                </AnimatePresence>,
+                document.body
+            )}
         </div>
     );
 };

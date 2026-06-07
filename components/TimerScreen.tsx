@@ -1023,9 +1023,27 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
     const remoteIdClean = cleanId(remoteState.activeWorkoutId);
     const localIdClean = cleanId(activeWorkout?.id);
     
-    const isSameWorkout = (remoteIdClean && remoteIdClean === localIdClean) || 
-                          (remoteState.raceName && remoteState.raceName === activeWorkout?.title) ||
-                          (activeWorkout?.title && remoteState.raceName?.toLowerCase() === activeWorkout.title.toLowerCase());
+    // Om vi är funktionär, och loppet på servern har ett annat ID än det vi precis har öppnat:
+    // Då tar vi över studion och nollställer dess tillstånd för det nya loppet!
+    if (screenMode === 'official' && localIdClean && (!remoteIdClean || remoteIdClean !== localIdClean)) {
+      publishRaceState({
+        status: 'idle',
+        activeWorkoutId: activeWorkout?.id,
+        raceName: activeWorkout?.title,
+        finishedParticipants: {},
+        finalRaceId: null,
+        timerStartTime: null,
+        timerBase: 0,
+        lastElapsedSeconds: 0,
+        winnerName: null
+      });
+      return;
+    }
+    
+    const isSameWorkout = (remoteIdClean && localIdClean)
+      ? (remoteIdClean === localIdClean)
+      : (remoteState.raceName && remoteState.raceName === activeWorkout?.title) ||
+        (activeWorkout?.title && remoteState.raceName?.toLowerCase() === activeWorkout.title.toLowerCase());
                           
     if (!isSameWorkout) return;
 

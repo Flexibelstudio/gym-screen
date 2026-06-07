@@ -256,6 +256,18 @@ export const HyroxRaceDetailScreen: React.FC<HyroxRaceDetailScreenProps> = ({ ra
                     </div>
                 )}
             </div>
+            
+            {isPublicView && (
+                <div className="mt-10 flex flex-col items-center gap-3">
+                    <button 
+                        onClick={onBack}
+                        className="bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-extrabold py-3.5 px-8 rounded-2xl tracking-wider uppercase transition-all shadow-lg shadow-indigo-600/15 active:scale-95"
+                    >
+                        Tillbaka till startsidan / Logga in
+                    </button>
+                    <p className="text-[11px] text-gray-400 dark:text-gray-500 font-medium">Flexibel Friskvård & Hälsa</p>
+                </div>
+            )}
         </div>
     );
 };
