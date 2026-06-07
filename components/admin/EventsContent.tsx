@@ -1446,6 +1446,25 @@ const EventEditor: React.FC<{
                                             padding: 0 !important;
                                             margin: 0 !important;
                                             background: white !important;
+                                            color: black !important;
+                                        }
+                                        .printable-area * {
+                                            color: black !important;
+                                            border-color: #9ca3af !important;
+                                        }
+                                        /* Säkra att gråa zoner som heat-kort och tr-header har fina kontrastfärger vid utskrift */
+                                        .printable-area .bg-gray-50\/40 {
+                                            background-color: #f9fafb !important;
+                                        }
+                                        .printable-area th {
+                                            background-color: #f3f4f6 !important;
+                                            color: black !important;
+                                            font-weight: bold !important;
+                                        }
+                                        /* Säkra att kryssrutan för manuell incheckning syns tydligt */
+                                        .printable-area .rounded {
+                                            border: 1.5px solid #000055 !important;
+                                            background-color: white !important;
                                         }
                                         .avoid-break {
                                             page-break-inside: avoid !important;
