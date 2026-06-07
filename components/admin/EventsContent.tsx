@@ -269,6 +269,123 @@ interface EventsContentProps {
     organization: Organization;
 }
 
+const StartListPrintView: React.FC<{
+    raceName: string;
+    scheduledDate: string | null;
+    startIntervalMinutes: number;
+    startIntervalSeconds: number;
+    startGroups: any[];
+}> = ({ raceName, scheduledDate, startIntervalMinutes, startIntervalSeconds, startGroups }) => {
+    return (
+        <div className="w-full bg-white text-gray-900 leading-normal p-8 select-none">
+            {/* Document header */}
+            <div className="border-b-4 border-gray-900 pb-3 mb-6 bg-white flex justify-between items-end">
+                <div>
+                    <span className="text-[10px] uppercase font-black tracking-widest text-gray-500">MANUELL STARTLISTA & HANTERING</span>
+                    <h1 className="text-2xl font-black text-gray-950 uppercase tracking-tight leading-tight mt-0.5">
+                        {raceName || "Hyrox Tävling"}
+                    </h1>
+                    <div className="flex gap-4 mt-2.5 text-xs text-gray-600">
+                        {scheduledDate && (
+                            <div>
+                                <span className="font-bold">Datum: </span>
+                                {new Date(scheduledDate).toLocaleDateString('sv-SE', { year: 'numeric', month: 'long', day: 'numeric' })}
+                            </div>
+                        )}
+                        <div>
+                            <span className="font-bold">Intervall: </span>
+                            {startIntervalMinutes} min {startIntervalSeconds > 0 ? `${startIntervalSeconds} sek` : ''}
+                        </div>
+                    </div>
+                </div>
+                <div className="text-right">
+                    <div className="text-[10px] uppercase font-bold text-gray-500">Arrangör</div>
+                    <div className="text-xs font-black text-gray-950 uppercase">Flexibel Friskvård & Hälsa</div>
+                </div>
+            </div>
+
+            {/* Heats */}
+            <div className="space-y-6 bg-white">
+                {startGroups.map((group, groupIdx) => {
+                    let groupTimeStr = "";
+                    if (scheduledDate) {
+                        const baseDate = new Date(scheduledDate);
+                        const intervalMs = ((startIntervalMinutes || 2) + (startIntervalSeconds || 0) / 60) * 60 * 1000;
+                        const heatTime = new Date(baseDate.getTime() + groupIdx * intervalMs);
+                        groupTimeStr = heatTime.toLocaleTimeString('sv-SE', { hour: '2-digit', minute: '2-digit' });
+                    }
+
+                    const pList = group.participantList || [];
+                    return (
+                        <div key={group.id} className="avoid-break border border-gray-300 rounded-xl p-4 bg-gray-50/40">
+                            <h3 className="font-black text-xs text-gray-950 border-b border-gray-400 pb-1.5 mb-3 uppercase tracking-wider flex justify-between items-center bg-transparent">
+                                <span className="text-xs font-black text-gray-950">{group.name}</span>
+                                {groupTimeStr && <span className="font-mono text-xs font-bold text-indigo-750">Starttid: {groupTimeStr}</span>}
+                            </h3>
+                            <table className="w-full text-[11px] text-left border-collapse">
+                                <thead>
+                                    <tr className="border-b border-gray-300 bg-gray-150 text-gray-700 font-bold text-[9px] uppercase tracking-wider">
+                                        <th className="py-1.5 px-2 border border-gray-200 w-12 text-center bg-gray-100 text-black">Startnr</th>
+                                        <th className="py-1.5 px-2 border border-gray-200 bg-gray-100 text-black">Deltagare / Lagnamn</th>
+                                        <th className="py-1.5 px-2 border border-gray-200 w-28 bg-gray-100 text-black">Klass/Division</th>
+                                        <th className="py-1.5 px-2 border border-gray-200 w-16 text-center bg-gray-100 text-black">Checkad</th>
+                                        <th className="py-1.5 px-2 border border-gray-200 w-28 bg-gray-100 text-black">Manuell Tid</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {pList.length === 0 ? (
+                                        <tr>
+                                            <td colSpan={5} className="py-3 text-center text-gray-500 italic border border-gray-205 bg-white">
+                                                Inga deltagare tilldelade till detta heat
+                                            </td>
+                                        </tr>
+                                    ) : (
+                                        pList.map((p: any) => {
+                                            const displayNames = p.partnerName ? `${p.name} & ${p.partnerName}` : p.name;
+                                            return (
+                                                <tr key={p.id} className="border-b border-gray-250 bg-white">
+                                                    <td className="py-2.5 px-2 border border-gray-200 text-center font-bold text-xs text-gray-950">
+                                                        {p.startNumber || '—'}
+                                                    </td>
+                                                    <td className="py-2.5 px-2 border border-gray-200 font-medium text-gray-950">
+                                                        {p.teamName ? (
+                                                            <div>
+                                                                <div className="font-black text-xs text-gray-950">{p.teamName}</div>
+                                                                <div className="text-[10px] text-gray-600 font-medium">{displayNames}</div>
+                                                            </div>
+                                                        ) : (
+                                                            <div className="font-bold text-gray-950 text-xs">{displayNames}</div>
+                                                        )}
+                                                    </td>
+                                                    <td className="py-2.5 px-2 border border-gray-200 text-[11px] font-semibold text-gray-700">
+                                                        {p.division || '—'}
+                                                    </td>
+                                                    <td className="py-2.5 px-2 border border-gray-200 text-center">
+                                                        <div className="inline-block w-4 h-4 rounded border-2 border-gray-800 bg-white" />
+                                                    </td>
+                                                    <td className="py-2.5 px-2 border border-gray-200 text-gray-400 font-mono text-[10px] font-bold text-center">
+                                                        ______ : ______ (m:s)
+                                                    </td>
+                                                </tr>
+                                            );
+                                        })
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
+                    );
+                })}
+            </div>
+
+            {/* Footer */}
+            <div className="mt-8 border-t border-gray-400 pt-4 flex justify-between items-center text-[10px] text-gray-500 font-medium bg-white">
+                <div>Utskriven: {new Date().toLocaleDateString('sv-SE')} | Smart Skärm Event Management</div>
+                <div>Sida 1 av 1</div>
+            </div>
+        </div>
+    );
+};
+
 const EventEditor: React.FC<{
     event: HyroxRace | null;
     organizationId: string;
@@ -1367,221 +1484,85 @@ const EventEditor: React.FC<{
             {typeof document !== 'undefined' && createPortal(
                 <AnimatePresence>
                     {showPrintModal && (
-                        <motion.div
-                            key="print-modal-overlay"
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            exit={{ opacity: 0 }}
-                            className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/55 backdrop-blur-sm print-modal-parent"
-                        >
+                        <>
+                            {/* SCREEN ONLY MODAL PREVIEW */}
                             <motion.div
-                                key="print-modal-card"
-                                initial={{ opacity: 0, scale: 0.95 }}
-                                animate={{ opacity: 1, scale: 1 }}
-                                exit={{ opacity: 0, scale: 0.95 }}
-                                className="bg-white dark:bg-gray-900 text-gray-900 dark:text-white rounded-[2rem] w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col shadow-2xl border border-gray-200 dark:border-gray-800 printable-card-parent"
+                                key="print-modal-overlay"
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                exit={{ opacity: 0 }}
+                                className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/55 backdrop-blur-sm print-modal-parent"
                             >
-                            {/* HEADING BANNER - HIDE ON PRINT */}
-                            <div className="p-6 bg-gray-50 dark:bg-gray-950 border-b border-gray-200 dark:border-gray-800 flex justify-between items-center printable-screen-only">
-                                <div className="flex items-center gap-3">
-                                    <div className="p-2 bg-indigo-50 dark:bg-indigo-950/40 text-indigo-650 dark:text-indigo-400 rounded-lg">
-                                        <Printer className="w-5 h-5 flex-shrink-0" />
-                                    </div>
-                                    <div>
-                                        <h3 className="font-extrabold text-sm">Förhandsgranskning av startlista</h3>
-                                        <p className="text-xs text-gray-500">Utskrift är optimerad för A4 (stående format)</p>
-                                    </div>
-                                </div>
-                                <div className="flex gap-2">
-                                    <button
-                                        type="button"
-                                        onClick={() => window.print()}
-                                        className="bg-indigo-650 hover:bg-indigo-600 dark:bg-indigo-600 dark:hover:bg-indigo-500 text-white font-bold py-2 px-4 rounded-xl text-xs flex items-center gap-1.5 shadow-sm shadow-indigo-500/25"
-                                    >
-                                        <Printer className="w-4 h-4 flex-shrink-0" />
-                                        Skriv ut nu
-                                    </button>
-                                    <button
-                                        type="button"
-                                        onClick={() => setShowPrintModal(false)}
-                                        className="bg-gray-200 dark:bg-gray-800 hover:bg-gray-300 dark:hover:bg-gray-700 text-gray-800 dark:text-gray-200 font-bold py-2 px-4 rounded-xl text-xs"
-                                    >
-                                        Stäng
-                                    </button>
-                                </div>
-                            </div>
-
-                            {/* PRINTABLE AREA */}
-                            <div className="flex-1 overflow-y-auto p-8 bg-white text-gray-900 printable-area leading-normal">
                                 <style dangerouslySetInnerHTML={{ __html: `
                                     @media print {
-                                        body {
-                                            background-color: white !important;
-                                            color: black !important;
-                                        }
-                                        #root {
-                                            display: none !important;
-                                        }
                                         .print-modal-parent {
-                                            position: absolute !important;
-                                            left: 0 !important;
-                                            top: 0 !important;
-                                            width: 100% !important;
-                                            height: auto !important;
-                                            background: white !important;
-                                            display: block !important;
-                                        }
-                                        .printable-card-parent {
-                                            border: none !important;
-                                            box-shadow: none !important;
-                                            max-height: none !important;
-                                            overflow: visible !important;
-                                            background: white !important;
-                                        }
-                                        .printable-screen-only {
                                             display: none !important;
-                                        }
-                                        .printable-area {
-                                            overflow: visible !important;
-                                            padding: 0 !important;
-                                            margin: 0 !important;
-                                            background: white !important;
-                                            color: black !important;
-                                        }
-                                        .printable-area * {
-                                            color: black !important;
-                                            border-color: #9ca3af !important;
-                                        }
-                                        /* Säkra att gråa zoner som heat-kort och tr-header har fina kontrastfärger vid utskrift */
-                                        .printable-area .bg-gray-50\/40 {
-                                            background-color: #f9fafb !important;
-                                        }
-                                        .printable-area th {
-                                            background-color: #f3f4f6 !important;
-                                            color: black !important;
-                                            font-weight: bold !important;
-                                        }
-                                        /* Säkra att kryssrutan för manuell incheckning syns tydligt */
-                                        .printable-area .rounded {
-                                            border: 1.5px solid #000055 !important;
-                                            background-color: white !important;
-                                        }
-                                        .avoid-break {
-                                            page-break-inside: avoid !important;
-                                            break-inside: avoid !important;
                                         }
                                     }
                                 `}} />
-
-                                {/* Document header */}
-                                <div className="border-b-4 border-gray-900 pb-3 mb-6 bg-white">
-                                    <div className="flex justify-between items-end">
-                                        <div>
-                                            <span className="text-[10px] uppercase font-black tracking-widest text-gray-500">MANUELL STARTLISTA & HANTERING</span>
-                                            <h1 className="text-2xl font-black text-gray-950 uppercase tracking-tight leading-tight mt-0.5">
-                                                {raceName || "Hyrox Tävling"}
-                                            </h1>
-                                        </div>
-                                        <div className="text-right">
-                                            <div className="text-[10px] uppercase font-bold text-gray-500">Arrangör</div>
-                                            <div className="text-xs font-black text-gray-900 uppercase">Flexibel Friskvård & Hälsa</div>
-                                        </div>
-                                    </div>
-                                    <div className="flex gap-4 mt-2.5 text-xs text-gray-650">
-                                        {scheduledDate && (
+                                <motion.div
+                                    key="print-modal-card"
+                                    initial={{ opacity: 0, scale: 0.95 }}
+                                    animate={{ opacity: 1, scale: 1 }}
+                                    exit={{ opacity: 0, scale: 0.95 }}
+                                    className="bg-white dark:bg-gray-900 text-gray-900 dark:text-white rounded-[2rem] w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col shadow-2xl border border-gray-200 dark:border-gray-800 printable-card-parent"
+                                >
+                                    {/* HEADING BANNER - HIDE ON PRINT */}
+                                    <div className="p-6 bg-gray-50 dark:bg-gray-950 border-b border-gray-200 dark:border-gray-800 flex justify-between items-center printable-screen-only">
+                                        <div className="flex items-center gap-3">
+                                            <div className="p-2 bg-indigo-50 dark:bg-indigo-950/40 text-indigo-650 dark:text-indigo-400 rounded-lg">
+                                                <Printer className="w-5 h-5 flex-shrink-0" />
+                                            </div>
                                             <div>
-                                                <span className="font-bold">Datum: </span>
-                                                {new Date(scheduledDate).toLocaleDateString('sv-SE', { year: 'numeric', month: 'long', day: 'numeric' })}
+                                                <h3 className="font-extrabold text-sm text-black dark:text-white">Förhandsgranskning av startlista</h3>
+                                                <p className="text-xs text-gray-500">Utskrift är optimerad för A4 (stående format)</p>
                                             </div>
-                                        )}
-                                        <div>
-                                            <span className="font-bold">Intervall mellan heat: </span>
-                                            {startIntervalMinutes} min {startIntervalSeconds > 0 ? `${startIntervalSeconds} sek` : ''}
+                                        </div>
+                                        <div className="flex gap-2">
+                                            <button
+                                                type="button"
+                                                onClick={() => window.print()}
+                                                className="bg-indigo-650 hover:bg-indigo-600 dark:bg-indigo-600 dark:hover:bg-indigo-500 text-white font-bold py-2 px-4 rounded-xl text-xs flex items-center gap-1.5 shadow-sm shadow-indigo-500/25 cursor-pointer"
+                                            >
+                                                <Printer className="w-4 h-4 flex-shrink-0" />
+                                                Skriv ut nu
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => setShowPrintModal(false)}
+                                                className="bg-gray-200 dark:bg-gray-800 hover:bg-gray-300 dark:hover:bg-gray-700 text-gray-800 dark:text-gray-200 font-bold py-2 px-4 rounded-xl text-xs cursor-pointer"
+                                            >
+                                                Stäng
+                                            </button>
                                         </div>
                                     </div>
-                                </div>
 
-                                {/* Body - Heats / Startlistor */}
-                                <div className="space-y-6 bg-white">
-                                    {startGroups.map((group, groupIdx) => {
-                                        let groupTimeStr = "";
-                                        if (scheduledDate) {
-                                            const baseDate = new Date(scheduledDate);
-                                            const intervalMs = ((startIntervalMinutes || 2) + (startIntervalSeconds || 0) / 60) * 60 * 1000;
-                                            const heatTime = new Date(baseDate.getTime() + groupIdx * intervalMs);
-                                            groupTimeStr = heatTime.toLocaleTimeString('sv-SE', { hour: '2-digit', minute: '2-digit' });
-                                        }
-
-                                        const pList = group.participantList || [];
-                                        return (
-                                            <div key={group.id} className="avoid-break border border-gray-200 rounded-xl p-4 bg-gray-50/40">
-                                                <h3 className="font-black text-xs text-gray-950 border-b border-gray-400 pb-1.5 mb-3 uppercase tracking-wider flex justify-between items-center">
-                                                    <span>{group.name}</span>
-                                                    {groupTimeStr && <span className="font-mono text-xs font-bold text-indigo-700">Starttid: {groupTimeStr}</span>}
-                                                </h3>
-                                                <table className="w-full text-[11px] text-left border-collapse">
-                                                    <thead>
-                                                        <tr className="border-b border-gray-300 bg-gray-100 text-gray-700 font-bold text-[9px] uppercase tracking-wider">
-                                                            <th className="py-1 px-2 border border-gray-200 w-12 text-center">Startnr</th>
-                                                            <th className="py-1 px-2 border border-gray-200">Deltagare / Lagnamn</th>
-                                                            <th className="py-1 px-2 border border-gray-200 w-28">Klass/Division</th>
-                                                            <th className="py-1 px-2 border border-gray-200 w-16 text-center">Checkad</th>
-                                                            <th className="py-1 px-2 border border-gray-200 w-28">Manuell Tid</th>
-                                                        </tr>
-                                                    </thead>
-                                                    <tbody>
-                                                        {pList.length === 0 ? (
-                                                            <tr>
-                                                                <td colSpan={5} className="py-3 text-center text-gray-500 italic border border-gray-200 bg-white">
-                                                                    Inga deltagare tilldelade till detta heat
-                                                                </td>
-                                                            </tr>
-                                                        ) : (
-                                                            pList.map((p) => {
-                                                                const displayNames = p.partnerName ? `${p.name} & ${p.partnerName}` : p.name;
-                                                                return (
-                                                                    <tr key={p.id} className="border-b border-gray-250 bg-white hover:bg-gray-50">
-                                                                        <td className="py-2.5 px-2 border border-gray-200 text-center font-bold text-xs text-gray-950">
-                                                                            {p.startNumber || '—'}
-                                                                        </td>
-                                                                        <td className="py-2.5 px-2 border border-gray-200 font-medium">
-                                                                            {p.teamName ? (
-                                                                                <div>
-                                                                                    <div className="font-black text-xs text-gray-950">{p.teamName}</div>
-                                                                                    <div className="text-[10px] text-gray-650 font-medium">{displayNames}</div>
-                                                                                </div>
-                                                                            ) : (
-                                                                                <div className="font-bold text-gray-950 text-xs">{displayNames}</div>
-                                                                            )}
-                                                                        </td>
-                                                                        <td className="py-2.5 px-2 border border-gray-200 text-[11px] font-semibold text-gray-750">
-                                                                            {p.division || '—'}
-                                                                        </td>
-                                                                        <td className="py-2.5 px-2 border border-gray-200 text-center">
-                                                                            <div className="inline-block w-4 h-4 rounded border border-gray-450 bg-white" />
-                                                                        </td>
-                                                                        <td className="py-2.5 px-2 border border-gray-200 text-gray-300 font-mono text-[10px] font-bold text-center">
-                                                                            ______ : ______ (m:s)
-                                                                        </td>
-                                                                    </tr>
-                                                                );
-                                                            })
-                                                        )}
-                                                    </tbody>
-                                                </table>
-                                            </div>
-                                        );
-                                    })}
-                                </div>
-
-                                {/* Footer info */}
-                                <div className="mt-8 border-t border-gray-400 pt-4 flex justify-between items-center text-[10px] text-gray-500 font-medium bg-white">
-                                    <div>Utskriven: {new Date().toLocaleDateString('sv-SE')} | Smart Skärm Event Management</div>
-                                    <div>Sida 1 av 1</div>
-                                </div>
-                            </div>
+                                    {/* SCREEN ONLY PREVIEW SCROLL CONTAINER */}
+                                    <div className="flex-1 overflow-y-auto p-8 bg-gray-100 dark:bg-gray-950 flex justify-center">
+                                        <div className="bg-white text-gray-900 shadow-lg border border-gray-250 p-6 max-w-[210mm] w-full min-h-[297mm]">
+                                            <StartListPrintView
+                                                raceName={raceName}
+                                                scheduledDate={scheduledDate}
+                                                startIntervalMinutes={startIntervalMinutes}
+                                                startIntervalSeconds={startIntervalSeconds}
+                                                startGroups={startGroups}
+                                            />
+                                        </div>
+                                    </div>
+                                </motion.div>
                             </motion.div>
-                        </motion.div>
+
+                            {/* PRINT ONLY PORTAL COMPONENT */}
+                            <div className="print-only bg-white text-black w-full flex flex-col justify-start">
+                                <StartListPrintView
+                                    raceName={raceName}
+                                    scheduledDate={scheduledDate}
+                                    startIntervalMinutes={startIntervalMinutes}
+                                    startIntervalSeconds={startIntervalSeconds}
+                                    startGroups={startGroups}
+                                />
+                            </div>
+                        </>
                     )}
                 </AnimatePresence>,
                 document.body
