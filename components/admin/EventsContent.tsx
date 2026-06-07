@@ -271,13 +271,15 @@ interface EventsContentProps {
 
 const StartListPrintView: React.FC<{
     raceName: string;
-    scheduledDate: string | null;
+    scheduledDate: string | null | number;
     startIntervalMinutes: number;
     startIntervalSeconds: number;
     startGroups: any[];
 }> = ({ raceName, scheduledDate, startIntervalMinutes, startIntervalSeconds, startGroups }) => {
+    const safeGroups = Array.isArray(startGroups) ? startGroups : [];
+    
     return (
-        <div className="w-full bg-white text-gray-900 leading-normal p-8 select-none">
+        <div className="w-full bg-white text-gray-900 leading-normal p-8 select-none printable-start-list">
             {/* Document header */}
             <div className="border-b-4 border-gray-900 pb-3 mb-6 bg-white flex justify-between items-end">
                 <div>
@@ -286,15 +288,23 @@ const StartListPrintView: React.FC<{
                         {raceName || "Hyrox Tävling"}
                     </h1>
                     <div className="flex gap-4 mt-2.5 text-xs text-gray-600">
-                        {scheduledDate && (
+                        {scheduledDate ? (
                             <div>
                                 <span className="font-bold">Datum: </span>
-                                {new Date(scheduledDate).toLocaleDateString('sv-SE', { year: 'numeric', month: 'long', day: 'numeric' })}
+                                {(() => {
+                                    try {
+                                        const d = new Date(scheduledDate);
+                                        if (isNaN(d.getTime())) return "Ej fastställt";
+                                        return d.toLocaleDateString('sv-SE', { year: 'numeric', month: 'long', day: 'numeric' });
+                                    } catch (e) {
+                                        return "Ej fastställt";
+                                    }
+                                })()}
                             </div>
-                        )}
+                        ) : null}
                         <div>
                             <span className="font-bold">Intervall: </span>
-                            {startIntervalMinutes} min {startIntervalSeconds > 0 ? `${startIntervalSeconds} sek` : ''}
+                            {startIntervalMinutes ?? 2} min {startIntervalSeconds > 0 ? `${startIntervalSeconds} sek` : ''}
                         </div>
                     </div>
                 </div>
@@ -306,20 +316,29 @@ const StartListPrintView: React.FC<{
 
             {/* Heats */}
             <div className="space-y-6 bg-white">
-                {startGroups.map((group, groupIdx) => {
+                {safeGroups.map((group, groupIdx) => {
+                    if (!group) return null;
                     let groupTimeStr = "";
                     if (scheduledDate) {
-                        const baseDate = new Date(scheduledDate);
-                        const intervalMs = ((startIntervalMinutes || 2) + (startIntervalSeconds || 0) / 60) * 60 * 1000;
-                        const heatTime = new Date(baseDate.getTime() + groupIdx * intervalMs);
-                        groupTimeStr = heatTime.toLocaleTimeString('sv-SE', { hour: '2-digit', minute: '2-digit' });
+                        try {
+                            const baseDate = new Date(scheduledDate);
+                            if (!isNaN(baseDate.getTime())) {
+                                const intervalMs = (((startIntervalMinutes || 2) + (startIntervalSeconds || 0) / 60) * 60 * 1000);
+                                const heatTime = new Date(baseDate.getTime() + groupIdx * intervalMs);
+                                if (!isNaN(heatTime.getTime())) {
+                                    groupTimeStr = heatTime.toLocaleTimeString('sv-SE', { hour: '2-digit', minute: '2-digit' });
+                                }
+                            }
+                        } catch (e) {
+                            console.error("Error formatting heat time", e);
+                        }
                     }
 
-                    const pList = group.participantList || [];
+                    const pList = Array.isArray(group.participantList) ? group.participantList : [];
                     return (
-                        <div key={group.id} className="avoid-break border border-gray-300 rounded-xl p-4 bg-gray-50/40">
+                        <div key={group.id || groupIdx} className="avoid-break border border-gray-300 rounded-xl p-4 bg-gray-50/40">
                             <h3 className="font-black text-xs text-gray-950 border-b border-gray-400 pb-1.5 mb-3 uppercase tracking-wider flex justify-between items-center bg-transparent">
-                                <span className="text-xs font-black text-gray-950">{group.name}</span>
+                                <span className="text-xs font-black text-gray-950">{group.name || `Heat ${groupIdx + 1}`}</span>
                                 {groupTimeStr && <span className="font-mono text-xs font-bold text-indigo-750">Starttid: {groupTimeStr}</span>}
                             </h3>
                             <table className="w-full text-[11px] text-left border-collapse">
@@ -340,10 +359,11 @@ const StartListPrintView: React.FC<{
                                             </td>
                                         </tr>
                                     ) : (
-                                        pList.map((p: any) => {
-                                            const displayNames = p.partnerName ? `${p.name} & ${p.partnerName}` : p.name;
+                                        pList.map((p: any, pIdx: number) => {
+                                            if (!p) return null;
+                                            const displayNames = p.partnerName ? `${p.name || ''} & ${p.partnerName}` : (p.name || '');
                                             return (
-                                                <tr key={p.id} className="border-b border-gray-250 bg-white">
+                                                <tr key={p.id || pIdx} className="border-b border-gray-250 bg-white">
                                                     <td className="py-2.5 px-2 border border-gray-200 text-center font-bold text-xs text-gray-950">
                                                         {p.startNumber || '—'}
                                                     </td>
@@ -351,19 +371,19 @@ const StartListPrintView: React.FC<{
                                                         {p.teamName ? (
                                                             <div>
                                                                 <div className="font-black text-xs text-gray-950">{p.teamName}</div>
-                                                                <div className="text-[10px] text-gray-600 font-medium">{displayNames}</div>
+                                                                <div className="text-[10px] text-gray-650 font-medium">{displayNames}</div>
                                                             </div>
                                                         ) : (
                                                             <div className="font-bold text-gray-950 text-xs">{displayNames}</div>
                                                         )}
                                                     </td>
-                                                    <td className="py-2.5 px-2 border border-gray-200 text-[11px] font-semibold text-gray-700">
+                                                    <td className="py-2.5 px-2 border border-gray-200 text-[11px] font-semibold text-gray-750">
                                                         {p.division || '—'}
                                                     </td>
                                                     <td className="py-2.5 px-2 border border-gray-200 text-center">
-                                                        <div className="inline-block w-4 h-4 rounded border-2 border-gray-800 bg-white" />
+                                                        <div className="inline-block w-4 h-4 rounded border border-gray-450 bg-white" />
                                                     </td>
-                                                    <td className="py-2.5 px-2 border border-gray-200 text-gray-400 font-mono text-[10px] font-bold text-center">
+                                                    <td className="py-2.5 px-2 border border-gray-200 text-gray-300 font-mono text-[10px] font-bold text-center">
                                                         ______ : ______ (m:s)
                                                     </td>
                                                 </tr>
@@ -1484,85 +1504,101 @@ const EventEditor: React.FC<{
             {typeof document !== 'undefined' && createPortal(
                 <AnimatePresence>
                     {showPrintModal && (
-                        <>
-                            {/* SCREEN ONLY MODAL PREVIEW */}
-                            <motion.div
-                                key="print-modal-overlay"
-                                initial={{ opacity: 0 }}
-                                animate={{ opacity: 1 }}
-                                exit={{ opacity: 0 }}
-                                className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/55 backdrop-blur-sm print-modal-parent"
-                            >
-                                <style dangerouslySetInnerHTML={{ __html: `
-                                    @media print {
-                                        .print-modal-parent {
-                                            display: none !important;
-                                        }
+                        <motion.div
+                            key="print-modal-overlay"
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/55 backdrop-blur-sm print-modal-parent"
+                        >
+                            {/* Dynamic print-override styles when modal is displayed */}
+                            <style dangerouslySetInnerHTML={{ __html: `
+                                @media print {
+                                    /* Hela sidan döljs */
+                                    body * {
+                                        visibility: hidden !important;
                                     }
-                                `}} />
-                                <motion.div
-                                    key="print-modal-card"
-                                    initial={{ opacity: 0, scale: 0.95 }}
-                                    animate={{ opacity: 1, scale: 1 }}
-                                    exit={{ opacity: 0, scale: 0.95 }}
-                                    className="bg-white dark:bg-gray-900 text-gray-900 dark:text-white rounded-[2rem] w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col shadow-2xl border border-gray-200 dark:border-gray-800 printable-card-parent"
-                                >
-                                    {/* HEADING BANNER - HIDE ON PRINT */}
-                                    <div className="p-6 bg-gray-50 dark:bg-gray-950 border-b border-gray-200 dark:border-gray-800 flex justify-between items-center printable-screen-only">
-                                        <div className="flex items-center gap-3">
-                                            <div className="p-2 bg-indigo-50 dark:bg-indigo-950/40 text-indigo-650 dark:text-indigo-400 rounded-lg">
-                                                <Printer className="w-5 h-5 flex-shrink-0" />
-                                            </div>
-                                            <div>
-                                                <h3 className="font-extrabold text-sm text-black dark:text-white">Förhandsgranskning av startlista</h3>
-                                                <p className="text-xs text-gray-500">Utskrift är optimerad för A4 (stående format)</p>
-                                            </div>
-                                        </div>
-                                        <div className="flex gap-2">
-                                            <button
-                                                type="button"
-                                                onClick={() => window.print()}
-                                                className="bg-indigo-650 hover:bg-indigo-600 dark:bg-indigo-600 dark:hover:bg-indigo-500 text-white font-bold py-2 px-4 rounded-xl text-xs flex items-center gap-1.5 shadow-sm shadow-indigo-500/25 cursor-pointer"
-                                            >
-                                                <Printer className="w-4 h-4 flex-shrink-0" />
-                                                Skriv ut nu
-                                            </button>
-                                            <button
-                                                type="button"
-                                                onClick={() => setShowPrintModal(false)}
-                                                className="bg-gray-200 dark:bg-gray-800 hover:bg-gray-300 dark:hover:bg-gray-700 text-gray-800 dark:text-gray-200 font-bold py-2 px-4 rounded-xl text-xs cursor-pointer"
-                                            >
-                                                Stäng
-                                            </button>
-                                        </div>
-                                    </div>
+                                    /* Enbart vår startlista visas */
+                                    .printable-start-list, .printable-start-list * {
+                                        visibility: visible !important;
+                                    }
+                                    /* Startlistan positioneras högst upp till vänster */
+                                    .printable-start-list {
+                                        position: absolute !important;
+                                        left: 0 !important;
+                                        top: 0 !important;
+                                        width: 100% !important;
+                                        height: auto !important;
+                                        background-color: white !important;
+                                        padding: 0 !important;
+                                        margin: 0 !important;
+                                        box-sizing: border-box !important;
+                                        font-size: 11px !important;
+                                    }
+                                    /* Snygg sidbrytningskontroll */
+                                    .avoid-break {
+                                        page-break-inside: avoid !important;
+                                        break-inside: avoid !important;
+                                    }
+                                    /* Ta bort onödiga bakgrunder och ramar vid utskrift */
+                                    @page {
+                                        margin: 15mm 10mm !important;
+                                        size: portrait !important;
+                                    }
+                                }
+                            `}} />
 
-                                    {/* SCREEN ONLY PREVIEW SCROLL CONTAINER */}
-                                    <div className="flex-1 overflow-y-auto p-8 bg-gray-100 dark:bg-gray-950 flex justify-center">
-                                        <div className="bg-white text-gray-900 shadow-lg border border-gray-250 p-6 max-w-[210mm] w-full min-h-[297mm]">
-                                            <StartListPrintView
-                                                raceName={raceName}
-                                                scheduledDate={scheduledDate}
-                                                startIntervalMinutes={startIntervalMinutes}
-                                                startIntervalSeconds={startIntervalSeconds}
-                                                startGroups={startGroups}
-                                            />
+                            <motion.div
+                                key="print-modal-card"
+                                initial={{ opacity: 0, scale: 0.95 }}
+                                animate={{ opacity: 1, scale: 1 }}
+                                exit={{ opacity: 0, scale: 0.95 }}
+                                className="bg-white dark:bg-gray-900 text-gray-900 dark:text-white rounded-[2rem] w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col shadow-2xl border border-gray-200 dark:border-gray-800"
+                            >
+                                {/* HEADING BANNER - SCREEN ONLY */}
+                                <div className="p-6 bg-gray-50 dark:bg-gray-950 border-b border-gray-200 dark:border-gray-800 flex justify-between items-center select-none">
+                                    <div className="flex items-center gap-3">
+                                        <div className="p-2 bg-indigo-50 dark:bg-indigo-950/40 text-indigo-650 dark:text-indigo-400 rounded-lg">
+                                            <Printer className="w-5 h-5 flex-shrink-0" />
+                                        </div>
+                                        <div>
+                                            <h3 className="font-extrabold text-sm text-black dark:text-white">Förhandsgranskning av startlista</h3>
+                                            <p className="text-xs text-gray-500">Utskrift är optimerad för A4 (stående format)</p>
                                         </div>
                                     </div>
-                                </motion.div>
+                                    <div className="flex gap-2">
+                                        <button
+                                            type="button"
+                                            onClick={() => window.print()}
+                                            className="bg-indigo-650 hover:bg-indigo-600 dark:bg-indigo-600 dark:hover:bg-indigo-500 text-white font-bold py-2 px-4 rounded-xl text-xs flex items-center gap-1.5 shadow-sm shadow-indigo-500/25 cursor-pointer"
+                                        >
+                                            <Printer className="w-4 h-4 flex-shrink-0" />
+                                            Skriv ut nu
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowPrintModal(false)}
+                                            className="bg-gray-200 dark:bg-gray-800 hover:bg-gray-300 dark:hover:bg-gray-700 text-gray-800 dark:text-gray-200 font-bold py-2 px-4 rounded-xl text-xs cursor-pointer"
+                                        >
+                                            Stäng
+                                        </button>
+                                    </div>
+                                </div>
+
+                                {/* SCREEN PREVIEW SCROLL CONTAINER */}
+                                <div className="flex-1 overflow-y-auto p-8 bg-gray-100 dark:bg-gray-950 flex justify-center">
+                                    <div className="bg-white text-gray-900 shadow-lg border border-gray-250 p-6 max-w-[210mm] w-full min-h-[297mm]">
+                                        <StartListPrintView
+                                            raceName={raceName}
+                                            scheduledDate={scheduledDate}
+                                            startIntervalMinutes={startIntervalMinutes}
+                                            startIntervalSeconds={startIntervalSeconds}
+                                            startGroups={startGroups}
+                                        />
+                                    </div>
+                                </div>
                             </motion.div>
-
-                            {/* PRINT ONLY PORTAL COMPONENT */}
-                            <div className="print-only bg-white text-black w-full flex flex-col justify-start">
-                                <StartListPrintView
-                                    raceName={raceName}
-                                    scheduledDate={scheduledDate}
-                                    startIntervalMinutes={startIntervalMinutes}
-                                    startIntervalSeconds={startIntervalSeconds}
-                                    startGroups={startGroups}
-                                />
-                            </div>
-                        </>
+                        </motion.div>
                     )}
                 </AnimatePresence>,
                 document.body
