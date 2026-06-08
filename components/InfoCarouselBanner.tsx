@@ -90,14 +90,14 @@ export const InfoCarouselBanner: React.FC<InfoCarouselBannerProps> = ({ messages
                             src={currentMessage.imageUrl} 
                             alt={currentMessage.headline} 
                             // Responsiv bildstorlek baserad på behållarhöjd
-                            className="h-[85%] aspect-square max-h-[384px] max-w-[384px] portrait:!h-[90px] portrait:!w-[90px] sm:portrait:!h-[110px] sm:portrait:!w-[110px] object-cover rounded-2xl flex-shrink-0 shadow-xl"
+                            className="h-[85%] aspect-square max-h-[384px] max-w-[384px] portrait:!h-[105px] portrait:!w-[105px] sm:portrait:!h-[145px] sm:portrait:!w-[145px] object-cover rounded-2xl flex-shrink-0 shadow-xl"
                         />
                     )}
                     <div className={`flex-grow min-w-0 ${layout === 'image-right' ? 'text-right' : 'text-left'}`}>
                         {/* STOR RUBRIK: text-4xl på stor TV, mindre på tablet */}
-                        <h4 className="font-bold text-lg sm:text-xl lg:text-3xl xl:text-4xl text-primary line-clamp-2 mb-2 lg:mb-4 portrait:!text-sm sm:portrait:!text-base portrait:!mb-1 leading-tight">{currentMessage.headline}</h4>
+                        <h4 className="font-bold text-lg sm:text-xl lg:text-3xl xl:text-4xl text-primary line-clamp-2 mb-2 lg:mb-4 portrait:!text-sm sm:portrait:!text-xl portrait:!mb-1 leading-tight">{currentMessage.headline}</h4>
                         {/* STOR TEXT: text-xl på stor TV, mindre på tablet */}
-                        <p className={`text-xs sm:text-sm lg:text-base xl:text-xl ${secondaryTextClass} line-clamp-4 md:line-clamp-6 lg:line-clamp-8 xl:line-clamp-12 portrait:line-clamp-3 sm:portrait:line-clamp-3 whitespace-pre-wrap leading-relaxed`}>{currentMessage.body}</p>
+                        <p className={`text-xs sm:text-sm lg:text-base xl:text-xl ${secondaryTextClass} line-clamp-4 md:line-clamp-6 lg:line-clamp-8 xl:line-clamp-12 portrait:line-clamp-3 sm:portrait:!text-base sm:portrait:line-clamp-4 whitespace-pre-wrap leading-relaxed`}>{currentMessage.body}</p>
                     </div>
                 </div>
             </div>

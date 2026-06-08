@@ -181,6 +181,26 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
   const [passwordInput, setPasswordInput] = useState("");
   const [passwordError, setPasswordError] = useState(false);
 
+  const [isPortrait, setIsPortrait] = useState(() => typeof window !== 'undefined' && window.innerHeight > window.innerWidth);
+  const [windowHeight, setWindowHeight] = useState(() => typeof window !== 'undefined' ? window.innerHeight : 1080);
+
+  useEffect(() => {
+    const handleResize = () => {
+        setIsPortrait(window.innerHeight > window.innerWidth);
+        setWindowHeight(window.innerHeight);
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  const getBottomDashboardHeight = () => {
+    if (!isPortrait) return '400px';
+    if (windowHeight >= 1400) return '580px'; 
+    if (windowHeight >= 1000) return '420px'; 
+    if (windowHeight >= 800) return '340px';  
+    return '240px'; 
+  };
+
   useEffect(() => {
     const updateGreeting = () => {
         const hour = new Date().getHours();
@@ -316,7 +336,10 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
 
             {/* Botten-dashboard - Endast om loggning är på */}
             {studioConfig.enableWorkoutLogging && (
-                <div className="mt-auto flex-shrink grid grid-cols-1 portrait:grid-cols-2 md:grid-cols-2 gap-6 h-[400px] portrait:!h-[240px] sm:portrait:!h-[260px] mb-6 portrait:mb-2 portrait:gap-4 min-h-0">
+                <div 
+                    className="mt-auto flex-shrink grid grid-cols-1 portrait:grid-cols-2 md:grid-cols-2 gap-6 mb-6 portrait:mb-2 portrait:gap-4 min-h-0"
+                    style={{ height: getBottomDashboardHeight() }}
+                >
                     <motion.div 
                         initial={{ opacity: 0, y: 30 }} 
                         animate={{ opacity: 1, y: 0 }} 

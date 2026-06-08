@@ -64,8 +64,8 @@ const getBannerHeight = () => {
     const isPortrait = window.innerHeight > window.innerWidth;
     
     if (isPortrait) {
-        if (width < 640) return 150;
-        return 170;
+        if (width < 640) return 160;
+        return 210;
     }
     
     if (width < 640) return 240;
@@ -1224,8 +1224,8 @@ const App: React.FC = () => {
   const showUserBackground = page === Page.MemberProfile && !!userData?.backgroundImageUrl;
   const backgroundOverlayOpacity = userData?.backgroundOverlayOpacity ?? 20;
 
-  return (
-    <div id="app-root-container" className={`${showUserBackground ? 'bg-transparent' : 'bg-white dark:bg-black'} text-gray-800 dark:text-gray-200 font-sans flex flex-col ${isStudioMode && page === Page.Home ? 'h-screen overflow-hidden' : 'min-h-screen'} ${paddingClass}`}>
+    return (
+    <div id="app-root-container" className={`${showUserBackground ? 'bg-transparent' : 'bg-white dark:bg-black'} text-gray-800 dark:text-gray-200 font-sans flex flex-col ${isStudioMode && page === Page.Home ? 'h-screen h-[100svh] overflow-hidden' : 'min-h-screen'} ${paddingClass}`}>
         {showUserBackground && (
             <div id="user-background-layer" className="fixed inset-0 z-[-1]">
                 <img src={userData.backgroundImageUrl} alt="Background" className="w-full h-full object-cover" />
@@ -1271,28 +1271,30 @@ const App: React.FC = () => {
        {isStudioMode && <PBOverlay isGrattisOpen={!!completionInfo} />}
 
        <div className={(isAnyModalOpen || showPaywall || showWelcomePaywall || showPendingCoach || !(page === Page.Timer || !isFullScreenPage)) ? 'hidden' : 'contents'}>
-           <Header 
-            page={page} 
-            hasBackgroundImage={showUserBackground}
-            onBack={handleBack} 
-            theme={theme}
-            toggleTheme={toggleTheme}
-            isVisible={isTimerHeaderVisible}
-            activeCustomPageTitle={page === Page.CustomContent ? activeCustomPage?.title : undefined}
-            onSignOut={isStudioMode ? undefined : signOut}
-            role={role}
-            historyLength={history.length}
-            showClock={isStudioMode && (page === Page.WorkoutDetail)}
-            hideBackButton={isBackButtonHidden}
-            onCoachAccessRequest={handleCoachAccessRequest}
-            onPreviewWorkoutsRequest={isAdminOrCoach ? handlePreviewWorkoutsRequest : undefined}
-            showCoachButton={isStudioMode}
-            onMemberProfileRequest={handleMemberProfileRequest} 
-            onEditProfileRequest={handleEditProfileRequest}
-            isStudioMode={isStudioMode}
-            hasCustomBack={!!customBackHandlerState}
-            navigateTo={navigateTo}
-          />
+           {!(isStudioMode && page === Page.Home) && (
+               <Header 
+                page={page} 
+                hasBackgroundImage={showUserBackground}
+                onBack={handleBack} 
+                theme={theme}
+                toggleTheme={toggleTheme}
+                isVisible={isTimerHeaderVisible}
+                activeCustomPageTitle={page === Page.CustomContent ? activeCustomPage?.title : undefined}
+                onSignOut={isStudioMode ? undefined : signOut}
+                role={role}
+                historyLength={history.length}
+                showClock={isStudioMode && (page === Page.WorkoutDetail)}
+                hideBackButton={isBackButtonHidden}
+                onCoachAccessRequest={handleCoachAccessRequest}
+                onPreviewWorkoutsRequest={isAdminOrCoach ? handlePreviewWorkoutsRequest : undefined}
+                showCoachButton={isStudioMode}
+                onMemberProfileRequest={handleMemberProfileRequest} 
+                onEditProfileRequest={handleEditProfileRequest}
+                isStudioMode={isStudioMode}
+                hasCustomBack={!!customBackHandlerState}
+                navigateTo={navigateTo}
+              />
+           )}
        </div>
 
       <div className="flex flex-col items-center flex-1 min-h-0 relative">
@@ -1406,7 +1408,7 @@ const App: React.FC = () => {
           
           {isInfoBannerVisible && !isScreensaverActive && (
               // hidden md:block (osynlig på mobil), anpassad höjd på surfplatta & tv
-              <div className="hidden md:block flex-shrink-0 w-full h-[240px] sm:h-[280px] md:h-[320px] lg:h-[420px] xl:h-[512px] portrait:!h-[150px] sm:portrait:!h-[170px] relative z-[40]">
+              <div className="hidden md:block flex-shrink-0 w-full h-[240px] sm:h-[280px] md:h-[320px] lg:h-[420px] xl:h-[512px] portrait:!h-[160px] sm:portrait:!h-[210px] relative z-[40]">
                   <InfoCarouselBanner 
                     messages={activeInfoMessages} 
                     className="relative !h-full" 
@@ -1583,7 +1585,7 @@ const App: React.FC = () => {
                     bottomOffset={isInfoBannerVisible ? (window.innerWidth >= 768 ? getBannerHeight() : 0) : 0}
                 />
                 {isInfoBannerVisible && (
-                    <div className="hidden md:block fixed bottom-0 left-0 right-0 h-[240px] sm:h-[280px] md:h-[320px] lg:h-[420px] xl:h-[512px] portrait:!h-[150px] sm:portrait:!h-[170px] z-[1001]">
+                    <div className="hidden md:block fixed bottom-0 left-0 right-0 h-[240px] sm:h-[280px] md:h-[320px] lg:h-[420px] xl:h-[512px] portrait:!h-[160px] sm:portrait:!h-[210px] z-[1001]">
                         <InfoCarouselBanner 
                             messages={activeInfoMessages} 
                             className="relative !h-full" 
