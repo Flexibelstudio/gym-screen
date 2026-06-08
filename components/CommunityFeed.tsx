@@ -79,15 +79,6 @@ export const CommunityFeed: React.FC<CommunityFeedProps> = ({ onExpand, isExpand
         return () => unsubscribe();
     }, [selectedOrganization, selectedStudio?.locationId, members]);
 
-    const [isPortrait, setIsPortrait] = useState(() => typeof window !== 'undefined' && window.innerHeight > window.innerWidth);
-    useEffect(() => {
-        const handleResize = () => {
-            setIsPortrait(window.innerHeight > window.innerWidth);
-        };
-        window.addEventListener('resize', handleResize);
-        return () => window.removeEventListener('resize', handleResize);
-    }, []);
-
     const [, setTick] = useState(0);
     useEffect(() => {
         const timer = setInterval(() => setTick(t => t + 1), 60000);
@@ -102,37 +93,36 @@ export const CommunityFeed: React.FC<CommunityFeedProps> = ({ onExpand, isExpand
         );
     }
 
-    const baseItemHeight = 72; 
-    const displayItemHeight = isPortrait ? 52 : baseItemHeight;
-    const viewportHeight = baseItemHeight * 4; 
+    const itemHeight = 72; 
+    const viewportHeight = itemHeight * 4; 
 
     return (
         <div 
             onClick={!isExpanded ? onExpand : undefined}
             className={`
-                rounded-[2.5rem] p-6 portrait:!p-4 border flex flex-col relative overflow-hidden transition-all
+                rounded-[2.5rem] p-6 border flex flex-col relative overflow-hidden transition-all
                 ${!isExpanded 
                     ? 'h-full cursor-pointer bg-white/20 dark:bg-white/10 backdrop-blur-md border-gray-200 dark:border-white/10 hover:bg-white/30 dark:hover:bg-white/15 active:scale-[0.99] shadow-2xl' 
                     : 'h-full bg-transparent border-transparent'}
             `}
         >
-            <div className="flex items-center justify-between mb-4 portrait:!mb-2 relative z-10">
+            <div className="flex items-center justify-between mb-4 relative z-10">
                 <div className="flex items-center gap-3">
                     <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse shadow-[0_0_10px_rgba(34,197,94,0.8)]"></div>
-                    <h3 className="text-xl portrait:!text-sm md:text-xl font-black text-gray-900 dark:text-white uppercase tracking-tight leading-none">Gymflödet</h3>
+                    <h3 className="text-xl font-black text-gray-900 dark:text-white uppercase tracking-tight leading-none">Gymflödet</h3>
                 </div>
                 <div className="flex items-center gap-2">
                     <div className="flex items-center gap-1.5 bg-green-500/10 px-2 py-1 rounded-lg border border-green-500/20">
                         <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></div>
-                        <span className="text-[10px] portrait:text-[8px] font-black text-green-600 dark:text-green-400 uppercase tracking-[0.2em]">Live</span>
+                        <span className="text-[10px] font-black text-green-600 dark:text-green-400 uppercase tracking-[0.2em]">Live</span>
                     </div>
-                    {!isExpanded && <span className="text-[10px] portrait:text-[8px] font-black text-primary uppercase">Visa mer</span>}
+                    {!isExpanded && <span className="text-[10px] font-black text-primary uppercase">Visa mer</span>}
                 </div>
             </div>
 
             <div 
-                className={`flex-grow overflow-y-auto pr-1 space-y-2 relative z-10 custom-scrollbar scroll-smooth portrait:space-y-1.5`}
-                style={{ height: !isExpanded ? (isPortrait ? '100%' : `${viewportHeight}px`) : 'auto', maxHeight: isExpanded ? '70vh' : undefined }}
+                className={`flex-grow overflow-y-auto pr-1 space-y-2 relative z-10 custom-scrollbar scroll-smooth`}
+                style={{ height: !isExpanded ? `${viewportHeight}px` : 'auto', maxHeight: isExpanded ? '70vh' : undefined }}
             >
                 <AnimatePresence initial={false} mode="popLayout">
                     {logs.length > 0 ? (
@@ -149,10 +139,10 @@ export const CommunityFeed: React.FC<CommunityFeedProps> = ({ onExpand, isExpand
                                     damping: 30,
                                     opacity: { duration: 0.2 }
                                 }}
-                                className="bg-gray-50 dark:bg-black/30 hover:bg-gray-100 dark:hover:bg-black/40 transition-colors rounded-2xl flex items-center gap-4 portrait:gap-2 border border-gray-100 dark:border-white/5 group px-4 portrait:px-3 shadow-sm"
-                                style={{ height: `${displayItemHeight - 6}px` }}
+                                className="bg-gray-50 dark:bg-black/30 hover:bg-gray-100 dark:hover:bg-black/40 transition-colors rounded-2xl flex items-center gap-4 border border-gray-100 dark:border-white/5 group px-4 shadow-sm"
+                                style={{ height: `${itemHeight - 8}px` }}
                             >
-                                <div className="w-10 h-10 portrait:w-8 portrait:h-8 rounded-2xl bg-gradient-to-tr from-indigo-500 to-purple-500 flex items-center justify-center text-white font-black text-sm portrait:text-xs shadow-lg flex-shrink-0 overflow-hidden border border-white/10">
+                                <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-indigo-500 to-purple-500 flex items-center justify-center text-white font-black text-sm shadow-lg flex-shrink-0 overflow-hidden border border-white/10">
                                     {log.memberPhotoUrl ? (
                                         <img src={log.memberPhotoUrl} alt="" className="w-full h-full object-cover" />
                                     ) : (
@@ -162,19 +152,19 @@ export const CommunityFeed: React.FC<CommunityFeedProps> = ({ onExpand, isExpand
 
                                 <div className="flex-grow min-w-0">
                                     <div className="flex justify-between items-baseline">
-                                        <p className="text-gray-900 dark:text-white font-bold text-sm portrait:text-xs truncate mr-2">
+                                        <p className="text-gray-900 dark:text-white font-bold text-sm truncate mr-2">
                                             {log.memberName || 'Anonym'}
                                         </p>
-                                        <span className="text-[9px] portrait:text-[8px] text-gray-500 dark:text-white/30 font-bold uppercase whitespace-nowrap">
+                                        <span className="text-[9px] text-gray-500 dark:text-white/30 font-bold uppercase whitespace-nowrap">
                                             {getRelativeTime(log.date)}
                                         </span>
                                     </div>
                                     <div className="flex items-center justify-between mt-0.5">
-                                        <p className="text-gray-600 dark:text-white/60 text-[10px] portrait:text-[9px] truncate max-w-[85%] font-medium">
+                                        <p className="text-gray-600 dark:text-white/60 text-[10px] truncate max-w-[85%] font-medium">
                                             {log.workoutTitle}
                                         </p>
                                         {log.feeling && (
-                                            <span className="text-xs portrait:text-[10px]">{getFeelingIcon(log.feeling)}</span>
+                                            <span className="text-xs">{getFeelingIcon(log.feeling)}</span>
                                         )}
                                     </div>
                                 </div>
