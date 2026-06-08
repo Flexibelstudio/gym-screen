@@ -681,21 +681,14 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
     const [viewingDiploma, setViewingDiploma] = useState<WorkoutDiploma | null>(null);
     const isSummerThemeActive = useMemo(() => {
         const configToUse = (studioConfig || selectedOrganization) as any;
-        const theme = configToUse?.seasonalTheme || 'none';
-        if (theme === 'summer' || theme === 'midsummer') return true;
-        if (theme === 'auto') {
-            const m = new Date().getMonth();
-            return m === 5 || m === 6 || m === 7; // juni, juli, augusti
-        }
-        return false;
+        return !!configToUse?.enableSummerChallenge;
     }, [studioConfig, selectedOrganization]);
 
     const [activeTab, setActiveTab] = useState<'overview' | 'goals' | 'strength' | 'benchmarks' | 'summer'>(() => {
         const saved = localStorage.getItem('smart-skarm-profile-active-tab');
         if (saved === 'summer') {
             const configToUse = (studioConfig || selectedOrganization) as any;
-            const theme = configToUse?.seasonalTheme || 'none';
-            const isActive = theme === 'summer' || theme === 'midsummer' || (theme === 'auto' && [5, 6, 7].includes(new Date().getMonth()));
+            const isActive = !!configToUse?.enableSummerChallenge;
             if (!isActive) return 'overview';
         }
         return (saved as any) || 'overview';

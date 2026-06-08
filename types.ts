@@ -191,6 +191,7 @@ export interface StudioConfig {
   enableWorkoutGames?: boolean; // NYTT: Träningslekar
   enableTimer?: boolean; // NYTT: Fristående timer
   enableOtherWorkouts?: boolean; // NYTT: Övriga pass
+  enableSummerChallenge?: boolean; // NYTT: Sommarutmaning (Sommar-Sisu)
   checkInImageEnabled?: boolean;
   checkInImageUrl?: string;
   seasonalTheme?: ThemeOption;

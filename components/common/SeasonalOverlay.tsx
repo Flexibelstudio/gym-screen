@@ -349,7 +349,7 @@ const GymThermometerMascot = ({ isStudioMode = false }: { isStudioMode?: boolean
 
     if (isStudioMode) {
         return (
-            <div className="fixed bottom-10 left-10 z-[2000] flex flex-col items-center pointer-events-none select-none animate-fade-in">
+            <div className="fixed bottom-12 left-12 z-[2000] flex flex-col items-center pointer-events-none select-none animate-fade-in origin-bottom rotate-[12deg]">
                 {/* Clean, stand-alone high-contrast thermometer */}
                 <div className="relative w-8 h-48 bg-slate-950/20 backdrop-blur-sm rounded-full border border-white/20 p-[3px] flex flex-col justify-end overflow-hidden shadow-[inset_0_2px_10px_rgba(0,0,0,0.8)]">
                     <div className={`w-full rounded-full transition-all duration-1000 ease-out ${config.bg} shadow-[0_0_15px_rgba(255,255,255,0.2)]`} style={{ height: config.heightClass }}></div>
@@ -426,26 +426,29 @@ interface SeasonalOverlayProps {
 }
 
 export const SeasonalOverlay: React.FC<SeasonalOverlayProps> = ({ page, isStudioMode = false, isAdminView = false }) => {
+    const { studioConfig } = useStudio();
     const theme = useActiveTheme();
 
     if (isAdminView) return null;
 
-    if (theme === 'none') return null;
+    const isChallengeActive = !!studioConfig?.enableSummerChallenge;
+
+    if (theme === 'none' && !isChallengeActive) return null;
 
     return (
         <>
             {/* 1. Background Particles */}
-            {(theme === 'winter' || theme === 'christmas') && <SnowParticles />}
+            {theme !== 'none' && (theme === 'winter' || theme === 'christmas') && <SnowParticles />}
             {theme === 'halloween' && <FogEffect />}
             {theme === 'valentines' && <FloatingHearts />}
             {theme === 'newyear' && <ConfettiRain />}
-            {(theme === 'summer' || theme === 'midsummer') && <SummerSun />}
+            {theme !== 'none' && (theme === 'summer' || theme === 'midsummer') && <SummerSun />}
             
             {/* 2. Corner Mascots */}
             {theme === 'christmas' && <ChristmasMascot page={page} />}
             {theme === 'easter' && <EasterMascot />}
             {theme === 'halloween' && <HalloweenMascot />}
-            {(theme === 'summer' || theme === 'midsummer') && <GymThermometerMascot isStudioMode={isStudioMode} />}
+            {isChallengeActive && <GymThermometerMascot isStudioMode={isStudioMode} />}
             {theme === 'valentines' && <ValentinesMascot />}
 
             {/* 3. Screen Vignettes/Tints */}

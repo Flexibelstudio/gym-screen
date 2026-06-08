@@ -88,6 +88,15 @@ export const GlobalSettingsContent: React.FC<GlobalSettingsContentProps> = ({
                             />
                             <p className="text-xs text-gray-500 mt-2 pl-2">Aktiverat verktyg för tävlingar och HYROX-pass.</p>
                         </div>
+
+                        <div className="bg-gray-5 dark:bg-gray-900/50 p-4 rounded-xl border border-gray-100 dark:border-gray-700">
+                            <ToggleSwitch 
+                                label="Sommarutmaning (Sommar-Sisu)" 
+                                checked={!!config.enableSummerChallenge} 
+                                onChange={(checked) => handleUpdateConfigField('enableSummerChallenge', checked)} 
+                            />
+                            <p className="text-xs text-gray-500 mt-2 pl-2">Aktiverar den gemensamma sommarutmaningen med träningstermometer för era medlemmar.</p>
+                        </div>
                         
                         <div className="bg-gray-50 dark:bg-gray-900/50 p-4 rounded-xl border border-gray-100 dark:border-gray-700">
                             <div className="flex items-center gap-2">
@@ -269,28 +278,7 @@ export const GlobalSettingsContent: React.FC<GlobalSettingsContentProps> = ({
                             </div>
                         </div>
 
-                        <div className="bg-gray-50 dark:bg-gray-900/50 p-4 rounded-xl border border-gray-100 dark:border-gray-700">
-                            <SelectField 
-                                label="Säsongstema" 
-                                value={config.seasonalTheme || 'none'} 
-                                onChange={(val) => handleUpdateConfigField('seasonalTheme', val as ThemeOption)}
-                            >
-                                <option value="none">Inget tema (Standard)</option>
-                                <option value="auto">Automatiskt (Datumstyrt)</option>
-                                <option value="winter">Vinter ❄️</option>
-                                <option value="christmas">Jul 🎄</option>
-                                <option value="newyear">Nyår 🎆</option>
-                                <option value="valentines">Alla Hjärtans ❤️</option>
-                                <option value="easter">Påsk 🐣</option>
-                                <option value="midsummer">Midsommar 🌸</option>
-                                <option value="summer">Sommar ☀️</option>
-                                <option value="halloween">Halloween 🎃</option>
-                            </SelectField>
-                            <p className="text-xs text-gray-500 mt-2">
-                                Lägger till subtila visuella effekter (t.ex. snö, konfetti) ovanpå din befintliga design.
-                            </p>
-                        </div>
-                        
+
                          <div className="bg-gray-50 dark:bg-gray-900/50 p-4 rounded-xl border border-gray-100 dark:border-gray-700">
                             <SelectField 
                                 label="Navigering (Knappar)" 
