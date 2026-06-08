@@ -89,15 +89,15 @@ export const InfoCarouselBanner: React.FC<InfoCarouselBannerProps> = ({ messages
                         <img 
                             src={currentMessage.imageUrl} 
                             alt={currentMessage.headline} 
-                            // MAFFIG BILD: w-96 h-96
-                            className="w-96 h-96 object-cover rounded-2xl flex-shrink-0 shadow-xl"
+                            // RESPONSIV BILD: w-64 h-64 på surfplatta, w-96 h-96 på storbild.
+                            className="w-48 h-48 md:w-64 md:h-64 xl:w-96 xl:h-96 object-cover rounded-2xl flex-shrink-0 shadow-xl"
                         />
                     )}
                     <div className={`flex-grow min-w-0 ${layout === 'image-right' ? 'text-right' : 'text-left'}`}>
-                        {/* STOR RUBRIK: text-4xl */}
-                        <h4 className="font-bold text-4xl text-primary line-clamp-2 mb-4 leading-tight">{currentMessage.headline}</h4>
-                        {/* STOR TEXT: text-xl */}
-                        <p className={`text-xl ${secondaryTextClass} line-clamp-12 whitespace-pre-wrap leading-relaxed`}>{currentMessage.body}</p>
+                        {/* SKALBAR RUBRIK */}
+                        <h4 className="font-bold text-2xl md:text-3xl xl:text-4xl text-primary line-clamp-2 mb-2 md:mb-4 leading-tight">{currentMessage.headline}</h4>
+                        {/* SKALBAR TEXT MED RADBEGRÄNSNINGAR PÅ MINDRE SKÄRMAR */}
+                        <p className={`text-sm md:text-base xl:text-xl ${secondaryTextClass} line-clamp-4 md:line-clamp-6 xl:line-clamp-12 whitespace-pre-wrap leading-relaxed`}>{currentMessage.body}</p>
                     </div>
                 </div>
             </div>
