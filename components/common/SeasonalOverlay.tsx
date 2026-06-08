@@ -228,7 +228,7 @@ const HalloweenMascot = () => (
     </div>
 );
 
-const GymThermometerMascot = () => {
+const GymThermometerMascot = ({ isStudioMode = false }: { isStudioMode?: boolean }) => {
     const { selectedOrganization } = useStudio();
     const [stats, setStats] = useState({
         avgPoints: 0,
@@ -347,6 +347,25 @@ const GymThermometerMascot = () => {
 
     const config = getStatusConfig();
 
+    if (isStudioMode) {
+        return (
+            <div className="fixed bottom-10 left-10 z-[2000] flex flex-col items-center pointer-events-none select-none animate-fade-in">
+                {/* Clean, stand-alone high-contrast thermometer */}
+                <div className="relative w-8 h-48 bg-slate-950/20 backdrop-blur-sm rounded-full border border-white/20 p-[3px] flex flex-col justify-end overflow-hidden shadow-[inset_0_2px_10px_rgba(0,0,0,0.8)]">
+                    <div className={`w-full rounded-full transition-all duration-1000 ease-out ${config.bg} shadow-[0_0_15px_rgba(255,255,255,0.2)]`} style={{ height: config.heightClass }}></div>
+                </div>
+                {/* Thermometer bulb at the bottom */}
+                <div className={`w-14 h-14 rounded-full border border-white/20 mt-[-6px] flex items-center justify-center transition-all duration-1000 ${config.bg} ${config.glow} shadow-[0_0_25px_rgba(0,0,0,0.8)]`}>
+                    <div className="w-4 h-4 bg-white/30 rounded-full"></div>
+                </div>
+                {/* Ultra-clean badge showing points */}
+                <span className="text-[10px] font-black tracking-wider text-white mt-3 px-2.5 py-1 bg-slate-950/80 backdrop-blur border border-white/10 rounded-full uppercase shadow-md">
+                    {stats.avgPoints} POÄNG
+                </span>
+            </div>
+        );
+    }
+
     return (
         <div className="fixed bottom-6 left-6 z-[2000] p-5 w-80 bg-gray-950/95 border border-white/10 rounded-[2.2rem] shadow-[0_25px_50px_-12px_rgba(0,0,0,0.6)] flex items-center gap-5 text-white animate-fade-in">
             {/* Vänster kolumn: Termometergrafik */}
@@ -402,10 +421,14 @@ const ValentinesMascot = () => (
 
 interface SeasonalOverlayProps {
     page: Page;
+    isStudioMode?: boolean;
+    isAdminView?: boolean;
 }
 
-export const SeasonalOverlay: React.FC<SeasonalOverlayProps> = ({ page }) => {
+export const SeasonalOverlay: React.FC<SeasonalOverlayProps> = ({ page, isStudioMode = false, isAdminView = false }) => {
     const theme = useActiveTheme();
+
+    if (isAdminView) return null;
 
     if (theme === 'none') return null;
 
@@ -422,7 +445,7 @@ export const SeasonalOverlay: React.FC<SeasonalOverlayProps> = ({ page }) => {
             {theme === 'christmas' && <ChristmasMascot page={page} />}
             {theme === 'easter' && <EasterMascot />}
             {theme === 'halloween' && <HalloweenMascot />}
-            {(theme === 'summer' || theme === 'midsummer') && <GymThermometerMascot />}
+            {(theme === 'summer' || theme === 'midsummer') && <GymThermometerMascot isStudioMode={isStudioMode} />}
             {theme === 'valentines' && <ValentinesMascot />}
 
             {/* 3. Screen Vignettes/Tints */}

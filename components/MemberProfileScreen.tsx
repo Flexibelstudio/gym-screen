@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { WorkoutLog, UserData, MemberGoals, Page, UserRole, SmartGoalDetail, WorkoutDiploma, StudioConfig, BenchmarkDefinition } from '../types';
 import { listenToMemberLogs, updateUserGoals, updateUserProfile, uploadImage, updateWorkoutLog, deleteWorkoutLog, requestPushNotificationPermission, auth, getPastRaces } from '../services/firebaseService';
-import { ChartBarIcon, DumbbellIcon, PencilIcon, SparklesIcon, UserIcon, FireIcon, LightningIcon, TrashIcon, CloseIcon, TrophyIcon, ToggleSwitch, ClockIcon, HistoryIcon, FlagIcon, StarIcon, ChevronRightIcon } from './icons';
+import { ChartBarIcon, DumbbellIcon, PencilIcon, SparklesIcon, UserIcon, FireIcon, LightningIcon, TrashIcon, CloseIcon, TrophyIcon, ToggleSwitch, ClockIcon, HistoryIcon, FlagIcon, StarIcon, ChevronRightIcon, SunIcon } from './icons';
 import { Modal } from './ui/Modal';
 import { useConfirm } from './ConfirmContext';
 import { resizeImage } from '../utils/imageUtils';
@@ -679,13 +679,37 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
     const [isCreatingNewGoal, setIsCreatingNewGoal] = useState(false);
     const [isMyStrengthVisible, setIsMyStrengthVisible] = useState(false);
     const [viewingDiploma, setViewingDiploma] = useState<WorkoutDiploma | null>(null);
+    const isSummerThemeActive = useMemo(() => {
+        const configToUse = (studioConfig || selectedOrganization) as any;
+        const theme = configToUse?.seasonalTheme || 'none';
+        if (theme === 'summer' || theme === 'midsummer') return true;
+        if (theme === 'auto') {
+            const m = new Date().getMonth();
+            return m === 5 || m === 6 || m === 7; // juni, juli, augusti
+        }
+        return false;
+    }, [studioConfig, selectedOrganization]);
+
     const [activeTab, setActiveTab] = useState<'overview' | 'goals' | 'strength' | 'benchmarks' | 'summer'>(() => {
-        return (localStorage.getItem('smart-skarm-profile-active-tab') as any) || 'overview';
+        const saved = localStorage.getItem('smart-skarm-profile-active-tab');
+        if (saved === 'summer') {
+            const configToUse = (studioConfig || selectedOrganization) as any;
+            const theme = configToUse?.seasonalTheme || 'none';
+            const isActive = theme === 'summer' || theme === 'midsummer' || (theme === 'auto' && [5, 6, 7].includes(new Date().getMonth()));
+            if (!isActive) return 'overview';
+        }
+        return (saved as any) || 'overview';
     });
 
     useEffect(() => {
         localStorage.setItem('smart-skarm-profile-active-tab', activeTab);
     }, [activeTab]);
+
+    useEffect(() => {
+        if (activeTab === 'summer' && !isSummerThemeActive) {
+            setActiveTab('overview');
+        }
+    }, [isSummerThemeActive, activeTab]);
 
     const [communityLogs, setCommunityLogs] = useState<WorkoutLog[]>([]);
     const [selectedPhoto, setSelectedPhoto] = useState<WorkoutLog | null>(null);
@@ -1188,7 +1212,7 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                 <div className="flex gap-2 sm:gap-4 transition-all" style={{ filter: userData.backgroundImageUrl ? 'drop-shadow(0px 2px 4px rgba(0,0,0,0.4))' : 'none' }}>
                     {[
                         { id: 'overview', label: 'Översikt', icon: ChartBarIcon },
-                        { id: 'summer', label: 'Sommar-Sisu', icon: ({ className }: any) => <span className={`${className} flex items-center justify-center text-xl sm:text-2xl leading-none select-none filter drop-shadow`}>☀️</span> },
+                        ...(isSummerThemeActive ? [{ id: 'summer', label: 'Sommar-Sisu', icon: SunIcon }] : []),
                         { id: 'goals', label: 'Mål', icon: Target },
                         { id: 'strength', label: 'Styrka', icon: TrophyIcon },
                         { id: 'benchmarks', label: 'Benchmarks', icon: StarIcon }
