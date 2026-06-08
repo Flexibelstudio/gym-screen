@@ -78,26 +78,26 @@ export const InfoCarouselBanner: React.FC<InfoCarouselBannerProps> = ({ messages
 
     return (
         // DOLD PÅ MOBIL (hidden md:flex), INGET "FIXED" (fyller sin behållare snyggt)
-        <div className={`hidden md:flex w-full h-full ${bgClass} backdrop-blur-md ${textClass} z-[1001] border-t ${borderClass} items-center justify-center p-8 ${className}`}>
+        <div className={`hidden md:flex w-full h-full ${bgClass} backdrop-blur-md ${textClass} z-[1001] border-t ${borderClass} items-center justify-center p-8 2xl:p-12 ${className}`}>
              <div
                 key={safeIndex} 
-                className={`w-full max-w-6xl mx-auto px-4 transition-opacity duration-500 ${isFading ? 'opacity-0' : 'opacity-100'} ${getAnimationClass(currentMessage.animation)}`}
+                className={`w-full max-w-6xl 2xl:max-w-7xl mx-auto px-4 transition-opacity duration-500 ${isFading ? 'opacity-0' : 'opacity-100'} ${getAnimationClass(currentMessage.animation)}`}
             >
                 {/* STORT AVSTÅND: gap-12 */}
-                <div className={`flex items-center h-full gap-12 ${layout === 'image-right' ? 'flex-row-reverse justify-end' : 'justify-start'}`}>
+                <div className={`flex items-center h-full gap-12 2xl:gap-16 ${layout === 'image-right' ? 'flex-row-reverse justify-end' : 'justify-start'}`}>
                     {hasImage && (
                         <img 
                             src={currentMessage.imageUrl} 
                             alt={currentMessage.headline} 
-                            // RESPONSIV BILD: w-64 h-64 på surfplatta, w-96 h-96 på storbild.
-                            className="w-48 h-48 md:w-64 md:h-64 xl:w-96 xl:h-96 object-cover rounded-2xl flex-shrink-0 shadow-xl"
+                            // RESPONSIV BILD: w-64 h-64 på surfplatta, w-96 h-96 på storbild, maffig på 65" (2xl).
+                            className="w-48 h-48 md:w-64 md:h-64 xl:w-96 xl:h-96 2xl:w-[440px] 2xl:h-[440px] object-cover rounded-2xl flex-shrink-0 shadow-xl"
                         />
                     )}
                     <div className={`flex-grow min-w-0 ${layout === 'image-right' ? 'text-right' : 'text-left'}`}>
                         {/* SKALBAR RUBRIK */}
-                        <h4 className="font-bold text-2xl md:text-3xl xl:text-4xl text-primary line-clamp-2 mb-2 md:mb-4 leading-tight">{currentMessage.headline}</h4>
+                        <h4 className="font-bold text-2xl md:text-3xl xl:text-4xl 2xl:text-5xl text-primary line-clamp-2 mb-2 md:mb-4 2xl:mb-6 leading-tight">{currentMessage.headline}</h4>
                         {/* SKALBAR TEXT MED RADBEGRÄNSNINGAR PÅ MINDRE SKÄRMAR */}
-                        <p className={`text-sm md:text-base xl:text-xl ${secondaryTextClass} line-clamp-4 md:line-clamp-6 xl:line-clamp-12 whitespace-pre-wrap leading-relaxed`}>{currentMessage.body}</p>
+                        <p className={`text-sm md:text-base xl:text-xl 2xl:text-[1.375rem] ${secondaryTextClass} line-clamp-4 md:line-clamp-6 xl:line-clamp-12 whitespace-pre-wrap leading-relaxed`}>{currentMessage.body}</p>
                     </div>
                 </div>
             </div>
