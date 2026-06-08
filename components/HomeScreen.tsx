@@ -76,7 +76,7 @@ const MenuCard: React.FC<{
             variants={variants}
             onClick={onClick}
             className={`
-                relative overflow-hidden rounded-3xl p-6 text-left flex flex-col justify-between aspect-square w-full
+                relative overflow-hidden rounded-2xl p-4 sm:p-5 text-left flex flex-col justify-between aspect-square w-full
                 bg-primary bg-gradient-to-br from-white/20 via-transparent to-black/30 text-white
                 shadow-xl border-t border-l border-white/20 transition-shadow duration-300
                 hover:shadow-primary/20 hover:-translate-y-1
@@ -111,7 +111,7 @@ const MenuCard: React.FC<{
                     {!hideTitle && (
                         <>
                             <h3 
-                                className="text-sm sm:text-base md:text-lg lg:text-[1.3rem] xl:text-[1.4rem] font-black leading-[1.1] drop-shadow-md tracking-tight uppercase break-words line-clamp-3"
+                                className="text-xs sm:text-sm md:text-base lg:text-[1.125rem] xl:text-[1.25rem] font-black leading-[1.1] drop-shadow-md tracking-tight uppercase break-words line-clamp-3"
                             >
                                 {title}
                             </h3>

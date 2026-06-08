@@ -1515,6 +1515,16 @@ const EventEditor: React.FC<{
                                 {/* Dynamic print-override styles when modal is displayed */}
                                 <style dangerouslySetInnerHTML={{ __html: `
                                     @media print {
+                                        /* Tvinga kropp och html att flöda naturligt för flersidiga utskrifter */
+                                        html, body {
+                                            overflow: visible !important;
+                                            overflow-x: visible !important;
+                                            overflow-y: visible !important;
+                                            height: auto !important;
+                                            min-height: auto !important;
+                                            max-height: none !important;
+                                            position: static !important;
+                                        }
                                         /* Hela sidan och vanliga gränssnittet samt modalen döljs */
                                         #root, .print-modal-parent {
                                             display: none !important;
