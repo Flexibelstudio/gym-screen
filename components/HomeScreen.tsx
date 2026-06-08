@@ -76,7 +76,7 @@ const MenuCard: React.FC<{
             variants={variants}
             onClick={onClick}
             className={`
-                relative overflow-hidden rounded-2xl p-4 sm:p-5 text-left flex flex-col justify-between aspect-square portrait:aspect-[1.5/1] w-full
+                relative overflow-hidden rounded-2xl p-4 sm:p-5 text-left flex flex-col justify-between aspect-square w-full
                 bg-primary bg-gradient-to-br from-white/20 via-transparent to-black/30 text-white
                 shadow-xl border-t border-l border-white/20 transition-shadow duration-300
                 hover:shadow-primary/20 hover:-translate-y-1 portrait:hover:translate-y-0 portrait:p-3 sm:portrait:p-3
@@ -295,7 +295,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
 
             {/* Meny-grid */}
             <div className={`flex-shrink-0 ${!studioConfig.enableWorkoutLogging ? 'mb-12' : 'mb-8'} portrait:!mb-2`}>
-                <div className={`grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 ${studioConfig.enableWorkoutLogging ? 'lg:grid-cols-5' : 'lg:grid-cols-4'} gap-4 sm:gap-6 portrait:!gap-2.5`}>
+                <div className={`grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 ${studioConfig.enableWorkoutLogging ? 'lg:grid-cols-5' : 'lg:grid-cols-4'} portrait:!grid-cols-5 gap-4 sm:gap-6 portrait:!gap-2`}>
                     {menuItems.map((item, index) => (
                         <MenuCard
                             key={item.title}
@@ -316,7 +316,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
 
             {/* Botten-dashboard - Endast om loggning är på */}
             {studioConfig.enableWorkoutLogging && (
-                <div className="mt-auto flex-shrink grid grid-cols-1 portrait:grid-cols-2 md:grid-cols-2 gap-6 h-[400px] portrait:h-[220px] sm:portrait:h-[240px] mb-6 portrait:mb-2 portrait:gap-4 min-h-0">
+                <div className="mt-auto flex-shrink grid grid-cols-1 portrait:grid-cols-2 md:grid-cols-2 gap-6 h-[400px] portrait:!h-[160px] sm:portrait:!h-[180px] mb-6 portrait:mb-2 portrait:gap-4 min-h-0">
                     <motion.div 
                         initial={{ opacity: 0, y: 30 }} 
                         animate={{ opacity: 1, y: 0 }} 
