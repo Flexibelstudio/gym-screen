@@ -457,6 +457,8 @@ const ExerciseLogCard: React.FC<{
     const [showTip, setShowTip] = useState(true);
     const [showScaling, setShowScaling] = useState(false);
     const [isEditingFields, setIsEditingFields] = useState(false);
+    const [isNoteActive, setIsNoteActive] = useState(true);
+    const [isNoteExpanded, setIsNoteExpanded] = useState(false);
 
     const toggleField = (field: 'reps' | 'weight' | 'time' | 'distance' | 'kcal') => {
         const current = [...trackingFields];
@@ -501,7 +503,8 @@ const ExerciseLogCard: React.FC<{
                         )}
                         <button 
                             onClick={() => setIsEditingFields(!isEditingFields)}
-                            className={`p-3 rounded-2xl transition-all active:scale-90 shadow-sm ${isEditingFields ? 'bg-primary/10 text-primary' : 'bg-gray-50 dark:bg-gray-800 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200'}`}
+                            className={`p-3 rounded-2xl transition-all active:scale-90 shadow-sm ${isEditingFields ? 'bg-primary/10 text-primary' : 'bg-gray-50 dark:bg-gray-800 text-gray-400 hover:text-gray-650 dark:hover:text-gray-200'}`}
+                        
                         >
                             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
@@ -704,23 +707,67 @@ const ExerciseLogCard: React.FC<{
                 </div>
                 
                 {/* Anteckningar för övningen */}
-                <div className="pt-3 border-t border-gray-100 dark:border-gray-800">
-                    {lastPerformance?.note && (
-                        <div className="mb-3 bg-blue-50/50 dark:bg-blue-900/10 p-4 rounded-xl border border-blue-100/50 dark:border-blue-800/30 shadow-sm">
-                            <span className="block text-xs font-bold uppercase tracking-wider text-blue-500 dark:text-blue-400 mb-1">Anteckning från förra passet:</span>
-                            <p className="text-sm text-blue-900/80 dark:text-blue-200/80 italic leading-relaxed">
-                                "{lastPerformance.note}"
-                            </p>
-                        </div>
-                    )}
-                    <label className="block text-xs font-bold text-gray-550 dark:text-gray-400 uppercase tracking-widest pl-1 mb-2">Din anteckning</label>
-                    <textarea 
-                        value={result.note || ''} 
-                        onChange={(e) => onUpdate({ note: e.target.value })}
-                        placeholder="Lägg till en kommentar..."
-                        className="w-full bg-gray-50/50 dark:bg-gray-800/50 text-sm text-gray-900 dark:text-gray-100 p-4 rounded-2xl border border-gray-100 dark:border-gray-800 focus:outline-none focus:border-primary/55 focus:ring-1 focus:ring-primary/55 transition-all resize-none min-h-[85px] shadow-sm font-medium"
-                    />
-                </div>
+                {isNoteActive && (
+                    <AnimatePresence initial={false} mode="wait">
+                        {isNoteExpanded ? (
+                            <motion.div 
+                                key="expanded"
+                                initial={{ height: 0, opacity: 0 }}
+                                animate={{ height: "auto", opacity: 1 }}
+                                exit={{ height: 0, opacity: 0 }}
+                                className="pt-3 border-t border-gray-100 dark:border-gray-800 overflow-hidden"
+                            >
+                                {lastPerformance?.note && (
+                                    <div className="mb-3 bg-blue-50/50 dark:bg-blue-900/10 p-4 rounded-xl border border-blue-100/50 dark:border-blue-800/30 shadow-sm">
+                                        <span className="block text-xs font-bold uppercase tracking-wider text-blue-500 dark:text-blue-400 mb-1">Anteckning från förra passet:</span>
+                                        <p className="text-sm text-blue-900/80 dark:text-blue-200/80 italic leading-relaxed">
+                                            "{lastPerformance.note}"
+                                        </p>
+                                    </div>
+                                )}
+                                <div className="flex justify-between items-center pl-1 mb-2">
+                                    <label className="block text-xs font-bold text-gray-550 dark:text-gray-400 uppercase tracking-widest">Din anteckning</label>
+                                    <button 
+                                        onClick={() => setIsNoteExpanded(false)}
+                                        className="text-gray-400 hover:text-gray-650 dark:hover:text-gray-200 p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-850 transition-all flex items-center justify-center active:scale-95"
+                                        title="Fäll ihop"
+                                    >
+                                        <span className="transform rotate-180 block text-gray-400 dark:text-gray-500">
+                                            <ChevronDownIcon className="w-5 h-5 stroke-[2.5]" />
+                                        </span>
+                                    </button>
+                                </div>
+                                <textarea 
+                                    value={result.note || ''} 
+                                    onChange={(e) => onUpdate({ note: e.target.value })}
+                                    placeholder="Lägg till en kommentar..."
+                                    className="w-full bg-gray-50/50 dark:bg-gray-800/50 text-sm text-gray-900 dark:text-gray-100 p-4 rounded-2xl border border-gray-100 dark:border-gray-800 focus:outline-none focus:border-primary/55 focus:ring-1 focus:ring-primary/55 transition-all resize-none min-h-[85px] shadow-sm font-medium"
+                                />
+                            </motion.div>
+                        ) : (
+                            <motion.div 
+                                key="collapsed"
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                exit={{ opacity: 0 }}
+                                className="pt-3 border-t border-dashed border-gray-100 dark:border-gray-800"
+                            >
+                                <button 
+                                    onClick={() => setIsNoteExpanded(true)}
+                                    className="w-full flex justify-between items-center pl-1 group focus:outline-none"
+                                >
+                                    <span className="text-xs font-bold text-gray-550 dark:text-gray-400 uppercase tracking-widest group-hover:text-primary transition-colors flex items-center gap-1.5">
+                                        Anteckning
+                                        {result.note && <span className="w-2 h-2 bg-amber-500 rounded-full" />}
+                                    </span>
+                                    <span className="text-gray-400 dark:text-gray-500 group-hover:text-primary transition-colors p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-850 flex items-center justify-center active:scale-95 transition-all">
+                                        <ChevronDownIcon className="w-5 h-5 stroke-[2.5]" />
+                                    </span>
+                                </button>
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
+                )}
             </div>
         </div>
     );
