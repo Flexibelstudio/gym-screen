@@ -6,8 +6,8 @@
 importScripts("https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js");
 importScripts("https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js");
 
-const STATIC_CACHE_NAME = 'smart-skarm-static-v11';
-const DYNAMIC_CACHE_NAME = 'smart-skarm-dynamic-v11';
+const STATIC_CACHE_NAME = 'smart-skarm-static-v12';
+const DYNAMIC_CACHE_NAME = 'smart-skarm-dynamic-v12';
 const FIREBASE_CONFIG = {
   apiKey: "AIzaSyDkdGj5XOkTdpfhSpcvO_TwDTjy204qTq0",
   authDomain: "gym-screen.firebaseapp.com",
