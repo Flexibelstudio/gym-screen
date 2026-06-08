@@ -76,10 +76,10 @@ const MenuCard: React.FC<{
             variants={variants}
             onClick={onClick}
             className={`
-                relative overflow-hidden rounded-2xl p-4 sm:p-5 text-left flex flex-col justify-between aspect-square w-full
+                relative overflow-hidden rounded-2xl p-4 sm:p-5 text-left flex flex-col justify-between aspect-square portrait:aspect-[1.5/1] w-full
                 bg-primary bg-gradient-to-br from-white/20 via-transparent to-black/30 text-white
                 shadow-xl border-t border-l border-white/20 transition-shadow duration-300
-                hover:shadow-primary/20 hover:-translate-y-1
+                hover:shadow-primary/20 hover:-translate-y-1 portrait:hover:translate-y-0 portrait:p-3 sm:portrait:p-3
             `}
         >
             <AnimatePresence>
@@ -97,13 +97,13 @@ const MenuCard: React.FC<{
             <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full blur-2xl -mr-10 -mt-10 pointer-events-none mix-blend-overlay"></div>
 
             <div className="z-10 flex flex-col h-full justify-between relative min-w-0 w-full">
-                <div className="flex justify-between items-start w-full flex-shrink-0 gap-2">
-                    <div className="mb-2 p-2 bg-white/15 w-fit rounded-xl text-white backdrop-blur-md border border-white/10 shadow-inner flex-shrink-0">
-                        {icon || <DumbbellIcon className="w-6 h-6" />}
+                <div className="flex justify-between items-start w-full flex-shrink-0 gap-2 portrait:gap-1">
+                    <div className="mb-2 p-2 bg-white/15 w-fit rounded-xl text-white backdrop-blur-md border border-white/10 shadow-inner flex-shrink-0 portrait:mb-1 portrait:p-1.5">
+                        {icon || <DumbbellIcon className="w-6 h-6 portrait:w-4 portrait:h-4" />}
                     </div>
                     {isLocked && (
-                        <div className="p-2 bg-black/20 rounded-full text-white/80 backdrop-blur-sm border border-white/10 flex-shrink-0">
-                            <LockIcon className="w-4 h-4" />
+                        <div className="p-2 bg-black/20 rounded-full text-white/80 backdrop-blur-sm border border-white/10 flex-shrink-0 portrait:p-1">
+                            <LockIcon className="w-4 h-4 portrait:w-3 portrait:h-3" />
                         </div>
                     )}
                 </div>
@@ -111,12 +111,12 @@ const MenuCard: React.FC<{
                     {!hideTitle && (
                         <>
                             <h3 
-                                className="text-xs sm:text-sm md:text-base lg:text-[1.125rem] xl:text-[1.25rem] portrait:!text-xs sm:portrait:!text-sm portrait:leading-tight font-black leading-[1.1] drop-shadow-md tracking-tight uppercase break-words line-clamp-3"
+                                className="text-xs sm:text-sm md:text-base lg:text-[1.125rem] xl:text-[1.25rem] portrait:!text-[10px] sm:portrait:!text-xs portrait:leading-[1.1] font-black leading-[1.1] drop-shadow-md tracking-tight uppercase break-words line-clamp-2"
                             >
                                 {title}
                             </h3>
                             {subTitle && (
-                                <p className="text-[10px] md:text-xs font-bold text-white/80 mt-1 uppercase tracking-widest truncate">
+                                <p className="text-[10px] md:text-xs portrait:text-[8px] font-bold text-white/80 mt-1 portrait:mt-0 uppercase tracking-widest truncate">
                                     {subTitle}
                                 </p>
                             )}
@@ -247,7 +247,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
   
   const renderBranding = () => {
       if (studioLoading || (!selectedOrganization && !logoUrl)) {
-          return <div className="h-16 md:h-24 w-48 bg-transparent"></div>;
+          return <div className="h-16 md:h-24 w-48 bg-transparent portrait:!h-10 sm:portrait:!h-12"></div>;
       }
       
       if (logoUrl) {
@@ -257,36 +257,36 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                 animate={{ opacity: 1, x: 0 }}
                 src={logoUrl} 
                 alt="Logo" 
-                className="h-16 md:h-24 object-contain self-start" 
+                className="h-16 md:h-24 object-contain self-start portrait:!h-10 sm:portrait:!h-12" 
             />
           );
       }
 
-      return <h1 className="text-2xl font-black text-primary uppercase tracking-tighter">Smart Skärm</h1>;
+      return <h1 className="text-2xl font-black text-primary uppercase tracking-tighter portrait:text-lg">Smart Skärm</h1>;
   };
 
   return (
     <>
         <AmbientBackground />
         
-        <div className="w-full max-w-[1800px] mx-auto px-4 sm:px-10 portrait:!px-4 flex flex-col flex-1 min-h-0 overflow-y-auto custom-scrollbar">
+        <div className="w-full max-w-[1800px] mx-auto px-4 sm:px-10 portrait:!px-4 flex flex-col flex-1 min-h-0 overflow-y-auto portrait:overflow-hidden custom-scrollbar">
             
             {/* Header Section */}
-            <div className="flex flex-shrink-0 justify-between items-start mb-6 w-full pt-4">
-                <div className="flex flex-col gap-3">
+            <div className="flex flex-shrink-0 justify-between items-start mb-6 portrait:mb-2 w-full pt-4 portrait:pt-2">
+                <div className="flex flex-col gap-3 portrait:gap-1">
                     {renderBranding()}
                     <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
-                        <h2 className="text-2xl sm:text-3xl md:text-5xl portrait:text-2xl sm:portrait:text-3xl font-black text-gray-900 dark:text-white tracking-tight leading-none">{welcomeMessage.title}</h2>
-                        <p className="text-sm sm:text-base md:text-lg portrait:text-xs sm:portrait:text-sm text-gray-400 font-medium mt-1">...{welcomeMessage.subtitle}</p>
+                        <h2 className="text-2xl sm:text-3xl md:text-5xl portrait:text-lg sm:portrait:text-xl font-black text-gray-900 dark:text-white tracking-tight leading-none">{welcomeMessage.title}</h2>
+                        <p className="text-sm sm:text-base md:text-lg portrait:text-[10px] sm:portrait:text-xs text-gray-400 font-medium mt-1">...{welcomeMessage.subtitle}</p>
                     </motion.div>
                 </div>
 
-                <div className="flex flex-col items-end gap-3">
+                <div className="flex flex-col items-end gap-3 portrait:gap-1">
                     <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="text-right">
-                        <span className="block text-4xl sm:text-5xl md:text-7xl portrait:text-4xl sm:portrait:text-5xl font-thin font-mono leading-none text-gray-900 dark:text-white">
+                        <span className="block text-4xl sm:text-5xl md:text-7xl portrait:text-2xl sm:portrait:text-3xl font-thin font-mono leading-none text-gray-900 dark:text-white">
                             {currentTime.toLocaleTimeString('sv-SE', { hour: '2-digit', minute: '2-digit', hour12: false })}
                         </span>
-                        <span className="text-primary uppercase tracking-[0.2em] font-black text-[10px] sm:text-xs md:text-sm mt-1.5 block">
+                        <span className="text-primary uppercase tracking-[0.2em] font-black text-[10px] sm:text-xs md:text-sm portrait:text-[8px] mt-1.5 portrait:mt-0.5 block">
                             {currentTime.toLocaleDateString('sv-SE', { weekday: 'long', day: 'numeric', month: 'long' })}
                         </span>
                     </motion.div>
@@ -294,8 +294,8 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
             </div>
 
             {/* Meny-grid */}
-            <div className={`flex-shrink-0 ${!studioConfig.enableWorkoutLogging ? 'mb-12' : 'mb-8'}`}>
-                <div className={`grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 ${studioConfig.enableWorkoutLogging ? 'lg:grid-cols-5' : 'lg:grid-cols-4'} gap-4 sm:gap-6 portrait:!gap-3`}>
+            <div className={`flex-shrink-0 ${!studioConfig.enableWorkoutLogging ? 'mb-12' : 'mb-8'} portrait:!mb-2`}>
+                <div className={`grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 ${studioConfig.enableWorkoutLogging ? 'lg:grid-cols-5' : 'lg:grid-cols-4'} gap-4 sm:gap-6 portrait:!gap-2.5`}>
                     {menuItems.map((item, index) => (
                         <MenuCard
                             key={item.title}
@@ -316,12 +316,12 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
 
             {/* Botten-dashboard - Endast om loggning är på */}
             {studioConfig.enableWorkoutLogging && (
-                <div className="mt-auto flex-shrink-0 grid grid-cols-1 md:grid-cols-2 gap-6 h-[400px] mb-6">
+                <div className="mt-auto flex-shrink grid grid-cols-1 portrait:grid-cols-2 md:grid-cols-2 gap-6 h-[400px] portrait:h-[220px] sm:portrait:h-[240px] mb-6 portrait:mb-2 portrait:gap-4 min-h-0">
                     <motion.div 
                         initial={{ opacity: 0, y: 30 }} 
                         animate={{ opacity: 1, y: 0 }} 
                         transition={{ delay: 0.6 }}
-                        className="h-full"
+                        className="h-full min-h-0"
                     >
                         <CommunityFeed onExpand={() => setExpandedList('feed')} />
                     </motion.div>
@@ -330,7 +330,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                         initial={{ opacity: 0, y: 30 }} 
                         animate={{ opacity: 1, y: 0 }} 
                         transition={{ delay: 0.7 }}
-                        className="h-full"
+                        className="h-full min-h-0"
                     >
                         <WeeklyPBList onExpand={() => setExpandedList('pb')} />
                     </motion.div>
