@@ -15,6 +15,15 @@ export const WeeklyPBList: React.FC<WeeklyPBListProps> = ({ onExpand, isExpanded
     const { selectedOrganization, selectedStudio } = useStudio();
     const [events, setEvents] = useState<StudioEvent[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+    const [isPortrait, setIsPortrait] = useState(() => typeof window !== 'undefined' && window.innerHeight > window.innerWidth);
+
+    useEffect(() => {
+        const handleResize = () => {
+            setIsPortrait(window.innerHeight > window.innerWidth);
+        };
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
+    }, []);
 
     useEffect(() => {
         if (!selectedOrganization) return;
@@ -46,23 +55,6 @@ export const WeeklyPBList: React.FC<WeeklyPBListProps> = ({ onExpand, isExpanded
         if (isToday) return `Idag ${date.toLocaleTimeString('sv-SE', { hour: '2-digit', minute: '2-digit' })}`;
         return date.toLocaleDateString('sv-SE', { weekday: 'short', day: 'numeric', month: 'short' });
     };
-
-    if (isLoading) {
-        return (
-            <div className="h-full bg-white/10 dark:bg-white/5 backdrop-blur-md rounded-[2.5rem] flex items-center justify-center text-gray-400 dark:text-white/30 text-sm font-bold uppercase tracking-widest border border-gray-200 dark:border-white/10">
-                Laddar PB´s...
-            </div>
-        );
-    }
-
-    const [isPortrait, setIsPortrait] = useState(() => typeof window !== 'undefined' && window.innerHeight > window.innerWidth);
-    useEffect(() => {
-        const handleResize = () => {
-            setIsPortrait(window.innerHeight > window.innerWidth);
-        };
-        window.addEventListener('resize', handleResize);
-        return () => window.removeEventListener('resize', handleResize);
-    }, []);
 
     if (isLoading) {
         return (
