@@ -679,7 +679,27 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
     const [isCreatingNewGoal, setIsCreatingNewGoal] = useState(false);
     const [isMyStrengthVisible, setIsMyStrengthVisible] = useState(false);
     const [viewingDiploma, setViewingDiploma] = useState<WorkoutDiploma | null>(null);
-    const [activeTab, setActiveTab] = useState<'overview' | 'goals' | 'strength' | 'benchmarks'>('overview');
+    const [activeTab, setActiveTab] = useState<'overview' | 'goals' | 'strength' | 'benchmarks' | 'summer'>(() => {
+        return (localStorage.getItem('smart-skarm-profile-active-tab') as any) || 'overview';
+    });
+
+    useEffect(() => {
+        localStorage.setItem('smart-skarm-profile-active-tab', activeTab);
+    }, [activeTab]);
+
+    const [communityLogs, setCommunityLogs] = useState<WorkoutLog[]>([]);
+    const [selectedPhoto, setSelectedPhoto] = useState<WorkoutLog | null>(null);
+    const [summerTabLeaderboard, setSummerTabLeaderboard] = useState<'weekly' | 'overall'>('weekly');
+
+    useEffect(() => {
+        if (activeTab !== 'summer' || !userData.organizationId) return;
+        import('../services/firebaseService').then(({ listenToLeaderboardLogs }) => {
+            const unsubscribe = listenToLeaderboardLogs(userData.organizationId!, 1000, (logs) => {
+                setCommunityLogs(logs);
+            });
+            return () => unsubscribe();
+        });
+    }, [activeTab, userData.organizationId]);
     const [selectedDateLogs, setSelectedDateLogs] = useState<{date: Date, logs: WorkoutLog[]} | null>(null);
     const [personalHyroxResults, setPersonalHyroxResults] = useState<{ id: string; raceName: string; date: string; time: number; placement: number; division: string }[]>([]);
     const [hyroxSectionCollapsed, setHyroxSectionCollapsed] = useState(true);
@@ -1168,6 +1188,7 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                 <div className="flex gap-2 sm:gap-4 transition-all" style={{ filter: userData.backgroundImageUrl ? 'drop-shadow(0px 2px 4px rgba(0,0,0,0.4))' : 'none' }}>
                     {[
                         { id: 'overview', label: 'Översikt', icon: ChartBarIcon },
+                        { id: 'summer', label: 'Sommar-Sisu', icon: ({ className }: any) => <span className={`${className} flex items-center justify-center text-xl sm:text-2xl leading-none select-none filter drop-shadow`}>☀️</span> },
                         { id: 'goals', label: 'Mål', icon: Target },
                         { id: 'strength', label: 'Styrka', icon: TrophyIcon },
                         { id: 'benchmarks', label: 'Benchmarks', icon: StarIcon }
@@ -1214,6 +1235,426 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                         </button>
                     </div>
                 </div>
+            )}
+
+            {activeTab === 'summer' && (
+                <div className="space-y-6 sm:space-y-8 animate-fade-in text-gray-900 dark:text-white">
+                    {!userData.joinedSummerChallenge ? (
+                        /* --- CALL TO ACTION: GÅ MED I UTMANINGEN --- */
+                        <div className="relative overflow-hidden bg-gradient-to-br from-amber-500/10 via-yellow-500/5 to-orange-500/10 dark:from-amber-900/20 dark:to-orange-950/20 rounded-[2.5rem] border border-amber-200/50 dark:border-amber-900/30 p-8 sm:p-12 text-center shadow-xl">
+                            <div className="absolute top-[-50px] right-[-50px] w-48 h-48 bg-yellow-400/20 rounded-full blur-[80px] pointer-events-none"></div>
+                            
+                            <span className="text-4xl sm:text-5xl block select-none animate-bounce mb-6">☀️⛱️</span>
+                            <h3 className="text-3xl sm:text-4.5xl font-black tracking-tight leading-tight mb-4 text-gray-900 dark:text-white">
+                                Välkommen till Sommar-Sisu 2026!
+                            </h3>
+                            <p className="text-base text-gray-600 dark:text-gray-300 max-w-2xl mx-auto mb-8 font-medium leading-relaxed">
+                                Häng med på sommarens roligaste utmaning under de varma månaderna! Vi samlar poäng genom våra pass, höjer temperaturen i gymmet och peppar varandra till en stark sommar.
+                            </p>
+
+                            {/* Poängförklaring - Elegant Grid */}
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 max-w-4xl mx-auto mb-10 text-left">
+                                <div className="bg-white dark:bg-gray-900 p-6 rounded-2xl border border-gray-100 dark:border-gray-800 shadow-sm">
+                                    <div className="flex items-center gap-3 mb-3">
+                                        <div className="w-10 h-10 rounded-xl bg-orange-100 dark:bg-orange-900/30 flex items-center justify-center text-xl select-none">🏆</div>
+                                        <h4 className="text-md font-black uppercase tracking-wider text-orange-600 dark:text-orange-400">3 Poäng</h4>
+                                    </div>
+                                    <p className="text-xs text-gray-500 dark:text-gray-400 leading-relaxed">
+                                        Gymmets officiella program eller pass loggade via QR-koder på plats.
+                                    </p>
+                                </div>
+                                <div className="bg-white dark:bg-gray-900 p-6 rounded-2xl border border-gray-100 dark:border-gray-800 shadow-sm">
+                                    <div className="flex items-center gap-3 mb-3">
+                                        <div className="w-10 h-10 rounded-xl bg-yellow-100 dark:bg-yellow-900/30 flex items-center justify-center text-xl select-none">🏋️‍♂️</div>
+                                        <h4 className="text-md font-black uppercase tracking-wider text-yellow-600 dark:text-yellow-400">2 Poäng</h4>
+                                    </div>
+                                    <p className="text-xs text-gray-500 dark:text-gray-400 leading-relaxed">
+                                        Eget pass eller träning som genomförs direkt på plats i studion.
+                                    </p>
+                                </div>
+                                <div className="bg-white dark:bg-gray-900 p-6 rounded-2xl border border-gray-100 dark:border-gray-800 shadow-sm">
+                                    <div className="flex items-center gap-3 mb-3">
+                                        <div className="w-10 h-10 rounded-xl bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center text-xl select-none">🚶‍♂️</div>
+                                        <h4 className="text-md font-black uppercase tracking-wider text-blue-600 dark:text-blue-400">1 Poäng</h4>
+                                    </div>
+                                    <p className="text-xs text-gray-500 dark:text-gray-400 leading-relaxed">
+                                        Alla utomhusaktiviteter (powerwalks, löpning, simning m.m.) minst 30 min.
+                                    </p>
+                                </div>
+                            </div>
+
+                            <button
+                                onClick={async () => {
+                                    try {
+                                        await updateUserProfile(userData.uid, { joinedSummerChallenge: true } as any);
+                                        const confetti = await import('canvas-confetti');
+                                        confetti.default({ particleCount: 150, spread: 80, origin: { y: 0.6 } });
+                                    } catch (err) {
+                                        console.error("Kunde inte gå med i utmaningen:", err);
+                                        alert("Gick inte att anmäla dig till utmaningen. Försök igen!");
+                                    }
+                                }}
+                                className="px-10 py-5 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-white text-base font-black uppercase tracking-widest rounded-2xl transition-all shadow-lg hover:shadow-orange-500/30 active:scale-95 duration-150"
+                            >
+                                Gå med i utmaningen! ☀️⛱️
+                            </button>
+                        </div>
+                    ) : (
+                        /* --- ACTIVE STATE: BENTO GRID --- */
+                        <div className="space-y-6 sm:space-y-8">
+                            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                                {/* BENTO ITEM 1: Personal Score Widget (7 cols) */}
+                                <div className="lg:col-span-7 bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-[2.5rem] p-6 shadow-sm flex flex-col md:flex-row items-center gap-6">
+                                    {/* Circular Sun Score Ring */}
+                                    <div className="relative w-36 h-36 flex-shrink-0 flex items-center justify-center bg-gradient-to-br from-amber-400 to-orange-500 rounded-full shadow-lg shadow-orange-500/20">
+                                        <div className="absolute inset-2 bg-white dark:bg-gray-950 rounded-full flex flex-col items-center justify-center">
+                                            <span className="text-xs font-black tracking-widest text-[#fbbf24] uppercase leading-none mb-1">Dina Poäng</span>
+                                            <span className="text-4xl font-black text-gray-900 dark:text-white leading-none tracking-tight">
+                                                {communityLogs
+                                                    .filter(log => log.memberId === userData.uid)
+                                                    .reduce((acc, log) => {
+                                                        let pts = log.summerPoints;
+                                                        if (pts === undefined) {
+                                                            const isOfficial = log.workoutId && log.workoutId !== 'manual' && !log.workoutId.startsWith('custom_') && !log.workoutId.startsWith('custom-');
+                                                            pts = isOfficial ? 3 : (log.inStudio === true ? 2 : 1);
+                                                        }
+                                                        return acc + pts;
+                                                    }, 0)}
+                                            </span>
+                                            <span className="text-[10px] text-gray-400 font-bold mt-1 uppercase tracking-widest">Totalt</span>
+                                        </div>
+                                    </div>
+                                    
+                                    <div className="flex-1 text-center md:text-left">
+                                        <h4 className="text-xl font-black tracking-tight mb-2 text-gray-900 dark:text-white">Grymt jobbat, {userData.firstName}! ☀️</h4>
+                                        <p className="text-xs text-gray-500 dark:text-gray-400 leading-normal mb-4">
+                                            Du är med i utmaningen! Varje pass du loggar under sommaren räknas automatiskt och höjer gymmets gemensamma temperatur.
+                                        </p>
+                                        <div className="flex flex-wrap gap-2 justify-center md:justify-start">
+                                            <button 
+                                                onClick={() => navigateTo(Page.Home)}
+                                                className="px-4 py-2 bg-gray-900 dark:bg-white text-white dark:text-gray-900 text-[11px] font-black uppercase tracking-widest rounded-xl transition-all shadow hover:bg-primary dark:hover:bg-primary dark:hover:text-white duration-150 active:scale-95"
+                                            >
+                                                Logga pass nu
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* BENTO ITEM 2: Community Temperature Widget (5 cols) */}
+                                <div className="lg:col-span-5 bg-gray-950 border border-white/5 rounded-[2.5rem] p-6 flex flex-col justify-between shadow-xl">
+                                    <div className="flex items-start justify-between gap-4">
+                                        <div>
+                                            <span className="text-[10px] font-black tracking-widest text-[#fbbf24] uppercase block mb-1">Gymmet Tillsammans ☀️</span>
+                                            <h4 className="text-2xl font-black tracking-tight text-white mb-2 leading-none">
+                                                {(() => {
+                                                    // Calculate weekly average
+                                                    const now = new Date();
+                                                    const currentDay = now.getDay() || 7;
+                                                    const monday = new Date(now);
+                                                    monday.setDate(now.getDate() - (currentDay - 1));
+                                                    monday.setHours(0, 0, 0, 0);
+
+                                                    const thisWeeksLogs = communityLogs.filter(log => log.date >= monday.getTime());
+                                                    const userPointsMap: Record<string, number> = {};
+                                                    thisWeeksLogs.forEach(log => {
+                                                        const uid = log.memberId;
+                                                        if (!uid) return;
+                                                        let pts = log.summerPoints;
+                                                        if (pts === undefined) {
+                                                            const isOfficial = log.workoutId && log.workoutId !== 'manual' && !log.workoutId.startsWith('custom_') && !log.workoutId.startsWith('custom-');
+                                                            pts = isOfficial ? 3 : (log.inStudio === true ? 2 : 1);
+                                                        }
+                                                        userPointsMap[uid] = (userPointsMap[uid] || 0) + pts;
+                                                    });
+
+                                                    const activeCount = Object.keys(userPointsMap).length;
+                                                    let totalPoints = 0;
+                                                    Object.values(userPointsMap).forEach(pts => totalPoints += pts);
+                                                    const avg = activeCount > 0 ? Number((totalPoints / activeCount).toFixed(1)) : 0;
+
+                                                    if (avg >= 6.5) return <span className="text-red-500">HET 🌋</span>;
+                                                    if (avg >= 4.5) return <span className="text-orange-500">VARMT 🔥</span>;
+                                                    if (avg >= 2.5) return <span className="text-yellow-500">LJUMMET 🌤️</span>;
+                                                    return <span className="text-blue-400">SVALT ❄️</span>;
+                                                })()}
+                                            </h4>
+                                            <p className="text-[11px] text-gray-400 leading-snug">
+                                                Veckans status på Smart Skärmen. Ju fler poäng vi loggar, desto mer stiger mätaren!
+                                            </p>
+                                        </div>
+                                        {/* Icon indicator */}
+                                        <div className="w-12 h-12 bg-white/5 rounded-2xl flex items-center justify-center text-2xl select-none">🔥</div>
+                                    </div>
+
+                                    {/* Metrics */}
+                                    <div className="grid grid-cols-2 gap-4 mt-6 pt-4 border-t border-white/5 text-left">
+                                        <div>
+                                            <p className="text-[9px] font-black text-gray-500 uppercase tracking-widest mb-0.5">Veckosnitt</p>
+                                            <p className="text-lg font-extrabold text-white">
+                                                {(() => {
+                                                    const now = new Date();
+                                                    const currentDay = now.getDay() || 7;
+                                                    const monday = new Date(now);
+                                                    monday.setDate(now.getDate() - (currentDay - 1));
+                                                    monday.setHours(0, 0, 0, 0);
+
+                                                    const thisWeeksLogs = communityLogs.filter(log => log.date >= monday.getTime());
+                                                    const userPointsMap: Record<string, number> = {};
+                                                    thisWeeksLogs.forEach(log => {
+                                                        const uid = log.memberId;
+                                                        if (!uid) return;
+                                                        let pts = log.summerPoints;
+                                                        if (pts === undefined) {
+                                                            const isOfficial = log.workoutId && log.workoutId !== 'manual' && !log.workoutId.startsWith('custom_') && !log.workoutId.startsWith('custom-');
+                                                            pts = isOfficial ? 3 : (log.inStudio === true ? 2 : 1);
+                                                        }
+                                                        userPointsMap[uid] = (userPointsMap[uid] || 0) + pts;
+                                                    });
+
+                                                    const activeCount = Object.keys(userPointsMap).length;
+                                                    let totalPoints = 0;
+                                                    Object.values(userPointsMap).forEach(pts => totalPoints += pts);
+                                                    return activeCount > 0 ? (totalPoints / activeCount).toFixed(1) : '0.0';
+                                                })()} poäng
+                                            </p>
+                                        </div>
+                                        <div>
+                                            <p className="text-[9px] font-black text-gray-500 uppercase tracking-widest mb-0.5">Aktiva medlemmar</p>
+                                            <p className="text-lg font-extrabold text-white">
+                                                {(() => {
+                                                    const now = new Date();
+                                                    const currentDay = now.getDay() || 7;
+                                                    const monday = new Date(now);
+                                                    monday.setDate(now.getDate() - (currentDay - 1));
+                                                    monday.setHours(0, 0, 0, 0);
+
+                                                    const thisWeeksLogs = communityLogs.filter(log => log.date >= monday.getTime());
+                                                    const userIds = new Set(thisWeeksLogs.map(l => l.memberId).filter(Boolean));
+                                                    return userIds.size;
+                                                })()} st
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* --- COLLABORATIVE photo FEED: Sommarfeeden 📸 --- */}
+                            {communityLogs.filter(log => log.imageUrl && log.imageUrl.trim() !== '').length > 0 && (
+                                <div className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-[2.5rem] p-6 shadow-sm text-left">
+                                    <h4 className="text-lg font-black tracking-tight mb-4 flex items-center gap-2 text-gray-900 dark:text-white">
+                                        <span>📸</span> Sommarfeeden i gymmet
+                                    </h4>
+                                    <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-thin scrollbar-thumb-gray-200 dark:scrollbar-thumb-gray-800">
+                                        {communityLogs
+                                            .filter(log => log.imageUrl && log.imageUrl.trim() !== '')
+                                            .sort((a, b) => b.date - a.date)
+                                            .map((log) => (
+                                                <button
+                                                    key={log.id || `${log.memberId}_${log.date}`}
+                                                    onClick={() => setSelectedPhoto(log)}
+                                                    className="flex-shrink-0 w-36 group focus:outline-none focus:ring-2 focus:ring-primary rounded-2xl p-1 transition-all"
+                                                >
+                                                    <div className="relative w-full h-36 rounded-2xl overflow-hidden mb-1.5 shadow-md">
+                                                        <img 
+                                                            src={log.imageUrl} 
+                                                            alt={log.workoutTitle || "Sommarbild"}
+                                                            className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110"
+                                                        />
+                                                        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-2">
+                                                            <span className="text-[10px] text-white truncate w-full font-bold">Se detaljer ➔</span>
+                                                        </div>
+                                                    </div>
+                                                    <span className="block text-[10px] font-black text-gray-800 dark:text-gray-200 truncate pr-1">
+                                                        {log.memberName || 'Medlem'}
+                                                    </span>
+                                                    <span className="block text-[8px] font-bold text-gray-400 capitalize">
+                                                        {new Date(log.date).toLocaleDateString('sv-SE', { weekday: 'short', day: 'numeric', month: 'short' })}
+                                                    </span>
+                                                </button>
+                                            ))}
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* --- LEADERBOARDS --- */}
+                            <div className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-[2.5rem] p-6 shadow-sm text-left">
+                                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+                                    <h4 className="text-xl font-black tracking-tight flex items-center gap-2 text-gray-900 dark:text-white">
+                                        <span>🏆</span> Topplistan: Sommar-Sisu
+                                    </h4>
+                                    
+                                    {/* Tab Pivot */}
+                                    <div className="flex bg-gray-50 dark:bg-gray-800/80 p-1.5 rounded-xl border border-gray-100 dark:border-gray-800 w-full sm:w-auto">
+                                        <button
+                                            onClick={() => setSummerTabLeaderboard('weekly')}
+                                            className={`flex-1 sm:flex-none px-4 py-2 text-xs font-black uppercase tracking-wider rounded-lg transition-all duration-150 ${summerTabLeaderboard === 'weekly' ? 'bg-white dark:bg-gray-900 text-gray-900 dark:text-white shadow-md' : 'text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'}`}
+                                        >
+                                            Veckolistan ☀️
+                                        </button>
+                                        <button
+                                            onClick={() => setSummerTabLeaderboard('overall')}
+                                            className={`flex-1 sm:flex-none px-4 py-2 text-xs font-black uppercase tracking-wider rounded-lg transition-all duration-150 ${summerTabLeaderboard === 'overall' ? 'bg-white dark:bg-gray-900 text-gray-900 dark:text-white shadow-md' : 'text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'}`}
+                                        >
+                                            Hela Sommaren 🏆
+                                        </button>
+                                    </div>
+                                </div>
+
+                                {/* List contents */}
+                                <div className="space-y-2 max-w-2xl">
+                                    {(() => {
+                                        const rankList = summerTabLeaderboard === 'weekly' 
+                                            ? (() => {
+                                                const now = new Date();
+                                                const currentDay = now.getDay() || 7;
+                                                const monday = new Date(now);
+                                                monday.setDate(now.getDate() - (currentDay - 1));
+                                                monday.setHours(0, 0, 0, 0);
+
+                                                const thisWeeksLogs = communityLogs.filter(log => log.date >= monday.getTime());
+                                                const userPointsMap: Record<string, { name: string, photoUrl: string, points: number, count: number }> = {};
+                                                thisWeeksLogs.forEach(log => {
+                                                    const uid = log.memberId;
+                                                    if (!uid) return;
+                                                    if (log.showOnLeaderboard === false) return;
+                                                    let pts = log.summerPoints;
+                                                    if (pts === undefined) {
+                                                        const isOfficial = log.workoutId && log.workoutId !== 'manual' && !log.workoutId.startsWith('custom_') && !log.workoutId.startsWith('custom-');
+                                                        pts = isOfficial ? 3 : (log.inStudio === true ? 2 : 1);
+                                                    }
+                                                    if (!userPointsMap[uid]) {
+                                                        userPointsMap[uid] = { name: log.memberName || 'Anonym Medlem', photoUrl: log.memberPhotoUrl || '', points: 0, count: 0 };
+                                                    }
+                                                    userPointsMap[uid].points += pts;
+                                                    userPointsMap[uid].count += 1;
+                                                });
+                                                return Object.entries(userPointsMap).map(([id, d]) => ({ id, ...d })).sort((a, b) => b.points - a.points);
+                                            })()
+                                            : (() => {
+                                                const startMs = new Date('2026-06-15').getTime();
+                                                const endMs = new Date('2026-08-31').getTime();
+                                                const summerLogs = communityLogs.filter(log => log.date >= startMs && log.date <= endMs);
+                                                const userPointsMap: Record<string, { name: string, photoUrl: string, points: number, count: number }> = {};
+                                                summerLogs.forEach(log => {
+                                                    const uid = log.memberId;
+                                                    if (!uid) return;
+                                                    if (log.showOnLeaderboard === false) return;
+                                                    let pts = log.summerPoints;
+                                                    if (pts === undefined) {
+                                                        const isOfficial = log.workoutId && log.workoutId !== 'manual' && !log.workoutId.startsWith('custom_') && !log.workoutId.startsWith('custom-');
+                                                        pts = isOfficial ? 3 : (log.inStudio === true ? 2 : 1);
+                                                    }
+                                                    if (!userPointsMap[uid]) {
+                                                        userPointsMap[uid] = { name: log.memberName || 'Anonym Medlem', photoUrl: log.memberPhotoUrl || '', points: 0, count: 0 };
+                                                    }
+                                                    userPointsMap[uid].points += pts;
+                                                    userPointsMap[uid].count += 1;
+                                                });
+                                                return Object.entries(userPointsMap).map(([id, d]) => ({ id, ...d })).sort((a, b) => b.points - a.points);
+                                            })();
+
+                                        if (rankList.length === 0) {
+                                            return (
+                                                <div className="py-12 text-center text-xs text-gray-400 font-bold uppercase tracking-widest border border-dashed border-gray-100 dark:border-gray-800 rounded-[1.5rem]">
+                                                    Inga pass loggade ännu – logga ditt första pass och hjälp gänget! ☀️
+                                                </div>
+                                            );
+                                        }
+
+                                        return rankList.map((entry, idx) => {
+                                            const isMe = entry.id === userData.uid;
+                                            return (
+                                                <div 
+                                                    key={entry.id}
+                                                    className={`p-4 rounded-xl flex items-center justify-between border transition-all ${isMe ? 'bg-primary/10 border-primary/20 scale-[1.02] shadow-sm' : 'bg-gray-50/50 dark:bg-gray-800/20 border-gray-100/50 dark:border-gray-800/50'}`}
+                                                >
+                                                    <div className="flex items-center gap-4">
+                                                        {/* Rank Bubble */}
+                                                        <div className="w-6 text-center select-none">
+                                                            {idx === 0 ? <span className="text-xl">🥇</span> : idx === 1 ? <span className="text-xl">🥈</span> : idx === 2 ? <span className="text-xl">🥉</span> : <span className="text-xs font-black text-gray-400">{idx + 1}</span>}
+                                                        </div>
+                                                        {/* Profile Pic */}
+                                                        {entry.photoUrl ? (
+                                                            <img src={entry.photoUrl} alt={entry.name} className="w-10 h-10 rounded-xl object-cover shadow-inner" referrerPolicy="no-referrer" />
+                                                        ) : (
+                                                            <div className="w-10 h-10 bg-gray-200 dark:bg-gray-800 text-gray-400 dark:text-gray-500 rounded-xl flex items-center justify-center font-black select-none text-sm">{entry.name[0]?.toUpperCase() || '?'}</div>
+                                                        )}
+                                                        {/* Name/Sub */}
+                                                        <div>
+                                                            <h5 className="font-bold text-sm text-gray-900 dark:text-white flex items-center gap-1.5 leading-none mb-1">
+                                                                {entry.name} {isMe && <span className="px-1.5 py-0.5 bg-primary text-[8px] font-black uppercase tracking-widest text-white rounded-md select-none">DIG</span>}
+                                                            </h5>
+                                                            <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider leading-none">
+                                                                {entry.count} pass loggade
+                                                            </p>
+                                                        </div>
+                                                    </div>
+                                                    {/* Score */}
+                                                    <div className="text-right">
+                                                        <p className="text-sm font-black text-gray-900 dark:text-white leading-none">
+                                                            {entry.points} poäng
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                            );
+                                        });
+                                    })()}
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            )}
+
+            {/* Modal för bildvisning från Sommarfeeden */}
+            {selectedPhoto && (
+                <Modal 
+                    isOpen={!!selectedPhoto} 
+                    onClose={() => setSelectedPhoto(null)} 
+                    title={`Loggat av ${selectedPhoto.memberName || 'Medlem'}`}
+                    size="md"
+                >
+                    <div className="space-y-6 text-left text-gray-900 dark:text-white">
+                        <div className="overflow-hidden rounded-2xl border border-gray-100 dark:border-gray-800 shadow-md">
+                            <img src={selectedPhoto.imageUrl} alt="Sommarbild" className="w-full max-h-[450px] object-cover" />
+                        </div>
+                        <div className="space-y-3">
+                            <div className="flex items-center gap-3">
+                                {selectedPhoto.memberPhotoUrl ? (
+                                    <img src={selectedPhoto.memberPhotoUrl} alt="Medlem" className="w-10 h-10 rounded-xl object-cover" referrerPolicy="no-referrer" />
+                                ) : (
+                                    <div className="w-10 h-10 bg-primary/20 text-primary rounded-xl flex items-center justify-center font-black select-none text-sm">{selectedPhoto.memberName?.[0]?.toUpperCase() || '?'}</div>
+                                )}
+                                <div>
+                                    <h5 className="font-bold text-sm leading-none mb-1">{selectedPhoto.memberName || 'Anonym Medlem'}</h5>
+                                    <p className="text-[10px] text-gray-400 font-black uppercase tracking-wider leading-none">
+                                        {new Date(selectedPhoto.date).toLocaleDateString('sv-SE', { weekday: 'long', day: 'numeric', month: 'long' })}
+                                    </p>
+                                </div>
+                            </div>
+                            
+                            <div className="bg-gray-50 dark:bg-gray-800/50 p-4 rounded-xl border border-gray-100 dark:border-gray-800">
+                                <p className="text-xs font-black text-[#fbbf24] uppercase tracking-wider mb-2 leading-none">📋 {selectedPhoto.workoutTitle || 'Träningspass'}</p>
+                                {selectedPhoto.comment ? (
+                                    <p className="text-sm italic">
+                                        "{selectedPhoto.comment}"
+                                    </p>
+                                ) : (
+                                    <p className="text-xs text-gray-400 dark:text-gray-500 font-bold uppercase tracking-widest leading-none">Inget meddelande angivet</p>
+                                )}
+                            </div>
+                        </div>
+                        <div className="flex justify-end">
+                            <button
+                                onClick={() => setSelectedPhoto(null)}
+                                className="px-6 py-2.5 bg-gray-900 dark:bg-white text-white dark:text-gray-900 text-xs font-black uppercase tracking-widest rounded-xl transition-all shadow hover:bg-primary hover:text-white duration-150 active:scale-95"
+                            >
+                                Stäng
+                            </button>
+                        </div>
+                    </div>
+                </Modal>
             )}
 
             {activeTab === 'overview' && (

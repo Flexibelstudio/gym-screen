@@ -2,7 +2,7 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { useStudio } from '../../context/StudioContext';
 import { ThemeOption, Page, SeasonalThemeSetting, ThemeDateRange } from '../../types';
-import { getSeasonalThemes } from '../../services/firebaseService';
+import { getSeasonalThemes, listenToCommunityLogs } from '../../services/firebaseService';
 
 // Helper to get week number
 const getISOWeek = (date: Date): number => {
@@ -228,25 +228,164 @@ const HalloweenMascot = () => (
     </div>
 );
 
-const SummerMascot = () => (
-    <div className="fixed bottom-0 left-4 w-40 h-40 pointer-events-none z-[2000]">
-        <svg viewBox="0 0 200 200" className="w-full h-full drop-shadow-xl">
-            {/* Sun Body */}
-            <circle cx="150" cy="150" r="40" fill="#fbbf24" />
-            {/* Rays */}
-            <g stroke="#fbbf24" strokeWidth="8" strokeLinecap="round">
-                <line x1="150" y1="90" x2="150" y2="70" />
-                <line x1="90" y1="150" x2="70" y2="150" />
-                <line x1="110" y1="110" x2="95" y2="95" />
-            </g>
-            {/* Sunglasses */}
-            <path d="M125,145 L175,145 L175,155 Q175,165 165,165 L160,165 Q150,165 150,155 L150,150 L145,150 L145,155 Q145,165 135,165 L130,165 Q120,165 120,155 Z" fill="#1f2937" />
-            <line x1="120" y1="148" x2="110" y2="140" stroke="#1f2937" strokeWidth="2" />
-            {/* Smile */}
-            <path d="M135,175 Q150,185 165,175" stroke="#b45309" strokeWidth="3" fill="none" strokeLinecap="round" />
-        </svg>
-    </div>
-);
+const GymThermometerMascot = () => {
+    const { selectedOrganization } = useStudio();
+    const [stats, setStats] = useState({
+        avgPoints: 0,
+        activeUsersCount: 0,
+        totalPoints: 0,
+        status: 'kallt' as 'kallt' | 'ljummet' | 'varmt' | 'hett'
+    });
+
+    useEffect(() => {
+        if (!selectedOrganization?.id) return;
+        
+        // Prenumerera på träningspass i realtid
+        const unsubscribe = listenToCommunityLogs(selectedOrganization.id, (logs) => {
+            // Hämta måndagen i den aktuella veckan
+            const now = new Date();
+            const startOfWeek = new Date(now);
+            const day = startOfWeek.getDay();
+            const diff = startOfWeek.getDate() - day + (day === 0 ? -6 : 1);
+            startOfWeek.setDate(diff);
+            startOfWeek.setHours(0, 0, 0, 0);
+
+            const thisWeeksLogs = logs.filter(log => {
+                const d = new Date(log.date).getTime();
+                return d >= startOfWeek.getTime();
+            });
+
+            const userPointsMap: Record<string, number> = {};
+            thisWeeksLogs.forEach(log => {
+                const uid = log.memberId;
+                if (!uid) return;
+                
+                let pts = log.summerPoints;
+                if (pts === undefined) {
+                    const isOfficialTemplate = log.workoutId && log.workoutId !== 'manual' && !log.workoutId.startsWith('custom_') && !log.workoutId.startsWith('custom-');
+                    if (isOfficialTemplate) {
+                        pts = 3;
+                    } else if (log.inStudio === true) {
+                        pts = 2;
+                    } else {
+                        pts = 1;
+                    }
+                }
+                userPointsMap[uid] = (userPointsMap[uid] || 0) + pts;
+            });
+
+            const activeUsers = Object.keys(userPointsMap);
+            const activeUsersCount = activeUsers.length;
+            let totalPoints = 0;
+            activeUsers.forEach(uid => {
+                totalPoints += userPointsMap[uid];
+            });
+
+            const avgPoints = activeUsersCount > 0 ? Number((totalPoints / activeUsersCount).toFixed(1)) : 0;
+
+            let status: 'kallt' | 'ljummet' | 'varmt' | 'hett' = 'kallt';
+            if (avgPoints >= 6.5) {
+                status = 'hett';
+            } else if (avgPoints >= 4.5) {
+                status = 'varmt';
+            } else if (avgPoints >= 2.5) {
+                status = 'ljummet';
+            }
+
+            setStats({
+                avgPoints,
+                activeUsersCount,
+                totalPoints,
+                status
+            });
+        });
+
+        return () => unsubscribe();
+    }, [selectedOrganization?.id]);
+
+    const getStatusConfig = () => {
+        switch (stats.status) {
+            case 'hett':
+                return {
+                    bg: 'bg-red-500',
+                    text: 'text-red-500',
+                    glow: 'shadow-red-500/50',
+                    heightClass: 'h-[95%]',
+                    label: 'HET 🌋',
+                    desc: 'Gymmet kokar! Det är sjuuukt bra tryck!'
+                };
+            case 'varmt':
+                return {
+                    bg: 'bg-orange-500',
+                    text: 'text-orange-500',
+                    glow: 'shadow-orange-500/50',
+                    heightClass: 'h-[75%]',
+                    label: 'VARMT 🔥',
+                    desc: 'Härligt tempo – nu svettas vi ihop!'
+                };
+            case 'ljummet':
+                return {
+                    bg: 'bg-yellow-500',
+                    text: 'text-yellow-500',
+                    glow: 'shadow-yellow-500/50',
+                    heightClass: 'h-[50%]',
+                    label: 'LJUMMET 🌤️',
+                    desc: 'Stabil fart i gymmet!'
+                };
+            case 'kallt':
+            default:
+                return {
+                    bg: 'bg-blue-500',
+                    text: 'text-blue-500',
+                    glow: 'shadow-blue-500/50',
+                    heightClass: 'h-[25%]',
+                    label: 'SVALT ❄️',
+                    desc: 'Kom igen gänget, dags att öka!'
+                };
+        }
+    };
+
+    const config = getStatusConfig();
+
+    return (
+        <div className="fixed bottom-6 left-6 z-[2000] p-5 w-80 bg-gray-950/95 border border-white/10 rounded-[2.2rem] shadow-[0_25px_50px_-12px_rgba(0,0,0,0.6)] flex items-center gap-5 text-white animate-fade-in">
+            {/* Vänster kolumn: Termometergrafik */}
+            <div className="flex flex-col items-center flex-shrink-0 w-8">
+                {/* Rör */}
+                <div className="relative w-4 h-32 bg-gray-800 rounded-full border border-gray-700/50 p-[2px] flex flex-col justify-end overflow-hidden">
+                    <div className={`w-full rounded-full transition-all duration-1000 ease-out ${config.bg}`} style={{ height: config.heightClass }}></div>
+                </div>
+                {/* Kula */}
+                <div className={`w-8 h-8 rounded-full border border-gray-700/50 mt-[-4px] flex items-center justify-center transition-all ${config.bg} ${config.glow} shadow-[0_0_15px_rgba(0,0,0,0.5)]`}>
+                    <div className="w-3 h-3 bg-white/30 rounded-full"></div>
+                </div>
+            </div>
+
+            {/* Höger kolumn: Text och värden */}
+            <div className="flex-1 min-w-0 text-left">
+                <div className="flex items-center gap-2 mb-1">
+                    <span className="text-[10px] font-black tracking-widest text-[#fbbf24] uppercase">Sommar-Sisu ☀️</span>
+                </div>
+                <h4 className={`text-2xl font-black tracking-tight leading-none mb-1 ${config.text}`}>
+                    {config.label}
+                </h4>
+                <p className="text-[11px] text-gray-400 font-medium mb-3 leading-tight">
+                    {config.desc}
+                </p>
+                <div className="grid grid-cols-2 gap-2 pt-2 border-t border-white/5 text-left">
+                    <div>
+                        <p className="text-[9px] font-black text-gray-500 uppercase tracking-wider mb-0.5">Veckosnitt</p>
+                        <p className="text-sm font-extrabold tracking-tight text-white">{stats.avgPoints} poäng</p>
+                    </div>
+                    <div>
+                        <p className="text-[9px] font-black text-gray-500 uppercase tracking-wider mb-0.5">Aktiva</p>
+                        <p className="text-sm font-extrabold tracking-tight text-white">{stats.activeUsersCount}st</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+};
 
 const ValentinesMascot = () => (
     <div className="fixed bottom-0 left-4 w-32 h-32 pointer-events-none z-[2000]">
@@ -283,7 +422,7 @@ export const SeasonalOverlay: React.FC<SeasonalOverlayProps> = ({ page }) => {
             {theme === 'christmas' && <ChristmasMascot page={page} />}
             {theme === 'easter' && <EasterMascot />}
             {theme === 'halloween' && <HalloweenMascot />}
-            {(theme === 'summer' || theme === 'midsummer') && <SummerMascot />}
+            {(theme === 'summer' || theme === 'midsummer') && <GymThermometerMascot />}
             {theme === 'valentines' && <ValentinesMascot />}
 
             {/* 3. Screen Vignettes/Tints */}

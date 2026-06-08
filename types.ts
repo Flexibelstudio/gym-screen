@@ -410,6 +410,7 @@ export interface UserData {
   showOnLeaderboard?: boolean;
   usePreGameForCustomWorkouts?: boolean;
   isTrainingMember?: boolean;
+  joinedSummerChallenge?: boolean;
   createdAt?: any;
 
   migratedStats?: {
@@ -550,6 +551,8 @@ export interface WorkoutLog {
     totalVolume?: number; // NYTT: Total vikt x reps under passet
     inStudio?: boolean; // NYTT: Indikerar om träningspasset genomfördes på plats på gymmet
     locationId?: string; // NYTT: Ort/Studio där passet loggades eller användaren tillhör
+    imageUrl?: string; // NYTT: Alternativ sommarfeedsbild bifogad till passet
+    summerPoints?: number; // NYTT: Poäng i sommarutmaningen (1, 2 eller 3)
 }
 
 export interface CheckInEvent {
