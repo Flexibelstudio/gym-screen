@@ -33,6 +33,7 @@ interface OrganizationCardProps {
 const OrganizationCard: React.FC<OrganizationCardProps> = React.memo(({ org, onSelect, onArchive, onRestore, onDeletePermanent, onUpdateFreeCoaches, onUpdateName, onUpdateGlobalConfig, onUpdateMigrationOption, onUpdateStripeBypassOption }) => {
     const [freeCoaches, setFreeCoaches] = useState(org.freeCoachAccounts || 0);
     const [enableEventsModule, setEnableEventsModule] = useState(org.globalConfig?.enableEventsModule || false);
+    const [enableSummerChallenge, setEnableSummerChallenge] = useState(org.globalConfig?.enableSummerChallenge || false);
     const [allowMigrationOption, setAllowMigrationOption] = useState(org.allowMigrationOption || false);
     const [allowStripeBypass, setAllowStripeBypass] = useState(org.allowStripeBypass || false);
     const [isSaving, setIsSaving] = useState(false);
@@ -49,6 +50,7 @@ const OrganizationCard: React.FC<OrganizationCardProps> = React.memo(({ org, onS
 
     const hasChanges = freeCoaches !== (org.freeCoachAccounts || 0) || 
         enableEventsModule !== (org.globalConfig?.enableEventsModule || false) || 
+        enableSummerChallenge !== (org.globalConfig?.enableSummerChallenge || false) ||
         allowMigrationOption !== (org.allowMigrationOption || false) ||
         allowStripeBypass !== (org.allowStripeBypass || false);
 
@@ -66,7 +68,8 @@ const OrganizationCard: React.FC<OrganizationCardProps> = React.memo(({ org, onS
         setFreeCoaches(org.freeCoachAccounts || 0);
         setEditNameValue(org.name);
         setEnableEventsModule(org.globalConfig?.enableEventsModule || false);
-    }, [org.freeCoachAccounts, org.name, org.globalConfig?.enableEventsModule]);
+        setEnableSummerChallenge(org.globalConfig?.enableSummerChallenge || false);
+    }, [org.freeCoachAccounts, org.name, org.globalConfig?.enableEventsModule, org.globalConfig?.enableSummerChallenge]);
 
     useEffect(() => {
         if (!isExpanded) return; // Only fetch counts if expanded (performance optimization)
@@ -86,7 +89,11 @@ const OrganizationCard: React.FC<OrganizationCardProps> = React.memo(({ org, onS
         setIsSaving(true);
         try {
             await onUpdateFreeCoaches(org.id, freeCoaches);
-            await onUpdateGlobalConfig(org.id, { ...org.globalConfig, enableEventsModule });
+            await onUpdateGlobalConfig(org.id, { 
+                ...org.globalConfig, 
+                enableEventsModule, 
+                enableSummerChallenge 
+            });
             await onUpdateMigrationOption(org.id, allowMigrationOption);
             await onUpdateStripeBypassOption(org.id, allowStripeBypass);
         } catch (error) {
@@ -294,6 +301,22 @@ const OrganizationCard: React.FC<OrganizationCardProps> = React.memo(({ org, onS
                                                         await onUpdateMigrationOption(org.id, newValue);
                                                     } catch (e) {
                                                         setAllowMigrationOption(!newValue);
+                                                        alert("Ett fel inträffade vid sparande.");
+                                                    }
+                                                }} 
+                                            />
+                                        </div>
+                                        <div className="scale-90 origin-left">
+                                            <ToggleSwitch 
+                                                label="Sommarutmaning"
+                                                checked={enableSummerChallenge} 
+                                                onChange={async () => {
+                                                    const newValue = !enableSummerChallenge;
+                                                    setEnableSummerChallenge(newValue);
+                                                    try {
+                                                        await onUpdateGlobalConfig(org.id, { ...org.globalConfig, enableSummerChallenge: newValue });
+                                                    } catch (e) {
+                                                        setEnableSummerChallenge(!newValue);
                                                         alert("Ett fel inträffade vid sparande.");
                                                     }
                                                 }} 

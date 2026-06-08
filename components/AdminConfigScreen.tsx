@@ -355,17 +355,34 @@ export const StudioConfigModal: React.FC<StudioConfigModalProps> = ({ isOpen, on
 
             case 'checkin':
                 return (
-                     <div className="space-y-6 animate-fade-in px-2">
-                          <div>
-                              <h3 className="font-semibold text-gray-900 dark:text-white mb-2">Navigering (Knappar)</h3>
-                              <p className="text-xs text-gray-500 mb-2">Anpassa var knapparna för "Tillbaka" och "Stäng" ska visas. Bra om skärmen sitter högt upp.</p>
-                              <select 
-                                 value={overrides.navigationControlPosition ?? effectiveConfig.navigationControlPosition ?? 'top'}
-                                 onChange={(e) => setOverrides({ ...overrides, navigationControlPosition: e.target.value as 'top' | 'bottom' })}
-                                 className="w-full p-3 rounded-lg bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white"
-                              >
-                                 <option value="top">Överkant (Standard)</option>
-                                 <option value="bottom">Nederkant (För höga skärmar)</option>
+                    <div className="space-y-6 animate-fade-in px-2">
+                        <div>
+                            <h3 className="font-semibold text-gray-900 dark:text-white mb-2">Tema</h3>
+                            <select 
+                                value={overrides.seasonalTheme ?? effectiveConfig.seasonalTheme ?? 'auto'}
+                                onChange={(e) => setOverrides({ ...overrides, seasonalTheme: e.target.value as ThemeOption })}
+                                className="w-full p-3 rounded-lg bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white"
+                            >
+                                <option value="auto">Automatiskt (Datumstyrt)</option>
+                                <option value="none">Inget tema</option>
+                                <option value="winter">Vinter</option>
+                                <option value="christmas">Jul</option>
+                                <option value="newyear">Nyår</option>
+                                <option value="summer">Sommar</option>
+                                <option value="halloween">Halloween</option>
+                            </select>
+                        </div>
+
+                         <div className="pt-4 border-t border-gray-200 dark:border-gray-800">
+                             <h3 className="font-semibold text-gray-900 dark:text-white mb-2">Navigering (Knappar)</h3>
+                             <p className="text-xs text-gray-500 mb-2">Anpassa var knapparna för "Tillbaka" och "Stäng" ska visas. Bra om skärmen sitter högt upp.</p>
+                             <select 
+                                value={overrides.navigationControlPosition ?? effectiveConfig.navigationControlPosition ?? 'top'}
+                                onChange={(e) => setOverrides({ ...overrides, navigationControlPosition: e.target.value as 'top' | 'bottom' })}
+                                className="w-full p-3 rounded-lg bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white"
+                            >
+                                <option value="top">Överkant (Standard)</option>
+                                <option value="bottom">Nederkant (För höga skärmar)</option>
                             </select>
                         </div>
 
