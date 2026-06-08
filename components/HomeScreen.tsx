@@ -76,7 +76,7 @@ const MenuCard: React.FC<{
             variants={variants}
             onClick={onClick}
             className={`
-                relative overflow-hidden rounded-2xl p-4 sm:p-5 text-left flex flex-col justify-between aspect-square w-full
+                relative overflow-hidden rounded-3xl p-4 sm:p-5 text-left flex flex-col justify-between aspect-square w-full
                 bg-primary bg-gradient-to-br from-white/20 via-transparent to-black/30 text-white
                 shadow-xl border-t border-l border-white/20 transition-shadow duration-300
                 hover:shadow-primary/20 hover:-translate-y-1
