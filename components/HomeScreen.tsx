@@ -76,7 +76,7 @@ const MenuCard: React.FC<{
             variants={variants}
             onClick={onClick}
             className={`
-                relative overflow-hidden rounded-[2.5rem] p-6 text-left flex flex-col justify-between aspect-square w-full
+                relative overflow-hidden rounded-2xl p-4 sm:p-5 text-left flex flex-col justify-between aspect-square w-full
                 bg-primary bg-gradient-to-br from-white/20 via-transparent to-black/30 text-white
                 shadow-xl border-t border-l border-white/20 transition-shadow duration-300
                 hover:shadow-primary/20 hover:-translate-y-1
@@ -111,8 +111,7 @@ const MenuCard: React.FC<{
                     {!hideTitle && (
                         <>
                             <h3 
-                                className="text-base sm:text-lg md:text-xl lg:text-2xl font-black leading-tight drop-shadow-md tracking-tight uppercase break-words line-clamp-3"
-                                style={{ wordBreak: 'break-word', hyphens: 'auto' }}
+                                className="text-xs sm:text-sm md:text-base lg:text-[1.125rem] xl:text-[1.25rem] font-black leading-[1.1] drop-shadow-md tracking-tight uppercase break-words line-clamp-3"
                             >
                                 {title}
                             </h3>
@@ -181,6 +180,22 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
   const [pendingCategory, setPendingCategory] = useState<string | null>(null);
   const [passwordInput, setPasswordInput] = useState("");
   const [passwordError, setPasswordError] = useState(false);
+
+  const hasActiveCarousel = useMemo(() => {
+    const infoCarousel = selectedOrganization?.infoCarousel;
+    if (!infoCarousel?.isEnabled || !selectedStudio || !infoCarousel.messages) return false;
+    const now = new Date();
+    const activeMessages = infoCarousel.messages.filter(msg => {
+        const isStudioMatch = msg.visibleInStudios.includes('all') || msg.visibleInStudios.includes(selectedStudio.id);
+        if (!isStudioMatch) return false;
+        if (msg.startDate && new Date(msg.startDate) > now) return false;
+        if (msg.endDate && new Date(msg.endDate) < now) return false;
+        return true;
+    });
+    return activeMessages.length > 0;
+  }, [selectedOrganization, selectedStudio]);
+
+  const show5Cols = !!(studioConfig.enableWorkoutLogging && hasActiveCarousel);
 
   useEffect(() => {
     const updateGreeting = () => {
@@ -273,21 +288,21 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
         <div className="w-full max-w-[1800px] mx-auto px-6 sm:px-10 flex flex-col flex-1 min-h-0 overflow-y-auto custom-scrollbar">
             
             {/* Header Section */}
-            <div className="flex flex-shrink-0 justify-between items-start mb-6 w-full pt-4">
+            <div className="flex flex-shrink-0 justify-between items-start mb-4 md:mb-6 w-full pt-4">
                 <div className="flex flex-col gap-3">
                     {renderBranding()}
                     <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
-                        <h2 className="text-3xl md:text-5xl font-black text-gray-900 dark:text-white tracking-tight leading-none">{welcomeMessage.title}</h2>
-                        <p className="text-base md:text-lg text-gray-400 font-medium mt-1">...{welcomeMessage.subtitle}</p>
+                        <h2 className="text-2xl sm:text-3xl md:text-3xl lg:text-4xl xl:text-5xl font-black text-gray-900 dark:text-white tracking-tight leading-none">{welcomeMessage.title}</h2>
+                        <p className="text-sm sm:text-base lg:text-lg text-gray-400 font-medium mt-1">...{welcomeMessage.subtitle}</p>
                     </motion.div>
                 </div>
 
                 <div className="flex flex-col items-end gap-3">
                     <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="text-right">
-                        <span className="block text-5xl md:text-7xl font-thin font-mono leading-none text-gray-900 dark:text-white">
+                        <span className="block text-4xl sm:text-5xl md:text-5xl lg:text-6xl xl:text-7xl font-thin font-mono leading-none text-gray-900 dark:text-white">
                             {currentTime.toLocaleTimeString('sv-SE', { hour: '2-digit', minute: '2-digit', hour12: false })}
                         </span>
-                        <span className="text-primary uppercase tracking-[0.2em] font-black text-xs md:text-sm mt-1.5 block">
+                        <span className="text-primary uppercase tracking-[0.2em] font-black text-[10px] sm:text-xs md:text-sm mt-1.5 block">
                             {currentTime.toLocaleDateString('sv-SE', { weekday: 'long', day: 'numeric', month: 'long' })}
                         </span>
                     </motion.div>
@@ -295,8 +310,8 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
             </div>
 
             {/* Meny-grid */}
-            <div className={`flex-shrink-0 ${!studioConfig.enableWorkoutLogging ? 'mb-12' : 'mb-8'}`}>
-                <div className={`grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 ${studioConfig.enableWorkoutLogging ? 'lg:grid-cols-5' : 'lg:grid-cols-4'} gap-4 sm:gap-6`}>
+            <div className={`flex-shrink-0 ${!studioConfig.enableWorkoutLogging ? 'mb-4 md:mb-8 xl:mb-12' : 'mb-3 md:mb-6 xl:mb-8'}`}>
+                <div className={`grid grid-cols-2 sm:grid-cols-3 ${show5Cols ? 'md:grid-cols-5 lg:grid-cols-5 xl:grid-cols-5' : 'md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-4'} gap-4 sm:gap-6`}>
                     {menuItems.map((item, index) => (
                         <MenuCard
                             key={item.title}
@@ -317,7 +332,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
 
             {/* Botten-dashboard - Endast om loggning är på */}
             {studioConfig.enableWorkoutLogging && (
-                <div className="mt-auto flex-shrink-0 grid grid-cols-1 md:grid-cols-2 gap-6 h-[400px] mb-6">
+                <div className="mt-auto flex-shrink-0 grid grid-cols-1 md:grid-cols-2 gap-6 h-[25vh] md:h-[28vh] xl:h-[400px] min-h-[180px] max-h-[400px] mb-4 xl:mb-6">
                     <motion.div 
                         initial={{ opacity: 0, y: 30 }} 
                         animate={{ opacity: 1, y: 0 }} 

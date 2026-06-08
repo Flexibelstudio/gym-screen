@@ -1388,8 +1388,8 @@ const App: React.FC = () => {
           </main>
           
           {isInfoBannerVisible && !isScreensaverActive && (
-              // hidden md:block (osynlig på mobil), fast höjd h-[512px] på resten.
-              <div className="hidden md:block flex-shrink-0 w-full h-[512px] relative z-[40]">
+              // hidden md:block (osynlig på mobil), flex-shrink-0 och flexibel höjd baserat på skärmstorlek.
+              <div className="hidden md:block flex-shrink-0 w-full info-banner-container relative z-[40]">
                   <InfoCarouselBanner 
                     messages={activeInfoMessages} 
                     className="relative !h-full" 
@@ -1563,10 +1563,10 @@ const App: React.FC = () => {
             <>
                 <Screensaver 
                     logoUrl={selectedOrganization?.logoUrlDark || selectedOrganization?.logoUrlLight}
-                    bottomOffset={isInfoBannerVisible ? (window.innerWidth >= 768 ? 512 : 0) : 0}
+                    bottomOffset={isInfoBannerVisible ? (window.innerWidth >= 768 ? (window.innerHeight > 1100 ? 512 : 280) : 0) : 0}
                 />
                 {isInfoBannerVisible && (
-                    <div className="hidden md:block fixed bottom-0 left-0 right-0 h-[512px] z-[1001]">
+                    <div className="hidden md:block fixed bottom-0 left-0 right-0 info-banner-container z-[1001]">
                         <InfoCarouselBanner 
                             messages={activeInfoMessages} 
                             className="relative !h-full" 

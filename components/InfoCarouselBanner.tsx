@@ -78,26 +78,58 @@ export const InfoCarouselBanner: React.FC<InfoCarouselBannerProps> = ({ messages
 
     return (
         // DOLD PÅ MOBIL (hidden md:flex), INGET "FIXED" (fyller sin behållare snyggt)
-        <div className={`hidden md:flex w-full h-full ${bgClass} backdrop-blur-md ${textClass} z-[1001] border-t ${borderClass} items-center justify-center p-8 ${className}`}>
+        <div className={`hidden md:flex w-full h-full ${bgClass} backdrop-blur-md ${textClass} z-[1001] border-t ${borderClass} items-center justify-center p-8 info-carousel-wrapper ${className}`}>
+             <style>{`
+                @media (max-height: 1100px) and (min-width: 768px) {
+                    .info-banner-container {
+                        height: 280px !important;
+                    }
+                    .info-carousel-image {
+                        width: 216px !important;
+                        height: 216px !important;
+                    }
+                    .info-carousel-headline {
+                        font-size: 1.875rem !important; /* text-3xl */
+                        margin-bottom: 0.5rem !important;
+                        line-height: 1.2 !important;
+                    }
+                    .info-carousel-body {
+                        font-size: 1.125rem !important; /* text-lg */
+                        line-height: 1.45 !important;
+                        -webkit-line-clamp: 6 !important;
+                    }
+                    .info-carousel-inner {
+                        gap: 2rem !important;
+                    }
+                    .info-carousel-wrapper {
+                        padding: 1.5rem !important;
+                    }
+                }
+                @media (min-height: 1101px) and (min-width: 768px) {
+                    .info-banner-container {
+                        height: 512px !important;
+                    }
+                }
+             `}</style>
              <div
                 key={safeIndex} 
                 className={`w-full max-w-6xl mx-auto px-4 transition-opacity duration-500 ${isFading ? 'opacity-0' : 'opacity-100'} ${getAnimationClass(currentMessage.animation)}`}
             >
                 {/* STORT AVSTÅND: gap-12 */}
-                <div className={`flex items-center h-full gap-12 ${layout === 'image-right' ? 'flex-row-reverse justify-end' : 'justify-start'}`}>
+                <div className={`flex items-center h-full gap-12 info-carousel-inner ${layout === 'image-right' ? 'flex-row-reverse justify-end' : 'justify-start'}`}>
                     {hasImage && (
                         <img 
                             src={currentMessage.imageUrl} 
                             alt={currentMessage.headline} 
                             // MAFFIG BILD: w-96 h-96
-                            className="w-96 h-96 object-cover rounded-2xl flex-shrink-0 shadow-xl"
+                            className="w-96 h-96 object-cover rounded-2xl flex-shrink-0 shadow-xl info-carousel-image"
                         />
                     )}
                     <div className={`flex-grow min-w-0 ${layout === 'image-right' ? 'text-right' : 'text-left'}`}>
-                        {/* STOR RUBRIK: text-4xl */}
-                        <h4 className="font-bold text-4xl text-primary line-clamp-2 mb-4 leading-tight">{currentMessage.headline}</h4>
+                        {/* RUBRIK */}
+                        <h4 className="font-bold text-4xl text-primary line-clamp-2 mb-4 leading-tight info-carousel-headline">{currentMessage.headline}</h4>
                         {/* STOR TEXT: text-xl */}
-                        <p className={`text-xl ${secondaryTextClass} line-clamp-12 whitespace-pre-wrap leading-relaxed`}>{currentMessage.body}</p>
+                        <p className={`text-xl ${secondaryTextClass} line-clamp-12 whitespace-pre-wrap leading-relaxed info-carousel-body`}>{currentMessage.body}</p>
                     </div>
                 </div>
             </div>
