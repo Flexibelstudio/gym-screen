@@ -58,6 +58,23 @@ import { updateUserProfile } from './services/firebaseService';
 
 const THEME_STORAGE_KEY = 'flexibel-screen-theme';
 
+const getBannerHeight = () => {
+    if (typeof window === 'undefined') return 0;
+    const width = window.innerWidth;
+    const isPortrait = window.innerHeight > window.innerWidth;
+    
+    if (isPortrait) {
+        if (width < 640) return 240;
+        return 280;
+    }
+    
+    if (width < 640) return 240;
+    if (width < 768) return 280;
+    if (width < 1024) return 320;
+    if (width < 1280) return 420;
+    return 512;
+};
+
 const App: React.FC = () => {
   const { 
     selectedStudio, selectStudio, setAllStudios,
@@ -1208,7 +1225,7 @@ const App: React.FC = () => {
   const backgroundOverlayOpacity = userData?.backgroundOverlayOpacity ?? 20;
 
   return (
-    <div id="app-root-container" className={`${showUserBackground ? 'bg-transparent' : 'bg-white dark:bg-black'} text-gray-800 dark:text-gray-200 font-sans flex flex-col ${isStudioMode && page === Page.Home ? 'h-screen overflow-hidden' : 'min-h-screen'} ${paddingClass}`}>
+    <div id="app-root-container" className={`${showUserBackground ? 'bg-transparent' : 'bg-white dark:bg-black'} text-gray-800 dark:text-gray-200 font-sans flex flex-col ${isStudioMode && page === Page.Home ? 'h-screen overflow-hidden portrait:h-auto portrait:overflow-visible' : 'min-h-screen'} ${paddingClass}`}>
         {showUserBackground && (
             <div id="user-background-layer" className="fixed inset-0 z-[-1]">
                 <img src={userData.backgroundImageUrl} alt="Background" className="w-full h-full object-cover" />
@@ -1388,8 +1405,8 @@ const App: React.FC = () => {
           </main>
           
           {isInfoBannerVisible && !isScreensaverActive && (
-              // hidden md:block (osynlig på mobil), fast höjd h-[512px] på resten.
-              <div className="hidden md:block flex-shrink-0 w-full h-[512px] relative z-[40]">
+              // hidden md:block (osynlig på mobil), anpassad höjd på surfplatta & tv
+              <div className="hidden md:block flex-shrink-0 w-full h-[240px] sm:h-[280px] md:h-[320px] lg:h-[420px] xl:h-[512px] portrait:!h-[240px] sm:portrait:!h-[280px] relative z-[40]">
                   <InfoCarouselBanner 
                     messages={activeInfoMessages} 
                     className="relative !h-full" 
@@ -1563,10 +1580,10 @@ const App: React.FC = () => {
             <>
                 <Screensaver 
                     logoUrl={selectedOrganization?.logoUrlDark || selectedOrganization?.logoUrlLight}
-                    bottomOffset={isInfoBannerVisible ? (window.innerWidth >= 768 ? 512 : 0) : 0}
+                    bottomOffset={isInfoBannerVisible ? (window.innerWidth >= 768 ? getBannerHeight() : 0) : 0}
                 />
                 {isInfoBannerVisible && (
-                    <div className="hidden md:block fixed bottom-0 left-0 right-0 h-[512px] z-[1001]">
+                    <div className="hidden md:block fixed bottom-0 left-0 right-0 h-[240px] sm:h-[280px] md:h-[320px] lg:h-[420px] xl:h-[512px] portrait:!h-[240px] sm:portrait:!h-[280px] z-[1001]">
                         <InfoCarouselBanner 
                             messages={activeInfoMessages} 
                             className="relative !h-full" 
