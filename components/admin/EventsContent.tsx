@@ -400,7 +400,7 @@ const StartListPrintView: React.FC<{
             {/* Footer */}
             <div className="mt-8 border-t border-gray-400 pt-4 flex justify-between items-center text-[10px] text-gray-500 font-medium bg-white">
                 <div>Utskriven: {new Date().toLocaleDateString('sv-SE')} | Smart Skärm Event Management</div>
-                <div>Sida 1 av 1</div>
+                <div className="print:hidden">Startlista</div>
             </div>
         </div>
     );
@@ -1504,101 +1504,109 @@ const EventEditor: React.FC<{
             {typeof document !== 'undefined' && createPortal(
                 <AnimatePresence>
                     {showPrintModal && (
-                        <motion.div
-                            key="print-modal-overlay"
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            exit={{ opacity: 0 }}
-                            className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/55 backdrop-blur-sm print-modal-parent"
-                        >
-                            {/* Dynamic print-override styles when modal is displayed */}
-                            <style dangerouslySetInnerHTML={{ __html: `
-                                @media print {
-                                    /* Hela sidan döljs */
-                                    body * {
-                                        visibility: hidden !important;
-                                    }
-                                    /* Enbart vår startlista visas */
-                                    .printable-start-list, .printable-start-list * {
-                                        visibility: visible !important;
-                                    }
-                                    /* Startlistan positioneras högst upp till vänster */
-                                    .printable-start-list {
-                                        position: absolute !important;
-                                        left: 0 !important;
-                                        top: 0 !important;
-                                        width: 100% !important;
-                                        height: auto !important;
-                                        background-color: white !important;
-                                        padding: 0 !important;
-                                        margin: 0 !important;
-                                        box-sizing: border-box !important;
-                                        font-size: 11px !important;
-                                    }
-                                    /* Snygg sidbrytningskontroll */
-                                    .avoid-break {
-                                        page-break-inside: avoid !important;
-                                        break-inside: avoid !important;
-                                    }
-                                    /* Ta bort onödiga bakgrunder och ramar vid utskrift */
-                                    @page {
-                                        margin: 15mm 10mm !important;
-                                        size: portrait !important;
-                                    }
-                                }
-                            `}} />
-
+                        <>
                             <motion.div
-                                key="print-modal-card"
-                                initial={{ opacity: 0, scale: 0.95 }}
-                                animate={{ opacity: 1, scale: 1 }}
-                                exit={{ opacity: 0, scale: 0.95 }}
-                                className="bg-white dark:bg-gray-900 text-gray-900 dark:text-white rounded-[2rem] w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col shadow-2xl border border-gray-200 dark:border-gray-800"
+                                key="print-modal-overlay"
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                exit={{ opacity: 0 }}
+                                className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/55 backdrop-blur-sm print-modal-parent"
                             >
-                                {/* HEADING BANNER - SCREEN ONLY */}
-                                <div className="p-6 bg-gray-50 dark:bg-gray-950 border-b border-gray-200 dark:border-gray-800 flex justify-between items-center select-none">
-                                    <div className="flex items-center gap-3">
-                                        <div className="p-2 bg-indigo-50 dark:bg-indigo-950/40 text-indigo-650 dark:text-indigo-400 rounded-lg">
-                                            <Printer className="w-5 h-5 flex-shrink-0" />
-                                        </div>
-                                        <div>
-                                            <h3 className="font-extrabold text-sm text-black dark:text-white">Förhandsgranskning av startlista</h3>
-                                            <p className="text-xs text-gray-500">Utskrift är optimerad för A4 (stående format)</p>
-                                        </div>
-                                    </div>
-                                    <div className="flex gap-2">
-                                        <button
-                                            type="button"
-                                            onClick={() => window.print()}
-                                            className="bg-indigo-650 hover:bg-indigo-600 dark:bg-indigo-600 dark:hover:bg-indigo-500 text-white font-bold py-2 px-4 rounded-xl text-xs flex items-center gap-1.5 shadow-sm shadow-indigo-500/25 cursor-pointer"
-                                        >
-                                            <Printer className="w-4 h-4 flex-shrink-0" />
-                                            Skriv ut nu
-                                        </button>
-                                        <button
-                                            type="button"
-                                            onClick={() => setShowPrintModal(false)}
-                                            className="bg-gray-200 dark:bg-gray-800 hover:bg-gray-300 dark:hover:bg-gray-700 text-gray-800 dark:text-gray-200 font-bold py-2 px-4 rounded-xl text-xs cursor-pointer"
-                                        >
-                                            Stäng
-                                        </button>
-                                    </div>
-                                </div>
+                                {/* Dynamic print-override styles when modal is displayed */}
+                                <style dangerouslySetInnerHTML={{ __html: `
+                                    @media print {
+                                        /* Hela sidan och vanliga gränssnittet samt modalen döljs */
+                                        #root, .print-modal-parent {
+                                            display: none !important;
+                                        }
+                                        /* Enbart vår dedikerade print-copy visas på ren vit bakgrund */
+                                        .printable-start-list-print-only {
+                                            display: block !important;
+                                            position: relative !important;
+                                            width: 100% !important;
+                                            height: auto !important;
+                                            background-color: white !important;
+                                            color: black !important;
+                                            padding: 0 !important;
+                                            margin: 0 !important;
+                                            font-size: 11px !important;
+                                        }
+                                        /* Snygg sidbrytningskontroll */
+                                        .avoid-break {
+                                            page-break-inside: avoid !important;
+                                            break-inside: avoid !important;
+                                        }
+                                        /* Ta bort onödiga bakgrunder och ramar vid utskrift */
+                                        @page {
+                                            margin: 15mm 10mm !important;
+                                            size: portrait !important;
+                                        }
+                                    }
+                                `}} />
 
-                                {/* SCREEN PREVIEW SCROLL CONTAINER */}
-                                <div className="flex-1 overflow-y-auto p-8 bg-gray-100 dark:bg-gray-950 flex justify-center">
-                                    <div className="bg-white text-gray-900 shadow-lg border border-gray-250 p-6 max-w-[210mm] w-full min-h-[297mm]">
-                                        <StartListPrintView
-                                            raceName={raceName}
-                                            scheduledDate={scheduledDate}
-                                            startIntervalMinutes={startIntervalMinutes}
-                                            startIntervalSeconds={startIntervalSeconds}
-                                            startGroups={startGroups}
-                                        />
+                                <motion.div
+                                    key="print-modal-card"
+                                    initial={{ opacity: 0, scale: 0.95 }}
+                                    animate={{ opacity: 1, scale: 1 }}
+                                    exit={{ opacity: 0, scale: 0.95 }}
+                                    className="bg-white dark:bg-gray-900 text-gray-900 dark:text-white rounded-[2rem] w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col shadow-2xl border border-gray-200 dark:border-gray-800"
+                                >
+                                    {/* HEADING BANNER - SCREEN ONLY */}
+                                    <div className="p-6 bg-gray-50 dark:bg-gray-950 border-b border-gray-200 dark:border-gray-800 flex justify-between items-center select-none">
+                                        <div className="flex items-center gap-3">
+                                            <div className="p-2 bg-indigo-50 dark:bg-indigo-950/40 text-indigo-650 dark:text-indigo-400 rounded-lg">
+                                                <Printer className="w-5 h-5 flex-shrink-0" />
+                                            </div>
+                                            <div>
+                                                <h3 className="font-extrabold text-sm text-black dark:text-white">Förhandsgranskning av startlista</h3>
+                                                <p className="text-xs text-gray-500">Utskrift är optimerad för A4 (stående format)</p>
+                                            </div>
+                                        </div>
+                                        <div className="flex gap-2">
+                                            <button
+                                                type="button"
+                                                onClick={() => window.print()}
+                                                className="bg-indigo-650 hover:bg-indigo-600 dark:bg-indigo-600 dark:hover:bg-indigo-500 text-white font-bold py-2 px-4 rounded-xl text-xs flex items-center gap-1.5 shadow-sm shadow-indigo-500/25 cursor-pointer"
+                                            >
+                                                <Printer className="w-4 h-4 flex-shrink-0" />
+                                                Skriv ut nu
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => setShowPrintModal(false)}
+                                                className="bg-gray-200 dark:bg-gray-800 hover:bg-gray-300 dark:hover:bg-gray-700 text-gray-800 dark:text-gray-200 font-bold py-2 px-4 rounded-xl text-xs cursor-pointer"
+                                            >
+                                                Stäng
+                                            </button>
+                                        </div>
                                     </div>
-                                </div>
+
+                                    {/* SCREEN PREVIEW SCROLL CONTAINER */}
+                                    <div className="flex-1 overflow-y-auto p-8 bg-gray-100 dark:bg-gray-950 flex justify-center">
+                                        <div className="bg-white text-gray-900 shadow-lg border border-gray-250 p-6 max-w-[210mm] w-full min-h-[297mm]">
+                                            <StartListPrintView
+                                                raceName={raceName}
+                                                scheduledDate={scheduledDate}
+                                                startIntervalMinutes={startIntervalMinutes}
+                                                startIntervalSeconds={startIntervalSeconds}
+                                                startGroups={startGroups}
+                                            />
+                                        </div>
+                                    </div>
+                                </motion.div>
                             </motion.div>
-                        </motion.div>
+
+                            {/* Dedikerad flödande startlista som enbart visas vid utskrift direkt i portal-roten */}
+                            <div className="hidden print:block printable-start-list-print-only">
+                                <StartListPrintView
+                                    raceName={raceName}
+                                    scheduledDate={scheduledDate}
+                                    startIntervalMinutes={startIntervalMinutes}
+                                    startIntervalSeconds={startIntervalSeconds}
+                                    startGroups={startGroups}
+                                />
+                            </div>
+                        </>
                     )}
                 </AnimatePresence>,
                 document.body
