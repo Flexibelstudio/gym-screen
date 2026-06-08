@@ -409,7 +409,7 @@ export const Header: React.FC<HeaderProps> = ({
 
   return (
     <>
-        <header className={`w-full max-w-5xl mx-auto flex items-center transition-all duration-300 ease-in-out ${isVisible ? 'pb-8 opacity-100 max-h-40' : 'pb-0 opacity-0 max-h-0 pointer-events-none overflow-hidden'}`}>
+        <header className={`w-full max-w-5xl mx-auto flex items-center transition-all duration-300 ease-in-out ${isVisible ? 'pb-8 portrait:!pb-2 sm:portrait:!pb-3 opacity-100 max-h-40' : 'pb-0 opacity-0 max-h-0 pointer-events-none overflow-hidden'}`}>
         <div className="flex-1">
             {/* Standard top-left back button, only shown if pos is 'top' */}
             {navPosition === 'top' && renderBackButton()}

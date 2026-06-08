@@ -316,7 +316,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
 
             {/* Botten-dashboard - Endast om loggning är på */}
             {studioConfig.enableWorkoutLogging && (
-                <div className="mt-auto flex-shrink grid grid-cols-1 portrait:grid-cols-2 md:grid-cols-2 gap-6 h-[400px] portrait:!h-[160px] sm:portrait:!h-[180px] mb-6 portrait:mb-2 portrait:gap-4 min-h-0">
+                <div className="mt-auto flex-shrink grid grid-cols-1 portrait:grid-cols-2 md:grid-cols-2 gap-6 h-[400px] portrait:!h-[240px] sm:portrait:!h-[260px] mb-6 portrait:mb-2 portrait:gap-4 min-h-0">
                     <motion.div 
                         initial={{ opacity: 0, y: 30 }} 
                         animate={{ opacity: 1, y: 0 }} 

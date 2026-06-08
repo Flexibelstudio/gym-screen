@@ -78,26 +78,26 @@ export const InfoCarouselBanner: React.FC<InfoCarouselBannerProps> = ({ messages
 
     return (
         // DOLD PÅ MOBIL (hidden md:flex), INGET "FIXED" (fyller sin behållare snyggt)
-        <div className={`hidden md:flex w-full h-full ${bgClass} backdrop-blur-md ${textClass} z-[1001] border-t ${borderClass} items-center justify-center p-4 sm:p-6 lg:p-8 portrait:!p-4 sm:portrait:!p-5 ${className}`}>
+        <div className={`hidden md:flex w-full h-full ${bgClass} backdrop-blur-md ${textClass} z-[1001] border-t ${borderClass} items-center justify-center p-4 sm:p-6 lg:p-8 portrait:!p-2.5 sm:portrait:!p-3.5 ${className}`}>
              <div
                 key={safeIndex} 
                 className={`w-full max-w-6xl mx-auto px-4 transition-opacity duration-500 ${isFading ? 'opacity-0' : 'opacity-100'} ${getAnimationClass(currentMessage.animation)}`}
             >
                 {/* STORT AVSTÅND: gap-12 på tv, mindre på tablet */}
-                <div className={`flex items-center h-full gap-4 sm:gap-6 lg:gap-12 portrait:gap-4 sm:portrait:gap-6 ${layout === 'image-right' ? 'flex-row-reverse justify-end' : 'justify-start'}`}>
+                <div className={`flex items-center h-full gap-4 sm:gap-6 lg:gap-12 portrait:!gap-3 sm:portrait:!gap-4 ${layout === 'image-right' ? 'flex-row-reverse justify-end' : 'justify-start'}`}>
                     {hasImage && (
                         <img 
                             src={currentMessage.imageUrl} 
                             alt={currentMessage.headline} 
                             // Responsiv bildstorlek baserad på behållarhöjd
-                            className="h-[85%] aspect-square max-h-[384px] max-w-[384px] object-cover rounded-2xl flex-shrink-0 shadow-xl"
+                            className="h-[85%] aspect-square max-h-[384px] max-w-[384px] portrait:!h-[90px] portrait:!w-[90px] sm:portrait:!h-[110px] sm:portrait:!w-[110px] object-cover rounded-2xl flex-shrink-0 shadow-xl"
                         />
                     )}
                     <div className={`flex-grow min-w-0 ${layout === 'image-right' ? 'text-right' : 'text-left'}`}>
                         {/* STOR RUBRIK: text-4xl på stor TV, mindre på tablet */}
-                        <h4 className="font-bold text-lg sm:text-xl lg:text-3xl xl:text-4xl text-primary line-clamp-2 mb-2 lg:mb-4 portrait:text-lg sm:portrait:text-xl leading-tight">{currentMessage.headline}</h4>
+                        <h4 className="font-bold text-lg sm:text-xl lg:text-3xl xl:text-4xl text-primary line-clamp-2 mb-2 lg:mb-4 portrait:!text-sm sm:portrait:!text-base portrait:!mb-1 leading-tight">{currentMessage.headline}</h4>
                         {/* STOR TEXT: text-xl på stor TV, mindre på tablet */}
-                        <p className={`text-xs sm:text-sm lg:text-base xl:text-xl ${secondaryTextClass} line-clamp-4 md:line-clamp-6 lg:line-clamp-8 xl:line-clamp-12 portrait:line-clamp-3 sm:portrait:line-clamp-4 whitespace-pre-wrap leading-relaxed`}>{currentMessage.body}</p>
+                        <p className={`text-xs sm:text-sm lg:text-base xl:text-xl ${secondaryTextClass} line-clamp-4 md:line-clamp-6 lg:line-clamp-8 xl:line-clamp-12 portrait:line-clamp-3 sm:portrait:line-clamp-3 whitespace-pre-wrap leading-relaxed`}>{currentMessage.body}</p>
                     </div>
                 </div>
             </div>

@@ -64,8 +64,8 @@ const getBannerHeight = () => {
     const isPortrait = window.innerHeight > window.innerWidth;
     
     if (isPortrait) {
-        if (width < 640) return 240;
-        return 280;
+        if (width < 640) return 150;
+        return 170;
     }
     
     if (width < 640) return 240;
@@ -1406,7 +1406,7 @@ const App: React.FC = () => {
           
           {isInfoBannerVisible && !isScreensaverActive && (
               // hidden md:block (osynlig på mobil), anpassad höjd på surfplatta & tv
-              <div className="hidden md:block flex-shrink-0 w-full h-[240px] sm:h-[280px] md:h-[320px] lg:h-[420px] xl:h-[512px] portrait:!h-[240px] sm:portrait:!h-[280px] relative z-[40]">
+              <div className="hidden md:block flex-shrink-0 w-full h-[240px] sm:h-[280px] md:h-[320px] lg:h-[420px] xl:h-[512px] portrait:!h-[150px] sm:portrait:!h-[170px] relative z-[40]">
                   <InfoCarouselBanner 
                     messages={activeInfoMessages} 
                     className="relative !h-full" 
@@ -1583,7 +1583,7 @@ const App: React.FC = () => {
                     bottomOffset={isInfoBannerVisible ? (window.innerWidth >= 768 ? getBannerHeight() : 0) : 0}
                 />
                 {isInfoBannerVisible && (
-                    <div className="hidden md:block fixed bottom-0 left-0 right-0 h-[240px] sm:h-[280px] md:h-[320px] lg:h-[420px] xl:h-[512px] portrait:!h-[240px] sm:portrait:!h-[280px] z-[1001]">
+                    <div className="hidden md:block fixed bottom-0 left-0 right-0 h-[240px] sm:h-[280px] md:h-[320px] lg:h-[420px] xl:h-[512px] portrait:!h-[150px] sm:portrait:!h-[170px] z-[1001]">
                         <InfoCarouselBanner 
                             messages={activeInfoMessages} 
                             className="relative !h-full" 
