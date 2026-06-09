@@ -383,9 +383,9 @@ const GymThermometerMascot = ({ isStudioMode = false }: { isStudioMode?: boolean
                     {/* Rising Liquid */}
                     <g clipPath="url(#glass-inner-large)">
                         <rect 
-                            x="0" 
+                            x="-10" 
                             y={currentY} 
-                            width="40" 
+                            width="60" 
                             height={160 - currentY} 
                             fill={`url(#liquid-grad-large-${color.replace('#', '')})`} 
                             className="transition-all duration-1000 ease-out"
@@ -479,9 +479,9 @@ const GymThermometerMascot = ({ isStudioMode = false }: { isStudioMode?: boolean
                 {/* Rising Liquid */}
                 <g clipPath="url(#glass-inner-small)">
                     <rect 
-                        x="0" 
+                        x="-10" 
                         y={currentY} 
-                        width="40" 
+                        width="60" 
                         height={160 - currentY} 
                         fill={`url(#liquid-grad-small-${color.replace('#', '')})`} 
                         className="transition-all duration-1000 ease-out"
