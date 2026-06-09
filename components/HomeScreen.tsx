@@ -183,17 +183,19 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
 
   const hasActiveCarousel = useMemo(() => {
     const infoCarousel = selectedOrganization?.infoCarousel;
-    if (!infoCarousel?.isEnabled || !selectedStudio || !infoCarousel.messages) return false;
+    if (!infoCarousel?.isEnabled || !infoCarousel.messages) return false;
     const now = new Date();
     const activeMessages = infoCarousel.messages.filter(msg => {
-        const isStudioMatch = msg.visibleInStudios.includes('all') || msg.visibleInStudios.includes(selectedStudio.id);
+        const isStudioMatch = !selectedStudio 
+          ? (isStudioMode && msg.visibleInStudios.includes('all'))
+          : (msg.visibleInStudios.includes('all') || msg.visibleInStudios.includes(selectedStudio.id));
         if (!isStudioMatch) return false;
         if (msg.startDate && new Date(msg.startDate) > now) return false;
         if (msg.endDate && new Date(msg.endDate) < now) return false;
         return true;
     });
     return activeMessages.length > 0;
-  }, [selectedOrganization, selectedStudio]);
+  }, [selectedOrganization, selectedStudio, isStudioMode]);
 
   const show5Cols = !!(studioConfig.enableWorkoutLogging && hasActiveCarousel);
 
