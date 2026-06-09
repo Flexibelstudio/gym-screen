@@ -417,23 +417,33 @@ const GymThermometerMascot = ({ isStudioMode = false }: { isStudioMode?: boolean
                         <line x1="24" y1="95" x2="22" y2="95" />
                         <line x1="24" y1="115" x2="22" y2="115" />
                     </g>
-                </svg>
 
-                {/* Ultra-clean badge showing points */}
-                <span className="text-[10px] font-black tracking-wider text-white mt-3 px-2.5 py-1 bg-slate-950/80 backdrop-blur border border-white/10 rounded-full uppercase shadow-md animate-pulse">
-                    {stats.avgPoints} POÄNG
-                </span>
+                    {/* Dynamisk poängtext inuti den runda bulben */}
+                    <text
+                        x="20"
+                        y="143"
+                        textAnchor="middle"
+                        fill="white"
+                        fontSize="8.5"
+                        fontWeight="900"
+                        fontFamily="ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
+                        className="select-none font-black tracking-tighter"
+                        style={{ textShadow: '0 1.5px 3px rgba(0,0,0,0.9), 0 0 2px rgba(0,0,0,0.7)' }}
+                    >
+                        {stats.avgPoints}
+                    </text>
+                </svg>
             </div>
         );
     }
 
     // if !isStudioMode (member app view), render same clean thermometer, but smaller
     return (
-        <div className="fixed bottom-16 sm:bottom-6 left-6 z-[90] flex flex-col items-center pointer-events-none select-none animate-fade-in origin-bottom rotate-[12deg]">
+        <div className="fixed bottom-3 left-3 z-[90] flex flex-col items-center pointer-events-none select-none animate-fade-in origin-bottom rotate-[5deg] drop-shadow-[0_10px_15px_rgba(0,0,0,0.5)]">
             {/* Unified continuous Glass Thermometer SVG - Small */}
             <svg 
                 viewBox="0 0 40 160" 
-                className="w-10 h-32 overflow-visible drop-shadow-[0_4px_15px_rgba(0,0,0,0.5)]"
+                className="w-10 h-32 overflow-visible"
             >
                 <defs>
                     <filter id={`glow-small-${color.replace('#', '')}`} x="-30%" y="-30%" width="160%" height="160%">
@@ -500,12 +510,22 @@ const GymThermometerMascot = ({ isStudioMode = false }: { isStudioMode?: boolean
                     <line x1="24" y1="90" x2="22" y2="90" />
                     <line x1="24" y1="115" x2="22" y2="115" />
                 </g>
-            </svg>
 
-            {/* Small badge showing average points */}
-            <span className="text-[8px] font-black tracking-wider text-white mt-1.5 px-2 py-0.5 bg-slate-950/90 backdrop-blur border border-white/10 rounded-full uppercase shadow-md whitespace-nowrap">
-                {stats.avgPoints} P
-            </span>
+                {/* Dynamisk poängtext inuti den runda bulben */}
+                <text
+                    x="20"
+                    y="143"
+                    textAnchor="middle"
+                    fill="white"
+                    fontSize="8.5"
+                    fontWeight="900"
+                    fontFamily="ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
+                    className="select-none font-black tracking-tighter"
+                    style={{ textShadow: '0 1.5px 3px rgba(0,0,0,0.9), 0 0 2px rgba(0,0,0,0.7)' }}
+                >
+                    {stats.avgPoints}
+                </text>
+            </svg>
         </div>
     );
 };
