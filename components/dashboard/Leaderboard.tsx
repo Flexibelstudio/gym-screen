@@ -297,7 +297,7 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ organizationId }) => {
             ) : (
                 <div className="space-y-3">
                     {displayData.map((user, index) => (
-                        <div key={user.memberId} className="flex items-center justify-between bg-gray-50 dark:bg-gray-880/50 p-3 rounded-xl">
+                        <div key={user.memberId} className="flex items-center justify-between bg-gray-50 dark:bg-gray-800/50 p-3 rounded-xl">
                             <div className="flex items-center gap-3">
                                 <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-black
                                     ${index === 0 ? 'bg-yellow-100 text-yellow-600' : 
