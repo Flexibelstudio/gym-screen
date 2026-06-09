@@ -9,14 +9,16 @@ interface LeaderboardProps {
 }
 
 export const Leaderboard: React.FC<LeaderboardProps> = ({ organizationId }) => {
-    const { selectedOrganization } = useStudio();
+    const { selectedOrganization, studioConfig } = useStudio();
     const { userData } = useAuth();
-    const [leaderboard, setLeaderboard] = useState<{ memberId: string, name: string, photoUrl: string, count: number, pbs: number }[]>([]);
+    const [leaderboard, setLeaderboard] = useState<{ memberId: string, name: string, photoUrl: string, count: number, pbs: number, sisu: number }[]>([]);
     const [loading, setLoading] = useState(true);
-    const [activeTab, setActiveTab] = useState<'workouts' | 'pbs'>('workouts');
+    const [activeTab, setActiveTab] = useState<'workouts' | 'pbs' | 'sisu'>('workouts');
     
     const [selectedLocationId, setSelectedLocationId] = useState<string | 'all'>('all');
     const [hasInitialized, setHasInitialized] = useState(false);
+
+    const isSummerActive = !!(studioConfig?.enableSummerChallenge || selectedOrganization?.globalConfig?.enableSummerChallenge);
 
     useEffect(() => {
         if (userData?.locationId) {
@@ -80,14 +82,22 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ organizationId }) => {
                     });
                     
                     // Gruppera per medlem
-                    const counts: Record<string, { count: number, pbs: number }> = {};
+                    const counts: Record<string, { count: number, pbs: number, sisu: number }> = {};
                     weeklyLogs.forEach(log => {
                         const mId = log.memberId;
                         if (!counts[mId]) {
-                            counts[mId] = { count: 0, pbs: 0 };
+                            counts[mId] = { count: 0, pbs: 0, sisu: 0 };
                         }
                         counts[mId].count += 1;
                         counts[mId].pbs += (log.newPBs || []).length;
+
+                        // Beräkna sisu-poäng för denna logg
+                        let pts = log.summerPoints;
+                        if (pts === undefined) {
+                            const isOfficial = log.workoutId && log.workoutId !== 'manual' && !log.workoutId.startsWith('custom_') && !log.workoutId.startsWith('custom-');
+                            pts = isOfficial ? 3 : (log.inStudio === true ? 2 : 1);
+                        }
+                        counts[mId].sisu += pts;
                     });
                     
                     const leaderboardData = Object.entries(counts).map(([mId, stats]) => {
@@ -99,7 +109,8 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ organizationId }) => {
                                 : (weeklyLogs.find(l => l.memberId === mId)?.memberName || 'Okänd Medlem'),
                             photoUrl: memberInfo?.photoUrl || weeklyLogs.find(l => l.memberId === mId)?.memberPhotoUrl || '',
                             count: stats.count,
-                            pbs: stats.pbs
+                            pbs: stats.pbs,
+                            sisu: stats.sisu
                         };
                     });
                     
@@ -129,7 +140,11 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ organizationId }) => {
         );
     }
 
-    const sortedData = [...leaderboard].sort((a, b) => activeTab === 'workouts' ? b.count - a.count : b.pbs - a.pbs);
+    const sortedData = [...leaderboard].sort((a, b) => {
+        if (activeTab === 'workouts') return b.count - a.count;
+        if (activeTab === 'pbs') return b.pbs - a.pbs;
+        return (b.sisu || 0) - (a.sisu || 0);
+    });
     const displayData = (activeTab === 'pbs' ? sortedData.filter(u => u.pbs > 0) : sortedData).slice(0, 10);
 
     return (
@@ -175,19 +190,29 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ organizationId }) => {
             <div className="flex bg-gray-100 dark:bg-gray-800 p-1 rounded-xl mb-4">
                 <button
                     onClick={() => setActiveTab('workouts')}
-                    className={`flex-1 py-2 text-xs font-black uppercase tracking-widest rounded-lg transition-all flex items-center justify-center gap-2 ${
+                    className={`flex-1 py-1.5 text-xs font-black uppercase tracking-widest rounded-lg transition-all flex items-center justify-center gap-1.5 ${
                         activeTab === 'workouts' ? 'bg-white dark:bg-gray-700 text-primary shadow-sm' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
                     }`}
                 >
-                    <ChartBarIcon className="w-4 h-4" /> Pass
+                    <ChartBarIcon className="w-3.5 h-3.5" /> Pass
                 </button>
+                {isSummerActive && (
+                    <button
+                        onClick={() => setActiveTab('sisu')}
+                        className={`flex-1 py-1.5 text-xs font-black uppercase tracking-widest rounded-lg transition-all flex items-center justify-center gap-1.5 ${
+                            activeTab === 'sisu' ? 'bg-white dark:bg-gray-700 text-amber-500 shadow-sm font-black' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
+                        }`}
+                    >
+                        ☀️ Sisu
+                    </button>
+                )}
                 <button
                     onClick={() => setActiveTab('pbs')}
-                    className={`flex-1 py-2 text-xs font-black uppercase tracking-widest rounded-lg transition-all flex items-center justify-center gap-2 ${
+                    className={`flex-1 py-1.5 text-xs font-black uppercase tracking-widest rounded-lg transition-all flex items-center justify-center gap-1.5 ${
                         activeTab === 'pbs' ? 'bg-white dark:bg-gray-700 text-orange-500 shadow-sm' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
                     }`}
                 >
-                    <FireIcon className="w-4 h-4" /> PB
+                    <FireIcon className="w-3.5 h-3.5" /> PB
                 </button>
             </div>
             
@@ -197,7 +222,7 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ organizationId }) => {
             
             {displayData.length === 0 ? (
                 <p className="text-sm text-gray-500 text-center py-4">
-                    {activeTab === 'workouts' ? 'Inga pass loggade denna vecka än.' : 'Inga personbästan satta denna vecka än.'}
+                    {activeTab === 'workouts' ? 'Inga pass loggade denna vecka än.' : activeTab === 'sisu' ? 'Inga Sisu-poäng intjänade denna vecka än.' : 'Inga personbästan satta denna vecka än.'}
                 </p>
             ) : (
                 <div className="space-y-3">
@@ -224,6 +249,10 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ organizationId }) => {
                                 {activeTab === 'workouts' ? (
                                     <div className="text-sm font-black text-primary bg-primary/10 px-2 py-1 rounded-lg">
                                         {user.count} pass
+                                    </div>
+                                ) : activeTab === 'sisu' ? (
+                                    <div className="text-sm font-black text-amber-500 bg-amber-500/10 px-2.5 py-1 rounded-lg flex items-center gap-1">
+                                        ☀️ {user.sisu || 0} p
                                     </div>
                                 ) : (
                                     <div className="flex items-center gap-1 text-sm font-black text-orange-500 bg-orange-50 dark:bg-orange-900/20 px-2 py-1 rounded-lg">

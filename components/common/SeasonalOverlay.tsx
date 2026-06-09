@@ -366,42 +366,21 @@ const GymThermometerMascot = ({ isStudioMode = false }: { isStudioMode?: boolean
         );
     }
 
+    // if !isStudioMode (member app view), render same clean thermometer, but smaller
     return (
-        <div className="fixed bottom-6 left-6 z-[2000] p-5 w-80 bg-gray-950/95 border border-white/10 rounded-[2.2rem] shadow-[0_25px_50px_-12px_rgba(0,0,0,0.6)] flex items-center gap-5 text-white animate-fade-in">
-            {/* Vänster kolumn: Termometergrafik */}
-            <div className="flex flex-col items-center flex-shrink-0 w-8">
-                {/* Rör */}
-                <div className="relative w-4 h-32 bg-gray-800 rounded-full border border-gray-700/50 p-[2px] flex flex-col justify-end overflow-hidden">
-                    <div className={`w-full rounded-full transition-all duration-1000 ease-out ${config.bg}`} style={{ height: config.heightClass }}></div>
-                </div>
-                {/* Kula */}
-                <div className={`w-8 h-8 rounded-full border border-gray-700/50 mt-[-4px] flex items-center justify-center transition-all ${config.bg} ${config.glow} shadow-[0_0_15px_rgba(0,0,0,0.5)]`}>
-                    <div className="w-3 h-3 bg-white/30 rounded-full"></div>
-                </div>
+        <div className="fixed bottom-16 sm:bottom-6 left-6 z-[90] flex flex-col items-center pointer-events-none select-none animate-fade-in origin-bottom rotate-[12deg]">
+            {/* Small standalone high-contrast thermometer */}
+            <div className="relative w-5 h-28 bg-slate-950/40 backdrop-blur-md rounded-full border border-white/25 p-[2px] flex flex-col justify-end overflow-hidden shadow-[inset_0_2px_6px_rgba(0,0,0,0.8)]">
+                <div className={`w-full rounded-full transition-all duration-1000 ease-out ${config.bg} shadow-[0_0_10px_rgba(255,255,255,0.2)]`} style={{ height: config.heightClass }}></div>
             </div>
-
-            {/* Höger kolumn: Text och värden */}
-            <div className="flex-1 min-w-0 text-left">
-                <div className="flex items-center gap-2 mb-1">
-                    <span className="text-[10px] font-black tracking-widest text-[#fbbf24] uppercase">Sommar-Sisu ☀️</span>
-                </div>
-                <h4 className={`text-2xl font-black tracking-tight leading-none mb-1 ${config.text}`}>
-                    {config.label}
-                </h4>
-                <p className="text-[11px] text-gray-400 font-medium mb-3 leading-tight">
-                    {config.desc}
-                </p>
-                <div className="grid grid-cols-2 gap-2 pt-2 border-t border-white/5 text-left">
-                    <div>
-                        <p className="text-[9px] font-black text-gray-500 uppercase tracking-wider mb-0.5">Veckosnitt</p>
-                        <p className="text-sm font-extrabold tracking-tight text-white">{stats.avgPoints} poäng</p>
-                    </div>
-                    <div>
-                        <p className="text-[9px] font-black text-gray-500 uppercase tracking-wider mb-0.5">Aktiva</p>
-                        <p className="text-sm font-extrabold tracking-tight text-white">{stats.activeUsersCount}st</p>
-                    </div>
-                </div>
+            {/* Small Thermometer bulb at the bottom */}
+            <div className={`w-9 h-9 rounded-full border border-white/25 mt-[-4px] flex items-center justify-center transition-all duration-1000 ${config.bg} ${config.glow} shadow-[0_0_15px_rgba(0,0,0,0.8)]`}>
+                <div className="w-2.5 h-2.5 bg-white/30 rounded-full"></div>
             </div>
+            {/* Small badge showing average points */}
+            <span className="text-[8px] font-black tracking-wider text-white mt-1.5 px-2 py-0.5 bg-slate-950/90 backdrop-blur border border-white/10 rounded-full uppercase shadow-md whitespace-nowrap">
+                {stats.avgPoints} P
+            </span>
         </div>
     );
 };
