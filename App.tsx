@@ -434,18 +434,16 @@ const App: React.FC = () => {
 
   const activeInfoMessages = useMemo((): InfoMessage[] => {
     const infoCarousel = selectedOrganization?.infoCarousel;
-    if (!infoCarousel?.isEnabled || !infoCarousel.messages) return [];
+    if (!infoCarousel?.isEnabled || !selectedStudio || !infoCarousel.messages) return [];
     const now = new Date();
     return infoCarousel.messages.filter(msg => {
-        const isStudioMatch = !selectedStudio 
-          ? (isStudioMode && msg.visibleInStudios.includes('all'))
-          : (msg.visibleInStudios.includes('all') || msg.visibleInStudios.includes(selectedStudio.id));
+        const isStudioMatch = msg.visibleInStudios.includes('all') || msg.visibleInStudios.includes(selectedStudio.id);
         if (!isStudioMatch) return false;
         if (msg.startDate && new Date(msg.startDate) > now) return false;
         if (msg.endDate && new Date(msg.endDate) < now) return false;
         return true;
     }).sort((a, b) => a.internalTitle.localeCompare(b.internalTitle));
-  }, [selectedOrganization, selectedStudio, isStudioMode]);
+  }, [selectedOrganization, selectedStudio]);
 
   const isInfoBannerVisible = (page === Page.Home || isScreensaverActive) && activeInfoMessages.length > 0;
 
@@ -1234,7 +1232,7 @@ const App: React.FC = () => {
                 Du är offline - allt du loggar sparas lokalt
             </div>
        )}
-       <SeasonalOverlay page={page} isStudioMode={isStudioMode} isAdminView={isAdminFacingPage} />
+       <SeasonalOverlay page={page} />
        
        <Toast 
          message={pushToast.message} 
@@ -1391,7 +1389,7 @@ const App: React.FC = () => {
           
           {isInfoBannerVisible && !isScreensaverActive && (
               // hidden md:block (osynlig på mobil), flex-shrink-0 och flexibel höjd baserat på skärmstorlek.
-              <div className={`${isStudioMode ? 'block' : 'hidden md:block'} flex-shrink-0 w-full info-banner-container relative z-[40]`}>
+              <div className="hidden md:block flex-shrink-0 w-full info-banner-container relative z-[40]">
                   <InfoCarouselBanner 
                     messages={activeInfoMessages} 
                     className="relative !h-full" 
@@ -1568,7 +1566,7 @@ const App: React.FC = () => {
                     bottomOffset={isInfoBannerVisible ? (window.innerWidth >= 768 ? (window.innerHeight > 1100 ? 512 : 280) : 0) : 0}
                 />
                 {isInfoBannerVisible && (
-                    <div className={`${isStudioMode ? 'block' : 'hidden md:block'} fixed bottom-0 left-0 right-0 info-banner-container z-[1001]`}>
+                    <div className="hidden md:block fixed bottom-0 left-0 right-0 info-banner-container z-[1001]">
                         <InfoCarouselBanner 
                             messages={activeInfoMessages} 
                             className="relative !h-full" 
