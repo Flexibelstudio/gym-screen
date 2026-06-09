@@ -225,14 +225,6 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ organizationId }) => {
             )}
             
             <div className="flex bg-gray-100 dark:bg-gray-800 p-1 rounded-xl mb-4">
-                <button
-                    onClick={() => setActiveTab('workouts')}
-                    className={`flex-1 py-1.5 text-xs font-black uppercase tracking-widest rounded-lg transition-all flex items-center justify-center gap-1.5 ${
-                        activeTab === 'workouts' ? 'bg-white dark:bg-gray-700 text-primary shadow-sm' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
-                    }`}
-                >
-                    <ChartBarIcon className="w-3.5 h-3.5" /> Pass
-                </button>
                 {isSummerActive && (
                     <button
                         onClick={() => setActiveTab('sisu')}
@@ -243,6 +235,14 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ organizationId }) => {
                         ☀️ Sisu
                     </button>
                 )}
+                <button
+                    onClick={() => setActiveTab('workouts')}
+                    className={`flex-1 py-1.5 text-xs font-black uppercase tracking-widest rounded-lg transition-all flex items-center justify-center gap-1.5 ${
+                        activeTab === 'workouts' ? 'bg-white dark:bg-gray-700 text-primary shadow-sm' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
+                    }`}
+                >
+                    <ChartBarIcon className="w-3.5 h-3.5" /> Pass
+                </button>
                 <button
                     onClick={() => setActiveTab('pbs')}
                     className={`flex-1 py-1.5 text-xs font-black uppercase tracking-widest rounded-lg transition-all flex items-center justify-center gap-1.5 ${
