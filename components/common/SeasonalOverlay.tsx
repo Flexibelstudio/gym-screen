@@ -342,7 +342,7 @@ const GymThermometerMascot = ({ isStudioMode = false }: { isStudioMode?: boolean
 
     if (isStudioMode) {
         return (
-            <div className="fixed bottom-12 left-12 z-[2000] flex flex-col items-center pointer-events-none select-none animate-fade-in origin-bottom rotate-[12deg]">
+            <div className="fixed bottom-3 left-3 z-[2000] flex flex-col items-center pointer-events-none select-none animate-fade-in origin-bottom rotate-[5deg] drop-shadow-[0_10px_15px_rgba(0,0,0,0.5)]">
                 {/* Unified continuous Glass Thermometer SVG */}
                 <svg 
                     viewBox="0 0 40 160" 
@@ -550,12 +550,12 @@ interface SeasonalOverlayProps {
 }
 
 export const SeasonalOverlay: React.FC<SeasonalOverlayProps> = ({ page, isStudioMode = false, isAdminView = false }) => {
-    const { studioConfig } = useStudio();
+    const { studioConfig, selectedOrganization } = useStudio();
     const theme = useActiveTheme();
 
     if (isAdminView) return null;
 
-    const isChallengeActive = !!studioConfig?.enableSummerChallenge;
+    const isChallengeActive = !!studioConfig?.enableSummerChallenge || !!selectedOrganization?.globalConfig?.enableSummerChallenge;
 
     if (theme === 'none' && !isChallengeActive) return null;
 
