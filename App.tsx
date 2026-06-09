@@ -434,10 +434,12 @@ const App: React.FC = () => {
 
   const activeInfoMessages = useMemo((): InfoMessage[] => {
     const infoCarousel = selectedOrganization?.infoCarousel;
-    if (!infoCarousel?.isEnabled || !selectedStudio || !infoCarousel.messages) return [];
+    if (!infoCarousel?.isEnabled || !infoCarousel.messages) return [];
     const now = new Date();
     return infoCarousel.messages.filter(msg => {
-        const isStudioMatch = msg.visibleInStudios.includes('all') || msg.visibleInStudios.includes(selectedStudio.id);
+        const isStudioMatch = !selectedStudio 
+          ? msg.visibleInStudios.includes('all')
+          : (msg.visibleInStudios.includes('all') || msg.visibleInStudios.includes(selectedStudio.id));
         if (!isStudioMatch) return false;
         if (msg.startDate && new Date(msg.startDate) > now) return false;
         if (msg.endDate && new Date(msg.endDate) < now) return false;
@@ -1232,7 +1234,7 @@ const App: React.FC = () => {
                 Du är offline - allt du loggar sparas lokalt
             </div>
        )}
-       <SeasonalOverlay page={page} />
+       <SeasonalOverlay page={page} isStudioMode={isStudioMode} />
        
        <Toast 
          message={pushToast.message} 
