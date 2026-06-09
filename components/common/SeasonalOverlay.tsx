@@ -557,29 +557,32 @@ export const SeasonalOverlay: React.FC<SeasonalOverlayProps> = ({ page, isStudio
 
     const isChallengeActive = !!studioConfig?.enableSummerChallenge || !!selectedOrganization?.globalConfig?.enableSummerChallenge;
 
-    if (theme === 'none' && !isChallengeActive) return null;
+    // Om en utmaning pågår (t.ex. Sommar-Sisu), ska säsongstemat pausas och döljas för att prioritera träningstermometern
+    const activeTheme = isChallengeActive ? 'none' : theme;
+
+    if (activeTheme === 'none' && !isChallengeActive) return null;
 
     return (
         <>
             {/* 1. Background Particles */}
-            {theme !== 'none' && (theme === 'winter' || theme === 'christmas') && <SnowParticles />}
-            {theme === 'halloween' && <FogEffect />}
-            {theme === 'valentines' && <FloatingHearts />}
-            {theme === 'newyear' && <ConfettiRain />}
-            {theme !== 'none' && (theme === 'summer' || theme === 'midsummer') && <SummerSun />}
+            {activeTheme !== 'none' && (activeTheme === 'winter' || activeTheme === 'christmas') && <SnowParticles />}
+            {activeTheme === 'halloween' && <FogEffect />}
+            {activeTheme === 'valentines' && <FloatingHearts />}
+            {activeTheme === 'newyear' && <ConfettiRain />}
+            {activeTheme !== 'none' && (activeTheme === 'summer' || activeTheme === 'midsummer') && <SummerSun />}
             
             {/* 2. Corner Mascots */}
-            {theme === 'christmas' && <ChristmasMascot page={page} />}
-            {theme === 'easter' && <EasterMascot />}
-            {theme === 'halloween' && <HalloweenMascot />}
+            {activeTheme === 'christmas' && <ChristmasMascot page={page} />}
+            {activeTheme === 'easter' && <EasterMascot />}
+            {activeTheme === 'halloween' && <HalloweenMascot />}
             {isChallengeActive && <GymThermometerMascot isStudioMode={isStudioMode} />}
-            {theme === 'valentines' && <ValentinesMascot />}
+            {activeTheme === 'valentines' && <ValentinesMascot />}
 
             {/* 3. Screen Vignettes/Tints */}
-            {(theme === 'winter' || theme === 'christmas') && (
+            {(activeTheme === 'winter' || activeTheme === 'christmas') && (
                 <div className="fixed inset-0 pointer-events-none z-[1999] shadow-[inset_0_0_100px_rgba(200,230,255,0.2)]"></div>
             )}
-            {theme === 'halloween' && (
+            {activeTheme === 'halloween' && (
                 <div className="fixed inset-0 pointer-events-none z-[1999] shadow-[inset_0_-50px_150px_rgba(0,0,0,0.6)] bg-purple-900/5 mix-blend-overlay"></div>
             )}
         </>

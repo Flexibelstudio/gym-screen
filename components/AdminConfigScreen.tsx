@@ -370,6 +370,43 @@ export const StudioConfigModal: React.FC<StudioConfigModalProps> = ({ isOpen, on
                         </div>
 
                         <div className="pt-4 border-t border-gray-200 dark:border-gray-800">
+                            <div className="flex justify-between items-start mb-2">
+                                <div>
+                                    <h3 className="font-semibold text-gray-900 dark:text-white mb-1">Säsongstema (Dekorationer)</h3>
+                                    <p className="text-xs text-gray-500 mb-2">Döljs automatiskt om Sommar-Sisu utmaningen är aktiv för att ge termometern fullt fokus.</p>
+                                </div>
+                                {overrides.seasonalTheme !== undefined ? (
+                                    <div className="flex flex-col items-end shrink-0">
+                                        <span className="text-[10px] text-yellow-600 dark:text-yellow-500 font-semibold uppercase tracking-wide">Avviker från global</span>
+                                        <button onClick={() => {
+                                            const newOverrides = { ...overrides };
+                                            delete newOverrides.seasonalTheme;
+                                            setOverrides(newOverrides);
+                                        }} className="text-xs text-primary hover:underline">Återställ</button>
+                                    </div>
+                                ) : (
+                                    <span className="text-xs text-gray-400 italic shrink-0">Ärvd från global</span>
+                                )}
+                            </div>
+                            <select 
+                               value={overrides.seasonalTheme ?? globalConfig.seasonalTheme ?? 'none'}
+                               onChange={(e) => setOverrides({ ...overrides, seasonalTheme: e.target.value as ThemeOption })}
+                               className="w-full p-3 rounded-lg bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white text-sm"
+                            >
+                               <option value="none">Inget tema (Inaktiverat)</option>
+                               <option value="auto">Automatiskt (Efter kalenderdatum)</option>
+                               <option value="winter">Vinter (Snöeffekt)</option>
+                               <option value="christmas">Jul (Tomte & snöeffekt)</option>
+                               <option value="newyear">Nyår (Konfetti)</option>
+                               <option value="valentines">Alla hjärtans dag (Hjärtan)</option>
+                               <option value="easter">Påsk (Påskhare-huvud)</option>
+                               <option value="midsummer">Midsommar (Sommarsol)</option>
+                               <option value="summer">Sommar (Sommarsol)</option>
+                               <option value="halloween">Halloween (Dimma & spöke)</option>
+                            </select>
+                        </div>
+
+                        <div className="pt-4 border-t border-gray-200 dark:border-gray-800">
                             {renderToggle('enableScreensaver', "Skärmsläckare", "Visa logotyp vid inaktivitet.")}
                             
                             {effectiveConfig.enableScreensaver && (
