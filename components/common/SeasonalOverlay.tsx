@@ -359,13 +359,13 @@ const GymThermometerMascot = ({ isStudioMode = false }: { isStudioMode?: boolean
                             <stop offset="100%" stopColor={color === '#ef4444' ? '#991b1b' : color === '#f97316' ? '#c2410c' : color === '#eab308' ? '#a16207' : '#1e40af'} />
                         </linearGradient>
                         <clipPath id="glass-inner-large">
-                            <path d="M 17,14 L 17,126 A 13,13 0 1,0 23,126 L 23,14 A 3,3 0 0,0 17,14 Z" />
+                            <path d="M 17,14 L 17,126 A 16,16 0 1,0 23,126 L 23,14 A 3,3 0 0,0 17,14 Z" />
                         </clipPath>
                     </defs>
 
                     {/* Glowing backlight to make the mercury look bright & active */}
                     <path 
-                        d="M 17,14 L 17,126 A 13,13 0 1,0 23,126 L 23,14 A 3,3 0 0,0 17,14 Z"
+                        d="M 17,14 L 17,126 A 16,16 0 1,0 23,126 L 23,14 A 3,3 0 0,0 17,14 Z"
                         fill={color}
                         opacity="0.25"
                         filter={`url(#glow-large-${color.replace('#', '')})`}
@@ -373,7 +373,7 @@ const GymThermometerMascot = ({ isStudioMode = false }: { isStudioMode?: boolean
 
                     {/* Unified Glass Tube Outline (Sleek container structure) - NO overlapping artifacts! */}
                     <path 
-                        d="M 16,12 L 16,126 A 14,14 0 1,0 24,126 L 24,12 A 4,4 0 0,0 16,12 Z" 
+                        d="M 16,12 L 16,126 A 17,17 0 1,0 24,126 L 24,12 A 4,4 0 0,0 16,12 Z" 
                         fill="rgba(15, 23, 42, 0.75)"
                         stroke="rgba(255, 255, 255, 0.35)"
                         strokeWidth="1.2"
@@ -421,11 +421,11 @@ const GymThermometerMascot = ({ isStudioMode = false }: { isStudioMode?: boolean
                     {/* Dynamisk poängtext inuti den runda bulben */}
                     <text
                         x="20"
-                        y="143"
+                        y="146"
                         textAnchor="middle"
                         fill="white"
-                        fontSize="8.5"
-                        fontWeight="900"
+                        fontSize="11"
+                        fontWeight="950"
                         fontFamily="ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
                         className="select-none font-black tracking-tighter"
                         style={{ textShadow: '0 1.5px 3px rgba(0,0,0,0.9), 0 0 2px rgba(0,0,0,0.7)' }}
@@ -455,13 +455,13 @@ const GymThermometerMascot = ({ isStudioMode = false }: { isStudioMode?: boolean
                         <stop offset="100%" stopColor={color === '#ef4444' ? '#991b1b' : color === '#f97316' ? '#c2410c' : color === '#eab308' ? '#a16207' : '#1e40af'} />
                     </linearGradient>
                     <clipPath id="glass-inner-small">
-                        <path d="M 17,14 L 17,126 A 13,13 0 1,0 23,126 L 23,14 A 3,3 0 0,0 17,14 Z" />
+                        <path d="M 17,14 L 17,126 A 16,16 0 1,0 23,126 L 23,14 A 3,3 0 0,0 17,14 Z" />
                     </clipPath>
                 </defs>
 
                 {/* Glowing backlight */}
                 <path 
-                    d="M 17,14 L 17,126 A 13,13 0 1,0 23,126 L 23,14 A 3,3 0 0,0 17,14 Z"
+                    d="M 17,14 L 17,126 A 16,16 0 1,0 23,126 L 23,14 A 3,3 0 0,0 17,14 Z"
                     fill={color}
                     opacity="0.2"
                     filter={`url(#glow-small-${color.replace('#', '')})`}
@@ -469,7 +469,7 @@ const GymThermometerMascot = ({ isStudioMode = false }: { isStudioMode?: boolean
 
                 {/* Unified Glass Tube Outline - NO overlapping circles/lines! */}
                 <path 
-                    d="M 16,12 L 16,126 A 14,14 0 1,0 24,126 L 24,12 A 4,4 0 0,0 16,12 Z" 
+                    d="M 16,12 L 16,126 A 17,17 0 1,0 24,126 L 24,12 A 4,4 0 0,0 16,12 Z" 
                     fill="rgba(15, 23, 42, 0.75)"
                     stroke="rgba(255, 255, 255, 0.35)"
                     strokeWidth="1.2"
@@ -514,11 +514,11 @@ const GymThermometerMascot = ({ isStudioMode = false }: { isStudioMode?: boolean
                 {/* Dynamisk poängtext inuti den runda bulben */}
                 <text
                     x="20"
-                    y="143"
+                    y="146"
                     textAnchor="middle"
                     fill="white"
-                    fontSize="8.5"
-                    fontWeight="900"
+                    fontSize="11"
+                    fontWeight="950"
                     fontFamily="ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
                     className="select-none font-black tracking-tighter"
                     style={{ textShadow: '0 1.5px 3px rgba(0,0,0,0.9), 0 0 2px rgba(0,0,0,0.7)' }}

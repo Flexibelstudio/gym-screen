@@ -11,9 +11,10 @@ interface LeaderboardProps {
 export const Leaderboard: React.FC<LeaderboardProps> = ({ organizationId }) => {
     const { selectedOrganization, studioConfig } = useStudio();
     const { userData } = useAuth();
-    const [leaderboard, setLeaderboard] = useState<{ memberId: string, name: string, photoUrl: string, count: number, pbs: number, sisu: number }[]>([]);
+    const [leaderboard, setLeaderboard] = useState<{ memberId: string, name: string, photoUrl: string, count: number, pbs: number, sisuWeekly: number, sisuTotal: number }[]>([]);
     const [loading, setLoading] = useState(true);
     const [activeTab, setActiveTab] = useState<'workouts' | 'pbs' | 'sisu'>('workouts');
+    const [sisuTimeframe, setSisuTimeframe] = useState<'weekly' | 'total'>('weekly');
     
     const [selectedLocationId, setSelectedLocationId] = useState<string | 'all'>('all');
     const [hasInitialized, setHasInitialized] = useState(false);
@@ -66,32 +67,35 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ organizationId }) => {
                     const startMs = monday.getTime();
                     const endMs = sunday.getTime();
                     
-                    // Filtrera loggar för den här veckan, rätt studio-krav, samt rätt ort om valt
-                    const weeklyLogs = logs.filter(log => {
-                        const logTime = log.date;
-                        const isThisWeek = logTime >= startMs && logTime <= endMs;
-                        const isStudio = log.inStudio !== false;
-                        const isShown = log.showOnLeaderboard !== false;
-                        
+                    // Gruppera per medlem
+                    const counts: Record<string, { count: number, pbs: number, sisuWeekly: number, sisuTotal: number }> = {};
+                    
+                    logs.forEach(log => {
+                        const mId = log.memberId;
+                        if (optedOutMemberIds.has(mId)) return;
+                        if (log.showOnLeaderboard === false) return;
+
                         // Hitta medlemmens nuvarande ort från medlemslistan som fallback om logens ort är null/saknas
-                        const member = memberMap.get(log.memberId);
+                        const member = memberMap.get(mId);
                         const userLocationId = log.locationId || member?.locationId || 'all';
 
                         const matchesLocation = selectedLocationId === 'all' || userLocationId === selectedLocationId;
-                        return isThisWeek && isStudio && isShown && matchesLocation && !optedOutMemberIds.has(log.memberId);
-                    });
-                    
-                    // Gruppera per medlem
-                    const counts: Record<string, { count: number, pbs: number, sisu: number }> = {};
-                    weeklyLogs.forEach(log => {
-                        const mId = log.memberId;
-                        if (!counts[mId]) {
-                            counts[mId] = { count: 0, pbs: 0, sisu: 0 };
-                        }
-                        counts[mId].count += 1;
-                        counts[mId].pbs += (log.newPBs || []).length;
+                        if (!matchesLocation) return;
 
-                        // Beräkna sisu-poäng för denna logg med den nya, förenklade regeln:
+                        if (!counts[mId]) {
+                            counts[mId] = { count: 0, pbs: 0, sisuWeekly: 0, sisuTotal: 0 };
+                        }
+
+                        const logTime = log.date;
+                        const isThisWeek = logTime >= startMs && logTime <= endMs;
+
+                        // 1. Pass & PB (Endast den här veckan, och endast i studion [i.e. inStudio !== false])
+                        if (isThisWeek && log.inStudio !== false) {
+                            counts[mId].count += 1;
+                            counts[mId].pbs += (log.newPBs || []).length;
+                        }
+
+                        // 2. Beräkna sisu-poäng för denna logg med den nya, förenklade regeln:
                         // 2 poäng i studion, 1 poäng utanför studion (minst 30 min)
                         let pts = 0;
                         if (log.inStudio === true) {
@@ -102,7 +106,13 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ organizationId }) => {
                                 pts = 1;
                             }
                         }
-                        counts[mId].sisu += pts;
+
+                        if (pts > 0) {
+                            counts[mId].sisuTotal += pts;
+                            if (isThisWeek) {
+                                counts[mId].sisuWeekly += pts;
+                            }
+                        }
                     });
                     
                     const leaderboardData = Object.entries(counts).map(([mId, stats]) => {
@@ -111,11 +121,12 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ organizationId }) => {
                             memberId: mId,
                             name: memberInfo 
                                 ? `${memberInfo.firstName || 'Medlem'} ${memberInfo.lastName ? memberInfo.lastName[0] + '.' : ''}`.trim()
-                                : (weeklyLogs.find(l => l.memberId === mId)?.memberName || 'Okänd Medlem'),
-                            photoUrl: memberInfo?.photoUrl || weeklyLogs.find(l => l.memberId === mId)?.memberPhotoUrl || '',
+                                : (logs.find(l => l.memberId === mId)?.memberName || 'Okänd Medlem'),
+                            photoUrl: memberInfo?.photoUrl || logs.find(l => l.memberId === mId)?.memberPhotoUrl || '',
                             count: stats.count,
                             pbs: stats.pbs,
-                            sisu: stats.sisu
+                            sisuWeekly: stats.sisuWeekly,
+                            sisuTotal: stats.sisuTotal
                         };
                     });
                     
@@ -148,15 +159,36 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ organizationId }) => {
     const sortedData = [...leaderboard].sort((a, b) => {
         if (activeTab === 'workouts') return b.count - a.count;
         if (activeTab === 'pbs') return b.pbs - a.pbs;
-        return (b.sisu || 0) - (a.sisu || 0);
+        if (sisuTimeframe === 'weekly') {
+            return (b.sisuWeekly || 0) - (a.sisuWeekly || 0);
+        } else {
+            return (b.sisuTotal || 0) - (a.sisuTotal || 0);
+        }
     });
-    const displayData = (activeTab === 'pbs' ? sortedData.filter(u => u.pbs > 0) : sortedData).slice(0, 10);
+
+    const displayData = (() => {
+        if (activeTab === 'pbs') {
+            return sortedData.filter(u => u.pbs > 0);
+        }
+        if (activeTab === 'sisu') {
+            if (sisuTimeframe === 'weekly') {
+                return sortedData.filter(u => u.sisuWeekly > 0);
+            } else {
+                return sortedData.filter(u => u.sisuTotal > 0);
+            }
+        }
+        return sortedData;
+    })().slice(0, 10);
 
     return (
         <div className="bg-white dark:bg-gray-900 rounded-2xl p-3 sm:p-4 shadow-sm border border-gray-100 dark:border-gray-800">
             <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg font-black text-gray-900 dark:text-white flex items-center gap-2">
-                    <TrophyIcon className="w-5 h-5 text-yellow-500" /> Veckans Topplista
+                    <TrophyIcon className="w-5 h-5 text-yellow-500" />{' '}
+                    {activeTab === 'sisu' 
+                        ? (sisuTimeframe === 'total' ? 'Sommarutmaningen - Totalt' : 'Sommarutmaningen - Denna Vecka')
+                        : 'Veckans Topplista'
+                    }
                 </h3>
             </div>
 
@@ -183,7 +215,7 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ organizationId }) => {
                                     isSelected
                                         ? 'bg-white dark:bg-gray-700 text-primary shadow-sm'
                                         : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
-                                }`}
+                                    }`}
                             >
                                 {loc.name}
                             </button>
@@ -220,19 +252,52 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ organizationId }) => {
                     <FireIcon className="w-3.5 h-3.5" /> PB
                 </button>
             </div>
+
+            {/* Veckovis vs Totalt för SISU */}
+            {activeTab === 'sisu' && (
+                <div className="flex gap-1.5 mb-4 p-1 bg-amber-500/5 dark:bg-amber-500/10 rounded-xl border border-amber-500/10 shadow-sm transition-all">
+                    <button
+                        onClick={() => setSisuTimeframe('weekly')}
+                        className={`flex-1 py-1 px-3 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all ${
+                            sisuTimeframe === 'weekly'
+                                ? 'bg-amber-500 text-white shadow-md'
+                                : 'text-amber-500 hover:text-amber-600 dark:hover:text-amber-400 font-bold'
+                        }`}
+                    >
+                        Veckovis
+                    </button>
+                    <button
+                        onClick={() => setSisuTimeframe('total')}
+                        className={`flex-1 py-1 px-3 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all ${
+                            sisuTimeframe === 'total'
+                                ? 'bg-amber-500 text-white shadow-md'
+                                : 'text-amber-500 hover:text-amber-600 dark:hover:text-amber-400 font-bold'
+                        }`}
+                    >
+                        Totalt
+                    </button>
+                </div>
+            )}
             
-            <p className="text-[10px] text-center text-gray-400 dark:text-gray-500 mb-3 uppercase tracking-wider font-bold">
-                Endast pass utförda på {selectedLocationId !== 'all' ? selectedOrganization?.locations?.find(l => l.id === selectedLocationId)?.name || 'plats' : selectedOrganization?.name || 'plats'} räknas
-            </p>
+            {activeTab !== 'sisu' && (
+                <p className="text-[10px] text-center text-gray-400 dark:text-gray-500 mb-3 uppercase tracking-wider font-bold">
+                    Endast pass utförda på {selectedLocationId !== 'all' ? selectedOrganization?.locations?.find(l => l.id === selectedLocationId)?.name || 'plats' : selectedOrganization?.name || 'plats'} räknas
+                </p>
+            )}
             
             {displayData.length === 0 ? (
                 <p className="text-sm text-gray-500 text-center py-4">
-                    {activeTab === 'workouts' ? 'Inga pass loggade denna vecka än.' : activeTab === 'sisu' ? 'Inga Sisu-poäng intjänade denna vecka än.' : 'Inga personbästan satta denna vecka än.'}
+                    {activeTab === 'workouts' 
+                        ? 'Inga pass loggade denna vecka än.' 
+                        : activeTab === 'sisu' 
+                            ? (sisuTimeframe === 'weekly' ? 'Inga Sisu-poäng intjänade denna vecka än.' : 'Inga Sisu-poäng intjänade än under utmaningen.') 
+                            : 'Inga personbästan satta denna vecka än.'
+                    }
                 </p>
             ) : (
                 <div className="space-y-3">
                     {displayData.map((user, index) => (
-                        <div key={user.memberId} className="flex items-center justify-between bg-gray-50 dark:bg-gray-800/50 p-3 rounded-xl">
+                        <div key={user.memberId} className="flex items-center justify-between bg-gray-50 dark:bg-gray-880/50 p-3 rounded-xl">
                             <div className="flex items-center gap-3">
                                 <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-black
                                     ${index === 0 ? 'bg-yellow-100 text-yellow-600' : 
@@ -257,7 +322,7 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ organizationId }) => {
                                     </div>
                                 ) : activeTab === 'sisu' ? (
                                     <div className="text-sm font-black text-amber-500 bg-amber-500/10 px-2.5 py-1 rounded-lg flex items-center gap-1">
-                                        ☀️ {user.sisu || 0} p
+                                        ☀️ {sisuTimeframe === 'weekly' ? user.sisuWeekly : user.sisuTotal} p
                                     </div>
                                 ) : (
                                     <div className="flex items-center gap-1 text-sm font-black text-orange-500 bg-orange-50 dark:bg-orange-900/20 px-2 py-1 rounded-lg">
