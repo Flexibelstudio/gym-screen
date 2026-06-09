@@ -704,10 +704,14 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
         thisWeeksLogs.forEach(log => {
             const uid = log.memberId;
             if (!uid) return;
-            let pts = log.summerPoints;
-            if (pts === undefined) {
-                const isOfficial = log.workoutId && log.workoutId !== 'manual' && !log.workoutId.startsWith('custom_') && !log.workoutId.startsWith('custom-');
-                pts = isOfficial ? 3 : (log.inStudio === true ? 2 : 1);
+            let pts = 0;
+            if (log.inStudio === true) {
+                pts = 2;
+            } else {
+                const isLessThan30 = log.durationMinutes !== undefined && log.durationMinutes > 0 && log.durationMinutes < 30;
+                if (!isLessThan30) {
+                    pts = 1;
+                }
             }
             userPointsMap[uid] = (userPointsMap[uid] || 0) + pts;
         });
@@ -1015,10 +1019,14 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
         let summerWeekPoints = 0;
 
         logs.forEach(log => {
-            let pts = log.summerPoints;
-            if (pts === undefined) {
-                const isOfficial = log.workoutId && log.workoutId !== 'manual' && !log.workoutId.startsWith('custom_') && !log.workoutId.startsWith('custom-');
-                pts = isOfficial ? 3 : (log.inStudio === true ? 2 : 1);
+            let pts = 0;
+            if (log.inStudio === true) {
+                pts = 2;
+            } else {
+                const isLessThan30 = log.durationMinutes !== undefined && log.durationMinutes > 0 && log.durationMinutes < 30;
+                if (!isLessThan30) {
+                    pts = 1;
+                }
             }
             summerTotalPoints += pts;
             
@@ -1627,20 +1635,11 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                                                 <h5 className="text-[9px] font-black uppercase tracking-wider text-gray-400">Så här samlar ni poäng</h5>
                                                 <div className="grid grid-cols-1 gap-2.5">
                                                     <div className="bg-white/5 rounded-2xl p-4 border border-white/5 flex items-start gap-3">
-                                                        <span className="text-base bg-orange-500/20 text-orange-400 p-2 rounded-xl leading-none">🎖️</span>
-                                                        <div className="text-left">
-                                                            <p className="text-xs font-black text-[#fbbf24] uppercase tracking-wider">3 Poäng</p>
-                                                            <p className="text-[11px] text-gray-300 mt-0.5 leading-relaxed font-semibold">
-                                                                Officiella träningspass (instruktörsledda/SMART-pass) eller loggade via QR-kod i gymmet.
-                                                            </p>
-                                                        </div>
-                                                    </div>
-                                                    <div className="bg-white/5 rounded-2xl p-4 border border-white/5 flex items-start gap-3">
-                                                        <span className="text-base bg-yellow-500/20 text-yellow-400 p-2 rounded-xl leading-none">🏋️‍♂️</span>
+                                                        <span className="text-base bg-emerald-500/20 text-emerald-400 p-2 rounded-xl leading-none">🏋️‍♀️</span>
                                                         <div className="text-left">
                                                             <p className="text-xs font-black text-[#fbbf24] uppercase tracking-wider">2 Poäng</p>
                                                             <p className="text-[11px] text-gray-300 mt-0.5 leading-relaxed font-semibold">
-                                                                Eget pass eller träning som du genomför på plats i studion.
+                                                                Träning i studion! Gäller alla pass (bokat gruppass, SMART-pass eller egen träning) som genomförs på plats.
                                                             </p>
                                                         </div>
                                                     </div>
@@ -1649,7 +1648,7 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                                                         <div className="text-left">
                                                             <p className="text-xs font-black text-[#fbbf24] uppercase tracking-wider">1 Poäng</p>
                                                             <p className="text-[11px] text-gray-300 mt-0.5 leading-relaxed font-semibold">
-                                                                Utomhusaktivitet (löptur, powerwalk, cykling, simning m.m.) under minst 30 minuter.
+                                                                Träning utanför studion! Alla hemma- eller utomhusaktiviteter (powerwalk, löpning, cykling etc.) på minst 30 minuter.
                                                             </p>
                                                         </div>
                                                     </div>

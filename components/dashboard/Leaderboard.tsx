@@ -91,11 +91,16 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ organizationId }) => {
                         counts[mId].count += 1;
                         counts[mId].pbs += (log.newPBs || []).length;
 
-                        // Beräkna sisu-poäng för denna logg
-                        let pts = log.summerPoints;
-                        if (pts === undefined) {
-                            const isOfficial = log.workoutId && log.workoutId !== 'manual' && !log.workoutId.startsWith('custom_') && !log.workoutId.startsWith('custom-');
-                            pts = isOfficial ? 3 : (log.inStudio === true ? 2 : 1);
+                        // Beräkna sisu-poäng för denna logg med den nya, förenklade regeln:
+                        // 2 poäng i studion, 1 poäng utanför studion (minst 30 min)
+                        let pts = 0;
+                        if (log.inStudio === true) {
+                            pts = 2;
+                        } else {
+                            const isLessThan30 = log.durationMinutes !== undefined && log.durationMinutes > 0 && log.durationMinutes < 30;
+                            if (!isLessThan30) {
+                                pts = 1;
+                            }
                         }
                         counts[mId].sisu += pts;
                     });

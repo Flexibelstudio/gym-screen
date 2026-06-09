@@ -1659,12 +1659,15 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
           });
 
           // Poäng i sommarutmaningen (Sommar-Sisu)
-          let calculatedSummerPoints = 1;
-          const isOfficialTemplate = !isManualMode && wId && wId !== 'manual' && !wId.startsWith('custom_') && !wId.startsWith('custom-');
-          if (isOfficialTemplate) {
-              calculatedSummerPoints = 3;
-          } else if (inStudio === true) {
+          let calculatedSummerPoints = 0;
+          if (inStudio === true) {
               calculatedSummerPoints = 2;
+          } else {
+              const durRaw = isQuickOrManual ? customActivity.duration : sessionStats.time;
+              const dur = parseFloat(durRaw) || 0;
+              if (dur === 0 || dur >= 30) {
+                  calculatedSummerPoints = 1;
+              }
           }
 
           const finalLogRaw: any = {

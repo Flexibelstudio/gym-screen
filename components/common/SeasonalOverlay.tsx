@@ -260,14 +260,12 @@ const GymThermometerMascot = ({ isStudioMode = false }: { isStudioMode?: boolean
                 const uid = log.memberId;
                 if (!uid) return;
                 
-                let pts = log.summerPoints;
-                if (pts === undefined) {
-                    const isOfficialTemplate = log.workoutId && log.workoutId !== 'manual' && !log.workoutId.startsWith('custom_') && !log.workoutId.startsWith('custom-');
-                    if (isOfficialTemplate) {
-                        pts = 3;
-                    } else if (log.inStudio === true) {
-                        pts = 2;
-                    } else {
+                let pts = 0;
+                if (log.inStudio === true) {
+                    pts = 2;
+                } else {
+                    const isLessThan30 = log.durationMinutes !== undefined && log.durationMinutes > 0 && log.durationMinutes < 30;
+                    if (!isLessThan30) {
                         pts = 1;
                     }
                 }
@@ -307,59 +305,122 @@ const GymThermometerMascot = ({ isStudioMode = false }: { isStudioMode?: boolean
         switch (stats.status) {
             case 'hett':
                 return {
-                    bg: 'bg-red-500',
-                    text: 'text-red-500',
-                    glow: 'shadow-red-500/50',
-                    heightClass: 'h-[95%]',
+                    color: '#ef4444',
+                    percentage: 0.90,
                     label: 'HET 🌋',
-                    desc: 'Gymmet kokar! Det är sjuuukt bra tryck!'
                 };
             case 'varmt':
                 return {
-                    bg: 'bg-orange-500',
-                    text: 'text-orange-500',
-                    glow: 'shadow-orange-500/50',
-                    heightClass: 'h-[75%]',
+                    color: '#f97316',
+                    percentage: 0.65,
                     label: 'VARMT 🔥',
-                    desc: 'Härligt tempo – nu svettas vi ihop!'
                 };
             case 'ljummet':
                 return {
-                    bg: 'bg-yellow-500',
-                    text: 'text-yellow-500',
-                    glow: 'shadow-yellow-500/50',
-                    heightClass: 'h-[50%]',
+                    color: '#eab308',
+                    percentage: 0.45,
                     label: 'LJUMMET 🌤️',
-                    desc: 'Stabil fart i gymmet!'
                 };
             case 'kallt':
             default:
                 return {
-                    bg: 'bg-blue-500',
-                    text: 'text-blue-500',
-                    glow: 'shadow-blue-500/50',
-                    heightClass: 'h-[25%]',
+                    color: '#3b82f6',
+                    percentage: 0.20,
                     label: 'SVALT ❄️',
-                    desc: 'Kom igen gänget, dags att öka!'
                 };
         }
     };
 
     const config = getStatusConfig();
+    const percentage = config.percentage;
+    const color = config.color;
+
+    // Fluid level Y coordinates (startY = 152 to endY = 14)
+    const startY = 152;
+    const endY = 14;
+    const currentY = startY - (percentage * (startY - endY));
 
     if (isStudioMode) {
         return (
             <div className="fixed bottom-12 left-12 z-[2000] flex flex-col items-center pointer-events-none select-none animate-fade-in origin-bottom rotate-[12deg]">
-                {/* Clean, stand-alone high-contrast thermometer */}
-                <div className="relative w-8 h-48 bg-slate-950/20 backdrop-blur-sm rounded-full border border-white/20 p-[3px] flex flex-col justify-end overflow-hidden shadow-[inset_0_2px_10px_rgba(0,0,0,0.8)]">
-                    <div className={`w-full rounded-full transition-all duration-1000 ease-out ${config.bg} shadow-[0_0_15px_rgba(255,255,255,0.2)]`} style={{ height: config.heightClass }}></div>
-                </div>
-                {/* Thermometer bulb at the bottom */}
-                <div className={`w-14 h-14 rounded-full border border-white/20 mt-[-6px] flex items-center justify-center transition-all duration-1000 ${config.bg} ${config.glow} shadow-[0_0_25px_rgba(0,0,0,0.8)]`}>
-                    <div className="w-4 h-4 bg-white/30 rounded-full"></div>
-                </div>
+                {/* Unified continuous Glass Thermometer SVG */}
+                <svg 
+                    viewBox="0 0 40 160" 
+                    className="w-14 h-48 overflow-visible drop-shadow-[0_4px_20px_rgba(0,0,0,0.6)]"
+                >
+                    <defs>
+                        {/* Soft glow matching the liquid color */}
+                        <filter id={`glow-large-${color.replace('#', '')}`} x="-30%" y="-30%" width="160%" height="160%">
+                            <feGaussianBlur stdDeviation="5" result="blur" />
+                            <feComposite in="SourceGraphic" in2="blur" operator="over" />
+                        </filter>
+                        <linearGradient id={`liquid-grad-large-${color.replace('#', '')}`} x1="0%" y1="0%" x2="0%" y2="100%">
+                            <stop offset="0%" stopColor={color} />
+                            <stop offset="100%" stopColor={color === '#ef4444' ? '#991b1b' : color === '#f97316' ? '#c2410c' : color === '#eab308' ? '#a16207' : '#1e40af'} />
+                        </linearGradient>
+                        <clipPath id="glass-inner-large">
+                            <path d="M 17,14 L 17,126 A 13,13 0 1,0 23,126 L 23,14 A 3,3 0 0,0 17,14 Z" />
+                        </clipPath>
+                    </defs>
+
+                    {/* Glowing backlight to make the mercury look bright & active */}
+                    <path 
+                        d="M 17,14 L 17,126 A 13,13 0 1,0 23,126 L 23,14 A 3,3 0 0,0 17,14 Z"
+                        fill={color}
+                        opacity="0.25"
+                        filter={`url(#glow-large-${color.replace('#', '')})`}
+                    />
+
+                    {/* Unified Glass Tube Outline (Sleek container structure) - NO overlapping artifacts! */}
+                    <path 
+                        d="M 16,12 L 16,126 A 14,14 0 1,0 24,126 L 24,12 A 4,4 0 0,0 16,12 Z" 
+                        fill="rgba(15, 23, 42, 0.75)"
+                        stroke="rgba(255, 255, 255, 0.35)"
+                        strokeWidth="1.2"
+                        className="backdrop-blur-md"
+                    />
+
+                    {/* Rising Liquid */}
+                    <g clipPath="url(#glass-inner-large)">
+                        <rect 
+                            x="0" 
+                            y={currentY} 
+                            width="40" 
+                            height={160 - currentY} 
+                            fill={`url(#liquid-grad-large-${color.replace('#', '')})`} 
+                            className="transition-all duration-1000 ease-out"
+                        />
+                        {/* High-quality highlight glare */}
+                        <rect x="18" y="10" width="1" height="130" fill="white" opacity="0.15" />
+                    </g>
+
+                    {/* Highlight glare on left side of glass */}
+                    <path 
+                        d="M 17,15 L 17,120" 
+                        stroke="white" 
+                        strokeWidth="0.8" 
+                        strokeLinecap="round"
+                        opacity="0.3" 
+                    />
+
+                    {/* Thermometer scale markers (Tick marks) */}
+                    <g stroke="white" strokeWidth="0.8" opacity="0.25" strokeLinecap="round">
+                        <line x1="16" y1="35" x2="18" y2="35" />
+                        <line x1="16" y1="55" x2="18" y2="55" />
+                        <line x1="16" y1="75" x2="18" y2="75" />
+                        <line x1="16" y1="95" x2="18" y2="95" />
+                        <line x1="16" y1="115" x2="18" y2="115" />
+                        
+                        <line x1="24" y1="35" x2="22" y2="35" />
+                        <line x1="24" y1="55" x2="22" y2="55" />
+                        <line x1="24" y1="75" x2="22" y2="75" />
+                        <line x1="24" y1="95" x2="22" y2="95" />
+                        <line x1="24" y1="115" x2="22" y2="115" />
+                    </g>
+                </svg>
+
                 {/* Ultra-clean badge showing points */}
-                <span className="text-[10px] font-black tracking-wider text-white mt-3 px-2.5 py-1 bg-slate-950/80 backdrop-blur border border-white/10 rounded-full uppercase shadow-md">
+                <span className="text-[10px] font-black tracking-wider text-white mt-3 px-2.5 py-1 bg-slate-950/80 backdrop-blur border border-white/10 rounded-full uppercase shadow-md animate-pulse">
                     {stats.avgPoints} POÄNG
                 </span>
             </div>
@@ -369,14 +430,78 @@ const GymThermometerMascot = ({ isStudioMode = false }: { isStudioMode?: boolean
     // if !isStudioMode (member app view), render same clean thermometer, but smaller
     return (
         <div className="fixed bottom-16 sm:bottom-6 left-6 z-[90] flex flex-col items-center pointer-events-none select-none animate-fade-in origin-bottom rotate-[12deg]">
-            {/* Small standalone high-contrast thermometer */}
-            <div className="relative w-5 h-28 bg-slate-950/40 backdrop-blur-md rounded-full border border-white/25 p-[2px] flex flex-col justify-end overflow-hidden shadow-[inset_0_2px_6px_rgba(0,0,0,0.8)]">
-                <div className={`w-full rounded-full transition-all duration-1000 ease-out ${config.bg} shadow-[0_0_10px_rgba(255,255,255,0.2)]`} style={{ height: config.heightClass }}></div>
-            </div>
-            {/* Small Thermometer bulb at the bottom */}
-            <div className={`w-9 h-9 rounded-full border border-white/25 mt-[-4px] flex items-center justify-center transition-all duration-1000 ${config.bg} ${config.glow} shadow-[0_0_15px_rgba(0,0,0,0.8)]`}>
-                <div className="w-2.5 h-2.5 bg-white/30 rounded-full"></div>
-            </div>
+            {/* Unified continuous Glass Thermometer SVG - Small */}
+            <svg 
+                viewBox="0 0 40 160" 
+                className="w-10 h-32 overflow-visible drop-shadow-[0_4px_15px_rgba(0,0,0,0.5)]"
+            >
+                <defs>
+                    <filter id={`glow-small-${color.replace('#', '')}`} x="-30%" y="-30%" width="160%" height="160%">
+                        <feGaussianBlur stdDeviation="4" result="blur" />
+                        <feComposite in="SourceGraphic" in2="blur" operator="over" />
+                    </filter>
+                    <linearGradient id={`liquid-grad-small-${color.replace('#', '')}`} x1="0%" y1="0%" x2="0%" y2="100%">
+                        <stop offset="0%" stopColor={color} />
+                        <stop offset="100%" stopColor={color === '#ef4444' ? '#991b1b' : color === '#f97316' ? '#c2410c' : color === '#eab308' ? '#a16207' : '#1e40af'} />
+                    </linearGradient>
+                    <clipPath id="glass-inner-small">
+                        <path d="M 17,14 L 17,126 A 13,13 0 1,0 23,126 L 23,14 A 3,3 0 0,0 17,14 Z" />
+                    </clipPath>
+                </defs>
+
+                {/* Glowing backlight */}
+                <path 
+                    d="M 17,14 L 17,126 A 13,13 0 1,0 23,126 L 23,14 A 3,3 0 0,0 17,14 Z"
+                    fill={color}
+                    opacity="0.2"
+                    filter={`url(#glow-small-${color.replace('#', '')})`}
+                />
+
+                {/* Unified Glass Tube Outline - NO overlapping circles/lines! */}
+                <path 
+                    d="M 16,12 L 16,126 A 14,14 0 1,0 24,126 L 24,12 A 4,4 0 0,0 16,12 Z" 
+                    fill="rgba(15, 23, 42, 0.75)"
+                    stroke="rgba(255, 255, 255, 0.35)"
+                    strokeWidth="1.2"
+                    className="backdrop-blur-md"
+                />
+
+                {/* Rising Liquid */}
+                <g clipPath="url(#glass-inner-small)">
+                    <rect 
+                        x="0" 
+                        y={currentY} 
+                        width="40" 
+                        height={160 - currentY} 
+                        fill={`url(#liquid-grad-small-${color.replace('#', '')})`} 
+                        className="transition-all duration-1000 ease-out"
+                    />
+                    <rect x="18" y="10" width="1" height="130" fill="white" opacity="0.1" />
+                </g>
+
+                {/* Glass sheen highlight */}
+                <path 
+                    d="M 17,15 L 17,120" 
+                    stroke="white" 
+                    strokeWidth="0.8" 
+                    strokeLinecap="round"
+                    opacity="0.25" 
+                />
+
+                {/* Aesthetic measurement ticks */}
+                <g stroke="white" strokeWidth="0.8" opacity="0.2" strokeLinecap="round">
+                    <line x1="16" y1="40" x2="18" y2="40" />
+                    <line x1="16" y1="65" x2="18" y2="65" />
+                    <line x1="16" y1="90" x2="18" y2="90" />
+                    <line x1="16" y1="115" x2="18" y2="115" />
+                    
+                    <line x1="24" y1="40" x2="22" y2="40" />
+                    <line x1="24" y1="65" x2="22" y2="65" />
+                    <line x1="24" y1="90" x2="22" y2="90" />
+                    <line x1="24" y1="115" x2="22" y2="115" />
+                </g>
+            </svg>
+
             {/* Small badge showing average points */}
             <span className="text-[8px] font-black tracking-wider text-white mt-1.5 px-2 py-0.5 bg-slate-950/90 backdrop-blur border border-white/10 rounded-full uppercase shadow-md whitespace-nowrap">
                 {stats.avgPoints} P
