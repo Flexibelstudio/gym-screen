@@ -350,11 +350,11 @@ const GymThermometerMascot = ({ isStudioMode = false }: { isStudioMode?: boolean
 
     if (isStudioMode) {
         return (
-            <div className="fixed bottom-10 left-10 z-[2000] flex flex-col items-center pointer-events-none select-none animate-fade-in origin-bottom rotate-[5deg] drop-shadow-[0_25px_30px_rgba(0,0,0,0.95)] drop-shadow-[0_0_20px_rgba(0,0,0,0.8)]">
+            <div className="fixed bottom-10 left-10 z-[2000] flex flex-col items-center pointer-events-none select-none animate-fade-in origin-bottom rotate-[5deg] drop-shadow-[0_3px_6px_rgba(0,0,0,0.3)]">
                 {/* Unified continuous Glass Thermometer SVG */}
                 <svg 
                     viewBox="0 0 40 160" 
-                    className="w-16 h-52 overflow-visible drop-shadow-[0_15px_35px_rgba(0,0,0,0.95)]"
+                    className="w-16 h-52 overflow-visible drop-shadow-[0_2px_4px_rgba(0,0,0,0.2)]"
                 >
                     <defs>
                         {/* Soft glow matching the liquid color */}
@@ -446,11 +446,11 @@ const GymThermometerMascot = ({ isStudioMode = false }: { isStudioMode?: boolean
 
     // if !isStudioMode (member app view), render same clean thermometer, but smaller
     return (
-        <div className="fixed bottom-3 left-3 z-[90] flex flex-col items-center pointer-events-none select-none animate-fade-in origin-bottom rotate-[5deg] drop-shadow-[0_20px_25px_rgba(0,0,0,0.95)] drop-shadow-[0_0_15px_rgba(0,0,0,0.7)]">
+        <div className="fixed bottom-3 left-3 z-[90] flex flex-col items-center pointer-events-none select-none animate-fade-in origin-bottom rotate-[5deg] drop-shadow-[0_2px_5px_rgba(0,0,0,0.25)]">
             {/* Unified continuous Glass Thermometer SVG - Small */}
             <svg 
                 viewBox="0 0 40 160" 
-                className="w-12 h-36 overflow-visible drop-shadow-[0_8px_24px_rgba(0,0,0,0.85)]"
+                className="w-12 h-36 overflow-visible drop-shadow-[0_1px_3px_rgba(0,0,0,0.15)]"
             >
                 <defs>
                     <filter id={`glow-small-${color.replace('#', '')}`} x="-30%" y="-30%" width="160%" height="160%">

@@ -1508,7 +1508,7 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                                             Vill du anta utmaningen? 🌻
                                         </h4>
                                         <p className="text-xs sm:text-sm text-slate-900 font-semibold leading-relaxed mb-5 max-w-xl">
-                                            Samla poäng till studion när du tränar i sommar! Du kan logga både pass i gymmet och utomhusaktiviteter. Tillsammans får vi temperaturnålen att stiga på den stora Smart Skärmen!
+                                            Varje pass du loggar ger dig poäng och hjälper till att öka snittpoängen och temperaturen i studion. Du kan logga både pass i gymmet och utomhusaktiviteter! Tillsammans får vi temperaturnålen att stiga på den stora Smart Skärmen.
                                         </p>
                                         <div className="flex flex-wrap items-center gap-3">
                                             <button
@@ -1777,7 +1777,7 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                                                         <div className="text-left">
                                                             <p className="text-xs font-black text-emerald-950 uppercase tracking-wider">2 Poäng</p>
                                                             <p className="text-[11px] text-slate-900 mt-0.5 leading-relaxed font-semibold">
-                                                                Träning i studion! Gäller alla pass (bokat gruppass, SMART-pass eller egen träning) som genomförs på plats.
+                                                                Träning i studion! Det gäller alla pass som genomförs på plats i studion.
                                                             </p>
                                                         </div>
                                                     </div>
