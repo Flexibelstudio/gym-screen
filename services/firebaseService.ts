@@ -506,6 +506,65 @@ export const saveWorkoutLog = async (logData: any): Promise<{ log: any, newRecor
                 if (!newLog.locationId && userData.locationId) {
                     newLog.locationId = userData.locationId;
                 }
+
+                // Beräkna Sommarutmaning-poäng & veckomål-milestones för denna log
+                if (userData.joinedSummerChallenge) {
+                    const now = new Date();
+                    const currentDay = now.getDay() || 7;
+                    const monday = new Date(now);
+                    monday.setDate(now.getDate() - (currentDay - 1));
+                    monday.setHours(0, 0, 0, 0);
+                    const thisWeekMonday = monday.getTime();
+
+                    // Hämta deltagarens veckomål för innevarande vecka
+                    const myGoal = userData.summerChallengeGoals?.[thisWeekMonday] !== undefined 
+                        ? userData.summerChallengeGoals[thisWeekMonday] 
+                        : (userData.summerChallengeGoal || 3);
+
+                    // Beräkna poäng för detta NYA pass
+                    let newPassPoints = 0;
+                    if (newLog.inStudio === true) {
+                        newPassPoints = 2;
+                    } else {
+                        const isLessThan30 = newLog.durationMinutes !== undefined && newLog.durationMinutes > 0 && newLog.durationMinutes < 30;
+                        if (!isLessThan30) {
+                            newPassPoints = 1;
+                        }
+                    }
+
+                    if (newPassPoints > 0) {
+                        // Hämta användarens loggar för innevarande vecka för att se ackumulerade veckopoäng innan detta pass
+                        const q = query(
+                            collection(db, 'workoutLogs'),
+                            where("memberId", "==", logData.memberId),
+                            where("date", ">=", thisWeekMonday)
+                        );
+                        const weekLogsSnap = await getDocs(q);
+                        let previousWeekPoints = 0;
+                        
+                        weekLogsSnap.forEach(snap => {
+                            const l = snap.data();
+                            let pts = 0;
+                            if (l.inStudio === true) {
+                                pts = 2;
+                            } else {
+                                const isLessThan30 = l.durationMinutes !== undefined && l.durationMinutes > 0 && l.durationMinutes < 30;
+                                if (!isLessThan30) {
+                                    pts = 1;
+                                }
+                            }
+                            previousWeekPoints += pts;
+                        });
+
+                        const totalPointsWithNew = previousWeekPoints + newPassPoints;
+
+                        if (previousWeekPoints < myGoal && totalPointsWithNew >= myGoal) {
+                            newLog.reachedSummerGoal = true;
+                        } else if (previousWeekPoints >= myGoal) {
+                            newLog.overDeliveredSummerGoal = true;
+                        }
+                    }
+                }
             }
         } catch (e) { console.warn("Failed to enrich log", e); }
     }

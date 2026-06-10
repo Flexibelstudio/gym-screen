@@ -746,20 +746,18 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
 
     const summerStats = useMemo(() => {
         if (!isSummerThemeActive) return { 
-            avgPoints: 0, 
             totalPoints: 0, 
-            activeUsersCount: 0, 
+            clubWeeklyTarget: 0,
+            percentage: 0,
             label: 'SVALT', 
             emoji: '❄️', 
             colorClass: 'text-sky-400', 
             bannerBgClass: 'from-blue-600/30 to-slate-900', 
             scale: 'svalt',
-            N: 1,
-            thresholdLjummet: 3,
-            thresholdVarmt: 6,
-            thresholdHet: 10,
-            nextTarget: 3,
-            totalRegisteredCount: 0
+            N: 0,
+            totalRegisteredCount: 0,
+            totalClubWorkoutsSummer: 0,
+            activeUsersCount: 0
         };
         
         const now = new Date();
@@ -767,8 +765,9 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
         const monday = new Date(now);
         monday.setDate(now.getDate() - (currentDay - 1));
         monday.setHours(0, 0, 0, 0);
+        const thisWeekMonday = monday.getTime();
 
-        const thisWeeksLogs = filteredCommunityLogs.filter(log => (log.date || 0) >= monday.getTime());
+        const thisWeeksLogs = filteredCommunityLogs.filter(log => (log.date || 0) >= thisWeekMonday);
         const userPointsMap: Record<string, number> = {};
         let totalPoints = 0;
 
@@ -799,65 +798,80 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
         const challengeParticipantsOnSunday = locationMembers.filter(m => {
             if (!m.joinedSummerChallenge) return false;
             const joinedAt = m.joinedSummerChallengeAt || 0;
-            return joinedAt < monday.getTime();
+            return joinedAt < thisWeekMonday;
         });
 
-        const N = Math.max(1, challengeParticipantsOnSunday.length);
+        const N = challengeParticipantsOnSunday.length;
 
-        const thresholdLjummet = 3 * N;
-        const thresholdVarmt = 6 * N;
-        const thresholdHet = 10 * N;
+        // Klubbens veckomål = summan av alla deltagares låsta veckomål för den pågående veckan
+        const clubWeeklyTarget = challengeParticipantsOnSunday.reduce((sum, m) => {
+            const goals = m.summerChallengeGoals || {};
+            const goalThisWeek = goals[thisWeekMonday] !== undefined ? goals[thisWeekMonday] : (m.summerChallengeGoal || 3);
+            return sum + goalThisWeek;
+        }, 0);
+
+        const effectiveClubTarget = Math.max(1, clubWeeklyTarget);
+        const rawPercent = (totalPoints / effectiveClubTarget) * 100;
+        const percent = Math.round(rawPercent);
 
         let label = 'SVALT';
         let emoji = '❄️';
         let colorClass = 'text-sky-400';
         let bannerBgClass = 'from-sky-500/10 to-slate-900';
         let scale = 'svalt';
-        let nextTarget = thresholdLjummet;
 
-        if (totalPoints >= thresholdHet) {
-            label = 'HET';
+        if (percent >= 110) {
+            label = 'ÖVERHETTNING';
             emoji = '🌋';
-            colorClass = 'text-red-500 dark:text-red-400';
+            colorClass = 'text-red-600 dark:text-red-400 font-extrabold';
+            bannerBgClass = 'from-red-600/30 to-slate-950';
+            scale = 'overhettning';
+        } else if (percent >= 100) {
+            label = 'HET';
+            emoji = '🔥';
+            colorClass = 'text-red-500 dark:text-red-400 font-extrabold';
             bannerBgClass = 'from-red-500/20 to-slate-950';
             scale = 'het';
-            nextTarget = -1;
-        } else if (totalPoints >= thresholdVarmt) {
-            label = 'VARMT';
-            emoji = '🔥';
-            colorClass = 'text-orange-500 dark:text-orange-400';
+        } else if (percent >= 70) {
+            label = 'VARM';
+            emoji = '☀️';
+            colorClass = 'text-orange-500 dark:text-orange-400 font-bold';
             bannerBgClass = 'from-orange-500/20 to-slate-950';
-            scale = 'varmt';
-            nextTarget = thresholdHet;
-        } else if (totalPoints >= thresholdLjummet) {
-            label = 'LJUMMET';
+            scale = 'varm';
+        } else if (percent >= 40) {
+            label = 'LJUMMEN';
             emoji = '🌤️';
-            colorClass = 'text-yellow-500 dark:text-yellow-400';
+            colorClass = 'text-yellow-500 dark:text-yellow-400 font-bold';
             bannerBgClass = 'from-yellow-500/20 to-slate-950';
             scale = 'ljummet';
-            nextTarget = thresholdVarmt;
         }
 
-        const avgPoints = N > 0 ? Number((totalPoints / N).toFixed(1)) : 0;
+        // Totalt antal pass (hela sommaren) under utmaningen för denna plats (location)
+        const challengeStart = configToUse?.summerChallengeStartDate || 0;
+        const challengeEnd = configToUse?.summerChallengeEndDate || Infinity;
+        const allSummerLogs = filteredCommunityLogs.filter(log => {
+            const d = log.date;
+            return d >= challengeStart && d <= challengeEnd;
+        });
+        const totalClubWorkoutsSummer = allSummerLogs.length;
+
         const totalRegisteredCount = locationMembers.filter(m => m.joinedSummerChallenge).length;
 
         return {
             totalPoints,
-            avgPoints,
-            activeUsersCount,
+            clubWeeklyTarget: effectiveClubTarget,
+            percentage: percent,
             label,
             emoji,
             colorClass,
             bannerBgClass,
             scale,
             N,
-            thresholdLjummet,
-            thresholdVarmt,
-            thresholdHet,
-            nextTarget,
-            totalRegisteredCount
+            totalRegisteredCount,
+            totalClubWorkoutsSummer,
+            activeUsersCount
         };
-    }, [filteredCommunityLogs, isSummerThemeActive, membersList, userData?.locationId]);
+    }, [filteredCommunityLogs, isSummerThemeActive, membersList, userData?.locationId, configToUse]);
 
     const [activeTab, setActiveTab] = useState<'overview' | 'goals' | 'strength' | 'benchmarks'>(() => {
         const saved = localStorage.getItem('smart-skarm-profile-active-tab');
@@ -902,6 +916,8 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
     const [weeklyGoal, setWeeklyGoal] = useState(userData.weeklyGoal || 3);
     const [showGoalSaved, setShowGoalSaved] = useState(false);
     const [showOnLeaderboard, setShowOnLeaderboard] = useState(userData.showOnLeaderboard !== false);
+    const [selectedSummerJoinGoal, setSelectedSummerJoinGoal] = useState(3);
+    const [justSavedGoalMsg, setJustSavedGoalMsg] = useState('');
 
     const fileInputRef = useRef<HTMLInputElement>(null);
     const bgFileInputRef = useRef<HTMLInputElement>(null);
@@ -1589,14 +1605,60 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                                         <h4 className="text-xl sm:text-2xl font-black text-amber-950 tracking-tight leading-tight mb-2">
                                             Vill du anta utmaningen? 🌻
                                         </h4>
-                                        <p className="text-xs sm:text-sm text-amber-900 font-semibold leading-relaxed mb-5 max-w-xl">
-                                            Varje pass du loggar ger dig poäng och hjälper till att öka snittpoängen och temperaturen i studion. Du kan logga både pass i gymmet och utomhusaktiviteter! Tillsammans får vi temperaturnålen att stiga.
+                                        <p className="text-xs sm:text-sm text-amber-900 font-semibold leading-relaxed mb-4 max-w-xl">
+                                            Välkommen till årets roligaste lagutmaning! Varje pass du loggar ger dig poäng (Studiopass = 2p, Uteträning minst 30 min = 1p). Ditt eget valda rörliga poängmål registreras i klubbens totala målsumma. Kontrollera och sätt ditt startveckomål nedan!
                                         </p>
+
+                                        {/* Goal Selector */}
+                                        <div className="bg-white/40 backdrop-blur-md rounded-2xl p-4 border border-amber-950/10 mb-5 max-w-md">
+                                            <span className="block text-[10px] font-black uppercase tracking-widest text-amber-950 mb-1.5">Sätt ditt eget personliga veckomål (1-10 poäng):</span>
+                                            <div className="flex items-center gap-3">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setSelectedSummerJoinGoal(prev => Math.max(1, prev - 1))}
+                                                    className="w-8 h-8 rounded-xl bg-amber-950 text-white font-black flex items-center justify-center hover:bg-amber-900 active:scale-95 transition-all shadow-sm"
+                                                >
+                                                    -
+                                                </button>
+                                                <span className="text-xl font-black text-amber-950 w-12 text-center select-none">
+                                                    {selectedSummerJoinGoal}p
+                                                </span>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setSelectedSummerJoinGoal(prev => Math.min(10, prev + 1))}
+                                                    className="w-8 h-8 rounded-xl bg-amber-950 text-white font-black flex items-center justify-center hover:bg-amber-900 active:scale-95 transition-all shadow-sm"
+                                                >
+                                                    +
+                                                </button>
+                                                <span className="text-[10px] text-amber-900/95 font-bold leading-normal ml-2 flex-1">
+                                                    Målet låses varje måndag kl 00:00 och kan sedan endast justeras inför nästkommande vecka!
+                                                </span>
+                                            </div>
+                                        </div>
+
                                         <div className="flex flex-wrap items-center gap-3">
                                             <button
                                                 onClick={async () => {
                                                     try {
-                                                        await updateUserProfile(userData.uid, { joinedSummerChallenge: true, joinedSummerChallengeAt: Date.now() } as any);
+                                                        const nowTime = Date.now();
+                                                        const currentDay = new Date().getDay() || 7;
+                                                        const mondayObj = new Date();
+                                                        mondayObj.setDate(new Date().getDate() - (currentDay - 1));
+                                                        mondayObj.setHours(0, 0, 0, 0);
+                                                        const thisWeekMon = mondayObj.getTime();
+                                                        const nextWeekMon = thisWeekMon + (7 * 24 * 60 * 60 * 1000);
+
+                                                        const initGoals = {
+                                                            [thisWeekMon]: Number(selectedSummerJoinGoal),
+                                                            [nextWeekMon]: Number(selectedSummerJoinGoal)
+                                                        };
+
+                                                        await updateUserProfile(userData.uid, { 
+                                                            joinedSummerChallenge: true, 
+                                                            joinedSummerChallengeAt: nowTime,
+                                                            summerChallengeGoal: Number(selectedSummerJoinGoal),
+                                                            summerChallengeGoals: initGoals
+                                                        } as any);
                                                         setJustActivatedSummer(true);
                                                         const confetti = await import('canvas-confetti');
                                                         confetti.default({ particleCount: 150, spread: 80, origin: { y: 0.6 } });
@@ -1626,20 +1688,63 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
 
                     {/* Liten text/knapp om man avvisat men vill hoppa på senare */}
                     {isSummerThemeActive && !userData.joinedSummerChallenge && dismissedSummerChallenge && (
-                        <div className="bg-gradient-to-r from-amber-400/20 via-orange-405/10 to-rose-400/25 border border-amber-300/30 dark:border-amber-500/10 rounded-2xl p-4 flex sm:flex-row flex-col items-center justify-between gap-3 text-left animate-fade-in shadow-sm">
+                        <div className="bg-gradient-to-r from-amber-400/20 via-orange-405/10 to-rose-400/25 border border-amber-300/30 dark:border-amber-500/10 rounded-2xl p-6 flex flex-col items-start gap-4 text-left animate-fade-in shadow-sm">
                             <div className="flex items-center gap-3">
                                 <span className="text-2xl animate-spin [animation-duration:15s]">🌻</span>
                                 <div className="min-w-0">
                                     <p className="text-xs font-black text-amber-600 dark:text-amber-400 uppercase tracking-wider mb-0.5 leading-none">Sommar-Sisu 2026</p>
                                     <p className="text-[11px] sm:text-xs text-gray-700 dark:text-gray-300 font-semibold leading-tight">
-                                        Psst! Har du ändrat dig? Du kan fortfarande gå med i utmaningen och bidra!
+                                        Psst! Har du ändrat dig? Sätt ditt personliga veckomål och gå med i Sommar-Sisu för att bidra till gemenskapen!
                                     </p>
                                 </div>
                             </div>
+
+                            {/* Goal Selector */}
+                            <div className="bg-white/40 dark:bg-black/20 rounded-xl p-3 border border-amber-500/10 w-full max-w-sm">
+                                <span className="block text-[9px] font-black uppercase tracking-widest text-amber-950 dark:text-amber-200 mb-1.5">Välj ditt veckomål (1-10 poäng):</span>
+                                <div className="flex items-center gap-3">
+                                    <button
+                                        type="button"
+                                        onClick={() => setSelectedSummerJoinGoal(prev => Math.max(1, prev - 1))}
+                                        className="w-7 h-7 rounded-lg bg-amber-950 text-white font-black flex items-center justify-center hover:bg-amber-900 active:scale-95 transition-all text-xs"
+                                    >
+                                        -
+                                    </button>
+                                    <span className="text-base font-black text-amber-950 dark:text-white w-8 text-center select-none">
+                                        {selectedSummerJoinGoal}p
+                                    </span>
+                                    <button
+                                        type="button"
+                                        onClick={() => setSelectedSummerJoinGoal(prev => Math.min(10, prev + 1))}
+                                        className="w-7 h-7 rounded-lg bg-amber-950 text-white font-black flex items-center justify-center hover:bg-amber-900 active:scale-95 transition-all text-xs"
+                                    >
+                                        +
+                                    </button>
+                                </div>
+                            </div>
+
                             <button
                                 onClick={async () => {
                                     try {
-                                        await updateUserProfile(userData.uid, { joinedSummerChallenge: true, joinedSummerChallengeAt: Date.now() } as any);
+                                        const nowTime = Date.now();
+                                        const currentDay = new Date().getDay() || 7;
+                                        const mondayObj = new Date();
+                                        mondayObj.setDate(new Date().getDate() - (currentDay - 1));
+                                        mondayObj.setHours(0, 0, 0, 0);
+                                        const thisWeekMon = mondayObj.getTime();
+                                        const nextWeekMon = thisWeekMon + (7 * 24 * 60 * 60 * 1000);
+
+                                        const initGoals = {
+                                            [thisWeekMon]: Number(selectedSummerJoinGoal),
+                                            [nextWeekMon]: Number(selectedSummerJoinGoal)
+                                        };
+
+                                        await updateUserProfile(userData.uid, { 
+                                            joinedSummerChallenge: true, 
+                                            joinedSummerChallengeAt: nowTime,
+                                            summerChallengeGoal: Number(selectedSummerJoinGoal),
+                                            summerChallengeGoals: initGoals
+                                        } as any);
                                         localStorage.removeItem(`dismissed-summer-challenge-${userData.uid}`);
                                         setDismissedSummerChallenge(false);
                                         setJustActivatedSummer(true);
@@ -1649,7 +1754,7 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                                         console.error("Kunde inte gå med i utmaningen:", err);
                                     }
                                 }}
-                                className="px-4 py-2 bg-gradient-to-r from-amber-500 to-orange-500 text-white text-[10px] font-black uppercase tracking-widest rounded-xl transition-all shadow hover:brightness-110 active:scale-95 duration-100 whitespace-nowrap"
+                                className="px-5 py-2.5 bg-gradient-to-r from-amber-500 to-orange-500 text-white text-[10px] font-black uppercase tracking-widest rounded-xl transition-all shadow hover:brightness-110 active:scale-95 duration-100 whitespace-nowrap"
                             >
                                 Gå med nu! ☀️
                             </button>
