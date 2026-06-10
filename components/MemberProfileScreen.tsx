@@ -1690,10 +1690,10 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
 
                     {/* Sommar-Sisu status & rules (collapsible) (Card 2) */}
                     {isSummerThemeActive && !!userData.joinedSummerChallenge && (
-                        <div className="relative overflow-hidden bg-gradient-to-b from-[#0e172e] via-[#090d16] to-[#030712] border border-amber-500/15 dark:border-orange-500/25 rounded-[2rem] shadow-2xl animate-fade-in text-left">
+                        <div className="relative overflow-hidden bg-gradient-to-br from-amber-400 via-orange-400 to-rose-450 dark:from-amber-400 dark:via-orange-400 dark:to-rose-450 text-slate-950 border-none rounded-[2rem] shadow-[0_12px_40px_rgba(249,115,22,0.18)] animate-fade-in text-left">
                             
                             {/* Summer sun rays backdrop glow */}
-                            <div className="absolute top-[-40px] right-[-40px] w-64 h-64 bg-amber-500/10 rounded-full blur-[60px] pointer-events-none"></div>
+                            <div className="absolute top-[-40px] right-[-40px] w-64 h-64 bg-white/10 rounded-full blur-[50px] pointer-events-none"></div>
 
                             {/* Header click-to-toggle button */}
                             <button
@@ -1701,22 +1701,22 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                                     setSisuDetailsExpanded(!sisuDetailsExpanded);
                                     setJustActivatedSummer(false);
                                 }}
-                                className="w-full px-5 py-4 sm:px-6 sm:py-5 flex items-center justify-between text-left focus:outline-none bg-gradient-to-r from-amber-500/5 via-orange-500/5 to-transparent hover:bg-white/5 transition-all duration-150"
+                                className="w-full px-5 py-4 sm:px-6 sm:py-5 flex items-center justify-between text-left focus:outline-none bg-black/5 hover:bg-black/10 transition-all duration-150"
                             >
                                 <div className="flex items-center gap-3">
                                     <span className="text-2xl select-none animate-bounce origin-bottom [animation-duration:3s]">🌻</span>
                                     <div>
-                                        <span className="text-[9px] font-black tracking-widest text-[#f59e0b] uppercase block leading-none mb-1">Deltar i Sommar-Sisu ☀️</span>
-                                        <h4 className="text-xs sm:text-sm font-extrabold text-white leading-none">
+                                        <span className="text-[9px] font-black tracking-widest text-orange-950/75 uppercase block leading-none mb-1">Du deltar i utmaningen! ☀️</span>
+                                        <h4 className="text-xs sm:text-sm font-extrabold text-slate-950 leading-none">
                                             Klubbens mätare: <span className={summerStats.colorClass}>{summerStats.label} {summerStats.emoji}</span>
                                         </h4>
                                     </div>
                                 </div>
-                                <div className="flex items-center gap-2 bg-amber-500/10 rounded-xl p-1 border border-amber-500/25">
-                                    <span className="text-[10px] font-mono font-black text-[#fbbf24] px-2.5 py-1 uppercase tracking-wider">
+                                <div className="flex items-center gap-2 bg-slate-950/10 rounded-xl p-1 border border-slate-950/5">
+                                    <span className="text-[10px] font-mono font-black text-slate-950 px-2.5 py-1 uppercase tracking-wider">
                                         Visa status
                                     </span>
-                                    <span className={`text-[#fbbf24] transition-transform duration-200 ${(sisuDetailsExpanded || justActivatedSummer) ? 'rotate-180' : ''}`}>
+                                    <span className={`text-slate-950 transition-transform duration-200 ${(sisuDetailsExpanded || justActivatedSummer) ? 'rotate-180' : ''}`}>
                                         <svg className="w-5 h-5 stroke-[2.5]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                             <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
                                         </svg>
@@ -1730,62 +1730,62 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                                         initial={{ opacity: 0, height: 0 }}
                                         animate={{ opacity: 1, height: 'auto' }}
                                         exit={{ opacity: 0, height: 0 }}
-                                        className="border-t border-white/5 bg-gradient-to-b from-[#090d16] to-[#030712]"
+                                        className="border-t border-black/10 bg-white/20 backdrop-blur-md"
                                     >
-                                        <div className="p-5 sm:p-6 space-y-6 text-white">
+                                        <div className="p-5 sm:p-6 space-y-6 text-slate-950">
                                             
                                             {/* Main Stats Block: matching Bild 1 */}
-                                            <div className="bg-gradient-to-br from-amber-500/10 via-orange-500/5 to-rose-500/10 backdrop-blur-md rounded-2xl p-4 sm:p-5 border border-orange-500/20 relative overflow-hidden shadow-lg">
+                                            <div className="bg-white/70 backdrop-blur-md rounded-2xl p-4 sm:p-5 border border-white/50 relative overflow-hidden shadow-sm">
                                                 <div className="flex justify-between items-start select-none">
                                                     <div>
-                                                        <p className="text-[9px] font-bold text-[#fbbf24] uppercase tracking-widest mb-1.5">Gymmet tillsammans ☀️</p>
+                                                        <p className="text-[9px] font-bold text-amber-800 uppercase tracking-widest mb-1.5">Gymmet tillsammans ☀️</p>
                                                         <h3 className={`text-4xl font-extrabold tracking-tight mb-1 ${summerStats.colorClass}`}>
                                                             {summerStats.label} {summerStats.emoji}
                                                         </h3>
-                                                        <p className="text-[11px] text-gray-400 font-medium leading-normal max-w-sm">
+                                                        <p className="text-[11px] text-slate-800 font-semibold leading-normal max-w-sm">
                                                             Veckans status på Smart Skärmen. Ju fler poäng vi loggar, desto mer stiger mätaren!
                                                         </p>
                                                     </div>
                                                     
                                                     {/* Right side floating flame/pulse container */}
-                                                    <div className="relative w-12 h-12 bg-white/5 rounded-xl flex items-center justify-center text-2xl border border-white/5 shadow-inner">
+                                                    <div className="relative w-12 h-12 bg-white/60 rounded-xl flex items-center justify-center text-2xl border border-white shadow-inner">
                                                         <span className="animate-pulse">🔥</span>
                                                     </div>
                                                 </div>
                                                 
-                                                <div className="h-[1px] bg-white/10 my-3.5" />
+                                                <div className="h-[1px] bg-black/10 my-3.5" />
                                                 
                                                 {/* Sub-metrics */}
                                                 <div className="grid grid-cols-2 gap-4">
                                                     <div>
-                                                        <p className="text-[9px] font-black text-gray-500 uppercase tracking-wider mb-0.5">Veckosnitt</p>
-                                                        <p className="text-base font-extrabold text-white">{summerStats.avgPoints} poäng</p>
+                                                        <p className="text-[9px] font-black text-slate-500 uppercase tracking-wider mb-0.5">Veckosnitt</p>
+                                                        <p className="text-base font-extrabold text-slate-950">{summerStats.avgPoints} poäng</p>
                                                     </div>
                                                     <div>
-                                                        <p className="text-[9px] font-black text-gray-500 uppercase tracking-wider mb-0.5">Aktiva medlemmar</p>
-                                                        <p className="text-base font-extrabold text-white">{summerStats.activeUsersCount} st</p>
+                                                        <p className="text-[9px] font-black text-slate-500 uppercase tracking-wider mb-0.5">Aktiva medlemmar</p>
+                                                        <p className="text-base font-extrabold text-slate-950">{summerStats.activeUsersCount} st</p>
                                                     </div>
                                                 </div>
                                             </div>
 
                                             {/* Point rules info */}
                                             <div className="space-y-2.5">
-                                                <h5 className="text-[9px] font-black uppercase tracking-wider text-gray-400">Så här samlar ni poäng</h5>
+                                                <h5 className="text-[9px] font-black uppercase tracking-wider text-slate-800">Så här samlar ni poäng</h5>
                                                 <div className="grid grid-cols-1 gap-2.5">
-                                                    <div className="bg-white/5 rounded-2xl p-4 border border-white/5 flex items-start gap-3">
-                                                        <span className="text-base bg-emerald-500/20 text-emerald-400 p-2 rounded-xl leading-none">🏋️‍♀️</span>
+                                                    <div className="bg-white/50 rounded-2xl p-4 border border-white/40 flex items-start gap-3">
+                                                        <span className="text-base bg-emerald-500 text-white p-2 rounded-xl leading-none">🏋️‍♀️</span>
                                                         <div className="text-left">
-                                                            <p className="text-xs font-black text-[#fbbf24] uppercase tracking-wider">2 Poäng</p>
-                                                            <p className="text-[11px] text-gray-300 mt-0.5 leading-relaxed font-semibold">
+                                                            <p className="text-xs font-black text-emerald-950 uppercase tracking-wider">2 Poäng</p>
+                                                            <p className="text-[11px] text-slate-900 mt-0.5 leading-relaxed font-semibold">
                                                                 Träning i studion! Gäller alla pass (bokat gruppass, SMART-pass eller egen träning) som genomförs på plats.
                                                             </p>
                                                         </div>
                                                     </div>
-                                                    <div className="bg-white/5 rounded-2xl p-4 border border-white/5 flex items-start gap-3">
-                                                        <span className="text-base bg-blue-500/20 text-blue-400 p-2 rounded-xl leading-none">🏃‍♂️</span>
+                                                    <div className="bg-white/50 rounded-2xl p-4 border border-white/40 flex items-start gap-3">
+                                                        <span className="text-base bg-blue-500 text-white p-2 rounded-xl leading-none">🏃‍♂️</span>
                                                         <div className="text-left">
-                                                            <p className="text-xs font-black text-[#fbbf24] uppercase tracking-wider">1 Poäng</p>
-                                                            <p className="text-[11px] text-gray-300 mt-0.5 leading-relaxed font-semibold">
+                                                            <p className="text-xs font-black text-blue-950 uppercase tracking-wider">1 Poäng</p>
+                                                            <p className="text-[11px] text-slate-900 mt-0.5 leading-relaxed font-semibold">
                                                                 Träning utanför studion! Alla hemma- eller utomhusaktiviteter (powerwalk, löpning, cykling etc.) på minst 30 minuter.
                                                             </p>
                                                         </div>
