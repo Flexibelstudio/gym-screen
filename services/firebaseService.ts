@@ -1628,6 +1628,61 @@ export const updateSeasonalThemes = async (themes: SeasonalThemeSetting[]) => {
     } catch (e) { console.error("updateSeasonalThemes failed", e); }
 };
 
+export const getGlobalSummerChallenge = async () => {
+    if (isOffline || !db) {
+        return {
+            title: "Sommarutmaningen ☀️",
+            description: "Samla poäng tillsammans genom att träna under sommaren! Träning på gymmet ger 2 poäng, all annan träning minst 30 min ger 1 poäng.",
+            startDate: new Date("2026-06-01T00:00:00").getTime(),
+            endDate: new Date("2026-08-31T23:59:59").getTime(),
+            isPublished: false
+        };
+    }
+    try {
+        const snap = await getDoc(doc(db, 'system', 'summerChallenge'));
+        return snap.exists() ? snap.data() : {
+            title: "Sommarutmaningen ☀️",
+            description: "Samla poäng tillsammans genom att träna under sommaren! Träning på gymmet ger 2 poäng, all annan träning minst 30 min ger 1 poäng.",
+            startDate: new Date("2026-06-01T00:00:00").getTime(),
+            endDate: new Date("2026-08-31T23:59:59").getTime(),
+            isPublished: false
+        };
+    } catch (e) { return null; }
+};
+
+export const updateGlobalSummerChallenge = async (data: any) => {
+    if (isOffline || !db) return;
+    try {
+        await setDoc(doc(db, 'system', 'summerChallenge'), sanitizeData(data), { merge: true });
+    } catch (e) { console.error("updateGlobalSummerChallenge failed", e); }
+};
+
+export const listenToGlobalSummerChallenge = (callback: (data: any) => void) => {
+    if (isOffline || !db) {
+        callback({
+            title: "Sommarutmaningen ☀️",
+            description: "Samla poäng tillsammans genom att träna under sommaren! Träning på gymmet ger 2 poäng, all annan träning minst 30 min ger 1 poäng.",
+            startDate: new Date("2026-06-01T00:00:00").getTime(),
+            endDate: new Date("2026-08-31T23:59:59").getTime(),
+            isPublished: false
+        });
+        return () => {};
+    }
+    return onSnapshot(doc(db, 'system', 'summerChallenge'), (snap) => {
+        if (snap.exists()) {
+            callback(snap.data());
+        } else {
+            callback({
+                title: "Sommarutmaningen ☀️",
+                description: "Samla poäng tillsammans genom att träna under sommaren! Träning på gymmet ger 2 poäng, all annan träning minst 30 min ger 1 poäng.",
+                startDate: new Date("2026-06-01T00:00:00").getTime(),
+                endDate: new Date("2026-08-31T23:59:59").getTime(),
+                isPublished: false
+            });
+        }
+    });
+};
+
 export const archiveOrganization = async (id: string) => {
     if (isOffline || !db || !id) return;
     try {

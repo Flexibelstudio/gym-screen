@@ -3,7 +3,7 @@ import React, { useMemo, useState, useEffect } from 'react';
 import { useStudio } from '../../context/StudioContext';
 import { useAuth } from '../../context/AuthContext';
 import { ThemeOption, Page, SeasonalThemeSetting, ThemeDateRange } from '../../types';
-import { getSeasonalThemes, listenToCommunityLogs, listenToLeaderboardLogs, listenToMembers } from '../../services/firebaseService';
+import { getSeasonalThemes, listenToCommunityLogs, listenToLeaderboardLogs, listenToMembers, listenToGlobalSummerChallenge } from '../../services/firebaseService';
 
 // Helper to get week number
 const getISOWeek = (date: Date): number => {
@@ -578,17 +578,33 @@ interface SeasonalOverlayProps {
 export const SeasonalOverlay: React.FC<SeasonalOverlayProps> = ({ page, isStudioMode = false, isAdminView = false }) => {
     const { studioConfig, selectedOrganization } = useStudio();
     const theme = useActiveTheme();
+    const [globalChallenge, setGlobalChallenge] = useState<any>(null);
+
+    useEffect(() => {
+        if (isAdminView) return;
+        const unsubscribe = listenToGlobalSummerChallenge((data) => {
+            setGlobalChallenge(data);
+        });
+        return () => unsubscribe();
+    }, [isAdminView]);
 
     if (isAdminView) return null;
 
     const configToUse = useMemo(() => {
-        if (!selectedOrganization) return studioConfig || {};
-        return {
+        const base = !selectedOrganization ? (studioConfig || {}) : {
             ...(selectedOrganization || {}),
             ...(selectedOrganization.globalConfig || {}),
             ...(studioConfig || {})
-        } as any;
-    }, [studioConfig, selectedOrganization]);
+        };
+        if (globalChallenge) {
+            return {
+                ...base,
+                summerChallengeStartDate: globalChallenge.startDate,
+                summerChallengeEndDate: globalChallenge.endDate
+            } as any;
+        }
+        return base as any;
+    }, [studioConfig, selectedOrganization, globalChallenge]);
 
     const isChallengeActive = useMemo(() => {
         const hasTheme = !!configToUse?.enableSummerChallenge;

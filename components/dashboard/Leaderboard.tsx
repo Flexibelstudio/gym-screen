@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { listenToLeaderboardLogs, getMembers } from '../../services/firebaseService';
+import React, { useEffect, useState, useMemo } from 'react';
+import { listenToLeaderboardLogs, getMembers, listenToGlobalSummerChallenge } from '../../services/firebaseService';
 import { TrophyIcon, FireIcon, ChartBarIcon } from '@heroicons/react/24/solid';
 import { useStudio } from '../../context/StudioContext';
 import { useAuth } from '../../context/AuthContext';
@@ -18,8 +18,29 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ organizationId }) => {
     
     const [selectedLocationId, setSelectedLocationId] = useState<string | 'all'>('all');
     const [hasInitialized, setHasInitialized] = useState(false);
+    const [globalChallenge, setGlobalChallenge] = useState<any>(null);
 
-    const configToUse = (selectedOrganization?.globalConfig || studioConfig || {}) as any;
+    useEffect(() => {
+        const unsubscribe = listenToGlobalSummerChallenge((data) => {
+            setGlobalChallenge(data);
+        });
+        return () => unsubscribe();
+    }, []);
+
+    const [selectedLocationIdState, setSelectedLocationIdState] = useState<string | 'all'>('all');
+
+    const configToUse = useMemo(() => {
+        const base = (selectedOrganization?.globalConfig || studioConfig || {}) as any;
+        if (globalChallenge) {
+            return {
+                ...base,
+                summerChallengeStartDate: globalChallenge.startDate,
+                summerChallengeEndDate: globalChallenge.endDate
+            };
+        }
+        return base;
+    }, [selectedOrganization, studioConfig, globalChallenge]);
+
     const isSummerActive = !!configToUse?.enableSummerChallenge;
     const currentTimestamp = Date.now();
     const isChallengeStarted = !configToUse?.summerChallengeStartDate || currentTimestamp >= configToUse.summerChallengeStartDate;

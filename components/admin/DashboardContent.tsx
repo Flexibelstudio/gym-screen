@@ -8,7 +8,7 @@ import { AIGeneratorScreen } from '../AIGeneratorScreen';
 import { WorkoutBuilderScreen } from '../WorkoutBuilderScreen';
 import { deepCopyAndPrepareAsNew } from '../../utils/workoutUtils';
 import { ManageBenchmarksModal } from './AdminModals';
-import { updateOrganizationBenchmarks, resolveAndCreateExercises } from '../../services/firebaseService';
+import { updateOrganizationBenchmarks, resolveAndCreateExercises, updateGlobalConfig, listenToGlobalSummerChallenge } from '../../services/firebaseService';
 import { WorkoutPresentationModal } from '../WorkoutDetailScreen';
 
 // ... (Types and Interfaces remain same)
@@ -152,6 +152,84 @@ const QuickAIWidget: React.FC<{ onGenerate: (prompt: string) => void }> = ({ onG
     );
 };
 
+const ChallengePromoWidget: React.FC<{ org: Organization }> = ({ org }) => {
+    const [challenge, setChallenge] = useState<any>(null);
+    const [isSaving, setIsSaving] = useState(false);
+    const [localEnabled, setLocalEnabled] = useState(!!org.globalConfig?.enableSummerChallenge);
+
+    useEffect(() => {
+        setLocalEnabled(!!org.globalConfig?.enableSummerChallenge);
+    }, [org.globalConfig?.enableSummerChallenge]);
+
+    useEffect(() => {
+        const unsubscribe = listenToGlobalSummerChallenge((data) => {
+            setChallenge(data);
+        });
+        return () => unsubscribe();
+    }, []);
+
+    const handleActivate = async () => {
+        setIsSaving(true);
+        try {
+            await updateGlobalConfig(org.id, {
+                ...(org.globalConfig || {}),
+                enableSummerChallenge: true
+            });
+            setLocalEnabled(true);
+            alert("Sommarutmaningen har aktiverats! Dina medlemmar kan nu se och delta i utmaningen med spelschema och termometer i sina appar.");
+        } catch (e) {
+            alert("Kunde inte aktivera utmaningen.");
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    if (!challenge || !challenge.isPublished) return null;
+
+    const startStr = challenge.startDate ? new Date(challenge.startDate).toLocaleDateString('sv-SE', { day: 'numeric', month: 'short' }) : '';
+    const endStr = challenge.endDate ? new Date(challenge.endDate).toLocaleDateString('sv-SE', { day: 'numeric', month: 'short' }) : '';
+
+    return (
+        <div className="bg-gradient-to-br from-amber-50 to-orange-100 dark:from-amber-950/30 dark:to-orange-900/10 p-6 sm:p-8 rounded-3xl border border-amber-200/40 dark:border-amber-900/40 shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-6 mb-8 text-left">
+            <div className="flex-1 space-y-2">
+                <div className="flex items-center gap-2">
+                    <span className="text-2xl">☀️</span>
+                    <span className="text-xs font-black uppercase tracking-widest text-amber-800 dark:text-amber-400">Officiell Utmaning</span>
+                </div>
+                <h3 className="text-xl sm:text-2xl font-black text-amber-950 dark:text-amber-100 tracking-tight leading-none">
+                    {challenge.title}
+                </h3>
+                {challenge.startDate && challenge.endDate && (
+                    <p className="text-xs font-bold text-amber-900/80 dark:text-amber-300 font-mono">
+                         Giltighetsperiod: {startStr} - {endStr}
+                    </p>
+                )}
+                {challenge.description && (
+                    <p className="text-xs text-amber-900/80 dark:text-amber-200/70 leading-relaxed max-w-2xl font-medium">
+                        {challenge.description}
+                    </p>
+                )}
+            </div>
+
+            <div className="shrink-0 w-full md:w-auto">
+                {localEnabled ? (
+                    <div className="bg-emerald-500/15 text-emerald-800 dark:text-emerald-400 border border-emerald-500/20 py-3 px-5 rounded-2xl text-center text-xs font-black uppercase tracking-wider h-auto flex items-center justify-center gap-2">
+                        <span>🟢</span> Aktiv på ert gym
+                    </div>
+                ) : (
+                    <button
+                        onClick={handleActivate}
+                        disabled={isSaving}
+                        className="w-full bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 active:scale-95 text-white font-black uppercase text-xs tracking-wider py-4 px-6 rounded-2xl shadow-md transition-all cursor-pointer flex items-center justify-center gap-2"
+                    >
+                        {isSaving ? 'Aktiverar...' : 'Aktivera på vårt gym! 🚀'}
+                    </button>
+                )}
+            </div>
+        </div>
+    );
+};
+
 const DashboardContent: React.FC<DashboardContentProps> = ({ organization, workouts, workoutsLoading, setActiveTab, admins, coaches, usersLoading, onQuickGenerate }) => {
     
     // Filtrera bort medlems-utkast (justeringar) från admin-översikten
@@ -168,6 +246,8 @@ const DashboardContent: React.FC<DashboardContentProps> = ({ organization, worko
     return (
         <div className="space-y-0 animate-fade-in pb-12">
             <WelcomeBanner name={organization.name} />
+
+            <ChallengePromoWidget org={organization} />
             
             <SetupProgressWidget 
                 org={organization} 

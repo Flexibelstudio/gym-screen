@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Organization, SmartScreenPricing, InvoiceDetails, SeasonalThemeSetting, ThemeDateRange } from '../types';
 import { OvningsbankContent } from './OvningsbankContent';
-import { getSmartScreenPricing, updateSmartScreenPricing, updateOrganizationFreeCoaches, getSeasonalThemes, updateSeasonalThemes, archiveOrganization, restoreOrganization, deleteOrganizationPermanently, updateOrganizationName, getMembers, requestPushNotificationPermission, auth, updateGlobalConfig, updateOrganizationMigrationOption, updateOrganizationStripeBypassOption } from '../services/firebaseService';
+import { getSmartScreenPricing, updateSmartScreenPricing, updateOrganizationFreeCoaches, getSeasonalThemes, updateSeasonalThemes, archiveOrganization, restoreOrganization, deleteOrganizationPermanently, updateOrganizationName, getMembers, requestPushNotificationPermission, auth, updateGlobalConfig, updateOrganizationMigrationOption, updateOrganizationStripeBypassOption, getGlobalSummerChallenge, updateGlobalSummerChallenge, listenToGlobalSummerChallenge } from '../services/firebaseService';
 import { PencilIcon, HomeIcon, BuildingIcon, SparklesIcon, ToggleSwitch, ChevronDownIcon, CloseIcon } from './icons';
 import { MoreVertical } from 'lucide-react';
 import { calculateInvoiceDetails } from '../utils/billing';
@@ -669,122 +669,205 @@ const SeasonalThemesTab: React.FC = () => {
     );
 };
 
-const ChallengeOrgRow: React.FC<{ org: Organization; onUpdateGlobalConfig: (orgId: string, config: any) => Promise<void> }> = ({ org, onUpdateGlobalConfig }) => {
-    const [isEnabled, setIsEnabled] = useState(org.globalConfig?.enableSummerChallenge || false);
-    const [startDate, setStartDate] = useState(org.globalConfig?.summerChallengeStartDate ? new Date(org.globalConfig.summerChallengeStartDate).toISOString().split('T')[0] : '');
-    const [endDate, setEndDate] = useState(org.globalConfig?.summerChallengeEndDate ? new Date(org.globalConfig.summerChallengeEndDate).toISOString().split('T')[0] : '');
+const ChallengesTab: React.FC<{
+    organizations: Organization[];
+    onUpdateGlobalConfig: (orgId: string, config: any) => Promise<void>;
+}> = ({ organizations, onUpdateGlobalConfig }) => {
+    const activeOrgs = organizations.filter(o => o.status !== 'archived');
+    
+    // Globala tillstånd för utmaningen
+    const [title, setTitle] = useState('');
+    const [description, setDescription] = useState('');
+    const [startDate, setStartDate] = useState('');
+    const [endDate, setEndDate] = useState('');
+    const [isPublished, setIsPublished] = useState(false);
+    const [isLoading, setIsLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
 
-    const initialEnabled = org.globalConfig?.enableSummerChallenge || false;
-    const initialStart = org.globalConfig?.summerChallengeStartDate ? new Date(org.globalConfig.summerChallengeStartDate).toISOString().split('T')[0] : '';
-    const initialEnd = org.globalConfig?.summerChallengeEndDate ? new Date(org.globalConfig.summerChallengeEndDate).toISOString().split('T')[0] : '';
-
-    const hasChanges = isEnabled !== initialEnabled || startDate !== initialStart || endDate !== initialEnd;
-
     useEffect(() => {
-        setIsEnabled(org.globalConfig?.enableSummerChallenge || false);
-        setStartDate(org.globalConfig?.summerChallengeStartDate ? new Date(org.globalConfig.summerChallengeStartDate).toISOString().split('T')[0] : '');
-        setEndDate(org.globalConfig?.summerChallengeEndDate ? new Date(org.globalConfig.summerChallengeEndDate).toISOString().split('T')[0] : '');
-    }, [org.globalConfig?.enableSummerChallenge, org.globalConfig?.summerChallengeStartDate, org.globalConfig?.summerChallengeEndDate]);
+        let unsubscribe = () => {};
+        try {
+            unsubscribe = listenToGlobalSummerChallenge((data) => {
+                if (data) {
+                    setTitle(data.title || 'Sommarutmaningen ☀️');
+                    setDescription(data.description || '');
+                    setStartDate(data.startDate ? new Date(data.startDate).toISOString().split('T')[0] : '');
+                    setEndDate(data.endDate ? new Date(data.endDate).toISOString().split('T')[0] : '');
+                    setIsPublished(data.isPublished || false);
+                }
+                setIsLoading(false);
+            });
+        } catch (error) {
+            console.error(error);
+            setIsLoading(false);
+        }
+        return () => unsubscribe();
+    }, []);
 
-    const handleSave = async () => {
+    const handleSaveGlobal = async () => {
         setIsSaving(true);
         try {
-            await onUpdateGlobalConfig(org.id, {
-                ...org.globalConfig,
-                enableSummerChallenge: isEnabled,
-                summerChallengeStartDate: startDate ? new Date(startDate + 'T00:00:00').getTime() : null,
-                summerChallengeEndDate: endDate ? new Date(endDate + 'T23:59:59').getTime() : null
+            await updateGlobalSummerChallenge({
+                title,
+                description,
+                startDate: startDate ? new Date(startDate + 'T00:00:00').getTime() : null,
+                endDate: endDate ? new Date(endDate + 'T23:59:59').getTime() : null,
+                isPublished
             });
-            alert("Sommarutmaningens tidsinställningar sparade!");
-        } catch (error) {
-            alert("Ett fel inträffade vid sparande.");
+            alert("Övergripande inställningar för utmaningen har sparats!");
+        } catch (e) {
+            alert("Det gick inte att spara de övergripande inställningarna.");
         } finally {
             setIsSaving(false);
         }
     };
 
-    return (
-        <div className="bg-white dark:bg-gray-900/40 p-5 rounded-2xl border border-slate-200 dark:border-gray-800 shadow-sm flex flex-col xl:flex-row xl:items-center justify-between gap-4">
-            <div className="flex-1">
-                <h4 className="font-extrabold text-gray-900 dark:text-white text-md tracking-tight">{org.name}</h4>
-                <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">Aktivera utmaningen och ange dess giltighetsperiod för detta gymmet.</p>
+    const handleToggleOrgActivation = async (org: Organization, currentVal: boolean) => {
+        try {
+            await onUpdateGlobalConfig(org.id, {
+                ...(org.globalConfig || {}),
+                enableSummerChallenge: !currentVal
+            });
+        } catch (e) {
+            alert("Kunde inte uppdatera gymmet.");
+        }
+    };
+
+    if (isLoading) {
+        return (
+            <div className="p-12 text-center text-slate-500">
+                Laddar inställningar för utmaningen...
             </div>
-            
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4">
-                <div className="scale-95 origin-left shrink-0">
-                    <ToggleSwitch 
-                        label="Aktivera Sommarutmaning" 
-                        checked={isEnabled} 
-                        onChange={setIsEnabled} 
-                    />
-                </div>
-
-                <div className="flex items-center gap-2">
-                    <div>
-                        <label className="block text-[9px] font-black uppercase text-gray-400 dark:text-gray-500 mb-1">Startdatum</label>
-                        <input 
-                            type="date"
-                            value={startDate}
-                            onChange={(e) => setStartDate(e.target.value)}
-                            disabled={!isEnabled}
-                            className="bg-slate-50 dark:bg-gray-950 text-black dark:text-white px-2 py-1.5 rounded-xl border border-gray-200 dark:border-gray-750 font-bold text-xs focus:ring-2 focus:ring-primary outline-none disabled:opacity-40"
-                        />
-                    </div>
-                    <div>
-                        <label className="block text-[9px] font-black uppercase text-gray-400 dark:text-gray-500 mb-1">Slutdatum</label>
-                        <input 
-                            type="date"
-                            value={endDate}
-                            onChange={(e) => setEndDate(e.target.value)}
-                            disabled={!isEnabled}
-                            className="bg-slate-50 dark:bg-gray-950 text-black dark:text-white px-2 py-1.5 rounded-xl border border-gray-200 dark:border-gray-750 font-bold text-xs focus:ring-2 focus:ring-primary outline-none disabled:opacity-40"
-                        />
-                    </div>
-                </div>
-
-                <div className="pt-4 sm:pt-0 shrink-0">
-                    <button
-                        onClick={handleSave}
-                        disabled={!hasChanges || isSaving}
-                        className={`w-full sm:w-auto py-2 px-4 rounded-xl font-black uppercase text-[10px] tracking-widest transition-all ${
-                            hasChanges 
-                            ? 'bg-amber-500 hover:bg-amber-600 active:scale-95 text-white shadow-md cursor-pointer' 
-                            : 'bg-slate-100 dark:bg-gray-800 text-slate-400 dark:text-slate-600 cursor-not-allowed'
-                        }`}
-                    >
-                        {isSaving ? 'Sparar...' : 'Spara 💾'}
-                    </button>
-                </div>
-            </div>
-        </div>
-    );
-};
-
-interface ChallengesTabProps {
-    organizations: Organization[];
-    onUpdateGlobalConfig: (orgId: string, config: any) => Promise<void>;
-}
-
-const ChallengesTab: React.FC<ChallengesTabProps> = ({ organizations, onUpdateGlobalConfig }) => {
-    // Endast aktiva organisationer i listan för utmaningar
-    const activeOrgs = organizations.filter(o => o.status !== 'archived');
+        );
+    }
 
     return (
-        <div className="bg-slate-100 dark:bg-gray-800 p-6 rounded-[2rem] space-y-6 border border-slate-200 dark:border-gray-700 shadow-sm text-left">
-            <div className="border-b border-slate-300 dark:border-gray-700 pb-4">
-                <h3 className="text-2xl font-bold text-gray-900 dark:text-white">Sommarutmaningen ☀️</h3>
-                <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Styr startdatum, slutdatum och aktivering för Sommarutmaningen på organisationsnivå.</p>
+        <div className="space-y-8 text-left">
+            {/* 1. Övergripande inställningar */}
+            <div className="bg-slate-100 dark:bg-gray-800 p-6 md:p-8 rounded-[2rem] space-y-6 border border-slate-200 dark:border-gray-700 shadow-sm">
+                <div className="border-b border-slate-300 dark:border-gray-750 pb-4">
+                    <h3 className="text-2xl font-black text-gray-900 dark:text-white flex items-center gap-2">
+                        <span>☀️</span> Övergripande Utmaning
+                    </h3>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                        Sätt gemensamma datum och information som gäller för hela systemet. När du publicerar visas presentationen på anslutna gymmets dashboard.
+                    </p>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="space-y-4">
+                        <div>
+                            <label className="block text-xs font-black uppercase text-gray-500 dark:text-gray-400 mb-2">Utmaningens Rubrik</label>
+                            <input 
+                                type="text"
+                                value={title}
+                                onChange={(e) => setTitle(e.target.value)}
+                                className="w-full bg-white dark:bg-gray-950 text-black dark:text-white px-4 py-3 rounded-2xl border border-gray-200 dark:border-gray-700 font-bold text-sm focus:ring-2 focus:ring-primary outline-none"
+                                placeholder="T.ex. Sommar-Sisu 2026"
+                            />
+                        </div>
+
+                        <div>
+                            <label className="block text-xs font-black uppercase text-gray-500 dark:text-gray-400 mb-2">Beskrivning / Regler (visas på dashboarden)</label>
+                            <textarea 
+                                value={description}
+                                onChange={(e) => setDescription(e.target.value)}
+                                rows={4}
+                                className="w-full bg-white dark:bg-gray-950 text-black dark:text-white px-4 py-3 rounded-2xl border border-gray-200 dark:border-gray-700 font-medium text-sm focus:ring-2 focus:ring-primary outline-none resize-none"
+                                placeholder="T.ex. Samla poäng tillsammans genom att registrera träningspass under sommaren!"
+                            />
+                        </div>
+                    </div>
+
+                    <div className="space-y-6">
+                        <div className="grid grid-cols-2 gap-4">
+                            <div>
+                                <label className="block text-xs font-black uppercase text-gray-500 dark:text-gray-400 mb-2">Startdatum</label>
+                                <input 
+                                    type="date"
+                                    value={startDate}
+                                    onChange={(e) => setStartDate(e.target.value)}
+                                    className="w-full bg-white dark:bg-gray-950 text-black dark:text-white px-4 py-3 rounded-2xl border border-gray-200 dark:border-gray-700 font-bold text-sm focus:ring-2 focus:ring-primary outline-none"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-black uppercase text-gray-500 dark:text-gray-400 mb-2">Slutdatum</label>
+                                <input 
+                                    type="date"
+                                    value={endDate}
+                                    onChange={(e) => setEndDate(e.target.value)}
+                                    className="w-full bg-white dark:bg-gray-950 text-black dark:text-white px-4 py-3 rounded-2xl border border-gray-200 dark:border-gray-700 font-bold text-sm focus:ring-2 focus:ring-primary outline-none"
+                                />
+                            </div>
+                        </div>
+
+                        <div className="bg-white dark:bg-gray-900/40 p-4 rounded-3xl border border-slate-200/60 dark:border-gray-750 flex items-center justify-between gap-4">
+                            <div>
+                                <h4 className="font-bold text-sm text-gray-900 dark:text-white">Publicera utmaningen på gymmen</h4>
+                                <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5">När utmaningen publiceras visas en snygg presentation på anslutna gymmens dashboards.</p>
+                            </div>
+                            <div className="shrink-0 scale-90">
+                                <ToggleSwitch 
+                                    label=""
+                                    checked={isPublished}
+                                    onChange={setIsPublished}
+                                />
+                            </div>
+                        </div>
+
+                        <button
+                            onClick={handleSaveGlobal}
+                            disabled={isSaving}
+                            className="w-full bg-amber-500 hover:bg-amber-600 active:scale-95 text-white font-black uppercase text-xs tracking-wider py-4 px-6 rounded-2xl shadow-md transition-all cursor-pointer"
+                        >
+                            {isSaving ? 'Sparar...' : 'Spara globala inställningar 🏆'}
+                        </button>
+                    </div>
+                </div>
             </div>
 
-            <div className="space-y-4">
-                {activeOrgs.map(org => (
-                    <ChallengeOrgRow 
-                        key={org.id} 
-                        org={org} 
-                        onUpdateGlobalConfig={onUpdateGlobalConfig} 
-                    />
-                ))}
+            {/* 2. Gymmens status och aktivering */}
+            <div className="bg-slate-100 dark:bg-gray-800 p-6 md:p-8 rounded-[2rem] space-y-4 border border-slate-200 dark:border-gray-700 shadow-sm">
+                <div className="border-b border-slate-300 dark:border-gray-750 pb-4">
+                    <h3 className="text-xl font-bold text-gray-900 dark:text-white">Anslutna Gyms Status och Aktivering</h3>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                        Varje gym (organisation) kan själva välja att slå på utmaningen under Inställningar, eller så kan du slå på/av det åt dem direkt här.
+                    </p>
+                </div>
+
+                <div className="divide-y divide-slate-200/60 dark:divide-gray-750">
+                    {activeOrgs.map(org => {
+                        const isOrgEnabled = !!org.globalConfig?.enableSummerChallenge;
+                        return (
+                            <div key={org.id} className="py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 first:pt-0 last:pb-0">
+                                <div>
+                                    <h4 className="font-bold text-gray-900 dark:text-white text-sm">{org.name}</h4>
+                                    <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                                        Subdomän: <span className="font-mono">{org.subdomain || 'saknas'}</span>
+                                    </p>
+                                </div>
+
+                                <div className="flex items-center gap-4">
+                                    <span className={`text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-full ${
+                                        isOrgEnabled 
+                                        ? 'bg-emerald-100 dark:bg-emerald-950/45 text-emerald-800 dark:text-emerald-400' 
+                                        : 'bg-slate-200 dark:bg-gray-700 text-slate-500 dark:text-slate-400'
+                                    }`}>
+                                        {isOrgEnabled ? 'AKTIVERAD 🟢' : 'EJ AKTIVERAD 💨'}
+                                    </span>
+
+                                    <div className="scale-90">
+                                        <ToggleSwitch 
+                                            label=""
+                                            checked={isOrgEnabled}
+                                            onChange={() => handleToggleOrgActivation(org, isOrgEnabled)}
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+                        );
+                    })}
+                </div>
             </div>
         </div>
     );
