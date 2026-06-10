@@ -669,8 +669,129 @@ const SeasonalThemesTab: React.FC = () => {
     );
 };
 
+const ChallengeOrgRow: React.FC<{ org: Organization; onUpdateGlobalConfig: (orgId: string, config: any) => Promise<void> }> = ({ org, onUpdateGlobalConfig }) => {
+    const [isEnabled, setIsEnabled] = useState(org.globalConfig?.enableSummerChallenge || false);
+    const [startDate, setStartDate] = useState(org.globalConfig?.summerChallengeStartDate ? new Date(org.globalConfig.summerChallengeStartDate).toISOString().split('T')[0] : '');
+    const [endDate, setEndDate] = useState(org.globalConfig?.summerChallengeEndDate ? new Date(org.globalConfig.summerChallengeEndDate).toISOString().split('T')[0] : '');
+    const [isSaving, setIsSaving] = useState(false);
+
+    const initialEnabled = org.globalConfig?.enableSummerChallenge || false;
+    const initialStart = org.globalConfig?.summerChallengeStartDate ? new Date(org.globalConfig.summerChallengeStartDate).toISOString().split('T')[0] : '';
+    const initialEnd = org.globalConfig?.summerChallengeEndDate ? new Date(org.globalConfig.summerChallengeEndDate).toISOString().split('T')[0] : '';
+
+    const hasChanges = isEnabled !== initialEnabled || startDate !== initialStart || endDate !== initialEnd;
+
+    useEffect(() => {
+        setIsEnabled(org.globalConfig?.enableSummerChallenge || false);
+        setStartDate(org.globalConfig?.summerChallengeStartDate ? new Date(org.globalConfig.summerChallengeStartDate).toISOString().split('T')[0] : '');
+        setEndDate(org.globalConfig?.summerChallengeEndDate ? new Date(org.globalConfig.summerChallengeEndDate).toISOString().split('T')[0] : '');
+    }, [org.globalConfig?.enableSummerChallenge, org.globalConfig?.summerChallengeStartDate, org.globalConfig?.summerChallengeEndDate]);
+
+    const handleSave = async () => {
+        setIsSaving(true);
+        try {
+            await onUpdateGlobalConfig(org.id, {
+                ...org.globalConfig,
+                enableSummerChallenge: isEnabled,
+                summerChallengeStartDate: startDate ? new Date(startDate + 'T00:00:00').getTime() : null,
+                summerChallengeEndDate: endDate ? new Date(endDate + 'T23:59:59').getTime() : null
+            });
+            alert("Sommarutmaningens tidsinställningar sparade!");
+        } catch (error) {
+            alert("Ett fel inträffade vid sparande.");
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    return (
+        <div className="bg-white dark:bg-gray-900/40 p-5 rounded-2xl border border-slate-200 dark:border-gray-800 shadow-sm flex flex-col xl:flex-row xl:items-center justify-between gap-4">
+            <div className="flex-1">
+                <h4 className="font-extrabold text-gray-900 dark:text-white text-md tracking-tight">{org.name}</h4>
+                <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">Aktivera utmaningen och ange dess giltighetsperiod för detta gymmet.</p>
+            </div>
+            
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4">
+                <div className="scale-95 origin-left shrink-0">
+                    <ToggleSwitch 
+                        label="Aktivera Sommarutmaning" 
+                        checked={isEnabled} 
+                        onChange={setIsEnabled} 
+                    />
+                </div>
+
+                <div className="flex items-center gap-2">
+                    <div>
+                        <label className="block text-[9px] font-black uppercase text-gray-400 dark:text-gray-500 mb-1">Startdatum</label>
+                        <input 
+                            type="date"
+                            value={startDate}
+                            onChange={(e) => setStartDate(e.target.value)}
+                            disabled={!isEnabled}
+                            className="bg-slate-50 dark:bg-gray-950 text-black dark:text-white px-2 py-1.5 rounded-xl border border-gray-200 dark:border-gray-750 font-bold text-xs focus:ring-2 focus:ring-primary outline-none disabled:opacity-40"
+                        />
+                    </div>
+                    <div>
+                        <label className="block text-[9px] font-black uppercase text-gray-400 dark:text-gray-500 mb-1">Slutdatum</label>
+                        <input 
+                            type="date"
+                            value={endDate}
+                            onChange={(e) => setEndDate(e.target.value)}
+                            disabled={!isEnabled}
+                            className="bg-slate-50 dark:bg-gray-950 text-black dark:text-white px-2 py-1.5 rounded-xl border border-gray-200 dark:border-gray-750 font-bold text-xs focus:ring-2 focus:ring-primary outline-none disabled:opacity-40"
+                        />
+                    </div>
+                </div>
+
+                <div className="pt-4 sm:pt-0 shrink-0">
+                    <button
+                        onClick={handleSave}
+                        disabled={!hasChanges || isSaving}
+                        className={`w-full sm:w-auto py-2 px-4 rounded-xl font-black uppercase text-[10px] tracking-widest transition-all ${
+                            hasChanges 
+                            ? 'bg-amber-500 hover:bg-amber-600 active:scale-95 text-white shadow-md cursor-pointer' 
+                            : 'bg-slate-100 dark:bg-gray-800 text-slate-400 dark:text-slate-600 cursor-not-allowed'
+                        }`}
+                    >
+                        {isSaving ? 'Sparar...' : 'Spara 💾'}
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+interface ChallengesTabProps {
+    organizations: Organization[];
+    onUpdateGlobalConfig: (orgId: string, config: any) => Promise<void>;
+}
+
+const ChallengesTab: React.FC<ChallengesTabProps> = ({ organizations, onUpdateGlobalConfig }) => {
+    // Endast aktiva organisationer i listan för utmaningar
+    const activeOrgs = organizations.filter(o => o.status !== 'archived');
+
+    return (
+        <div className="bg-slate-100 dark:bg-gray-800 p-6 rounded-[2rem] space-y-6 border border-slate-200 dark:border-gray-700 shadow-sm text-left">
+            <div className="border-b border-slate-300 dark:border-gray-700 pb-4">
+                <h3 className="text-2xl font-bold text-gray-900 dark:text-white">Sommarutmaningen ☀️</h3>
+                <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Styr startdatum, slutdatum och aktivering för Sommarutmaningen på organisationsnivå.</p>
+            </div>
+
+            <div className="space-y-4">
+                {activeOrgs.map(org => (
+                    <ChallengeOrgRow 
+                        key={org.id} 
+                        org={org} 
+                        onUpdateGlobalConfig={onUpdateGlobalConfig} 
+                    />
+                ))}
+            </div>
+        </div>
+    );
+};
+
 export const SystemOwnerScreen: React.FC<SystemOwnerScreenProps> = ({ allOrganizations, onSelectOrganization, onCreateOrganization, onDeleteOrganization }) => {
-    const [activeTab, setActiveTab] = useState<'dashboard' | 'list' | 'themes' | 'bank' | 'gallery' | 'leads'>('dashboard');
+    const [activeTab, setActiveTab] = useState<'dashboard' | 'list' | 'challenges' | 'themes' | 'bank' | 'gallery' | 'leads'>('dashboard');
     const [newOrgName, setNewOrgName] = useState('');
     const [isCreating, setIsCreating] = useState(false);
     const [localOrgs, setLocalOrgs] = useState(allOrganizations);
@@ -751,6 +872,7 @@ export const SystemOwnerScreen: React.FC<SystemOwnerScreenProps> = ({ allOrganiz
     const tabs = [
         { id: 'dashboard', label: 'Dashboard' },
         { id: 'list', label: 'Organisationer' },
+        { id: 'challenges', label: 'Sommarutmaning ☀️' },
         { id: 'themes', label: 'Säsongsteman' },
         { id: 'bank', label: 'Övningsbank' },
         { id: 'gallery', label: 'Kundgalleri' },
@@ -861,7 +983,7 @@ export const SystemOwnerScreen: React.FC<SystemOwnerScreenProps> = ({ allOrganiz
                                 <h3 className="text-2xl font-bold text-gray-900 dark:text-white border-b border-slate-300 dark:border-gray-700 pb-3 mb-4">Mina Kunder</h3>
                                 <p className="text-xs text-slate-500 dark:text-slate-400 bg-slate-200/50 dark:bg-gray-900/50 p-3 rounded-xl flex items-center gap-2 mb-4">
                                     <span>💡</span>
-                                    <span><strong>Hitta tidsinställningar för Sommarutmaningen:</strong> Klicka på ett gym (organisation) i listan nedan för att expandera dess inställningar. Där kan du slå på "Sommarutmaning" samt sätta start- och slutdatum.</span>
+                                    <span><strong>Hitta tidsinställningar för Sommarutmaningen:</strong> Vi har skapat en helt egen flik "Sommarutmaning ☀️" i toppmenyn för att du enkelt ska kunna ställa in start- och slutdatum för alla gym på ett ställe! Men du kan också styra det per gym här nedan genom att expandera inställningarna.</span>
                                 </p>
                                 
                                 <div className="space-y-6">
@@ -931,6 +1053,13 @@ export const SystemOwnerScreen: React.FC<SystemOwnerScreenProps> = ({ allOrganiz
                                 <SmartScreenPricingCard />
                             </div>
                         </>
+                    )}
+
+                    {activeTab === 'challenges' && (
+                        <ChallengesTab 
+                            organizations={localOrgs} 
+                            onUpdateGlobalConfig={handleUpdateGlobalConfig} 
+                        />
                     )}
 
                     {activeTab === 'themes' && (
