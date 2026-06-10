@@ -350,11 +350,11 @@ const GymThermometerMascot = ({ isStudioMode = false }: { isStudioMode?: boolean
 
     if (isStudioMode) {
         return (
-            <div className="fixed bottom-10 left-10 z-[2000] flex flex-col items-center pointer-events-none select-none animate-fade-in origin-bottom rotate-[5deg] drop-shadow-[0_20px_25px_rgba(0,0,0,0.95)] drop-shadow-[0_0_15px_rgba(0,0,0,0.7)]">
+            <div className="fixed bottom-10 left-10 z-[2000] flex flex-col items-center pointer-events-none select-none animate-fade-in origin-bottom rotate-[5deg] drop-shadow-[0_25px_30px_rgba(0,0,0,0.95)] drop-shadow-[0_0_20px_rgba(0,0,0,0.8)]">
                 {/* Unified continuous Glass Thermometer SVG */}
                 <svg 
                     viewBox="0 0 40 160" 
-                    className="w-14 h-48 overflow-visible drop-shadow-[0_12px_32px_rgba(0,0,0,0.95)]"
+                    className="w-16 h-52 overflow-visible drop-shadow-[0_15px_35px_rgba(0,0,0,0.95)]"
                 >
                     <defs>
                         {/* Soft glow matching the liquid color */}
@@ -367,25 +367,24 @@ const GymThermometerMascot = ({ isStudioMode = false }: { isStudioMode?: boolean
                             <stop offset="100%" stopColor={color === '#ef4444' ? '#991b1b' : color === '#f97316' ? '#c2410c' : color === '#eab308' ? '#a16207' : '#1e40af'} />
                         </linearGradient>
                         <clipPath id="glass-inner-large">
-                            <path d="M 15,14 L 15,112 A 22,22 0 1,0 25,112 L 25,14 A 5,5 0 0,0 15,14 Z" />
+                            <path d="M 12,14 L 12,112 A 22,22 0 1,0 28,112 L 28,14 A 8,8 0 0,0 12,14 Z" />
                         </clipPath>
                     </defs>
 
                     {/* Glowing backlight to make the mercury look bright & active */}
                     <path 
-                        d="M 15,14 L 15,112 A 22,22 0 1,0 25,112 L 25,14 A 5,5 0 0,0 15,14 Z"
+                        d="M 12,14 L 12,112 A 22,22 0 1,0 28,112 L 28,14 A 8,8 0 0,0 12,14 Z"
                         fill={color}
                         opacity="0.25"
                         filter={`url(#glow-large-${color.replace('#', '')})`}
                     />
 
-                    {/* Unified Glass Tube Outline (Sleek container structure) - NO overlapping artifacts! */}
+                    {/* Unified Glass Tube Outline (Sleek container structure) with warm white solid semi-transbg for high contrast */}
                     <path 
-                        d="M 13,12 L 13,110 A 24,24 0 1,0 27,110 L 27,12 A 7,7 0 0,0 13,12 Z" 
-                        fill="rgba(8, 10, 15, 0.92)"
-                        stroke="rgba(255, 255, 255, 0.4)"
-                        strokeWidth="1.2"
-                        className="backdrop-blur-md"
+                        d="M 10,12 L 10,110 A 24,24 0 1,0 30,110 L 30,12 A 10,10 0 0,0 10,12 Z" 
+                        fill="rgba(255, 255, 255, 0.92)"
+                        stroke="rgba(0, 0, 0, 0.35)"
+                        strokeWidth="1.5"
                     />
 
                     {/* Rising Liquid */}
@@ -404,26 +403,26 @@ const GymThermometerMascot = ({ isStudioMode = false }: { isStudioMode?: boolean
 
                     {/* Highlight glare on left side of glass */}
                     <path 
-                        d="M 15.5,15 L 15.5,120" 
+                        d="M 12.5,15 L 12.5,110" 
                         stroke="white" 
-                        strokeWidth="0.8" 
+                        strokeWidth="1.2" 
                         strokeLinecap="round"
-                        opacity="0.3" 
+                        opacity="0.5" 
                     />
 
-                    {/* Thermometer scale markers (Tick marks) */}
-                    <g stroke="white" strokeWidth="0.8" opacity="0.3" strokeLinecap="round">
-                        <line x1="13" y1="35" x2="16" y2="35" />
-                        <line x1="13" y1="55" x2="16" y2="55" />
-                        <line x1="13" y1="75" x2="16" y2="75" />
-                        <line x1="13" y1="95" x2="16" y2="95" />
-                        <line x1="13" y1="115" x2="16" y2="115" />
+                    {/* Thermometer scale markers (Tick marks) - Dark color to contrast beautifully with white background */}
+                    <g stroke="rgba(15, 23, 42, 0.75)" strokeWidth="0.9" opacity="0.8" strokeLinecap="round">
+                        <line x1="10" y1="35" x2="13" y2="35" />
+                        <line x1="10" y1="55" x2="13" y2="55" />
+                        <line x1="10" y1="75" x2="13" y2="75" />
+                        <line x1="10" y1="95" x2="13" y2="95" />
+                        <line x1="10" y1="115" x2="13" y2="115" />
                         
-                        <line x1="27" y1="35" x2="24" y2="35" />
-                        <line x1="27" y1="55" x2="24" y2="55" />
-                        <line x1="27" y1="75" x2="24" y2="75" />
-                        <line x1="27" y1="95" x2="24" y2="95" />
-                        <line x1="27" y1="115" x2="24" y2="115" />
+                        <line x1="30" y1="35" x2="27" y2="35" />
+                        <line x1="30" y1="55" x2="27" y2="55" />
+                        <line x1="30" y1="75" x2="27" y2="75" />
+                        <line x1="30" y1="95" x2="27" y2="95" />
+                        <line x1="30" y1="115" x2="27" y2="115" />
                     </g>
 
                     {/* Dynamisk poängtext inuti den runda bulben */}
@@ -447,11 +446,11 @@ const GymThermometerMascot = ({ isStudioMode = false }: { isStudioMode?: boolean
 
     // if !isStudioMode (member app view), render same clean thermometer, but smaller
     return (
-        <div className="fixed bottom-3 left-3 z-[90] flex flex-col items-center pointer-events-none select-none animate-fade-in origin-bottom rotate-[5deg] drop-shadow-[0_15px_20px_rgba(0,0,0,0.95)] drop-shadow-[0_0_12px_rgba(0,0,0,0.6)]">
+        <div className="fixed bottom-3 left-3 z-[90] flex flex-col items-center pointer-events-none select-none animate-fade-in origin-bottom rotate-[5deg] drop-shadow-[0_20px_25px_rgba(0,0,0,0.95)] drop-shadow-[0_0_15px_rgba(0,0,0,0.7)]">
             {/* Unified continuous Glass Thermometer SVG - Small */}
             <svg 
                 viewBox="0 0 40 160" 
-                className="w-10 h-32 overflow-visible drop-shadow-[0_6px_20px_rgba(0,0,0,0.8)]"
+                className="w-12 h-36 overflow-visible drop-shadow-[0_8px_24px_rgba(0,0,0,0.85)]"
             >
                 <defs>
                     <filter id={`glow-small-${color.replace('#', '')}`} x="-30%" y="-30%" width="160%" height="160%">
@@ -463,25 +462,24 @@ const GymThermometerMascot = ({ isStudioMode = false }: { isStudioMode?: boolean
                         <stop offset="100%" stopColor={color === '#ef4444' ? '#991b1b' : color === '#f97316' ? '#c2410c' : color === '#eab308' ? '#a16207' : '#1e40af'} />
                     </linearGradient>
                     <clipPath id="glass-inner-small">
-                        <path d="M 15,14 L 15,112 A 22,22 0 1,0 25,112 L 25,14 A 5,5 0 0,0 15,14 Z" />
+                        <path d="M 12,14 L 12,112 A 22,22 0 1,0 28,112 L 28,14 A 8,8 0 0,0 12,14 Z" />
                     </clipPath>
                 </defs>
 
                 {/* Glowing backlight */}
                 <path 
-                    d="M 15,14 L 15,112 A 22,22 0 1,0 25,112 L 25,14 A 5,5 0 0,0 15,14 Z"
+                    d="M 12,14 L 12,112 A 22,22 0 1,0 28,112 L 28,14 A 8,8 0 0,0 12,14 Z"
                     fill={color}
                     opacity="0.2"
                     filter={`url(#glow-small-${color.replace('#', '')})`}
                 />
 
-                {/* Unified Glass Tube Outline - NO overlapping circles/lines! */}
+                {/* Unified Glass Tube Outline with warm-white glass background */}
                 <path 
-                    d="M 13,12 L 13,110 A 24,24 0 1,0 27,110 L 27,12 A 7,7 0 0,0 13,12 Z" 
-                    fill="rgba(8, 10, 15, 0.92)"
-                    stroke="rgba(255, 255, 255, 0.4)"
-                    strokeWidth="1.2"
-                    className="backdrop-blur-md"
+                    d="M 10,12 L 10,110 A 24,24 0 1,0 30,110 L 30,12 A 10,10 0 0,0 10,12 Z" 
+                    fill="rgba(255, 255, 255, 0.92)"
+                    stroke="rgba(0, 0, 0, 0.35)"
+                    strokeWidth="1.5"
                 />
 
                 {/* Rising Liquid */}
@@ -499,24 +497,24 @@ const GymThermometerMascot = ({ isStudioMode = false }: { isStudioMode?: boolean
 
                 {/* Glass sheen highlight */}
                 <path 
-                    d="M 15.5,15 L 15.5,120" 
+                    d="M 12.5,15 L 12.5,110" 
                     stroke="white" 
-                    strokeWidth="0.8" 
+                    strokeWidth="1.2" 
                     strokeLinecap="round"
-                    opacity="0.25" 
+                    opacity="0.4" 
                 />
 
-                {/* Aesthetic measurement ticks */}
-                <g stroke="white" strokeWidth="0.8" opacity="0.25" strokeLinecap="round">
-                    <line x1="13" y1="40" x2="16" y2="40" />
-                    <line x1="13" y1="65" x2="16" y2="65" />
-                    <line x1="13" y1="90" x2="16" y2="90" />
-                    <line x1="13" y1="115" x2="16" y2="115" />
+                {/* Aesthetic measurement ticks - Dark color to contrast with white background */}
+                <g stroke="rgba(15, 23, 42, 0.75)" strokeWidth="0.9" opacity="0.8" strokeLinecap="round">
+                    <line x1="10" y1="40" x2="13" y2="40" />
+                    <line x1="10" y1="65" x2="13" y2="65" />
+                    <line x1="10" y1="90" x2="13" y2="90" />
+                    <line x1="10" y1="115" x2="13" y2="115" />
                     
-                    <line x1="27" y1="40" x2="24" y2="40" />
-                    <line x1="27" y1="65" x2="24" y2="65" />
-                    <line x1="27" y1="90" x2="24" y2="90" />
-                    <line x1="27" y1="115" x2="24" y2="115" />
+                    <line x1="30" y1="40" x2="27" y2="40" />
+                    <line x1="30" y1="65" x2="27" y2="65" />
+                    <line x1="30" y1="90" x2="27" y2="90" />
+                    <line x1="30" y1="115" x2="27" y2="115" />
                 </g>
 
                 {/* Dynamisk poängtext inuti den runda bulben */}
