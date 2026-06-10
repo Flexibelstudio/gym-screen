@@ -680,6 +680,7 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
     const [isMyStrengthVisible, setIsMyStrengthVisible] = useState(false);
     const [viewingDiploma, setViewingDiploma] = useState<WorkoutDiploma | null>(null);
     const [communityLogs, setCommunityLogs] = useState<WorkoutLog[]>([]);
+    const [membersList, setMembersList] = useState<any[]>([]);
     const [selectedPhoto, setSelectedPhoto] = useState<WorkoutLog | null>(null);
     const [isShowingAllPhotos, setIsShowingAllPhotos] = useState(false);
     const [dismissedSummerChallenge, setDismissedSummerChallenge] = useState(() => {
@@ -696,10 +697,43 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
         }
     }, [userData?.uid]);
 
-    const isSummerThemeActive = useMemo(() => {
-        const configToUse = (studioConfig || selectedOrganization) as any;
-        return !!configToUse?.enableSummerChallenge;
+    useEffect(() => {
+        const activeTheme = !!(studioConfig?.enableSummerChallenge || selectedOrganization?.globalConfig?.enableSummerChallenge);
+        if (!activeTheme || !userData.organizationId) return;
+        import('../services/firebaseService').then(({ listenToMembers }) => {
+            const unsubscribe = listenToMembers(userData.organizationId!, (members) => {
+                setMembersList(members);
+            });
+            return () => unsubscribe();
+        });
+    }, [studioConfig, selectedOrganization, userData.organizationId]);
+
+    const configToUse = useMemo(() => {
+        if (!selectedOrganization) return studioConfig || {};
+        return {
+            ...(selectedOrganization || {}),
+            ...(selectedOrganization.globalConfig || {}),
+            ...(studioConfig || {})
+        } as any;
     }, [studioConfig, selectedOrganization]);
+
+    const isSummerThemeActive = useMemo(() => {
+        return !!configToUse?.enableSummerChallenge;
+    }, [configToUse]);
+
+    const currentTimestamp = Date.now();
+
+    const isChallengeStarted = useMemo(() => {
+        if (!isSummerThemeActive) return false;
+        if (!configToUse?.summerChallengeStartDate) return true; // Default to true if not set
+        return currentTimestamp >= configToUse.summerChallengeStartDate;
+    }, [isSummerThemeActive, configToUse, currentTimestamp]);
+
+    const isChallengeEnded = useMemo(() => {
+        if (!isSummerThemeActive) return false;
+        if (!configToUse?.summerChallengeEndDate) return false;
+        return currentTimestamp > configToUse.summerChallengeEndDate;
+    }, [isSummerThemeActive, configToUse, currentTimestamp]);
 
     const filteredCommunityLogs = useMemo(() => {
         if (!userData?.locationId) return communityLogs;
@@ -710,7 +744,22 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
     const [justActivatedSummer, setJustActivatedSummer] = useState(false);
 
     const summerStats = useMemo(() => {
-        if (!isSummerThemeActive) return { avgPoints: 0, activeUsersCount: 0, label: 'SVALT', emoji: '❄️', colorClass: 'text-sky-400', bannerBgClass: 'from-blue-600/30 to-slate-900', scale: 'svalt' };
+        if (!isSummerThemeActive) return { 
+            avgPoints: 0, 
+            totalPoints: 0, 
+            activeUsersCount: 0, 
+            label: 'SVALT', 
+            emoji: '❄️', 
+            colorClass: 'text-sky-400', 
+            bannerBgClass: 'from-blue-600/30 to-slate-900', 
+            scale: 'svalt',
+            N: 1,
+            thresholdLjummet: 3,
+            thresholdVarmt: 6,
+            thresholdHet: 10,
+            nextTarget: 3,
+            totalRegisteredCount: 0
+        };
         
         const now = new Date();
         const currentDay = now.getDay() || 7;
@@ -720,6 +769,8 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
 
         const thisWeeksLogs = filteredCommunityLogs.filter(log => (log.date || 0) >= monday.getTime());
         const userPointsMap: Record<string, number> = {};
+        let totalPoints = 0;
+
         thisWeeksLogs.forEach(log => {
             const uid = log.memberId;
             if (!uid) return;
@@ -733,49 +784,79 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                 }
             }
             userPointsMap[uid] = (userPointsMap[uid] || 0) + pts;
+            totalPoints += pts;
         });
 
         const activeUsersCount = Object.keys(userPointsMap).length;
-        let totalPoints = 0;
-        Object.values(userPointsMap).forEach(pts => totalPoints += pts);
-        const avg = activeUsersCount > 0 ? Number((totalPoints / activeUsersCount).toFixed(1)) : 0;
+
+        // Base member count (N): signed up BEFORE this week's Monday
+        const locationMembers = membersList.filter(m => {
+            if (userData?.locationId && m.locationId !== userData.locationId) return false;
+            return true;
+        });
+
+        const challengeParticipantsOnSunday = locationMembers.filter(m => {
+            if (!m.joinedSummerChallenge) return false;
+            const joinedAt = m.joinedSummerChallengeAt || 0;
+            return joinedAt < monday.getTime();
+        });
+
+        const N = Math.max(1, challengeParticipantsOnSunday.length);
+
+        const thresholdLjummet = 3 * N;
+        const thresholdVarmt = 6 * N;
+        const thresholdHet = 10 * N;
 
         let label = 'SVALT';
         let emoji = '❄️';
         let colorClass = 'text-sky-400';
         let bannerBgClass = 'from-sky-500/10 to-slate-900';
         let scale = 'svalt';
+        let nextTarget = thresholdLjummet;
 
-        if (avg >= 6.5) {
+        if (totalPoints >= thresholdHet) {
             label = 'HET';
             emoji = '🌋';
             colorClass = 'text-red-500 dark:text-red-400';
             bannerBgClass = 'from-red-500/20 to-slate-950';
             scale = 'het';
-        } else if (avg >= 4.5) {
+            nextTarget = -1;
+        } else if (totalPoints >= thresholdVarmt) {
             label = 'VARMT';
             emoji = '🔥';
             colorClass = 'text-orange-500 dark:text-orange-400';
             bannerBgClass = 'from-orange-500/20 to-slate-950';
             scale = 'varmt';
-        } else if (avg >= 2.5) {
+            nextTarget = thresholdHet;
+        } else if (totalPoints >= thresholdLjummet) {
             label = 'LJUMMET';
             emoji = '🌤️';
             colorClass = 'text-yellow-500 dark:text-yellow-400';
             bannerBgClass = 'from-yellow-500/20 to-slate-950';
             scale = 'ljummet';
+            nextTarget = thresholdVarmt;
         }
 
+        const avgPoints = N > 0 ? Number((totalPoints / N).toFixed(1)) : 0;
+        const totalRegisteredCount = locationMembers.filter(m => m.joinedSummerChallenge).length;
+
         return {
-            avgPoints: avg,
+            totalPoints,
+            avgPoints,
             activeUsersCount,
             label,
             emoji,
             colorClass,
             bannerBgClass,
-            scale
+            scale,
+            N,
+            thresholdLjummet,
+            thresholdVarmt,
+            thresholdHet,
+            nextTarget,
+            totalRegisteredCount
         };
-    }, [filteredCommunityLogs, isSummerThemeActive]);
+    }, [filteredCommunityLogs, isSummerThemeActive, membersList, userData?.locationId]);
 
     const [activeTab, setActiveTab] = useState<'overview' | 'goals' | 'strength' | 'benchmarks'>(() => {
         const saved = localStorage.getItem('smart-skarm-profile-active-tab');
@@ -1508,13 +1589,13 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                                             Vill du anta utmaningen? 🌻
                                         </h4>
                                         <p className="text-xs sm:text-sm text-amber-900 font-semibold leading-relaxed mb-5 max-w-xl">
-                                            Varje pass du loggar ger dig poäng och hjälper till att öka snittpoängen och temperaturen i studion. Du kan logga både pass i gymmet och utomhusaktiviteter! Tillsammans får vi temperaturnålen att stiga på den stora Smart Skärmen.
+                                            Varje pass du loggar ger dig poäng och hjälper till att öka snittpoängen och temperaturen i studion. Du kan logga både pass i gymmet och utomhusaktiviteter! Tillsammans får vi temperaturnålen att stiga.
                                         </p>
                                         <div className="flex flex-wrap items-center gap-3">
                                             <button
                                                 onClick={async () => {
                                                     try {
-                                                        await updateUserProfile(userData.uid, { joinedSummerChallenge: true } as any);
+                                                        await updateUserProfile(userData.uid, { joinedSummerChallenge: true, joinedSummerChallengeAt: Date.now() } as any);
                                                         setJustActivatedSummer(true);
                                                         const confetti = await import('canvas-confetti');
                                                         confetti.default({ particleCount: 150, spread: 80, origin: { y: 0.6 } });
@@ -1557,7 +1638,7 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                             <button
                                 onClick={async () => {
                                     try {
-                                        await updateUserProfile(userData.uid, { joinedSummerChallenge: true } as any);
+                                        await updateUserProfile(userData.uid, { joinedSummerChallenge: true, joinedSummerChallengeAt: Date.now() } as any);
                                         localStorage.removeItem(`dismissed-summer-challenge-${userData.uid}`);
                                         setDismissedSummerChallenge(false);
                                         setJustActivatedSummer(true);
@@ -1708,14 +1789,15 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                                     <div>
                                         <span className="text-[9px] font-black tracking-widest text-orange-950/75 uppercase block leading-none mb-1">Du deltar i utmaningen! ☀️</span>
                                         <span className="text-xs sm:text-sm font-extrabold text-amber-950 leading-none">
-                                            Klubbens mätare: <span className="inline-flex items-center gap-1 bg-amber-950/20 px-2 py-0.5 rounded-lg text-xs font-black text-amber-955 tracking-wider ml-1">{summerStats.label} {summerStats.emoji}</span>
+                                            {!isChallengeStarted ? (
+                                                <span>Utmaningen startar snart! ⏳</span>
+                                            ) : (
+                                                <span>Studions mätare: <span className="inline-flex items-center gap-1 bg-amber-950/20 px-2 py-0.5 rounded-lg text-xs font-black text-amber-950 tracking-wider ml-1">{summerStats.label} {summerStats.emoji}</span></span>
+                                            )}
                                         </span>
                                     </div>
                                 </div>
-                                <div className="flex items-center gap-2 bg-amber-950/10 rounded-xl p-1 border border-amber-950/5">
-                                    <span className="text-[10px] font-mono font-black text-amber-950 px-2.5 py-1 uppercase tracking-wider">
-                                        Visa status
-                                    </span>
+                                <div className="flex items-center gap-2 bg-amber-950/10 rounded-xl p-1.5 border border-amber-950/5">
                                     <span className={`text-amber-950 transition-transform duration-200 ${(sisuDetailsExpanded || justActivatedSummer) ? 'rotate-180' : ''}`}>
                                         <svg className="w-5 h-5 stroke-[2.5]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                             <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
@@ -1734,40 +1816,85 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                                     >
                                         <div className="p-5 sm:p-6 space-y-6 text-amber-950">
                                             
-                                            {/* Main Stats Block: matching Bild 1 */}
-                                            <div className="bg-amber-50/70 dark:bg-amber-950/20 backdrop-blur-md rounded-2xl p-4 sm:p-5 border border-amber-200/35 relative overflow-hidden shadow-sm">
-                                                <div className="flex justify-between items-start select-none">
-                                                    <div>
-                                                        <p className="text-[9px] font-bold text-amber-900 uppercase tracking-widest mb-1.5 font-black font-sans">Gymmet tillsammans ☀️</p>
-                                                        <h3 className="text-3xl sm:text-4xl font-black text-amber-950 tracking-tight mb-1 flex items-center gap-2">
-                                                            <span>{summerStats.label}</span>
-                                                            <span className="text-2xl sm:text-3xl">{summerStats.emoji}</span>
-                                                        </h3>
-                                                        <p className="text-[11px] text-amber-900/90 font-semibold leading-normal max-w-sm">
-                                                            Veckans status på Smart Skärmen. Ju fler poäng vi loggar, desto mer stiger mätaren!
-                                                        </p>
+                                            {!isChallengeStarted ? (
+                                                /* Pre-start Countdown Stats Block */
+                                                <div className="bg-amber-50/70 dark:bg-amber-950/20 backdrop-blur-md rounded-2xl p-4 sm:p-5 border border-amber-200/35 relative overflow-hidden shadow-sm">
+                                                    <div className="flex justify-between items-start select-none">
+                                                        <div>
+                                                            <p className="text-[9px] font-bold text-amber-900 uppercase tracking-widest mb-1.5 font-black font-sans">Nedräkning ⏳</p>
+                                                            <h3 className="text-2xl sm:text-3xl font-black text-amber-950 tracking-tight mb-1">
+                                                                Utmaningen startar snart!
+                                                            </h3>
+                                                            <p className="text-[11px] text-amber-900/90 font-semibold leading-normal max-w-sm mt-1">
+                                                                {configToUse?.summerChallengeStartDate ? (
+                                                                    <>Startdatum: <span className="font-extrabold">{new Date(configToUse.summerChallengeStartDate).toLocaleDateString('sv-SE', { weekday: 'long', day: 'numeric', month: 'long' })}</span></>
+                                                                ) : 'Startdatum ej satt.'}
+                                                            </p>
+                                                        </div>
+                                                        
+                                                        <div className="relative w-12 h-12 bg-white/50 rounded-xl flex items-center justify-center text-2xl border border-white/60 shadow-inner">
+                                                            <span className="animate-pulse">📅</span>
+                                                        </div>
                                                     </div>
                                                     
-                                                    {/* Right side floating flame/pulse container */}
-                                                    <div className="relative w-12 h-12 bg-white/50 rounded-xl flex items-center justify-center text-2xl border border-white/60 shadow-inner">
-                                                        <span className="animate-pulse">🔥</span>
+                                                    <div className="h-[1px] bg-amber-950/10 my-3.5" />
+                                                    
+                                                    <div className="grid grid-cols-2 gap-4">
+                                                        <div>
+                                                            <p className="text-[9px] font-black text-amber-900/60 uppercase tracking-wider mb-0.5">Dagar kvar</p>
+                                                            <p className="text-base font-extrabold text-amber-950">
+                                                                {configToUse?.summerChallengeStartDate ? Math.max(0, Math.ceil((configToUse.summerChallengeStartDate - Date.now()) / (1000 * 60 * 60 * 24))) : '-'} st
+                                                            </p>
+                                                        </div>
+                                                        <div>
+                                                            <p className="text-[9px] font-black text-amber-900/60 uppercase tracking-wider mb-0.5">Anmälda i gymmet</p>
+                                                            <p className="text-base font-extrabold text-amber-950">
+                                                                {summerStats.totalRegisteredCount} st
+                                                            </p>
+                                                        </div>
                                                     </div>
                                                 </div>
-                                                
-                                                <div className="h-[1px] bg-amber-950/10 my-3.5" />
-                                                
-                                                {/* Sub-metrics */}
-                                                <div className="grid grid-cols-2 gap-4">
-                                                    <div>
-                                                        <p className="text-[9px] font-black text-amber-900/60 uppercase tracking-wider mb-0.5">Veckosnitt</p>
-                                                        <p className="text-base font-extrabold text-amber-950">{summerStats.avgPoints} poäng</p>
+                                            ) : (
+                                                /* Main Stats Block: matching Bild 1 & Proposal 2 */
+                                                <div className="bg-amber-50/70 dark:bg-amber-950/20 backdrop-blur-md rounded-2xl p-4 sm:p-5 border border-amber-200/35 relative overflow-hidden shadow-sm">
+                                                    <div className="flex justify-between items-start select-none">
+                                                        <div>
+                                                            <p className="text-[9px] font-bold text-amber-900 uppercase tracking-widest mb-1.5 font-black font-sans">Gymmet tillsammans ☀️</p>
+                                                            <h3 className="text-3xl sm:text-4xl font-black text-amber-950 tracking-tight mb-1 flex items-center gap-2">
+                                                                <span>{summerStats.label}</span>
+                                                                <span className="text-2xl sm:text-3xl">{summerStats.emoji}</span>
+                                                            </h3>
+                                                            <p className="text-[11px] text-amber-900/90 font-semibold leading-normal max-w-sm">
+                                                                Veckans status. Ju fler poäng vi loggar, desto mer stiger mätaren!
+                                                            </p>
+                                                        </div>
+                                                        
+                                                        <div className="relative w-12 h-12 bg-white/50 rounded-xl flex items-center justify-center text-2xl border border-white/60 shadow-inner">
+                                                            <span className="animate-pulse">🔥</span>
+                                                        </div>
                                                     </div>
-                                                    <div>
-                                                        <p className="text-[9px] font-black text-amber-900/60 uppercase tracking-wider mb-0.5">Aktiva medlemmar</p>
-                                                        <p className="text-base font-extrabold text-amber-950">{summerStats.activeUsersCount} st</p>
+                                                    
+                                                    <div className="h-[1px] bg-amber-950/10 my-3.5" />
+                                                    
+                                                    <div className="grid grid-cols-2 gap-4">
+                                                        <div>
+                                                            <p className="text-[9px] font-black text-amber-900/60 uppercase tracking-wider mb-0.5">Totala poäng denna vecka</p>
+                                                            <p className="text-base font-extrabold text-amber-950">{summerStats.totalPoints} poäng</p>
+                                                        </div>
+                                                        <div>
+                                                            <p className="text-[9px] font-black text-amber-900/60 uppercase tracking-wider mb-0.5">Nivåns mål</p>
+                                                            <p className="text-base font-extrabold text-amber-950">
+                                                                {summerStats.nextTarget > 0 ? `${summerStats.nextTarget} poäng` : "Fullt ös! 🔥"}
+                                                            </p>
+                                                        </div>
+                                                    </div>
+
+                                                    <div className="mt-3 text-[10px] text-amber-950/60 flex flex-col gap-1 border-t border-amber-950/5 pt-2">
+                                                        <span>• Basantal registrerade i söndags: <strong className="text-amber-950">{summerStats.N} st</strong></span>
+                                                        <span>• Aktiva deltagare denna vecka: <strong className="text-amber-950">{summerStats.activeUsersCount} st</strong></span>
                                                     </div>
                                                 </div>
-                                            </div>
+                                            )}
 
                                             {/* Point rules info */}
                                             <div className="space-y-2.5">
@@ -1788,6 +1915,15 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                                                             <p className="text-xs font-black text-amber-950 uppercase tracking-wider">1 Poäng</p>
                                                             <p className="text-[11px] text-amber-900 mt-0.5 leading-relaxed font-semibold">
                                                                 Träning utanför studion! Alla hemma- eller utomhusaktiviteter (powerwalk, löpning, cykling etc.) på minst 30 minuter.
+                                                            </p>
+                                                        </div>
+                                                    </div>
+                                                    <div className="bg-amber-50/60 dark:bg-amber-950/15 rounded-2xl p-4 border border-amber-200/20 flex items-start gap-3">
+                                                        <span className="text-base bg-[#ff9800] text-amber-50 p-2 rounded-xl leading-none shadow-sm">🌟</span>
+                                                        <div className="text-left">
+                                                            <p className="text-xs font-black text-amber-950 uppercase tracking-wider">Mätarens nivåinsamling (Smart formel)</p>
+                                                            <p className="text-[11px] text-amber-900 mt-0.5 leading-relaxed font-semibold">
+                                                                Mätarens nivåer (Ljummet: 3, Varmt: 6, Het: 10 poäng per person) baseras på antalet anmälda söndagen innan veckan startar. Nya medlemmar som går med under pågående vecka kan direkt bidra med poäng, men höjer inte mätarens svårighetsgrad förrän nästkommande vecka! Det gör att ingen belastar snittet i onödan.
                                                             </p>
                                                         </div>
                                                     </div>

@@ -34,6 +34,8 @@ const OrganizationCard: React.FC<OrganizationCardProps> = React.memo(({ org, onS
     const [freeCoaches, setFreeCoaches] = useState(org.freeCoachAccounts || 0);
     const [enableEventsModule, setEnableEventsModule] = useState(org.globalConfig?.enableEventsModule || false);
     const [enableSummerChallenge, setEnableSummerChallenge] = useState(org.globalConfig?.enableSummerChallenge || false);
+    const [summerStartDate, setSummerStartDate] = useState(org.globalConfig?.summerChallengeStartDate ? new Date(org.globalConfig.summerChallengeStartDate).toISOString().split('T')[0] : '');
+    const [summerEndDate, setSummerEndDate] = useState(org.globalConfig?.summerChallengeEndDate ? new Date(org.globalConfig.summerChallengeEndDate).toISOString().split('T')[0] : '');
     const [allowMigrationOption, setAllowMigrationOption] = useState(org.allowMigrationOption || false);
     const [allowStripeBypass, setAllowStripeBypass] = useState(org.allowStripeBypass || false);
     const [isSaving, setIsSaving] = useState(false);
@@ -48,9 +50,14 @@ const OrganizationCard: React.FC<OrganizationCardProps> = React.memo(({ org, onS
 
     const isArchived = org.status === 'archived';
 
+    const orgStartIso = org.globalConfig?.summerChallengeStartDate ? new Date(org.globalConfig.summerChallengeStartDate).toISOString().split('T')[0] : '';
+    const orgEndIso = org.globalConfig?.summerChallengeEndDate ? new Date(org.globalConfig.summerChallengeEndDate).toISOString().split('T')[0] : '';
+
     const hasChanges = freeCoaches !== (org.freeCoachAccounts || 0) || 
         enableEventsModule !== (org.globalConfig?.enableEventsModule || false) || 
         enableSummerChallenge !== (org.globalConfig?.enableSummerChallenge || false) ||
+        summerStartDate !== orgStartIso ||
+        summerEndDate !== orgEndIso ||
         allowMigrationOption !== (org.allowMigrationOption || false) ||
         allowStripeBypass !== (org.allowStripeBypass || false);
 
@@ -69,7 +76,9 @@ const OrganizationCard: React.FC<OrganizationCardProps> = React.memo(({ org, onS
         setEditNameValue(org.name);
         setEnableEventsModule(org.globalConfig?.enableEventsModule || false);
         setEnableSummerChallenge(org.globalConfig?.enableSummerChallenge || false);
-    }, [org.freeCoachAccounts, org.name, org.globalConfig?.enableEventsModule, org.globalConfig?.enableSummerChallenge]);
+        setSummerStartDate(org.globalConfig?.summerChallengeStartDate ? new Date(org.globalConfig.summerChallengeStartDate).toISOString().split('T')[0] : '');
+        setSummerEndDate(org.globalConfig?.summerChallengeEndDate ? new Date(org.globalConfig.summerChallengeEndDate).toISOString().split('T')[0] : '');
+    }, [org.freeCoachAccounts, org.name, org.globalConfig?.enableEventsModule, org.globalConfig?.enableSummerChallenge, org.globalConfig?.summerChallengeStartDate, org.globalConfig?.summerChallengeEndDate]);
 
     useEffect(() => {
         if (!isExpanded) return; // Only fetch counts if expanded (performance optimization)
@@ -92,7 +101,9 @@ const OrganizationCard: React.FC<OrganizationCardProps> = React.memo(({ org, onS
             await onUpdateGlobalConfig(org.id, { 
                 ...org.globalConfig, 
                 enableEventsModule, 
-                enableSummerChallenge 
+                enableSummerChallenge,
+                summerChallengeStartDate: summerStartDate ? new Date(summerStartDate + 'T00:00:00').getTime() : null,
+                summerChallengeEndDate: summerEndDate ? new Date(summerEndDate + 'T23:59:59').getTime() : null
             });
             await onUpdateMigrationOption(org.id, allowMigrationOption);
             await onUpdateStripeBypassOption(org.id, allowStripeBypass);
@@ -306,7 +317,7 @@ const OrganizationCard: React.FC<OrganizationCardProps> = React.memo(({ org, onS
                                                 }} 
                                             />
                                         </div>
-                                        <div className="scale-90 origin-left">
+                                        <div className="scale-90 origin-left flex flex-col gap-2">
                                             <ToggleSwitch 
                                                 label="Sommarutmaning"
                                                 checked={enableSummerChallenge} 
@@ -321,6 +332,40 @@ const OrganizationCard: React.FC<OrganizationCardProps> = React.memo(({ org, onS
                                                     }
                                                 }} 
                                             />
+                                            {enableSummerChallenge && (
+                                                <div className="mt-2 pl-2 border-l-2 border-amber-500 space-y-2 animate-fade-in text-left">
+                                                    <div>
+                                                        <label className="block text-[9px] font-black uppercase text-amber-500 mb-1">Startdatum</label>
+                                                        <input 
+                                                            type="date"
+                                                            value={summerStartDate}
+                                                            onChange={(e) => setSummerStartDate(e.target.value)}
+                                                            className="w-full bg-gray-100 dark:bg-gray-800 text-black dark:text-white px-2 py-1 rounded border border-gray-200 dark:border-gray-700 font-bold text-xs"
+                                                        />
+                                                    </div>
+                                                    <div>
+                                                        <label className="block text-[9px] font-black uppercase text-amber-500 mb-1">Slutdatum</label>
+                                                        <input 
+                                                            type="date"
+                                                            value={summerEndDate}
+                                                            onChange={(e) => setSummerEndDate(e.target.value)}
+                                                            className="w-full bg-gray-100 dark:bg-gray-800 text-black dark:text-white px-2 py-1 rounded border border-gray-200 dark:border-gray-700 font-bold text-xs"
+                                                        />
+                                                    </div>
+                                                    {hasChanges && (
+                                                        <button 
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                handleSaveSettings();
+                                                            }}
+                                                            disabled={isSaving}
+                                                            className="w-full mt-2 bg-amber-500 hover:bg-amber-600 text-white font-black py-1 px-2 rounded text-[10px] uppercase tracking-wider shadow-sm transition-all"
+                                                        >
+                                                            {isSaving ? 'Sparar...' : 'Spara datum 💾'}
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            )}
                                         </div>
                                     </div>
                                 </div>

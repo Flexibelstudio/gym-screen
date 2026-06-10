@@ -19,7 +19,11 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ organizationId }) => {
     const [selectedLocationId, setSelectedLocationId] = useState<string | 'all'>('all');
     const [hasInitialized, setHasInitialized] = useState(false);
 
-    const isSummerActive = !!(studioConfig?.enableSummerChallenge || selectedOrganization?.globalConfig?.enableSummerChallenge);
+    const configToUse = (selectedOrganization?.globalConfig || studioConfig || {}) as any;
+    const isSummerActive = !!configToUse?.enableSummerChallenge;
+    const currentTimestamp = Date.now();
+    const isChallengeStarted = !configToUse?.summerChallengeStartDate || currentTimestamp >= configToUse.summerChallengeStartDate;
+    const sisuTabVisible = isSummerActive && isChallengeStarted;
 
     useEffect(() => {
         if (userData?.locationId) {
@@ -225,7 +229,7 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ organizationId }) => {
             )}
             
             <div className="flex bg-gray-100 dark:bg-gray-800 p-1 rounded-xl mb-4">
-                {isSummerActive && (
+                {sisuTabVisible && (
                     <button
                         onClick={() => setActiveTab('sisu')}
                         className={`flex-1 py-1.5 text-xs font-black uppercase tracking-widest rounded-lg transition-all flex items-center justify-center gap-1.5 ${

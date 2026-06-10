@@ -192,6 +192,8 @@ export interface StudioConfig {
   enableTimer?: boolean; // NYTT: Fristående timer
   enableOtherWorkouts?: boolean; // NYTT: Övriga pass
   enableSummerChallenge?: boolean; // NYTT: Sommarutmaning (Sommar-Sisu)
+  summerChallengeStartDate?: number; // NYTT: Sommarutmaning startdatum
+  summerChallengeEndDate?: number; // NYTT: Sommarutmaning slutdatum
   checkInImageEnabled?: boolean;
   checkInImageUrl?: string;
   seasonalTheme?: ThemeOption;
@@ -412,6 +414,7 @@ export interface UserData {
   usePreGameForCustomWorkouts?: boolean;
   isTrainingMember?: boolean;
   joinedSummerChallenge?: boolean;
+  joinedSummerChallengeAt?: number;
   createdAt?: any;
 
   migratedStats?: {
