@@ -382,7 +382,7 @@ const GymThermometerMascot = ({ isStudioMode = false }: { isStudioMode?: boolean
                     {/* Unified Glass Tube Outline (Sleek container structure) with warm white solid semi-transbg for high contrast */}
                     <path 
                         d="M 10,12 L 10,110 A 24,24 0 1,0 30,110 L 30,12 A 10,10 0 0,0 10,12 Z" 
-                        fill="rgba(255, 255, 255, 0.92)"
+                        fill="rgba(254, 243, 199, 0.94)"
                         stroke="rgba(0, 0, 0, 0.35)"
                         strokeWidth="1.5"
                     />
@@ -435,7 +435,6 @@ const GymThermometerMascot = ({ isStudioMode = false }: { isStudioMode?: boolean
                         fontWeight="950"
                         fontFamily="ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
                         className="select-none font-black tracking-tighter"
-                        style={{ textShadow: '0 2px 4px rgba(0,0,0,1), 0 0 4px rgba(0,0,0,0.8)' }}
                     >
                         {stats.avgPoints}
                     </text>
@@ -477,7 +476,7 @@ const GymThermometerMascot = ({ isStudioMode = false }: { isStudioMode?: boolean
                 {/* Unified Glass Tube Outline with warm-white glass background */}
                 <path 
                     d="M 10,12 L 10,110 A 24,24 0 1,0 30,110 L 30,12 A 10,10 0 0,0 10,12 Z" 
-                    fill="rgba(255, 255, 255, 0.92)"
+                    fill="rgba(254, 243, 199, 0.94)"
                     stroke="rgba(0, 0, 0, 0.35)"
                     strokeWidth="1.5"
                 />
@@ -527,7 +526,6 @@ const GymThermometerMascot = ({ isStudioMode = false }: { isStudioMode?: boolean
                     fontWeight="950"
                     fontFamily="ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
                     className="select-none font-black tracking-tighter"
-                    style={{ textShadow: '0 2px 4px rgba(0,0,0,1), 0 0 4px rgba(0,0,0,0.8)' }}
                 >
                     {stats.avgPoints}
                 </text>
