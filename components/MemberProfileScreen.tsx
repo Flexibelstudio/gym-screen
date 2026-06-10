@@ -683,6 +683,7 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
     const [membersList, setMembersList] = useState<any[]>([]);
     const [selectedPhoto, setSelectedPhoto] = useState<WorkoutLog | null>(null);
     const [isShowingAllPhotos, setIsShowingAllPhotos] = useState(false);
+    const [showFormulaInfo, setShowFormulaInfo] = useState(false);
     const [dismissedSummerChallenge, setDismissedSummerChallenge] = useState(() => {
         if (typeof window !== 'undefined' && userData?.uid) {
             return localStorage.getItem(`dismissed-summer-challenge-${userData.uid}`) === 'true';
@@ -1898,7 +1899,17 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
 
                                             {/* Point rules info */}
                                             <div className="space-y-2.5">
-                                                <h5 className="text-[9px] font-black uppercase tracking-wider text-amber-900">Så här samlar ni poäng</h5>
+                                                <div className="flex items-center gap-1.5">
+                                                    <h5 className="text-[9px] font-black uppercase tracking-wider text-amber-900">Så här samlar ni poäng</h5>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setShowFormulaInfo(true)}
+                                                        className="w-4 h-4 rounded-full bg-amber-500/15 hover:bg-amber-500/35 text-amber-950 border border-amber-500/25 flex items-center justify-center text-[10px] font-black transition-all cursor-pointer shadow-sm relative -top-0.5"
+                                                        title="Visa information om mätarens smarta formel"
+                                                    >
+                                                        i
+                                                    </button>
+                                                </div>
                                                 <div className="grid grid-cols-1 gap-2.5">
                                                     <div className="bg-amber-50/60 dark:bg-amber-950/15 rounded-2xl p-4 border border-amber-200/20 flex items-start gap-3">
                                                         <span className="text-base bg-amber-800 text-white p-2 rounded-xl leading-none shadow-sm">🏋️‍♀️</span>
@@ -1918,17 +1929,37 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                                                             </p>
                                                         </div>
                                                     </div>
-                                                    <div className="bg-amber-50/60 dark:bg-amber-950/15 rounded-2xl p-4 border border-amber-200/20 flex items-start gap-3">
-                                                        <span className="text-base bg-[#ff9800] text-amber-50 p-2 rounded-xl leading-none shadow-sm">🌟</span>
-                                                        <div className="text-left">
-                                                            <p className="text-xs font-black text-amber-950 uppercase tracking-wider">Mätarens nivåinsamling (Smart formel)</p>
-                                                            <p className="text-[11px] text-amber-900 mt-0.5 leading-relaxed font-semibold">
-                                                                Mätarens nivåer (Ljummet: 3, Varmt: 6, Het: 10 poäng per person) baseras på antalet anmälda söndagen innan veckan startar. Nya medlemmar som går med under pågående vecka kan direkt bidra med poäng, men höjer inte mätarens svårighetsgrad förrän nästkommande vecka! Det gör att ingen belastar snittet i onödan.
-                                                            </p>
-                                                        </div>
-                                                    </div>
                                                 </div>
                                             </div>
+
+                                            {showFormulaInfo && (
+                                                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-[9999] animate-fade-in" onClick={() => setShowFormulaInfo(false)}>
+                                                    <div className="bg-amber-50 dark:bg-gray-900 p-6 rounded-[2.5rem] border-2 border-amber-300 dark:border-amber-900/40 shadow-2xl max-w-sm w-full text-left" onClick={(e) => e.stopPropagation()}>
+                                                        <div className="flex items-center gap-3 mb-4">
+                                                            <span className="text-2xl bg-amber-400 text-amber-950 p-2 rounded-2xl shadow-sm leading-none">🌟</span>
+                                                            <h4 className="text-sm font-black text-amber-950 dark:text-amber-50 uppercase tracking-wider">Mätarens nivåinsamling</h4>
+                                                        </div>
+                                                        <div className="space-y-3">
+                                                            <p className="text-xs font-black text-amber-900 dark:text-amber-300">
+                                                                Smart formel: Ljummet (3p), Varmt (6p), Het (10p) per aktiv person.
+                                                            </p>
+                                                            <p className="text-xs text-amber-950/80 dark:text-amber-200/70 leading-relaxed font-semibold">
+                                                                Mätarens kravnivåer baseras på antalet anmälda söndagen innan veckan startar.
+                                                            </p>
+                                                            <p className="text-xs text-amber-950/80 dark:text-amber-200/70 leading-relaxed font-semibold">
+                                                                Nya medlemmar som går med under pågående vecka kan direkt bidra med poäng, men höjer inte mätarens svårighetsgrad förrän nästkommande vecka! Det gör att ingen belastar snittet i onödan.
+                                                            </p>
+                                                        </div>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => setShowFormulaInfo(false)}
+                                                            className="mt-6 w-full bg-amber-600 hover:bg-amber-700 active:scale-95 text-white font-black uppercase text-xs tracking-wider py-3 px-4 rounded-2xl shadow-md transition-all cursor-pointer"
+                                                        >
+                                                            Stäng fönster
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            )}
 
                                             {/* Photo feed inline */}
                                             {filteredCommunityLogs.filter(log => log.imageUrl && log.imageUrl.trim() !== '').length > 0 && (

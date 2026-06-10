@@ -859,6 +859,10 @@ export const SystemOwnerScreen: React.FC<SystemOwnerScreenProps> = ({ allOrganiz
                         <>
                             <div className="bg-slate-100 dark:bg-gray-800 p-6 rounded-lg space-y-4 border border-slate-200 dark:border-gray-700 shadow-sm">
                                 <h3 className="text-2xl font-bold text-gray-900 dark:text-white border-b border-slate-300 dark:border-gray-700 pb-3 mb-4">Mina Kunder</h3>
+                                <p className="text-xs text-slate-500 dark:text-slate-400 bg-slate-200/50 dark:bg-gray-900/50 p-3 rounded-xl flex items-center gap-2 mb-4">
+                                    <span>💡</span>
+                                    <span><strong>Hitta tidsinställningar för Sommarutmaningen:</strong> Klicka på ett gym (organisation) i listan nedan för att expandera dess inställningar. Där kan du slå på "Sommarutmaning" samt sätta start- och slutdatum.</span>
+                                </p>
                                 
                                 <div className="space-y-6">
                                     <section>

@@ -3,7 +3,7 @@ import React, { useMemo, useState, useEffect } from 'react';
 import { useStudio } from '../../context/StudioContext';
 import { useAuth } from '../../context/AuthContext';
 import { ThemeOption, Page, SeasonalThemeSetting, ThemeDateRange } from '../../types';
-import { getSeasonalThemes, listenToCommunityLogs, listenToLeaderboardLogs } from '../../services/firebaseService';
+import { getSeasonalThemes, listenToCommunityLogs, listenToLeaderboardLogs, listenToMembers } from '../../services/firebaseService';
 
 // Helper to get week number
 const getISOWeek = (date: Date): number => {
@@ -232,108 +232,148 @@ const HalloweenMascot = () => (
 const GymThermometerMascot = ({ isStudioMode = false }: { isStudioMode?: boolean }) => {
     const { selectedOrganization, selectedStudio } = useStudio();
     const { userData } = useAuth();
-    const [stats, setStats] = useState({
-        avgPoints: 0,
-        activeUsersCount: 0,
-        totalPoints: 0,
-        status: 'kallt' as 'kallt' | 'ljummet' | 'varmt' | 'hett'
-    });
+    
+    const [weeklyLogs, setWeeklyLogs] = useState<any[]>([]);
+    const [membersList, setMembersList] = useState<any[]>([]);
+
+    useEffect(() => {
+        if (!selectedOrganization?.id) return;
+        const unsubscribe = listenToMembers(selectedOrganization.id, (members) => {
+            setMembersList(members);
+        });
+        return () => unsubscribe();
+    }, [selectedOrganization?.id]);
 
     useEffect(() => {
         if (!selectedOrganization?.id) return;
         
-        // Prenumerera på träningspass i realtid (hämtar tillräckligt antal loggar för hela org, filtrerar sedan på ort)
         const unsubscribe = listenToLeaderboardLogs(selectedOrganization.id, 1000, (logs) => {
-            // Hämta måndagen i den aktuella veckan
-            const now = new Date();
-            const startOfWeek = new Date(now);
-            const day = startOfWeek.getDay();
-            const diff = startOfWeek.getDate() - day + (day === 0 ? -6 : 1);
-            startOfWeek.setDate(diff);
-            startOfWeek.setHours(0, 0, 0, 0);
-
-            let thisWeeksLogs = logs.filter(log => {
-                const d = new Date(log.date).getTime();
-                return d >= startOfWeek.getTime();
-            });
-
-            // Filtrera efter ort/studio om det finns på skärmen eller användaren
-            const activeLocationId = isStudioMode ? selectedStudio?.locationId : userData?.locationId;
-            if (activeLocationId) {
-                thisWeeksLogs = thisWeeksLogs.filter(log => log.locationId === activeLocationId);
-            }
-
-            const userPointsMap: Record<string, number> = {};
-            thisWeeksLogs.forEach(log => {
-                const uid = log.memberId;
-                if (!uid) return;
-                
-                let pts = 0;
-                if (log.inStudio === true) {
-                    pts = 2;
-                } else {
-                    const isLessThan30 = log.durationMinutes !== undefined && log.durationMinutes > 0 && log.durationMinutes < 30;
-                    if (!isLessThan30) {
-                        pts = 1;
-                    }
-                }
-                userPointsMap[uid] = (userPointsMap[uid] || 0) + pts;
-            });
-
-            const activeUsers = Object.keys(userPointsMap);
-            const activeUsersCount = activeUsers.length;
-            let totalPoints = 0;
-            activeUsers.forEach(uid => {
-                totalPoints += userPointsMap[uid];
-            });
-
-            const avgPoints = activeUsersCount > 0 ? Number((totalPoints / activeUsersCount).toFixed(1)) : 0;
-
-            let status: 'kallt' | 'ljummet' | 'varmt' | 'hett' = 'kallt';
-            if (avgPoints >= 6.5) {
-                status = 'hett';
-            } else if (avgPoints >= 4.5) {
-                status = 'varmt';
-            } else if (avgPoints >= 2.5) {
-                status = 'ljummet';
-            }
-
-            setStats({
-                avgPoints,
-                activeUsersCount,
-                totalPoints,
-                status
-            });
+            setWeeklyLogs(logs);
         });
 
         return () => unsubscribe();
-    }, [selectedOrganization?.id, selectedStudio?.locationId, userData?.locationId, isStudioMode]);
+    }, [selectedOrganization?.id]);
+
+    const stats = useMemo(() => {
+        const now = new Date();
+        const startOfWeek = new Date(now);
+        const day = startOfWeek.getDay();
+        const diff = startOfWeek.getDate() - day + (day === 0 ? -6 : 1);
+        startOfWeek.setDate(diff);
+        startOfWeek.setHours(0, 0, 0, 0);
+
+        let thisWeeksLogs = weeklyLogs.filter(log => {
+            const d = new Date(log.date).getTime();
+            return d >= startOfWeek.getTime();
+        });
+
+        // Filtrera efter ort/studio om det finns på skärmen eller användaren
+        const activeLocationId = isStudioMode ? selectedStudio?.locationId : userData?.locationId;
+        if (activeLocationId) {
+            thisWeeksLogs = thisWeeksLogs.filter(log => log.locationId === activeLocationId);
+        }
+
+        const userPointsMap: Record<string, number> = {};
+        thisWeeksLogs.forEach(log => {
+            const uid = log.memberId;
+            if (!uid) return;
+            
+            let pts = 0;
+            if (log.inStudio === true) {
+                pts = 2;
+            } else {
+                const isLessThan30 = log.durationMinutes !== undefined && log.durationMinutes > 0 && log.durationMinutes < 30;
+                if (!isLessThan30) {
+                    pts = 1;
+                }
+            }
+            userPointsMap[uid] = (userPointsMap[uid] || 0) + pts;
+        });
+
+        const activeUsers = Object.keys(userPointsMap);
+        const activeUsersCount = activeUsers.length;
+        let totalPoints = 0;
+        activeUsers.forEach(uid => {
+            totalPoints += userPointsMap[uid];
+        });
+
+        // Basantal registrerade (N): anmälda innan veckans måndag startar
+        const locationMembers = membersList.filter(m => {
+            if (activeLocationId && m.locationId !== activeLocationId) return false;
+            return true;
+        });
+
+        const challengeParticipantsOnSunday = locationMembers.filter(m => {
+            if (!m.joinedSummerChallenge) return false;
+            const joinedAt = m.joinedSummerChallengeAt || 0;
+            return joinedAt < startOfWeek.getTime();
+        });
+
+        const N = Math.max(1, challengeParticipantsOnSunday.length);
+
+        const thresholdLjummet = 3 * N;
+        const thresholdVarmt = 6 * N;
+        const thresholdHet = 10 * N;
+
+        let status: 'kallt' | 'ljummet' | 'varmt' | 'hett' = 'kallt';
+        if (totalPoints >= thresholdHet) {
+            status = 'hett';
+        } else if (totalPoints >= thresholdVarmt) {
+            status = 'varmt';
+        } else if (totalPoints >= thresholdLjummet) {
+            status = 'ljummet';
+        }
+
+        // Beräkna fyllnadsgrad (percentage) mer linjärt/analogt för en snygg rörlig mätare!
+        let percentage = 0.20; // Default kall bas fyllning
+        if (totalPoints >= thresholdHet) {
+            const diff = totalPoints - thresholdHet;
+            percentage = Math.min(1.0, 0.85 + (diff / (thresholdHet || 1)) * 0.15);
+        } else if (totalPoints >= thresholdVarmt) {
+            const range = thresholdHet - thresholdVarmt;
+            const diff = totalPoints - thresholdVarmt;
+            percentage = 0.60 + (diff / (range || 1)) * 0.25;
+        } else if (totalPoints >= thresholdLjummet) {
+            const range = thresholdVarmt - thresholdLjummet;
+            const diff = totalPoints - thresholdLjummet;
+            percentage = 0.35 + (diff / (range || 1)) * 0.25;
+        } else {
+            percentage = 0.10 + (totalPoints / (thresholdLjummet || 1)) * 0.25;
+        }
+
+        return {
+            activeUsersCount,
+            totalPoints,
+            status,
+            percentage
+        };
+    }, [weeklyLogs, membersList, isStudioMode, selectedStudio?.locationId, userData?.locationId]);
 
     const getStatusConfig = () => {
         switch (stats.status) {
             case 'hett':
                 return {
                     color: '#ef4444',
-                    percentage: 0.90,
+                    percentage: stats.percentage,
                     label: 'HET 🌋',
                 };
             case 'varmt':
                 return {
                     color: '#f97316',
-                    percentage: 0.65,
+                    percentage: stats.percentage,
                     label: 'VARMT 🔥',
                 };
             case 'ljummet':
                 return {
                     color: '#eab308',
-                    percentage: 0.45,
+                    percentage: stats.percentage,
                     label: 'LJUMMET 🌤️',
                 };
             case 'kallt':
             default:
                 return {
                     color: '#3b82f6',
-                    percentage: 0.20,
+                    percentage: stats.percentage,
                     label: 'SVALT ❄️',
                 };
         }
@@ -343,7 +383,6 @@ const GymThermometerMascot = ({ isStudioMode = false }: { isStudioMode?: boolean
     const percentage = config.percentage;
     const color = config.color;
 
-    // Fluid level Y coordinates (startY = 152 to endY = 14)
     const startY = 152;
     const endY = 14;
     const currentY = startY - (percentage * (startY - endY));
@@ -351,13 +390,11 @@ const GymThermometerMascot = ({ isStudioMode = false }: { isStudioMode?: boolean
     if (isStudioMode) {
         return (
             <div className="fixed bottom-10 left-10 z-[2000] flex flex-col items-center pointer-events-none select-none animate-fade-in origin-bottom rotate-[5deg] drop-shadow-[0_3px_6px_rgba(0,0,0,0.3)]">
-                {/* Unified continuous Glass Thermometer SVG */}
                 <svg 
                     viewBox="0 0 40 160" 
                     className="w-16 h-52 overflow-visible drop-shadow-[0_2px_4px_rgba(0,0,0,0.2)]"
                 >
                     <defs>
-                        {/* Soft glow matching the liquid color */}
                         <filter id={`glow-large-${color.replace('#', '')}`} x="-30%" y="-30%" width="160%" height="160%">
                             <feGaussianBlur stdDeviation="5" result="blur" />
                             <feComposite in="SourceGraphic" in2="blur" operator="over" />
@@ -371,7 +408,6 @@ const GymThermometerMascot = ({ isStudioMode = false }: { isStudioMode?: boolean
                         </clipPath>
                     </defs>
 
-                    {/* Glowing backlight to make the mercury look bright & active */}
                     <path 
                         d="M 12,14 L 12,112 A 22,22 0 1,0 28,112 L 28,14 A 8,8 0 0,0 12,14 Z"
                         fill={color}
@@ -379,7 +415,6 @@ const GymThermometerMascot = ({ isStudioMode = false }: { isStudioMode?: boolean
                         filter={`url(#glow-large-${color.replace('#', '')})`}
                     />
 
-                    {/* Unified Glass Tube Outline (Sleek container structure) with warm white solid semi-transbg for high contrast */}
                     <path 
                         d="M 10,12 L 10,110 A 24,24 0 1,0 30,110 L 30,12 A 10,10 0 0,0 10,12 Z" 
                         fill="rgba(254, 243, 199, 0.94)"
@@ -387,7 +422,6 @@ const GymThermometerMascot = ({ isStudioMode = false }: { isStudioMode?: boolean
                         strokeWidth="1.5"
                     />
 
-                    {/* Rising Liquid */}
                     <g clipPath="url(#glass-inner-large)">
                         <rect 
                             x="-10" 
@@ -397,11 +431,9 @@ const GymThermometerMascot = ({ isStudioMode = false }: { isStudioMode?: boolean
                             fill={`url(#liquid-grad-large-${color.replace('#', '')})`} 
                             className="transition-all duration-1000 ease-out"
                         />
-                        {/* High-quality highlight glare */}
                         <rect x="18" y="10" width="1" height="130" fill="white" opacity="0.15" />
                     </g>
 
-                    {/* Highlight glare on left side of glass */}
                     <path 
                         d="M 12.5,15 L 12.5,110" 
                         stroke="white" 
@@ -410,7 +442,6 @@ const GymThermometerMascot = ({ isStudioMode = false }: { isStudioMode?: boolean
                         opacity="0.5" 
                     />
 
-                    {/* Thermometer scale markers (Tick marks) - Dark color to contrast beautifully with white background */}
                     <g stroke="rgba(15, 23, 42, 0.75)" strokeWidth="0.9" opacity="0.8" strokeLinecap="round">
                         <line x1="10" y1="35" x2="13" y2="35" />
                         <line x1="10" y1="55" x2="13" y2="55" />
@@ -425,7 +456,6 @@ const GymThermometerMascot = ({ isStudioMode = false }: { isStudioMode?: boolean
                         <line x1="30" y1="115" x2="27" y2="115" />
                     </g>
 
-                    {/* Dynamisk poängtext inuti den runda bulben */}
                     <text
                         x="20"
                         y="139.5"
@@ -436,17 +466,15 @@ const GymThermometerMascot = ({ isStudioMode = false }: { isStudioMode?: boolean
                         fontFamily="ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
                         className="select-none font-black tracking-tighter"
                     >
-                        {stats.avgPoints}
+                        {stats.totalPoints}
                     </text>
                 </svg>
             </div>
         );
     }
 
-    // if !isStudioMode (member app view), render same clean thermometer, but smaller
     return (
         <div className="fixed bottom-3 left-3 z-[90] flex flex-col items-center pointer-events-none select-none animate-fade-in origin-bottom rotate-[5deg] drop-shadow-[0_2px_5px_rgba(0,0,0,0.25)]">
-            {/* Unified continuous Glass Thermometer SVG - Small */}
             <svg 
                 viewBox="0 0 40 160" 
                 className="w-12 h-36 overflow-visible drop-shadow-[0_1px_3px_rgba(0,0,0,0.15)]"
@@ -465,7 +493,6 @@ const GymThermometerMascot = ({ isStudioMode = false }: { isStudioMode?: boolean
                     </clipPath>
                 </defs>
 
-                {/* Glowing backlight */}
                 <path 
                     d="M 12,14 L 12,112 A 22,22 0 1,0 28,112 L 28,14 A 8,8 0 0,0 12,14 Z"
                     fill={color}
@@ -473,7 +500,6 @@ const GymThermometerMascot = ({ isStudioMode = false }: { isStudioMode?: boolean
                     filter={`url(#glow-small-${color.replace('#', '')})`}
                 />
 
-                {/* Unified Glass Tube Outline with warm-white glass background */}
                 <path 
                     d="M 10,12 L 10,110 A 24,24 0 1,0 30,110 L 30,12 A 10,10 0 0,0 10,12 Z" 
                     fill="rgba(254, 243, 199, 0.94)"
@@ -481,7 +507,6 @@ const GymThermometerMascot = ({ isStudioMode = false }: { isStudioMode?: boolean
                     strokeWidth="1.5"
                 />
 
-                {/* Rising Liquid */}
                 <g clipPath="url(#glass-inner-small)">
                     <rect 
                         x="-10" 
@@ -494,7 +519,6 @@ const GymThermometerMascot = ({ isStudioMode = false }: { isStudioMode?: boolean
                     <rect x="18" y="10" width="1" height="130" fill="white" opacity="0.1" />
                 </g>
 
-                {/* Glass sheen highlight */}
                 <path 
                     d="M 12.5,15 L 12.5,110" 
                     stroke="white" 
@@ -503,7 +527,6 @@ const GymThermometerMascot = ({ isStudioMode = false }: { isStudioMode?: boolean
                     opacity="0.4" 
                 />
 
-                {/* Aesthetic measurement ticks - Dark color to contrast with white background */}
                 <g stroke="rgba(15, 23, 42, 0.75)" strokeWidth="0.9" opacity="0.8" strokeLinecap="round">
                     <line x1="10" y1="40" x2="13" y2="40" />
                     <line x1="10" y1="65" x2="13" y2="65" />
@@ -516,7 +539,6 @@ const GymThermometerMascot = ({ isStudioMode = false }: { isStudioMode?: boolean
                     <line x1="30" y1="115" x2="27" y2="115" />
                 </g>
 
-                {/* Dynamisk poängtext inuti den runda bulben */}
                 <text
                     x="20"
                     y="139.5"
@@ -527,7 +549,7 @@ const GymThermometerMascot = ({ isStudioMode = false }: { isStudioMode?: boolean
                     fontFamily="ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
                     className="select-none font-black tracking-tighter"
                 >
-                    {stats.avgPoints}
+                    {stats.totalPoints}
                 </text>
             </svg>
         </div>
@@ -559,7 +581,28 @@ export const SeasonalOverlay: React.FC<SeasonalOverlayProps> = ({ page, isStudio
 
     if (isAdminView) return null;
 
-    const isChallengeActive = !!studioConfig?.enableSummerChallenge || !!selectedOrganization?.globalConfig?.enableSummerChallenge;
+    const configToUse = useMemo(() => {
+        if (!selectedOrganization) return studioConfig || {};
+        return {
+            ...(selectedOrganization || {}),
+            ...(selectedOrganization.globalConfig || {}),
+            ...(studioConfig || {})
+        } as any;
+    }, [studioConfig, selectedOrganization]);
+
+    const isChallengeActive = useMemo(() => {
+        const hasTheme = !!configToUse?.enableSummerChallenge;
+        if (!hasTheme) return false;
+        
+        const currentTimestamp = Date.now();
+        const start = configToUse.summerChallengeStartDate;
+        const end = configToUse.summerChallengeEndDate;
+        
+        const isStarted = !start || currentTimestamp >= start;
+        const isEnded = !!end && currentTimestamp > end;
+        
+        return isStarted && !isEnded;
+    }, [configToUse]);
 
     // Om en utmaning pågår (t.ex. Sommar-Sisu), ska säsongstemat pausas och döljas för att prioritera träningstermometern
     const activeTheme = isChallengeActive ? 'none' : theme;
