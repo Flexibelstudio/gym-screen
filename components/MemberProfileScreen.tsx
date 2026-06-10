@@ -682,6 +682,19 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
     const [communityLogs, setCommunityLogs] = useState<WorkoutLog[]>([]);
     const [selectedPhoto, setSelectedPhoto] = useState<WorkoutLog | null>(null);
     const [isShowingAllPhotos, setIsShowingAllPhotos] = useState(false);
+    const [dismissedSummerChallenge, setDismissedSummerChallenge] = useState(() => {
+        if (typeof window !== 'undefined' && userData?.uid) {
+            return localStorage.getItem(`dismissed-summer-challenge-${userData.uid}`) === 'true';
+        }
+        return false;
+    });
+
+    useEffect(() => {
+        if (userData?.uid) {
+            const dismissed = localStorage.getItem(`dismissed-summer-challenge-${userData.uid}`) === 'true';
+            setDismissedSummerChallenge(dismissed);
+        }
+    }, [userData?.uid]);
 
     const isSummerThemeActive = useMemo(() => {
         const configToUse = (studioConfig || selectedOrganization) as any;
@@ -1460,36 +1473,104 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                 <div className="space-y-3 sm:space-y-5 animate-fade-in">
                     
                     {/* Sommar-Sisu aktivering (Card 1) */}
-                    {isSummerThemeActive && !userData.joinedSummerChallenge && (
-                        <div className="relative overflow-hidden bg-gradient-to-br from-amber-500/10 via-yellow-550/5 to-orange-500/10 dark:from-amber-900/15 dark:to-orange-950/20 border border-amber-200/50 dark:border-amber-900/30 rounded-3xl p-5 sm:p-6 shadow-sm text-left animate-fade-in">
-                            <div className="absolute top-[-20px] right-[-25px] w-28 h-28 bg-yellow-400/10 rounded-full blur-[40px] pointer-events-none"></div>
-                            
-                            <div className="flex items-start gap-4">
-                                <span className="text-3xl select-none animate-bounce">☀️</span>
-                                <div className="flex-1 min-w-0">
-                                    <h4 className="text-sm sm:text-base font-black text-gray-900 dark:text-white mb-1">
-                                        Aktivera Sommar-Sisu 2026!
-                                    </h4>
-                                    <p className="text-[11px] sm:text-xs text-gray-600 dark:text-gray-300 font-semibold leading-relaxed mb-3">
-                                        Häng med på sommarens roligaste utmaning! Varje pass du loggar ger klubbpoäng till Smart Skärmen och hjälper till att höja temperaturen.
-                                    </p>
-                                    <button
-                                        onClick={async () => {
-                                            try {
-                                                await updateUserProfile(userData.uid, { joinedSummerChallenge: true } as any);
-                                                setJustActivatedSummer(true);
-                                                const confetti = await import('canvas-confetti');
-                                                confetti.default({ particleCount: 150, spread: 80, origin: { y: 0.6 } });
-                                            } catch (err) {
-                                                console.error("Kunde inte gå med i utmaningen:", err);
-                                            }
-                                        }}
-                                        className="inline-flex px-4 py-2 bg-gradient-to-r from-amber-500 to-orange-500 hover:brightness-115 text-white text-[10px] sm:text-xs font-black uppercase tracking-widest rounded-xl transition-all shadow-md active:scale-95 duration-100"
-                                    >
-                                        Gå med i utmaningen! ☀️
-                                    </button>
+                    {isSummerThemeActive && !userData.joinedSummerChallenge && !dismissedSummerChallenge && (
+                        <div className="relative overflow-hidden bg-gradient-to-br from-amber-400 via-orange-450 to-rose-400 dark:from-amber-500 dark:via-orange-550 dark:to-rose-500 text-slate-950 border-none rounded-[2rem] p-6 sm:p-8 shadow-[0_12px_40px_rgba(249,115,22,0.25)] text-left animate-fade-in">
+                            {/* Spinning animated sun */}
+                            <div className="absolute -right-8 -top-8 w-36 h-36 text-white/20 pointer-events-none select-none">
+                                <svg viewBox="0 0 100 100" className="w-full h-full animate-spin [animation-duration:45s] fill-current">
+                                    <circle cx="50" cy="50" r="16" />
+                                    <line x1="50" y1="10" x2="50" y2="22" stroke="currentColor" strokeWidth="5" strokeLinecap="round" />
+                                    <line x1="50" y1="90" x2="50" y2="78" stroke="currentColor" strokeWidth="5" strokeLinecap="round" />
+                                    <line x1="10" y1="50" x2="22" y2="50" stroke="currentColor" strokeWidth="5" strokeLinecap="round" />
+                                    <line x1="90" y1="50" x2="78" y2="50" stroke="currentColor" strokeWidth="5" strokeLinecap="round" />
+                                    <line x1="21.72" y1="21.72" x2="30.2" y2="30.2" stroke="currentColor" strokeWidth="5" strokeLinecap="round" />
+                                    <line x1="78.28" y1="78.28" x2="69.8" y2="69.8" stroke="currentColor" strokeWidth="5" strokeLinecap="round" />
+                                    <line x1="21.72" y1="78.28" x2="30.2" y2="69.8" stroke="currentColor" strokeWidth="5" strokeLinecap="round" />
+                                    <line x1="78.28" y1="21.72" x2="69.8" y2="30.2" stroke="currentColor" strokeWidth="5" strokeLinecap="round" />
+                                </svg>
+                            </div>
+
+                            {/* Stylized background wave pattern */}
+                            <div className="absolute bottom-0 left-0 right-0 h-8 opacity-20 pointer-events-none">
+                                <svg viewBox="0 0 1200 120" preserveAspectRatio="none" className="w-full h-full fill-white">
+                                    <path d="M0,0V46.29c47.79,22.2,103.59,32.17,158,28,70.36-5.37,136.33-33.31,206.8-37.5C438.64,32.43,512.34,53.67,583,72.05c69.27,18,138.3,24.88,209.4,13.08,36.15-6,69.85-17.84,104.45-29.34C989.49,25,1113-14.29,1200,42.4V0Z" />
+                                </svg>
+                            </div>
+
+                            <div className="relative z-10">
+                                <div className="flex items-start gap-4">
+                                    <span className="text-4xl select-none animate-bounce origin-bottom drop-shadow-[0_4px_6px_rgba(0,0,0,0.15)]">☀️</span>
+                                    <div className="flex-1 min-w-0">
+                                        <span className="inline-block bg-white/35 px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-wider text-slate-900 mb-2">
+                                            Sommarutmaning 2026
+                                        </span>
+                                        <h4 className="text-xl sm:text-2xl font-black text-slate-950 tracking-tight leading-tight mb-2">
+                                            Vill du anta utmaningen? 🌻
+                                        </h4>
+                                        <p className="text-xs sm:text-sm text-slate-900 font-semibold leading-relaxed mb-5 max-w-xl">
+                                            Samla poäng till studion när du tränar i sommar! Du kan logga både pass i gymmet och utomhusaktiviteter. Tillsammans får vi temperaturnålen att stiga på den stora Smart Skärmen!
+                                        </p>
+                                        <div className="flex flex-wrap items-center gap-3">
+                                            <button
+                                                onClick={async () => {
+                                                    try {
+                                                        await updateUserProfile(userData.uid, { joinedSummerChallenge: true } as any);
+                                                        setJustActivatedSummer(true);
+                                                        const confetti = await import('canvas-confetti');
+                                                        confetti.default({ particleCount: 150, spread: 80, origin: { y: 0.6 } });
+                                                    } catch (err) {
+                                                        console.error("Kunde inte gå med i utmaningen:", err);
+                                                    }
+                                                }}
+                                                className="px-6 py-3 bg-slate-950 text-white text-[11px] sm:text-xs font-black uppercase tracking-widest rounded-2xl transition-all shadow-lg hover:shadow-orange-700/25 active:scale-95 duration-100 hover:bg-slate-900"
+                                            >
+                                                Jag är på! Gå med ☀️
+                                            </button>
+                                            <button
+                                                onClick={() => {
+                                                    localStorage.setItem(`dismissed-summer-challenge-${userData.uid}`, 'true');
+                                                    setDismissedSummerChallenge(true);
+                                                }}
+                                                className="px-4 py-3 text-[10px] sm:text-[11px] font-black uppercase tracking-widest text-red-950 hover:bg-white/20 rounded-2xl transition-all duration-100"
+                                            >
+                                                Kanske senare
+                                            </button>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
+                        </div>
+                    )}
+
+                    {/* Liten text/knapp om man avvisat men vill hoppa på senare */}
+                    {isSummerThemeActive && !userData.joinedSummerChallenge && dismissedSummerChallenge && (
+                        <div className="bg-gradient-to-r from-amber-400/20 via-orange-405/10 to-rose-400/25 border border-amber-300/30 dark:border-amber-500/10 rounded-2xl p-4 flex sm:flex-row flex-col items-center justify-between gap-3 text-left animate-fade-in shadow-sm">
+                            <div className="flex items-center gap-3">
+                                <span className="text-2xl animate-spin [animation-duration:15s]">🌻</span>
+                                <div className="min-w-0">
+                                    <p className="text-xs font-black text-amber-600 dark:text-amber-400 uppercase tracking-wider mb-0.5 leading-none">Sommar-Sisu 2026</p>
+                                    <p className="text-[11px] sm:text-xs text-gray-700 dark:text-gray-300 font-semibold leading-tight">
+                                        Psst! Har du ändrat dig? Du kan fortfarande gå med i utmaningen och bidra!
+                                    </p>
+                                </div>
+                            </div>
+                            <button
+                                onClick={async () => {
+                                    try {
+                                        await updateUserProfile(userData.uid, { joinedSummerChallenge: true } as any);
+                                        localStorage.removeItem(`dismissed-summer-challenge-${userData.uid}`);
+                                        setDismissedSummerChallenge(false);
+                                        setJustActivatedSummer(true);
+                                        const confetti = await import('canvas-confetti');
+                                        confetti.default({ particleCount: 150, spread: 80, origin: { y: 0.6 } });
+                                    } catch (err) {
+                                        console.error("Kunde inte gå med i utmaningen:", err);
+                                    }
+                                }}
+                                className="px-4 py-2 bg-gradient-to-r from-amber-500 to-orange-500 text-white text-[10px] font-black uppercase tracking-widest rounded-xl transition-all shadow hover:brightness-110 active:scale-95 duration-100 whitespace-nowrap"
+                            >
+                                Gå med nu! ☀️
+                            </button>
                         </div>
                     )}
 
@@ -1609,27 +1690,31 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
 
                     {/* Sommar-Sisu status & rules (collapsible) (Card 2) */}
                     {isSummerThemeActive && !!userData.joinedSummerChallenge && (
-                        <div className="bg-[#030712] border border-slate-900 dark:border-white/10 rounded-[2rem] overflow-hidden shadow-2xl animate-fade-in text-left">
+                        <div className="relative overflow-hidden bg-gradient-to-b from-[#0e172e] via-[#090d16] to-[#030712] border border-amber-500/15 dark:border-orange-500/25 rounded-[2rem] shadow-2xl animate-fade-in text-left">
+                            
+                            {/* Summer sun rays backdrop glow */}
+                            <div className="absolute top-[-40px] right-[-40px] w-64 h-64 bg-amber-500/10 rounded-full blur-[60px] pointer-events-none"></div>
+
                             {/* Header click-to-toggle button */}
                             <button
                                 onClick={() => {
                                     setSisuDetailsExpanded(!sisuDetailsExpanded);
                                     setJustActivatedSummer(false);
                                 }}
-                                className="w-full px-5 py-4 sm:px-6 sm:py-5 flex items-center justify-between text-left focus:outline-none"
+                                className="w-full px-5 py-4 sm:px-6 sm:py-5 flex items-center justify-between text-left focus:outline-none bg-gradient-to-r from-amber-500/5 via-orange-500/5 to-transparent hover:bg-white/5 transition-all duration-150"
                             >
                                 <div className="flex items-center gap-3">
-                                    <span className="text-2xl select-none">☀️</span>
+                                    <span className="text-2xl select-none animate-bounce origin-bottom [animation-duration:3s]">🌻</span>
                                     <div>
-                                        <span className="text-[9px] font-black tracking-widest text-[#fbbf24] uppercase block leading-none mb-1">Sommar-Sisu</span>
+                                        <span className="text-[9px] font-black tracking-widest text-[#f59e0b] uppercase block leading-none mb-1">Deltar i Sommar-Sisu ☀️</span>
                                         <h4 className="text-xs sm:text-sm font-extrabold text-white leading-none">
                                             Klubbens mätare: <span className={summerStats.colorClass}>{summerStats.label} {summerStats.emoji}</span>
                                         </h4>
                                     </div>
                                 </div>
-                                <div className="flex items-center gap-2 bg-white/5 rounded-xl p-1">
+                                <div className="flex items-center gap-2 bg-amber-500/10 rounded-xl p-1 border border-amber-500/25">
                                     <span className="text-[10px] font-mono font-black text-[#fbbf24] px-2.5 py-1 uppercase tracking-wider">
-                                        Visa mätaren
+                                        Visa status
                                     </span>
                                     <span className={`text-[#fbbf24] transition-transform duration-200 ${(sisuDetailsExpanded || justActivatedSummer) ? 'rotate-180' : ''}`}>
                                         <svg className="w-5 h-5 stroke-[2.5]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -1645,12 +1730,12 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                                         initial={{ opacity: 0, height: 0 }}
                                         animate={{ opacity: 1, height: 'auto' }}
                                         exit={{ opacity: 0, height: 0 }}
-                                        className="border-t border-white/5 bg-[#030712]"
+                                        className="border-t border-white/5 bg-gradient-to-b from-[#090d16] to-[#030712]"
                                     >
                                         <div className="p-5 sm:p-6 space-y-6 text-white">
                                             
                                             {/* Main Stats Block: matching Bild 1 */}
-                                            <div className="bg-slate-900/40 rounded-2xl p-4 sm:p-5 border border-white/5 relative overflow-hidden">
+                                            <div className="bg-gradient-to-br from-amber-500/10 via-orange-500/5 to-rose-500/10 backdrop-blur-md rounded-2xl p-4 sm:p-5 border border-orange-500/20 relative overflow-hidden shadow-lg">
                                                 <div className="flex justify-between items-start select-none">
                                                     <div>
                                                         <p className="text-[9px] font-bold text-[#fbbf24] uppercase tracking-widest mb-1.5">Gymmet tillsammans ☀️</p>
