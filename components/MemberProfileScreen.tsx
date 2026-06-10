@@ -1474,7 +1474,7 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                     
                     {/* Sommar-Sisu aktivering (Card 1) */}
                     {isSummerThemeActive && !userData.joinedSummerChallenge && !dismissedSummerChallenge && (
-                        <div className="relative overflow-hidden bg-gradient-to-br from-amber-400 via-orange-450 to-rose-400 dark:from-amber-500 dark:via-orange-550 dark:to-rose-500 text-slate-950 border-none rounded-[2rem] p-6 sm:p-8 shadow-[0_12px_40px_rgba(249,115,22,0.25)] text-left animate-fade-in">
+                        <div className="relative overflow-hidden bg-gradient-to-br from-amber-300 via-yellow-400 to-emerald-400 dark:from-amber-400 dark:via-yellow-500 dark:to-emerald-500 text-slate-950 border-none rounded-[2rem] p-6 sm:p-8 shadow-[0_12px_40px_rgba(16,185,129,0.18)] text-left animate-fade-in">
                             {/* Spinning animated sun */}
                             <div className="absolute -right-8 -top-8 w-36 h-36 text-white/20 pointer-events-none select-none">
                                 <svg viewBox="0 0 100 100" className="w-full h-full animate-spin [animation-duration:45s] fill-current">
@@ -1690,7 +1690,7 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
 
                     {/* Sommar-Sisu status & rules (collapsible) (Card 2) */}
                     {isSummerThemeActive && !!userData.joinedSummerChallenge && (
-                        <div className="relative overflow-hidden bg-gradient-to-br from-amber-400 via-orange-400 to-rose-450 dark:from-amber-400 dark:via-orange-400 dark:to-rose-450 text-slate-950 border-none rounded-[2rem] shadow-[0_12px_40px_rgba(249,115,22,0.18)] animate-fade-in text-left">
+                        <div className="relative overflow-hidden bg-gradient-to-br from-amber-300 via-yellow-400 to-emerald-400 dark:from-amber-400 dark:via-yellow-500 dark:to-emerald-500 text-slate-950 border-none rounded-[2rem] shadow-[0_12px_40px_rgba(16,185,129,0.18)] animate-fade-in text-left">
                             
                             {/* Summer sun rays backdrop glow */}
                             <div className="absolute top-[-40px] right-[-40px] w-64 h-64 bg-white/10 rounded-full blur-[50px] pointer-events-none"></div>
@@ -1707,9 +1707,9 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                                     <span className="text-2xl select-none animate-bounce origin-bottom [animation-duration:3s]">🌻</span>
                                     <div>
                                         <span className="text-[9px] font-black tracking-widest text-orange-950/75 uppercase block leading-none mb-1">Du deltar i utmaningen! ☀️</span>
-                                        <h4 className="text-xs sm:text-sm font-extrabold text-slate-950 leading-none">
-                                            Klubbens mätare: <span className={summerStats.colorClass}>{summerStats.label} {summerStats.emoji}</span>
-                                        </h4>
+                                        <span className="text-xs sm:text-sm font-extrabold text-slate-950 leading-none">
+                                            Klubbens mätare: <span className="inline-flex items-center gap-1 bg-slate-950/20 px-2 py-0.5 rounded-lg text-xs font-black text-slate-950 tracking-wider ml-1">{summerStats.label} {summerStats.emoji}</span>
+                                        </span>
                                     </div>
                                 </div>
                                 <div className="flex items-center gap-2 bg-slate-950/10 rounded-xl p-1 border border-slate-950/5">
@@ -1730,17 +1730,18 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                                         initial={{ opacity: 0, height: 0 }}
                                         animate={{ opacity: 1, height: 'auto' }}
                                         exit={{ opacity: 0, height: 0 }}
-                                        className="border-t border-black/10 bg-white/20 backdrop-blur-md"
+                                        className="border-t border-black/10 bg-amber-50/15 backdrop-blur-md"
                                     >
                                         <div className="p-5 sm:p-6 space-y-6 text-slate-950">
                                             
                                             {/* Main Stats Block: matching Bild 1 */}
-                                            <div className="bg-white/70 backdrop-blur-md rounded-2xl p-4 sm:p-5 border border-white/50 relative overflow-hidden shadow-sm">
+                                            <div className="bg-amber-50/75 dark:bg-amber-950/25 backdrop-blur-md rounded-2xl p-4 sm:p-5 border border-amber-200/35 relative overflow-hidden shadow-sm">
                                                 <div className="flex justify-between items-start select-none">
                                                     <div>
-                                                        <p className="text-[9px] font-bold text-amber-800 uppercase tracking-widest mb-1.5">Gymmet tillsammans ☀️</p>
-                                                        <h3 className={`text-4xl font-extrabold tracking-tight mb-1 ${summerStats.colorClass}`}>
-                                                            {summerStats.label} {summerStats.emoji}
+                                                        <p className="text-[9px] font-bold text-emerald-800 uppercase tracking-widest mb-1.5 font-black font-sans">Gymmet tillsammans ☀️</p>
+                                                        <h3 className="text-3xl sm:text-4xl font-black text-slate-950 tracking-tight mb-1 flex items-center gap-2">
+                                                            <span>{summerStats.label}</span>
+                                                            <span className="text-2xl sm:text-3xl">{summerStats.emoji}</span>
                                                         </h3>
                                                         <p className="text-[11px] text-slate-800 font-semibold leading-normal max-w-sm">
                                                             Veckans status på Smart Skärmen. Ju fler poäng vi loggar, desto mer stiger mätaren!
@@ -1772,20 +1773,20 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                                             <div className="space-y-2.5">
                                                 <h5 className="text-[9px] font-black uppercase tracking-wider text-slate-800">Så här samlar ni poäng</h5>
                                                 <div className="grid grid-cols-1 gap-2.5">
-                                                    <div className="bg-white/50 rounded-2xl p-4 border border-white/40 flex items-start gap-3">
-                                                        <span className="text-base bg-emerald-500 text-white p-2 rounded-xl leading-none">🏋️‍♀️</span>
+                                                    <div className="bg-emerald-50/70 dark:bg-emerald-950/20 rounded-2xl p-4 border border-emerald-100/35 flex items-start gap-3">
+                                                        <span className="text-base bg-emerald-500 text-white p-2 rounded-xl leading-none shadow-sm">🏋️‍♀️</span>
                                                         <div className="text-left">
                                                             <p className="text-xs font-black text-emerald-950 uppercase tracking-wider">2 Poäng</p>
-                                                            <p className="text-[11px] text-slate-900 mt-0.5 leading-relaxed font-semibold">
+                                                            <p className="text-[11px] text-slate-950 mt-0.5 leading-relaxed font-semibold">
                                                                 Träning i studion! Det gäller alla pass som genomförs på plats i studion.
                                                             </p>
                                                         </div>
                                                     </div>
-                                                    <div className="bg-white/50 rounded-2xl p-4 border border-white/40 flex items-start gap-3">
-                                                        <span className="text-base bg-blue-500 text-white p-2 rounded-xl leading-none">🏃‍♂️</span>
+                                                    <div className="bg-emerald-50/70 dark:bg-emerald-950/20 rounded-2xl p-4 border border-emerald-100/35 flex items-start gap-3">
+                                                        <span className="text-base bg-blue-500 text-white p-2 rounded-xl leading-none shadow-sm">🏃‍♂️</span>
                                                         <div className="text-left">
                                                             <p className="text-xs font-black text-blue-950 uppercase tracking-wider">1 Poäng</p>
-                                                            <p className="text-[11px] text-slate-900 mt-0.5 leading-relaxed font-semibold">
+                                                            <p className="text-[11px] text-slate-950 mt-0.5 leading-relaxed font-semibold">
                                                                 Träning utanför studion! Alla hemma- eller utomhusaktiviteter (powerwalk, löpning, cykling etc.) på minst 30 minuter.
                                                             </p>
                                                         </div>
