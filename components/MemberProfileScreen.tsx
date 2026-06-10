@@ -681,11 +681,17 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
     const [viewingDiploma, setViewingDiploma] = useState<WorkoutDiploma | null>(null);
     const [communityLogs, setCommunityLogs] = useState<WorkoutLog[]>([]);
     const [selectedPhoto, setSelectedPhoto] = useState<WorkoutLog | null>(null);
+    const [isShowingAllPhotos, setIsShowingAllPhotos] = useState(false);
 
     const isSummerThemeActive = useMemo(() => {
         const configToUse = (studioConfig || selectedOrganization) as any;
         return !!configToUse?.enableSummerChallenge;
     }, [studioConfig, selectedOrganization]);
+
+    const filteredCommunityLogs = useMemo(() => {
+        if (!userData?.locationId) return communityLogs;
+        return communityLogs.filter(log => log.locationId === userData.locationId);
+    }, [communityLogs, userData?.locationId]);
 
     const [sisuDetailsExpanded, setSisuDetailsExpanded] = useState(false);
     const [justActivatedSummer, setJustActivatedSummer] = useState(false);
@@ -699,7 +705,7 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
         monday.setDate(now.getDate() - (currentDay - 1));
         monday.setHours(0, 0, 0, 0);
 
-        const thisWeeksLogs = communityLogs.filter(log => (log.date || 0) >= monday.getTime());
+        const thisWeeksLogs = filteredCommunityLogs.filter(log => (log.date || 0) >= monday.getTime());
         const userPointsMap: Record<string, number> = {};
         thisWeeksLogs.forEach(log => {
             const uid = log.memberId;
@@ -756,7 +762,7 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
             bannerBgClass,
             scale
         };
-    }, [communityLogs, isSummerThemeActive]);
+    }, [filteredCommunityLogs, isSummerThemeActive]);
 
     const [activeTab, setActiveTab] = useState<'overview' | 'goals' | 'strength' | 'benchmarks'>(() => {
         const saved = localStorage.getItem('smart-skarm-profile-active-tab');
@@ -1403,6 +1409,53 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                 </Modal>
             )}
 
+            {/* Modal för gallerivy - Se alla bilder */}
+            {isShowingAllPhotos && (
+                <Modal
+                    isOpen={isShowingAllPhotos}
+                    onClose={() => setIsShowingAllPhotos(false)}
+                    title="📸 Sommarfeeden - Alla bilder"
+                    size="lg"
+                >
+                    <div className="space-y-4 max-h-[70vh] overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-gray-250 dark:scrollbar-thumb-gray-800 text-left text-gray-900 dark:text-white pb-4">
+                        <p className="text-xs text-gray-500 font-bold mb-4">
+                            Klicka på en bild för att läsa meddelandet och se mer detaljer.
+                        </p>
+                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                            {filteredCommunityLogs
+                                .filter(log => log.imageUrl && log.imageUrl.trim() !== '')
+                                .sort((a, b) => b.date - a.date)
+                                .map((log) => (
+                                    <button
+                                        key={`all_${log.id || `${log.memberId}_${log.date}`}`}
+                                        onClick={() => {
+                                            setIsShowingAllPhotos(false);
+                                            setSelectedPhoto(log);
+                                        }}
+                                        className="group flex flex-col bg-gray-50 dark:bg-slate-905/20 dark:bg-slate-900 rounded-2xl p-1.5 border border-gray-100 dark:border-white/5 transition-all hover:scale-[1.03] hover:border-primary/30 text-left"
+                                    >
+                                        <div className="relative w-full aspect-square rounded-xl overflow-hidden mb-2 bg-black/10">
+                                            <img 
+                                                src={log.imageUrl} 
+                                                alt={log.workoutTitle || "Sommarbild"}
+                                                className="w-full h-full object-cover"
+                                            />
+                                        </div>
+                                        <div className="px-1 pb-1 min-w-0">
+                                            <span className="block text-[10px] font-black text-gray-800 dark:text-gray-200 truncate group-hover:text-primary transition-colors">
+                                                {log.memberName || 'Medlem'}
+                                            </span>
+                                            <span className="block text-[8px] font-bold text-gray-400 dark:text-gray-500 truncate uppercase mt-0.5">
+                                                {log.workoutTitle || 'Tränat'}
+                                            </span>
+                                        </div>
+                                    </button>
+                                ))}
+                        </div>
+                    </div>
+                </Modal>
+            )}
+
             {activeTab === 'overview' && (
                 <div className="space-y-3 sm:space-y-5 animate-fade-in">
                     
@@ -1656,13 +1709,22 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                                             </div>
 
                                             {/* Photo feed inline */}
-                                            {communityLogs.filter(log => log.imageUrl && log.imageUrl.trim() !== '').length > 0 && (
+                                            {filteredCommunityLogs.filter(log => log.imageUrl && log.imageUrl.trim() !== '').length > 0 && (
                                                 <div className="space-y-3 pt-4 border-t border-white/5">
-                                                    <h5 className="text-[9px] font-black uppercase tracking-wider text-gray-400 flex items-center gap-1.5">
-                                                        <span>📸</span> Sommarfeeden i gymmet
-                                                    </h5>
+                                                    <div className="flex justify-between items-center">
+                                                        <h5 className="text-[9px] font-black uppercase tracking-wider text-gray-400 flex items-center gap-1.5">
+                                                            <span>📸</span> Sommarfeeden i gymmet
+                                                        </h5>
+                                                        <button 
+                                                            type="button"
+                                                            onClick={() => setIsShowingAllPhotos(true)}
+                                                            className="text-[9px] font-black uppercase tracking-wider text-primary hover:underline px-2 py-1 bg-white/5 rounded-lg border border-white/5 transition-colors hover:bg-white/10"
+                                                        >
+                                                            Se alla ({filteredCommunityLogs.filter(log => log.imageUrl && log.imageUrl.trim() !== '').length})
+                                                        </button>
+                                                    </div>
                                                     <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-none">
-                                                        {communityLogs
+                                                        {filteredCommunityLogs
                                                             .filter(log => log.imageUrl && log.imageUrl.trim() !== '')
                                                             .sort((a, b) => b.date - a.date)
                                                             .map((log) => (

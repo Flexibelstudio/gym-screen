@@ -1,8 +1,9 @@
 
 import React, { useMemo, useState, useEffect } from 'react';
 import { useStudio } from '../../context/StudioContext';
+import { useAuth } from '../../context/AuthContext';
 import { ThemeOption, Page, SeasonalThemeSetting, ThemeDateRange } from '../../types';
-import { getSeasonalThemes, listenToCommunityLogs } from '../../services/firebaseService';
+import { getSeasonalThemes, listenToCommunityLogs, listenToLeaderboardLogs } from '../../services/firebaseService';
 
 // Helper to get week number
 const getISOWeek = (date: Date): number => {
@@ -229,7 +230,8 @@ const HalloweenMascot = () => (
 );
 
 const GymThermometerMascot = ({ isStudioMode = false }: { isStudioMode?: boolean }) => {
-    const { selectedOrganization } = useStudio();
+    const { selectedOrganization, selectedStudio } = useStudio();
+    const { userData } = useAuth();
     const [stats, setStats] = useState({
         avgPoints: 0,
         activeUsersCount: 0,
@@ -240,8 +242,8 @@ const GymThermometerMascot = ({ isStudioMode = false }: { isStudioMode?: boolean
     useEffect(() => {
         if (!selectedOrganization?.id) return;
         
-        // Prenumerera på träningspass i realtid
-        const unsubscribe = listenToCommunityLogs(selectedOrganization.id, (logs) => {
+        // Prenumerera på träningspass i realtid (hämtar tillräckligt antal loggar för hela org, filtrerar sedan på ort)
+        const unsubscribe = listenToLeaderboardLogs(selectedOrganization.id, 1000, (logs) => {
             // Hämta måndagen i den aktuella veckan
             const now = new Date();
             const startOfWeek = new Date(now);
@@ -250,10 +252,16 @@ const GymThermometerMascot = ({ isStudioMode = false }: { isStudioMode?: boolean
             startOfWeek.setDate(diff);
             startOfWeek.setHours(0, 0, 0, 0);
 
-            const thisWeeksLogs = logs.filter(log => {
+            let thisWeeksLogs = logs.filter(log => {
                 const d = new Date(log.date).getTime();
                 return d >= startOfWeek.getTime();
             });
+
+            // Filtrera efter ort/studio om det finns på skärmen eller användaren
+            const activeLocationId = isStudioMode ? selectedStudio?.locationId : userData?.locationId;
+            if (activeLocationId) {
+                thisWeeksLogs = thisWeeksLogs.filter(log => log.locationId === activeLocationId);
+            }
 
             const userPointsMap: Record<string, number> = {};
             thisWeeksLogs.forEach(log => {
@@ -299,7 +307,7 @@ const GymThermometerMascot = ({ isStudioMode = false }: { isStudioMode?: boolean
         });
 
         return () => unsubscribe();
-    }, [selectedOrganization?.id]);
+    }, [selectedOrganization?.id, selectedStudio?.locationId, userData?.locationId, isStudioMode]);
 
     const getStatusConfig = () => {
         switch (stats.status) {
