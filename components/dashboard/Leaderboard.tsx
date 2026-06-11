@@ -47,8 +47,7 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ organizationId }) => {
 
     const isSummerActive = !!configToUse?.enableSummerChallenge;
     const currentTimestamp = Date.now();
-    const isChallengeStarted = !configToUse?.summerChallengeStartDate || currentTimestamp >= configToUse.summerChallengeStartDate;
-    const sisuTabVisible = isSummerActive && isChallengeStarted;
+    const sisuTabVisible = isSummerActive;
 
     useEffect(() => {
         if (userData?.locationId) {
@@ -126,20 +125,26 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ organizationId }) => {
 
                         // 2. Beräkna sisu-poäng för denna logg med den nya, förenklade regeln:
                         // 2 poäng i studion, 1 poäng utanför studion (minst 30 min)
-                        let pts = 0;
-                        if (log.inStudio === true) {
-                            pts = 2;
-                        } else {
-                            const isLessThan30 = log.durationMinutes !== undefined && log.durationMinutes > 0 && log.durationMinutes < 30;
-                            if (!isLessThan30) {
-                                pts = 1;
-                            }
-                        }
+                        // ENDAST för de deltagare som har gått med aktivt i utmaningen
+                        if (member?.joinedSummerChallenge) {
+                            const joinedAt = member.joinedSummerChallengeAt || 0;
+                            if (logTime >= joinedAt) {
+                                let pts = 0;
+                                if (log.inStudio === true) {
+                                    pts = 2;
+                                } else {
+                                    const isLessThan30 = log.durationMinutes !== undefined && log.durationMinutes > 0 && log.durationMinutes < 30;
+                                    if (!isLessThan30) {
+                                        pts = 1;
+                                    }
+                                }
 
-                        if (pts > 0) {
-                            counts[mId].sisuTotal += pts;
-                            if (isThisWeek) {
-                                counts[mId].sisuWeekly += pts;
+                                if (pts > 0) {
+                                    counts[mId].sisuTotal += pts;
+                                    if (isThisWeek) {
+                                        counts[mId].sisuWeekly += pts;
+                                    }
+                                }
                             }
                         }
                     });

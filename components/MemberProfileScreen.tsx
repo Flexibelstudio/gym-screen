@@ -776,6 +776,11 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
         thisWeeksLogs.forEach(log => {
             const uid = log.memberId;
             if (!uid) return;
+            const logMember = membersList.find(m => m.uid === uid);
+            if (!logMember || !logMember.joinedSummerChallenge) return;
+            const logTime = log.date || 0;
+            if (logTime < (logMember.joinedSummerChallengeAt || 0)) return;
+
             let pts = 0;
             if (log.inStudio === true) {
                 pts = 2;
@@ -912,21 +917,25 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
             let totalPoints = 0;
             let weeklyPoints = 0;
 
-            memberLogs.forEach(log => {
-                let pts = 0;
-                if (log.inStudio === true) {
-                    pts = 2;
-                } else {
-                    const isLessThan30 = log.durationMinutes !== undefined && log.durationMinutes > 0 && log.durationMinutes < 30;
-                    if (!isLessThan30) {
-                        pts = 1;
-                    }
-                }
-                totalPoints += pts;
+            const joinedAt = member.joinedSummerChallengeAt || 0;
 
+            memberLogs.forEach(log => {
                 const logTime = new Date(log.date).getTime();
-                if (logTime >= weekMonTime) {
-                    weeklyPoints += pts;
+                if (logTime >= joinedAt) {
+                    let pts = 0;
+                    if (log.inStudio === true) {
+                        pts = 2;
+                    } else {
+                        const isLessThan30 = log.durationMinutes !== undefined && log.durationMinutes > 0 && log.durationMinutes < 30;
+                        if (!isLessThan30) {
+                            pts = 1;
+                        }
+                    }
+                    totalPoints += pts;
+
+                    if (logTime >= weekMonTime) {
+                        weeklyPoints += pts;
+                    }
                 }
             });
 
@@ -1202,23 +1211,28 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
         let summerTotalPoints = 0;
         let summerWeekPoints = 0;
 
-        logs.forEach(log => {
-            let pts = 0;
-            if (log.inStudio === true) {
-                pts = 2;
-            } else {
-                const isLessThan30 = log.durationMinutes !== undefined && log.durationMinutes > 0 && log.durationMinutes < 30;
-                if (!isLessThan30) {
-                    pts = 1;
+        if (userData?.joinedSummerChallenge) {
+            const joinedAt = userData.joinedSummerChallengeAt || 0;
+            logs.forEach(log => {
+                const logTime = new Date(log.date).getTime();
+                if (logTime >= joinedAt) {
+                    let pts = 0;
+                    if (log.inStudio === true) {
+                        pts = 2;
+                    } else {
+                        const isLessThan30 = log.durationMinutes !== undefined && log.durationMinutes > 0 && log.durationMinutes < 30;
+                        if (!isLessThan30) {
+                            pts = 1;
+                        }
+                    }
+                    summerTotalPoints += pts;
+                    
+                    if (logTime >= startOfWeek.getTime()) {
+                        summerWeekPoints += pts;
+                    }
                 }
-            }
-            summerTotalPoints += pts;
-            
-            const logTime = new Date(log.date).getTime();
-            if (logTime >= startOfWeek.getTime()) {
-                summerWeekPoints += pts;
-            }
-        });
+            });
+        }
 
         return { 
             totalWorkouts, 
@@ -1882,6 +1896,11 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                                                                 {configToUse?.summerChallengeStartDate ? (
                                                                     <>Startdatum: <span className="font-extrabold">{new Date(configToUse.summerChallengeStartDate).toLocaleDateString('sv-SE', { weekday: 'long', day: 'numeric', month: 'long' })}</span></>
                                                                 ) : 'Startdatum ej satt.'}
+                                                                {configToUse?.summerChallengeEndDate && (
+                                                                    <span className="block text-xs text-amber-900/85 mt-1 font-bold">
+                                                                        Slutdatum: {new Date(configToUse.summerChallengeEndDate).toLocaleDateString('sv-SE', { weekday: 'long', day: 'numeric', month: 'long' })}
+                                                                    </span>
+                                                                )}
                                                             </p>
                                                         </div>
                                                         
@@ -1943,6 +1962,33 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
 
                                                     return (
                                                         <div className="space-y-4">
+                                                            {/* Utmaningens tidsperiod & Nedräkning */}
+                                                            {configToUse?.summerChallengeStartDate && configToUse?.summerChallengeEndDate && (
+                                                                <div className="bg-gradient-to-r from-amber-500/10 to-orange-500/10 dark:from-amber-500/5 dark:to-orange-500/5 rounded-2xl p-4 border border-amber-500/20 text-amber-950 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-sm select-none">
+                                                                    <div className="space-y-0.5">
+                                                                        <div className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider text-amber-800 dark:text-amber-400 font-sans">
+                                                                            <span>📅</span> Kampanjperiod
+                                                                        </div>
+                                                                        <div className="text-xs font-black dark:text-amber-105">
+                                                                            {new Date(configToUse.summerChallengeStartDate).toLocaleDateString('sv-SE', { day: 'numeric', month: 'short' })}
+                                                                            {" - "}
+                                                                            {new Date(configToUse.summerChallengeEndDate).toLocaleDateString('sv-SE', { day: 'numeric', month: 'short', year: 'numeric' })}
+                                                                        </div>
+                                                                    </div>
+                                                                    <div className="bg-amber-950/15 dark:bg-amber-100/10 px-3 py-1.5 rounded-xl text-center flex items-center gap-2 font-black shrink-0">
+                                                                        <span className="text-[10px] uppercase tracking-wider text-amber-900/90 dark:text-amber-100 font-sans">
+                                                                            ⏳ {(() => {
+                                                                                const diffMs = configToUse.summerChallengeEndDate - Date.now();
+                                                                                const days = Math.max(0, Math.ceil(diffMs / (1000 * 60 * 60 * 24)));
+                                                                                if (days === 0) return "Avslutas idag!";
+                                                                                if (days === 1) return "1 dag kvar!";
+                                                                                return `${days} dagar kvar!`;
+                                                                            })()}
+                                                                        </span>
+                                                                    </div>
+                                                                </div>
+                                                            )}
+
                                                             {/* Gymmet tillsammans (Club stats block) */}
                                                             <div className="bg-amber-50/70 dark:bg-amber-955/20 backdrop-blur-md rounded-2xl p-4 sm:p-5 border border-amber-200/35 relative overflow-hidden shadow-sm text-amber-950">
                                                                 <div className="flex justify-between items-start select-none">
@@ -2106,6 +2152,28 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                                                                         {justSavedGoalMsg}
                                                                     </div>
                                                                 )}
+
+                                                                <div className="flex justify-center mt-4 pt-2 border-t border-amber-950/5 dark:border-amber-100/5">
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={async () => {
+                                                                            if (window.confirm("Är du säker på att du vill gå ur utmaningen? Om du väljer att gå med igen senare kommer inga pass du utförde innan dess att räknas med.")) {
+                                                                                try {
+                                                                                    await updateUserProfile(userData.uid, {
+                                                                                        joinedSummerChallenge: false,
+                                                                                        joinedSummerChallengeAt: null
+                                                                                    } as any);
+                                                                                    setJustActivatedSummer(false);
+                                                                                } catch (err) {
+                                                                                    console.error("Kunde inte gå ur utmaningen:", err);
+                                                                                }
+                                                                            }
+                                                                        }}
+                                                                        className="text-[10px] uppercase tracking-widest font-black text-amber-900/60 hover:text-red-500/80 transition-colors cursor-pointer"
+                                                                    >
+                                                                        🚶 Gå ur / Nollställ min utmaning
+                                                                    </button>
+                                                                </div>
                                                             </div>
                                                         </div>
                                                     );

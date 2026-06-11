@@ -200,9 +200,20 @@ const ChallengePromoWidget: React.FC<{ org: Organization }> = ({ org }) => {
                     {challenge.title}
                 </h3>
                 {challenge.startDate && challenge.endDate && (
-                    <p className="text-xs font-bold text-amber-900/80 dark:text-amber-300 font-mono">
-                         Giltighetsperiod: {startStr} - {endStr}
-                    </p>
+                    <div className="flex flex-wrap gap-2 items-center text-xs font-bold text-amber-900/80 dark:text-amber-300 font-mono">
+                         <span>Giltighetsperiod: {startStr} - {endStr}</span>
+                         <span className="px-2 py-0.5 rounded-md bg-amber-950/15 dark:bg-amber-100/10 text-amber-950 dark:text-amber-100 font-sans">
+                             {(() => {
+                                 const startDiff = challenge.startDate - Date.now();
+                                 const endDiff = challenge.endDate - Date.now();
+                                 const daysToStart = Math.max(0, Math.ceil(startDiff / (1000 * 60 * 60 * 24)));
+                                 const daysRemaining = Math.max(0, Math.ceil(endDiff / (1000 * 60 * 60 * 24)));
+                                 if (daysToStart > 0) return `⏳ Startar om ${daysToStart} dagar`;
+                                 if (daysRemaining === 0) return `⏳ Avslutas idag!`;
+                                 return `⏳ ${daysRemaining} dagar kvar`;
+                             })()}
+                         </span>
+                    </div>
                 )}
                 {challenge.description && (
                     <p className="text-xs text-amber-900/80 dark:text-amber-200/70 leading-relaxed max-w-2xl font-medium">
