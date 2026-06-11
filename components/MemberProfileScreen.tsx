@@ -1894,7 +1894,7 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                                                             <div className="bg-amber-50/70 dark:bg-amber-955/20 backdrop-blur-md rounded-2xl p-4 sm:p-5 border border-amber-200/35 relative overflow-hidden shadow-sm text-amber-950">
                                                                 <div className="flex justify-between items-start select-none">
                                                                     <div>
-                                                                        <p className="text-xs font-bold text-amber-900 uppercase tracking-widest mb-1.5 font-black font-sans">Gymmet tillsammans ☀️</p>
+                                                                        <p className="text-xs font-bold text-amber-900 uppercase tracking-widest mb-1.5 font-black font-sans">Gymmet tillsammans </p>
                                                                         <h3 className="text-3xl sm:text-4xl font-black text-amber-950 tracking-tight mb-1 flex items-center gap-2">
                                                                             <span>{summerStats.label} ({summerStats.completedPercentage}%)</span>
                                                                             <span className="text-2xl sm:text-3xl">{summerStats.emoji}</span>
