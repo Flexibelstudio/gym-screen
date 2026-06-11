@@ -309,45 +309,66 @@ const GymThermometerMascot = ({ isStudioMode = false }: { isStudioMode?: boolean
             return joinedAt < startOfWeek.getTime();
         });
 
-        const N = challengeParticipantsOnSunday.length;
+        const N = Math.max(1, challengeParticipantsOnSunday.length);
 
-        // Klubbens veckomål = summan av alla deltagares låsta veckomål för den pågående veckan
-        const clubWeeklyTarget = challengeParticipantsOnSunday.reduce((sum, m) => {
-            const goals = m.summerChallengeGoals || {};
-            const goalThisWeek = goals[startOfWeek.getTime()] !== undefined ? goals[startOfWeek.getTime()] : (m.summerChallengeGoal || 3);
-            return sum + goalThisWeek;
-        }, 0);
+        // Sum of all Sunday registered members' goals - locked on Monday 00:00
+        let clubWeeklyTarget = 0;
+        challengeParticipantsOnSunday.forEach(m => {
+            const goalVal = m.summerChallengeGoals?.[startOfWeek.getTime()] !== undefined
+                ? m.summerChallengeGoals[startOfWeek.getTime()]
+                : (m.summerChallengeGoal || 3);
+            clubWeeklyTarget += goalVal;
+        });
 
-        const effectiveClubTarget = Math.max(1, clubWeeklyTarget);
-        const rawPercent = (totalPoints / effectiveClubTarget) * 100;
-        const percent = Math.round(rawPercent);
+        if (clubWeeklyTarget <= 0) {
+            clubWeeklyTarget = 3 * N; // Fallback
+        }
 
-        let status: 'kallt' | 'ljummet' | 'varmt' | 'hett' | 'overhettning' = 'kallt';
-        if (percent >= 110) {
-            status = 'overhettning';
-        } else if (percent >= 100) {
+        const completedPercentage = clubWeeklyTarget > 0 ? Math.round((totalPoints / clubWeeklyTarget) * 100) : 0;
+
+        let status: 'kallt' | 'ljummet' | 'varmt' | 'hett' | 'overhettat' = 'kallt';
+        if (completedPercentage >= 110) {
+            status = 'overhettat';
+        } else if (completedPercentage >= 100) {
             status = 'hett';
-        } else if (percent >= 70) {
+        } else if (completedPercentage >= 70) {
             status = 'varmt';
-        } else if (percent >= 40) {
+        } else if (completedPercentage >= 40) {
             status = 'ljummet';
         }
 
-        // Fyllnadsgrad baseras på procent (t.ex. 100% fyller mätaren)
-        const percentage = Math.min(1.0, totalPoints / effectiveClubTarget);
+        // Beräkna fyllnadsgrad (percentage) mer linjärt/analogt för en snygg rörlig mätare!
+        let percentage = 0.20; // Default kall bas fyllning
+        if (completedPercentage >= 110) {
+            const diff = completedPercentage - 110;
+            percentage = Math.min(1.0, 0.85 + (diff / 100) * 0.15);
+        } else if (completedPercentage >= 100) {
+            const range = 110 - 100;
+            const diff = completedPercentage - 100;
+            percentage = 0.70 + (diff / range) * 0.15;
+        } else if (completedPercentage >= 70) {
+            const range = 100 - 70;
+            const diff = completedPercentage - 70;
+            percentage = 0.50 + (diff / range) * 0.20;
+        } else if (completedPercentage >= 40) {
+            const range = 70 - 40;
+            const diff = completedPercentage - 40;
+            percentage = 0.35 + (diff / range) * 0.15;
+        } else {
+            percentage = 0.10 + (completedPercentage / 40) * 0.25;
+        }
 
         return {
             activeUsersCount,
             totalPoints,
             status,
-            percentage,
-            percentageText: percent
+            percentage
         };
     }, [weeklyLogs, membersList, isStudioMode, selectedStudio?.locationId, userData?.locationId]);
 
     const getStatusConfig = () => {
         switch (stats.status) {
-            case 'overhettning':
+            case 'overhettat':
                 return {
                     color: '#dc2626',
                     percentage: stats.percentage,
@@ -374,7 +395,7 @@ const GymThermometerMascot = ({ isStudioMode = false }: { isStudioMode?: boolean
             case 'kallt':
             default:
                 return {
-                    color: '#38bdf8',
+                    color: '#3b82f6',
                     percentage: stats.percentage,
                     label: 'SVALT ❄️',
                 };
