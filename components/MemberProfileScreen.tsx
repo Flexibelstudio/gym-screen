@@ -685,6 +685,7 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
     const [isShowingAllPhotos, setIsShowingAllPhotos] = useState(false);
     const [showFormulaInfo, setShowFormulaInfo] = useState(false);
     const [justSavedGoalMsg, setJustSavedGoalMsg] = useState('');
+    const [isEditingNextGoal, setIsEditingNextGoal] = useState(false);
     const [dismissedSummerChallenge, setDismissedSummerChallenge] = useState(() => {
         if (typeof window !== 'undefined' && userData?.uid) {
             return localStorage.getItem(`dismissed-summer-challenge-${userData.uid}`) === 'true';
@@ -1654,47 +1655,6 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                         </div>
                     )}
 
-                    {/* Liten text/knapp om man avvisat men vill hoppa på senare */}
-                    {isSummerThemeActive && !userData.joinedSummerChallenge && dismissedSummerChallenge && (
-                        <div className="relative overflow-hidden bg-gradient-to-br from-orange-500 via-amber-400 to-yellow-100 dark:from-orange-600 dark:via-amber-500 dark:to-yellow-200 text-amber-950 border-none rounded-[2rem] shadow-[0_12px_40px_rgba(249,115,22,0.18)] animate-fade-in text-left p-6 sm:p-7 flex flex-col sm:flex-row sm:items-center justify-between gap-5">
-                            {/* Summer sun rays backdrop glow */}
-                            <div className="absolute top-[-40px] right-[-40px] w-64 h-64 bg-white/10 rounded-full blur-[50px] pointer-events-none"></div>
-                            
-                            <div className="flex items-start gap-4 relative z-10">
-                                <span className="text-3xl select-none animate-bounce origin-bottom [animation-duration:3s]">🌻</span>
-                                <div>
-                                    <span className="text-[10px] font-black tracking-widest text-orange-950/75 uppercase block leading-none mb-1.5 font-sans">Sommar-Sisu 2026 ☀️</span>
-                                    <h4 className="text-base sm:text-lg font-black text-amber-950 tracking-tight leading-snug">
-                                        Du deltar inte i utmaningen än
-                                    </h4>
-                                    <p className="text-xs sm:text-sm text-amber-900/90 font-semibold leading-relaxed mt-1 max-w-md">
-                                        Vill du ändra dig? Du kan fortfarande gå med i utmaningen när du vill för att bidra till studions gemensamma temperatur!
-                                    </p>
-                                </div>
-                            </div>
-                            
-                            <div className="flex-shrink-0 relative z-10 w-full sm:w-auto">
-                                <button
-                                    onClick={async () => {
-                                        try {
-                                            await updateUserProfile(userData.uid, { joinedSummerChallenge: true, joinedSummerChallengeAt: Date.now() } as any);
-                                            localStorage.removeItem(`dismissed-summer-challenge-${userData.uid}`);
-                                            setDismissedSummerChallenge(false);
-                                            setJustActivatedSummer(true);
-                                            const confetti = await import('canvas-confetti');
-                                            confetti.default({ particleCount: 150, spread: 80, origin: { y: 0.6 } });
-                                        } catch (err) {
-                                            console.error("Kunde inte gå med i utmaningen:", err);
-                                        }
-                                    }}
-                                    className="w-full sm:w-auto px-6 py-4 bg-amber-950 hover:bg-amber-900 active:scale-95 text-amber-50 text-xs font-black uppercase tracking-widest rounded-2xl transition-all shadow-md duration-100 whitespace-nowrap cursor-pointer text-center"
-                                >
-                                    Gå med nu! ☀️
-                                </button>
-                            </div>
-                        </div>
-                    )}
-
                     {/* Weekly Goal Ring (Huge, now integrated with Summer-Sisu points if joined) */}
                     <WeeklyGoalRing 
                         current={stats.thisWeek} 
@@ -1827,7 +1787,7 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                                 <div className="flex items-center gap-3">
                                     <span className="text-2xl select-none animate-bounce origin-bottom [animation-duration:3s]">🌻</span>
                                     <div>
-                                        <span className="text-[9px] font-black tracking-widest text-orange-950/75 uppercase block leading-none mb-1">Du deltar i utmaningen! ☀️</span>
+                                        <span className="text-xs font-black tracking-widest text-orange-950/75 uppercase block leading-none mb-1">Du deltar i utmaningen! ☀️</span>
                                         <span className="text-xs sm:text-sm font-extrabold text-amber-950 leading-none">
                                             {!isChallengeStarted ? (
                                                 <span>Utmaningen startar snart! ⏳</span>
@@ -1858,14 +1818,14 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                                             
                                             {!isChallengeStarted ? (
                                                 /* Pre-start Countdown Stats Block */
-                                                <div className="bg-amber-50/70 dark:bg-amber-950/20 backdrop-blur-md rounded-2xl p-4 sm:p-5 border border-amber-200/35 relative overflow-hidden shadow-sm">
+                                                <div className="bg-amber-50/70 dark:bg-amber-955/20 backdrop-blur-md rounded-2xl p-4 sm:p-5 border border-amber-200/35 relative overflow-hidden shadow-sm">
                                                     <div className="flex justify-between items-start select-none">
                                                         <div>
-                                                            <p className="text-[9px] font-bold text-amber-900 uppercase tracking-widest mb-1.5 font-black font-sans">Nedräkning ⏳</p>
+                                                            <p className="text-xs font-bold text-amber-900 uppercase tracking-widest mb-1.5 font-black font-sans">Nedräkning ⏳</p>
                                                             <h3 className="text-2xl sm:text-3xl font-black text-amber-950 tracking-tight mb-1">
                                                                 Utmaningen startar snart!
                                                             </h3>
-                                                            <p className="text-[11px] text-amber-900/90 font-semibold leading-normal max-w-sm mt-1">
+                                                            <p className="text-xs sm:text-sm text-amber-900/90 font-semibold leading-normal max-w-sm mt-1">
                                                                 {configToUse?.summerChallengeStartDate ? (
                                                                     <>Startdatum: <span className="font-extrabold">{new Date(configToUse.summerChallengeStartDate).toLocaleDateString('sv-SE', { weekday: 'long', day: 'numeric', month: 'long' })}</span></>
                                                                 ) : 'Startdatum ej satt.'}
@@ -1881,13 +1841,13 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                                                     
                                                     <div className="grid grid-cols-2 gap-4">
                                                         <div>
-                                                            <p className="text-[9px] font-black text-amber-900/60 uppercase tracking-wider mb-0.5">Dagar kvar</p>
+                                                            <p className="text-xs font-black text-amber-900/60 uppercase tracking-wider mb-0.5">Dagar kvar</p>
                                                             <p className="text-base font-extrabold text-amber-950">
                                                                 {configToUse?.summerChallengeStartDate ? Math.max(0, Math.ceil((configToUse.summerChallengeStartDate - Date.now()) / (1000 * 60 * 60 * 24))) : '-'} st
                                                             </p>
                                                         </div>
                                                         <div>
-                                                            <p className="text-[9px] font-black text-amber-900/60 uppercase tracking-wider mb-0.5">Anmälda i gymmet</p>
+                                                            <p className="text-xs font-black text-amber-900/60 uppercase tracking-wider mb-0.5">Anmälda i gymmet</p>
                                                             <p className="text-base font-extrabold text-amber-950">
                                                                 {summerStats.totalRegisteredCount} st
                                                             </p>
@@ -1931,15 +1891,15 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                                                     return (
                                                         <div className="space-y-4">
                                                             {/* Gymmet tillsammans (Club stats block) */}
-                                                            <div className="bg-amber-50/70 dark:bg-amber-950/20 backdrop-blur-md rounded-2xl p-4 sm:p-5 border border-amber-200/35 relative overflow-hidden shadow-sm text-amber-950">
+                                                            <div className="bg-amber-50/70 dark:bg-amber-955/20 backdrop-blur-md rounded-2xl p-4 sm:p-5 border border-amber-200/35 relative overflow-hidden shadow-sm text-amber-950">
                                                                 <div className="flex justify-between items-start select-none">
                                                                     <div>
-                                                                        <p className="text-[9px] font-bold text-amber-900 uppercase tracking-widest mb-1.5 font-black font-sans">Gymmet tillsammans ☀️</p>
+                                                                        <p className="text-xs font-bold text-amber-900 uppercase tracking-widest mb-1.5 font-black font-sans">Gymmet tillsammans ☀️</p>
                                                                         <h3 className="text-3xl sm:text-4xl font-black text-amber-950 tracking-tight mb-1 flex items-center gap-2">
                                                                             <span>{summerStats.label} ({summerStats.completedPercentage}%)</span>
                                                                             <span className="text-2xl sm:text-3xl">{summerStats.emoji}</span>
                                                                         </h3>
-                                                                        <p className="text-[11px] text-amber-900/90 font-semibold leading-normal max-w-sm">
+                                                                        <p className="text-xs sm:text-sm text-amber-900/90 font-semibold leading-normal max-w-sm">
                                                                             Målsumman för veckan låstes i måndags. Loggade poäng ökar temperaturen för hela studion!
                                                                         </p>
                                                                     </div>
@@ -1953,18 +1913,18 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                                                                 
                                                                 <div className="grid grid-cols-2 gap-4">
                                                                     <div>
-                                                                        <p className="text-[9px] font-black text-amber-900/60 uppercase tracking-wider mb-0.5">Gemensamma poäng</p>
+                                                                        <p className="text-xs font-black text-amber-900/60 uppercase tracking-wider mb-0.5">Gemensamma poäng</p>
                                                                         <p className="text-base font-extrabold text-amber-950">{summerStats.totalPoints} poäng</p>
                                                                     </div>
                                                                     <div>
-                                                                        <p className="text-[9px] font-black text-amber-900/60 uppercase tracking-wider mb-0.5">Klubbens veckomål (Låst)</p>
+                                                                        <p className="text-xs font-black text-amber-900/60 uppercase tracking-wider mb-0.5">Klubbens veckomål (Låst)</p>
                                                                         <p className="text-base font-extrabold text-amber-950">
                                                                             {summerStats.clubWeeklyTarget} poäng
                                                                         </p>
                                                                     </div>
                                                                 </div>
 
-                                                                <div className="mt-3 text-[10px] text-amber-950/60 flex flex-col gap-1 border-t border-amber-950/5 pt-2">
+                                                                <div className="mt-3 text-xs text-amber-950/70 flex flex-col gap-1 border-t border-amber-950/5 pt-2 font-medium">
                                                                     <span>• Basantal registrerade i söndags: <strong className="text-amber-950">{summerStats.N} st</strong></span>
                                                                     <span>• Aktiva deltagare denna vecka: <strong className="text-amber-950">{summerStats.activeUsersCount} st</strong></span>
                                                                     <span>• Nästa temperaturtröskel: <strong className="text-amber-950">{summerStats.nextTarget > 0 ? `${summerStats.nextTarget} poäng` : "Maximal temperatur nådd! 🎉"}</strong></span>
@@ -1972,10 +1932,10 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                                                             </div>
 
                                                             {/* Mina Personliga Framsteg block */}
-                                                            <div className="bg-amber-50/70 dark:bg-amber-950/20 backdrop-blur-md rounded-2xl p-4 sm:p-5 border border-amber-200/35 text-amber-950">
+                                                            <div className="bg-amber-50/70 dark:bg-amber-955/20 backdrop-blur-md rounded-2xl p-4 sm:p-5 border border-amber-200/35 text-amber-950">
                                                                 <div className="flex justify-between items-center mb-3">
                                                                     <div>
-                                                                        <p className="text-[9px] font-bold text-amber-900 uppercase tracking-widest mb-0.5 font-black font-sans">Mina bidrag denna vecka 🎯</p>
+                                                                        <p className="text-xs font-bold text-amber-900 uppercase tracking-widest mb-0.5 font-black font-sans">Mina bidrag denna vecka 🎯</p>
                                                                         <h4 className="text-base font-black text-amber-950">
                                                                             Mina poäng: {stats.summerWeekPoints} / {myGoalThisWeek} p
                                                                         </h4>
@@ -1992,79 +1952,98 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                                                                     />
                                                                 </div>
 
-                                                                <p className="text-xs font-bold text-amber-900/75 dark:text-amber-100/80 tracking-tight leading-relaxed italic mb-4">
+                                                                <p className="text-xs sm:text-sm font-bold text-amber-900/75 dark:text-amber-100/85 tracking-tight leading-relaxed italic mb-4">
                                                                     {personalFeedback}
                                                                 </p>
 
                                                                 <div className="h-[1px] bg-amber-950/10 my-3.5" />
 
-                                                                <div className="flex sm:flex-row flex-col justify-between sm:items-center gap-3">
-                                                                    <div>
-                                                                        <h5 className="text-xs font-black text-amber-950 uppercase tracking-wider mb-0.5">Sätt mitt veckomål för nästa vecka</h5>
-                                                                        <p className="text-[10px] text-amber-900/70 font-semibold leading-normal">
-                                                                            Träder i kraft måndag kl. 00:00 (Minst 1 poäng).
-                                                                        </p>
-                                                                    </div>
+                                                                {!isEditingNextGoal ? (
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() => setIsEditingNextGoal(true)}
+                                                                        className="w-full py-3 px-4 bg-amber-950/10 hover:bg-amber-950/15 text-amber-950 text-xs font-black uppercase tracking-wider rounded-xl transition-all flex items-center justify-center gap-2 border border-amber-950/10 cursor-pointer"
+                                                                    >
+                                                                        ⚙️ Redigera mitt veckomål för nästa vecka ({myGoalNextWeek} p)
+                                                                    </button>
+                                                                ) : (
+                                                                    <div className="bg-amber-950/5 rounded-xl p-3 border border-amber-250/10 animate-fade-in">
+                                                                        <div className="flex sm:flex-row flex-col justify-between sm:items-center gap-3">
+                                                                            <div>
+                                                                                <h5 className="text-xs font-black text-amber-950 uppercase tracking-wider mb-0.5">Veckomål för nästa vecka</h5>
+                                                                                <p className="text-xs text-amber-900/70 font-semibold leading-normal">
+                                                                                    Träder i kraft måndag kl. 00:00 (Minst 1 p).
+                                                                                </p>
+                                                                            </div>
 
-                                                                    <div className="flex flex-col items-end gap-1">
-                                                                        <div className="flex items-center gap-2 bg-white/40 dark:bg-amber-955/30 border border-amber-950/10 rounded-xl p-1.5 shadow-inner">
-                                                                            <button
-                                                                                type="button"
-                                                                                disabled={myGoalNextWeek <= 1}
-                                                                                onClick={async () => {
-                                                                                    if (myGoalNextWeek <= 1) return;
-                                                                                    const targetVal = myGoalNextWeek - 1;
-                                                                                    try {
-                                                                                        const updatedGoals = {
-                                                                                            ...(userData.summerChallengeGoals || {}),
-                                                                                            [nextWeekMon]: targetVal
-                                                                                        };
-                                                                                        await updateUserProfile(userData.uid, {
-                                                                                            nextSummerChallengeGoal: targetVal,
-                                                                                            summerChallengeGoals: updatedGoals
-                                                                                        } as any);
-                                                                                        setJustSavedGoalMsg(`Ditt veckomål för nästa vecka är nu ${targetVal} poäng! 🏁`);
-                                                                                        setTimeout(() => setJustSavedGoalMsg(''), 4000);
-                                                                                    } catch (err) {
-                                                                                        console.error("Kunde inte ändra veckomål:", err);
-                                                                                    }
-                                                                                }}
-                                                                                className="w-8 h-8 rounded-lg bg-amber-950 hover:bg-amber-900 text-amber-50 flex items-center justify-center font-black select-none disabled:opacity-45 cursor-pointer"
-                                                                            >
-                                                                                -
-                                                                            </button>
-                                                                            <span className="font-sans text-xs sm:text-sm font-black text-amber-950 dark:text-amber-50 min-w-[2.5rem] text-center">
-                                                                                {myGoalNextWeek} p
-                                                                            </span>
-                                                                            <button
-                                                                                type="button"
-                                                                                onClick={async () => {
-                                                                                    const targetVal = myGoalNextWeek + 1;
-                                                                                    try {
-                                                                                        const updatedGoals = {
-                                                                                            ...(userData.summerChallengeGoals || {}),
-                                                                                            [nextWeekMon]: targetVal
-                                                                                        };
-                                                                                        await updateUserProfile(userData.uid, {
-                                                                                            nextSummerChallengeGoal: targetVal,
-                                                                                            summerChallengeGoals: updatedGoals
-                                                                                        } as any);
-                                                                                        setJustSavedGoalMsg(`Ditt veckomål för nästa vecka är nu ${targetVal} poäng! 🏁`);
-                                                                                        setTimeout(() => setJustSavedGoalMsg(''), 4000);
-                                                                                    } catch (err) {
-                                                                                        console.error("Kunde inte ändra veckomål:", err);
-                                                                                    }
-                                                                                }}
-                                                                                className="w-8 h-8 rounded-lg bg-amber-950 hover:bg-amber-900 text-amber-50 flex items-center justify-center font-black select-none cursor-pointer"
-                                                                            >
-                                                                                +
-                                                                            </button>
+                                                                            <div className="flex items-center gap-2.5">
+                                                                                <div className="flex items-center gap-2 bg-white/40 dark:bg-amber-955/35 border border-amber-950/10 rounded-xl p-1.5 shadow-inner">
+                                                                                    <button
+                                                                                        type="button"
+                                                                                        disabled={myGoalNextWeek <= 1}
+                                                                                        onClick={async () => {
+                                                                                            if (myGoalNextWeek <= 1) return;
+                                                                                            const targetVal = myGoalNextWeek - 1;
+                                                                                            try {
+                                                                                                const updatedGoals = {
+                                                                                                    ...(userData.summerChallengeGoals || {}),
+                                                                                                    [nextWeekMon]: targetVal
+                                                                                                };
+                                                                                                await updateUserProfile(userData.uid, {
+                                                                                                    nextSummerChallengeGoal: targetVal,
+                                                                                                    summerChallengeGoals: updatedGoals
+                                                                                                } as any);
+                                                                                                setJustSavedGoalMsg(`Ditt veckomål för nästa vecka är nu ${targetVal} poäng! 🏁`);
+                                                                                                setTimeout(() => setJustSavedGoalMsg(''), 4000);
+                                                                                            } catch (err) {
+                                                                                                console.error("Kunde inte ändra veckomål:", err);
+                                                                                            }
+                                                                                        }}
+                                                                                        className="w-8 h-8 rounded-lg bg-amber-950 hover:bg-amber-900 text-amber-50 flex items-center justify-center font-black select-none disabled:opacity-45 cursor-pointer"
+                                                                                    >
+                                                                                        -
+                                                                                    </button>
+                                                                                    <span className="font-sans text-xs sm:text-sm font-black text-amber-950 dark:text-amber-50 min-w-[2.5rem] text-center">
+                                                                                        {myGoalNextWeek} p
+                                                                                    </span>
+                                                                                    <button
+                                                                                        type="button"
+                                                                                        onClick={async () => {
+                                                                                            const targetVal = myGoalNextWeek + 1;
+                                                                                            try {
+                                                                                                const updatedGoals = {
+                                                                                                    ...(userData.summerChallengeGoals || {}),
+                                                                                                    [nextWeekMon]: targetVal
+                                                                                                };
+                                                                                                await updateUserProfile(userData.uid, {
+                                                                                                    nextSummerChallengeGoal: targetVal,
+                                                                                                    summerChallengeGoals: updatedGoals
+                                                                                                } as any);
+                                                                                                setJustSavedGoalMsg(`Ditt veckomål för nästa vecka är nu ${targetVal} poäng! 🏁`);
+                                                                                                setTimeout(() => setJustSavedGoalMsg(''), 4000);
+                                                                                            } catch (err) {
+                                                                                                console.error("Kunde inte ändra veckomål:", err);
+                                                                                            }
+                                                                                        }}
+                                                                                        className="w-8 h-8 rounded-lg bg-amber-950 hover:bg-amber-900 text-amber-50 flex items-center justify-center font-black select-none cursor-pointer"
+                                                                                    >
+                                                                                        +
+                                                                                    </button>
+                                                                                </div>
+                                                                                <button
+                                                                                    type="button"
+                                                                                    onClick={() => setIsEditingNextGoal(false)}
+                                                                                    className="px-3.5 py-2 bg-amber-950 hover:bg-amber-900 text-amber-50 text-[10px] font-black uppercase tracking-wider rounded-xl cursor-pointer shadow-sm transition-all"
+                                                                                >
+                                                                                    Klar
+                                                                                </button>
+                                                                            </div>
                                                                         </div>
                                                                     </div>
-                                                                </div>
+                                                                )}
 
                                                                 {justSavedGoalMsg && (
-                                                                    <div className="mt-3 bg-amber-200/50 dark:bg-amber-950/40 text-[11px] font-bold text-amber-950 dark:text-amber-100 rounded-xl px-3 py-2 text-center animate-pulse">
+                                                                    <div className="mt-3 bg-amber-200/50 dark:bg-amber-955/40 text-[11px] font-bold text-amber-950 dark:text-amber-100 rounded-xl px-3 py-2 text-center animate-pulse">
                                                                         {justSavedGoalMsg}
                                                                     </div>
                                                                 )}
@@ -2077,11 +2056,11 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                                             {/* Point rules info */}
                                             <div className="space-y-2.5">
                                                 <div className="flex items-center gap-1.5">
-                                                    <h5 className="text-[9px] font-black uppercase tracking-wider text-amber-900">Så här samlar ni poäng</h5>
+                                                    <h5 className="text-xs font-black uppercase tracking-wider text-amber-900">Så här samlar ni poäng</h5>
                                                     <button
                                                         type="button"
                                                         onClick={() => setShowFormulaInfo(true)}
-                                                        className="w-4 h-4 rounded-full bg-amber-500/15 hover:bg-amber-500/35 text-amber-950 border border-amber-500/25 flex items-center justify-center text-[10px] font-black transition-all cursor-pointer shadow-sm relative -top-0.5"
+                                                        className="w-4 h-4 rounded-full bg-amber-500/15 hover:bg-amber-500/35 text-amber-955 border border-amber-500/25 flex items-center justify-center text-xs font-black transition-all cursor-pointer shadow-sm"
                                                         title="Visa information om mätarens smarta formel"
                                                     >
                                                         i
@@ -2092,7 +2071,7 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                                                         <span className="text-base bg-amber-800 text-white p-2 rounded-xl leading-none shadow-sm">🏋️‍♀️</span>
                                                         <div className="text-left">
                                                             <p className="text-xs font-black text-amber-950 uppercase tracking-wider">2 Poäng</p>
-                                                            <p className="text-[11px] text-amber-900 mt-0.5 leading-relaxed font-semibold">
+                                                            <p className="text-xs sm:text-sm text-amber-900 mt-0.5 leading-relaxed font-semibold">
                                                                 Träning i studion! Det gäller alla pass som genomförs på plats i studion.
                                                             </p>
                                                         </div>
@@ -2101,7 +2080,7 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                                                         <span className="text-base bg-[#43a047] text-white p-2 rounded-xl leading-none shadow-sm">🏃‍♂️</span>
                                                         <div className="text-left">
                                                             <p className="text-xs font-black text-amber-950 uppercase tracking-wider">1 Poäng</p>
-                                                            <p className="text-[11px] text-amber-900 mt-0.5 leading-relaxed font-semibold">
+                                                            <p className="text-xs sm:text-sm text-amber-900 mt-0.5 leading-relaxed font-semibold">
                                                                 Träning utanför studion! Alla hemma- eller utomhusaktiviteter (powerwalk, löpning, cykling etc.) på minst 30 minuter.
                                                             </p>
                                                         </div>
@@ -2114,16 +2093,16 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                                                     <div className="bg-amber-50 dark:bg-gray-900 p-6 rounded-[2.5rem] border-2 border-amber-300 dark:border-amber-900/40 shadow-2xl max-w-sm w-full text-left" onClick={(e) => e.stopPropagation()}>
                                                         <div className="flex items-center gap-3 mb-4">
                                                             <span className="text-2xl bg-amber-400 text-amber-950 p-2 rounded-2xl shadow-sm leading-none">🌟</span>
-                                                            <h4 className="text-sm font-black text-amber-950 dark:text-amber-50 uppercase tracking-wider">Mätarens nivåinsamling</h4>
+                                                            <h4 className="text-xs font-black text-amber-950 dark:text-amber-50 uppercase tracking-wider">Mätarens nivåinsamling</h4>
                                                         </div>
                                                         <div className="space-y-3">
                                                             <p className="text-xs font-black text-amber-900 dark:text-amber-300">
                                                                 Smart formel: Ljummet (3p), Varmt (6p), Het (10p) per aktiv person.
                                                             </p>
-                                                            <p className="text-xs text-amber-950/80 dark:text-amber-200/70 leading-relaxed font-semibold">
+                                                            <p className="text-xs text-amber-950/80 dark:text-amber-200/75 leading-relaxed font-semibold">
                                                                 Mätarens kravnivåer baseras på antalet anmälda söndagen innan veckan startar.
                                                             </p>
-                                                            <p className="text-xs text-amber-950/80 dark:text-amber-200/70 leading-relaxed font-semibold">
+                                                            <p className="text-xs text-amber-950/80 dark:text-amber-200/75 leading-relaxed font-semibold">
                                                                 Nya medlemmar som går med under pågående vecka kan direkt bidra med poäng, men höjer inte mätarens svårighetsgrad förrän nästkommande vecka! Det gör att ingen belastar snittet i onödan.
                                                             </p>
                                                         </div>
@@ -2142,13 +2121,13 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                                             {filteredCommunityLogs.filter(log => log.imageUrl && log.imageUrl.trim() !== '').length > 0 && (
                                                 <div className="space-y-3 pt-4 border-t border-white/5">
                                                     <div className="flex justify-between items-center">
-                                                        <h5 className="text-[9px] font-black uppercase tracking-wider text-gray-400 flex items-center gap-1.5">
+                                                        <h5 className="text-xs font-black uppercase tracking-wider text-gray-400 flex items-center gap-1.5">
                                                             <span>📸</span> Sommarfeeden i gymmet
                                                         </h5>
                                                         <button 
                                                             type="button"
                                                             onClick={() => setIsShowingAllPhotos(true)}
-                                                            className="text-[9px] font-black uppercase tracking-wider text-primary hover:underline px-2 py-1 bg-white/5 rounded-lg border border-white/5 transition-colors hover:bg-white/10"
+                                                            className="text-xs font-black uppercase tracking-wider text-primary hover:underline px-2.5 py-1.5 bg-white/5 rounded-lg border border-white/5 transition-colors hover:bg-white/10"
                                                         >
                                                             Se alla ({filteredCommunityLogs.filter(log => log.imageUrl && log.imageUrl.trim() !== '').length})
                                                         </button>
