@@ -890,6 +890,58 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
         };
     }, [filteredCommunityLogs, isSummerThemeActive, membersList, userData?.locationId]);
 
+    const summerLeaderboardData = useMemo(() => {
+        if (!isSummerThemeActive || !membersList.length) return [];
+
+        const now = new Date();
+        const startOfWeek = new Date(now);
+        const day = startOfWeek.getDay();
+        const diff = startOfWeek.getDate() - day + (day === 0 ? -6 : 1);
+        startOfWeek.setDate(diff);
+        startOfWeek.setHours(0, 0, 0, 0);
+        const weekMonTime = startOfWeek.getTime();
+
+        const challengeMembers = membersList.filter(m => {
+            if (userData?.locationId && m.locationId !== userData.locationId) return false;
+            return !!m.joinedSummerChallenge;
+        });
+
+        const ranking = challengeMembers.map(member => {
+            const memberLogs = communityLogs.filter(log => log.memberId === member.uid);
+            
+            let totalPoints = 0;
+            let weeklyPoints = 0;
+
+            memberLogs.forEach(log => {
+                let pts = 0;
+                if (log.inStudio === true) {
+                    pts = 2;
+                } else {
+                    const isLessThan30 = log.durationMinutes !== undefined && log.durationMinutes > 0 && log.durationMinutes < 30;
+                    if (!isLessThan30) {
+                        pts = 1;
+                    }
+                }
+                totalPoints += pts;
+
+                const logTime = new Date(log.date).getTime();
+                if (logTime >= weekMonTime) {
+                    weeklyPoints += pts;
+                }
+            });
+
+            return {
+                uid: member.uid,
+                name: member.name || member.displayName || 'Medlem',
+                avatarUrl: member.avatarUrl || member.photoURL,
+                totalPoints,
+                weeklyPoints
+            };
+        });
+
+        return ranking;
+    }, [communityLogs, membersList, isSummerThemeActive, userData?.locationId]);
+
     const [activeTab, setActiveTab] = useState<'overview' | 'goals' | 'strength' | 'benchmarks'>(() => {
         const saved = localStorage.getItem('smart-skarm-profile-active-tab');
         if (saved === 'summer') return 'overview';
@@ -1955,10 +2007,10 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
 
                                                                 <p className={`text-xs sm:text-sm tracking-tight leading-relaxed font-black rounded-xl p-2.5 text-center border shadow-inner ${
                                                                     personalFeedback.includes('Överhettning')
-                                                                        ? 'bg-red-500/10 text-red-950 border-red-500/15 dark:bg-red-500/20 dark:text-red-100 dark:border-red-500/30'
+                                                                        ? 'bg-red-700 text-white border-red-800 shadow-md dark:bg-red-700 dark:text-white dark:border-red-800'
                                                                         : personalFeedback.includes('Målet')
-                                                                        ? 'bg-amber-500/15 text-amber-950 border-amber-500/15 dark:bg-amber-500/25 dark:text-amber-50 dark:border-amber-500/30'
-                                                                        : 'bg-white/40 text-amber-950 border-amber-950/5 dark:bg-white/5 dark:text-amber-50 dark:border-white/5'
+                                                                        ? 'bg-amber-900 text-white border-amber-950 shadow-md dark:bg-amber-900 dark:text-white dark:border-amber-950'
+                                                                        : 'bg-amber-950/20 text-amber-950 border-amber-950/10 dark:bg-amber-950/20 dark:text-amber-950 dark:border-amber-950/10'
                                                                 } mb-4`}>
                                                                     {personalFeedback}
                                                                 </p>
@@ -2060,6 +2112,115 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                                                 })()
                                             )}
 
+                                            {/* Topplista för utmaningen */}
+                                            <div className="bg-amber-50/70 dark:bg-amber-955/20 backdrop-blur-md rounded-2xl p-4 sm:p-5 border border-amber-200/35 text-amber-955 animate-fade-in text-left">
+                                                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-4">
+                                                    <div>
+                                                        <h5 className="text-xs font-black text-amber-950 uppercase tracking-wider">Utmaningens Topplista 🏆</h5>
+                                                        <p className="text-[11px] text-amber-900/70 font-semibold leading-tight mt-0.5">Se vem som leder i studion just nu.</p>
+                                                    </div>
+                                                    
+                                                    {/* Toggle buttons for weekly vs overall */}
+                                                    <div className="flex bg-amber-950/10 dark:bg-black/20 p-1 rounded-xl border border-amber-950/10 self-stretch sm:self-auto">
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => setSummerTabLeaderboard('weekly')}
+                                                            className={`flex-1 sm:flex-initial px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer ${
+                                                                summerTabLeaderboard === 'weekly'
+                                                                    ? 'bg-amber-950 text-amber-50 shadow-sm'
+                                                                    : 'text-amber-950/70 hover:text-amber-950'
+                                                            }`}
+                                                        >
+                                                            Denna vecka
+                                                        </button>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => setSummerTabLeaderboard('overall')}
+                                                            className={`flex-1 sm:flex-initial px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer ${
+                                                                summerTabLeaderboard === 'overall'
+                                                                    ? 'bg-amber-950 text-amber-50 shadow-sm'
+                                                                    : 'text-amber-950/70 hover:text-amber-950'
+                                                            }`}
+                                                        >
+                                                            Totalt
+                                                        </button>
+                                                    </div>
+                                                </div>
+
+                                                <div className="space-y-1.5 max-h-[240px] overflow-y-auto pr-1">
+                                                    {(() => {
+                                                        const sortedList = [...summerLeaderboardData]
+                                                            .map(item => ({
+                                                                ...item,
+                                                                score: summerTabLeaderboard === 'weekly' ? item.weeklyPoints : item.totalPoints
+                                                            }))
+                                                            .sort((a, b) => b.score - a.score || a.name.localeCompare(b.name));
+
+                                                        if (sortedList.length === 0) {
+                                                            return (
+                                                                <p className="text-xs text-center text-amber-900/60 py-4 font-bold">Inga deltagare än...</p>
+                                                            );
+                                                        }
+
+                                                        return sortedList.map((m, idx) => {
+                                                            const isMe = m.uid === userData.uid;
+                                                            let rankEmoji = '▫️';
+                                                            let rankColor = 'text-amber-950/60';
+                                                            let bgHighlight = 'bg-amber-50/40 dark:bg-amber-950/10 border border-amber-250/5';
+                                                            
+                                                            if (idx === 0) {
+                                                                rankEmoji = '👑';
+                                                                rankColor = 'text-yellow-600 font-extrabold';
+                                                                bgHighlight = 'bg-yellow-500/10 dark:bg-yellow-500/5 border border-yellow-500/20';
+                                                            } else if (idx === 1) {
+                                                                rankEmoji = '🥈';
+                                                                rankColor = 'text-slate-500 font-extrabold';
+                                                                bgHighlight = 'bg-slate-500/10 dark:bg-slate-500/5 border border-slate-500/15';
+                                                            } else if (idx === 2) {
+                                                                rankEmoji = '🥉';
+                                                                rankColor = 'text-amber-700 font-extrabold';
+                                                                bgHighlight = 'bg-amber-700/10 dark:bg-amber-700/5 border border-amber-700/15';
+                                                            }
+
+                                                            if (isMe) {
+                                                                bgHighlight = 'bg-orange-500/15 border-2 border-orange-500/30';
+                                                            }
+
+                                                            return (
+                                                                <div 
+                                                                    key={m.uid} 
+                                                                    className={`flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold ${bgHighlight} transition-all`}
+                                                                >
+                                                                    <div className="flex items-center gap-2.5 min-w-0 font-bold text-amber-950">
+                                                                        <span className={`w-5 text-center text-xs select-none ${rankColor}`}>
+                                                                            {idx < 3 ? rankEmoji : `${idx + 1}`}
+                                                                        </span>
+                                                                        {m.avatarUrl ? (
+                                                                            <img 
+                                                                                src={m.avatarUrl} 
+                                                                                alt={m.name} 
+                                                                                className="w-6 h-6 rounded-full object-cover border border-amber-950/10"
+                                                                                referrerPolicy="no-referrer"
+                                                                            />
+                                                                        ) : (
+                                                                            <div className="w-6 h-6 rounded-full bg-amber-950/10 dark:bg-amber-950/20 text-amber-955 flex items-center justify-center text-[10px] font-black border border-amber-950/10">
+                                                                                {m.name.substring(0, 2).toUpperCase()}
+                                                                            </div>
+                                                                        )}
+                                                                        <span className="truncate">
+                                                                            {m.name} {isMe ? '(Du)' : ''}
+                                                                        </span>
+                                                                    </div>
+                                                                    <span className="font-extrabold font-sans text-amber-955 bg-amber-950/10 px-2 py-0.5 rounded-lg text-[10px]">
+                                                                        {m.score} p
+                                                                    </span>
+                                                                </div>
+                                                            );
+                                                        });
+                                                    })()}
+                                                </div>
+                                            </div>
+
                                             {/* Point rules info */}
                                             <div className="space-y-2.5">
                                                 <div className="flex items-center gap-1.5">
@@ -2147,7 +2308,7 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                                                                 <button
                                                                     key={log.id || `${log.memberId}_${log.date}`}
                                                                     onClick={() => setSelectedPhoto(log)}
-                                                                    className="flex-shrink-0 w-28 text-left bg-white/5 rounded-2xl p-1 shadow-md border border-white/5 transition-transform hover:scale-[1.02]"
+                                                                    className="flex-shrink-0 w-28 text-left bg-amber-950/5 dark:bg-white/5 rounded-2xl p-1 shadow-md border border-amber-950/10 dark:border-white/5 transition-transform hover:scale-[1.02]"
                                                                 >
                                                                     <div className="relative w-full h-24 rounded-xl overflow-hidden mb-1">
                                                                         <img 
@@ -2156,7 +2317,7 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                                                                             className="w-full h-full object-cover"
                                                                         />
                                                                     </div>
-                                                                    <span className="block text-[9px] font-black text-gray-300 truncate px-1">
+                                                                    <span className="block text-[9px] font-black text-amber-950 dark:text-amber-50 truncate px-1">
                                                                         {log.memberName || 'Medlem'}
                                                                     </span>
                                                                 </button>
@@ -2173,15 +2334,18 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
 
                     {/* Compact, slim bottom-placed join card if user clicked "Kanske senare" */}
                     {isSummerThemeActive && !userData.joinedSummerChallenge && dismissedSummerChallenge && (
-                        <div className="relative overflow-hidden bg-gradient-to-br from-orange-400 via-amber-300 to-yellow-50 dark:from-orange-600/35 dark:via-amber-500/25 dark:to-yellow-500/10 text-amber-950 dark:text-amber-100 border border-amber-500/20 rounded-2xl p-4 sm:p-5 shadow-sm text-left animate-fade-in">
+                        <div className="relative overflow-hidden bg-gradient-to-br from-orange-500 via-amber-400 to-yellow-100 dark:from-orange-600 dark:via-amber-500 dark:to-yellow-200 text-amber-955 border-none rounded-[2rem] p-5 shadow-[0_12px_40px_rgba(249,115,22,0.18)] text-left animate-fade-in mb-3.5">
+                            {/* Sun rays backdrop */}
+                            <div className="absolute top-[-40px] right-[-40px] w-64 h-64 bg-white/10 rounded-full blur-[50px] pointer-events-none"></div>
+                            
                             <div className="flex sm:flex-row flex-col items-start sm:items-center justify-between gap-4 relative z-10 w-full">
                                 <div className="flex items-center gap-3">
                                     <span className="text-2xl animate-pulse select-none">🌻</span>
                                     <div>
-                                        <h4 className="text-xs sm:text-sm font-black text-amber-950 dark:text-amber-50 leading-tight uppercase tracking-wider">
+                                        <h4 className="text-xs sm:text-sm font-black text-amber-950 leading-tight uppercase tracking-wider">
                                             Sommarutmaningen 2026
                                         </h4>
-                                        <p className="text-[11px] font-bold text-amber-900/80 dark:text-amber-300 leading-tight mt-0.5 max-w-md">
+                                        <p className="text-[11px] font-bold text-amber-900/85 leading-tight mt-0.5 max-w-md">
                                             Sugen på att logga pass och öka temperaturen i gymmet ändå? Du kan gå med när som helst!
                                         </p>
                                     </div>
