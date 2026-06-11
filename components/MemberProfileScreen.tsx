@@ -1964,7 +1964,7 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                                                                         onClick={() => setIsEditingNextGoal(true)}
                                                                         className="w-full py-3 px-4 bg-amber-950/10 hover:bg-amber-950/15 text-amber-950 text-xs font-black uppercase tracking-wider rounded-xl transition-all flex items-center justify-center gap-2 border border-amber-950/10 cursor-pointer"
                                                                     >
-                                                                        ⚙️ Redigera mitt veckomål för nästa vecka ({myGoalNextWeek} p)
+                                                                        Redigera mitt veckomål
                                                                     </button>
                                                                 ) : (
                                                                     <div className="bg-amber-950/5 rounded-xl p-3 border border-amber-250/10 animate-fade-in">
