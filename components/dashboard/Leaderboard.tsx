@@ -30,7 +30,11 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ organizationId }) => {
     const [selectedLocationIdState, setSelectedLocationIdState] = useState<string | 'all'>('all');
 
     const configToUse = useMemo(() => {
-        const base = (selectedOrganization?.globalConfig || studioConfig || {}) as any;
+        const base = {
+            ...(selectedOrganization || {}),
+            ...(selectedOrganization?.globalConfig || {}),
+            ...(studioConfig || {})
+        } as any;
         if (globalChallenge) {
             return {
                 ...base,

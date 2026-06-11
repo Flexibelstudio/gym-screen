@@ -2005,12 +2005,12 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                                                                     />
                                                                 </div>
 
-                                                                <p className={`text-xs sm:text-sm tracking-tight leading-relaxed font-black rounded-xl p-2.5 text-center border shadow-inner ${
+                                                                <p className={`text-xs sm:text-sm tracking-tight leading-relaxed font-black text-center ${
                                                                     personalFeedback.includes('Överhettning')
-                                                                        ? 'bg-red-700 text-white border-red-800 shadow-md dark:bg-red-700 dark:text-white dark:border-red-800'
+                                                                        ? 'text-red-650 dark:text-red-400'
                                                                         : personalFeedback.includes('Målet')
-                                                                        ? 'bg-amber-900 text-white border-amber-950 shadow-md dark:bg-amber-900 dark:text-white dark:border-amber-950'
-                                                                        : 'bg-amber-950/20 text-amber-950 border-amber-950/10 dark:bg-amber-950/20 dark:text-amber-950 dark:border-amber-950/10'
+                                                                        ? 'text-amber-950 dark:text-amber-300'
+                                                                        : 'text-amber-900/80 dark:text-amber-400 font-bold'
                                                                 } mb-4`}>
                                                                     {personalFeedback}
                                                                 </p>
@@ -2111,115 +2111,6 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                                                     );
                                                 })()
                                             )}
-
-                                            {/* Topplista för utmaningen */}
-                                            <div className="bg-amber-50/70 dark:bg-amber-955/20 backdrop-blur-md rounded-2xl p-4 sm:p-5 border border-amber-200/35 text-amber-955 animate-fade-in text-left">
-                                                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-4">
-                                                    <div>
-                                                        <h5 className="text-xs font-black text-amber-950 uppercase tracking-wider">Utmaningens Topplista 🏆</h5>
-                                                        <p className="text-[11px] text-amber-900/70 font-semibold leading-tight mt-0.5">Se vem som leder i studion just nu.</p>
-                                                    </div>
-                                                    
-                                                    {/* Toggle buttons for weekly vs overall */}
-                                                    <div className="flex bg-amber-950/10 dark:bg-black/20 p-1 rounded-xl border border-amber-950/10 self-stretch sm:self-auto">
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => setSummerTabLeaderboard('weekly')}
-                                                            className={`flex-1 sm:flex-initial px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer ${
-                                                                summerTabLeaderboard === 'weekly'
-                                                                    ? 'bg-amber-950 text-amber-50 shadow-sm'
-                                                                    : 'text-amber-950/70 hover:text-amber-950'
-                                                            }`}
-                                                        >
-                                                            Denna vecka
-                                                        </button>
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => setSummerTabLeaderboard('overall')}
-                                                            className={`flex-1 sm:flex-initial px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer ${
-                                                                summerTabLeaderboard === 'overall'
-                                                                    ? 'bg-amber-950 text-amber-50 shadow-sm'
-                                                                    : 'text-amber-950/70 hover:text-amber-950'
-                                                            }`}
-                                                        >
-                                                            Totalt
-                                                        </button>
-                                                    </div>
-                                                </div>
-
-                                                <div className="space-y-1.5 max-h-[240px] overflow-y-auto pr-1">
-                                                    {(() => {
-                                                        const sortedList = [...summerLeaderboardData]
-                                                            .map(item => ({
-                                                                ...item,
-                                                                score: summerTabLeaderboard === 'weekly' ? item.weeklyPoints : item.totalPoints
-                                                            }))
-                                                            .sort((a, b) => b.score - a.score || a.name.localeCompare(b.name));
-
-                                                        if (sortedList.length === 0) {
-                                                            return (
-                                                                <p className="text-xs text-center text-amber-900/60 py-4 font-bold">Inga deltagare än...</p>
-                                                            );
-                                                        }
-
-                                                        return sortedList.map((m, idx) => {
-                                                            const isMe = m.uid === userData.uid;
-                                                            let rankEmoji = '▫️';
-                                                            let rankColor = 'text-amber-950/60';
-                                                            let bgHighlight = 'bg-amber-50/40 dark:bg-amber-950/10 border border-amber-250/5';
-                                                            
-                                                            if (idx === 0) {
-                                                                rankEmoji = '👑';
-                                                                rankColor = 'text-yellow-600 font-extrabold';
-                                                                bgHighlight = 'bg-yellow-500/10 dark:bg-yellow-500/5 border border-yellow-500/20';
-                                                            } else if (idx === 1) {
-                                                                rankEmoji = '🥈';
-                                                                rankColor = 'text-slate-500 font-extrabold';
-                                                                bgHighlight = 'bg-slate-500/10 dark:bg-slate-500/5 border border-slate-500/15';
-                                                            } else if (idx === 2) {
-                                                                rankEmoji = '🥉';
-                                                                rankColor = 'text-amber-700 font-extrabold';
-                                                                bgHighlight = 'bg-amber-700/10 dark:bg-amber-700/5 border border-amber-700/15';
-                                                            }
-
-                                                            if (isMe) {
-                                                                bgHighlight = 'bg-orange-500/15 border-2 border-orange-500/30';
-                                                            }
-
-                                                            return (
-                                                                <div 
-                                                                    key={m.uid} 
-                                                                    className={`flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold ${bgHighlight} transition-all`}
-                                                                >
-                                                                    <div className="flex items-center gap-2.5 min-w-0 font-bold text-amber-950">
-                                                                        <span className={`w-5 text-center text-xs select-none ${rankColor}`}>
-                                                                            {idx < 3 ? rankEmoji : `${idx + 1}`}
-                                                                        </span>
-                                                                        {m.avatarUrl ? (
-                                                                            <img 
-                                                                                src={m.avatarUrl} 
-                                                                                alt={m.name} 
-                                                                                className="w-6 h-6 rounded-full object-cover border border-amber-950/10"
-                                                                                referrerPolicy="no-referrer"
-                                                                            />
-                                                                        ) : (
-                                                                            <div className="w-6 h-6 rounded-full bg-amber-950/10 dark:bg-amber-950/20 text-amber-955 flex items-center justify-center text-[10px] font-black border border-amber-950/10">
-                                                                                {m.name.substring(0, 2).toUpperCase()}
-                                                                            </div>
-                                                                        )}
-                                                                        <span className="truncate">
-                                                                            {m.name} {isMe ? '(Du)' : ''}
-                                                                        </span>
-                                                                    </div>
-                                                                    <span className="font-extrabold font-sans text-amber-955 bg-amber-950/10 px-2 py-0.5 rounded-lg text-[10px]">
-                                                                        {m.score} p
-                                                                    </span>
-                                                                </div>
-                                                            );
-                                                        });
-                                                    })()}
-                                                </div>
-                                            </div>
 
                                             {/* Point rules info */}
                                             <div className="space-y-2.5">
