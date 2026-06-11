@@ -560,6 +560,8 @@ export interface WorkoutLog {
     locationId?: string; // NYTT: Ort/Studio där passet loggades eller användaren tillhör
     imageUrl?: string; // NYTT: Alternativ sommarfeedsbild bifogad till passet
     summerPoints?: number; // NYTT: Poäng i sommarutmaningen (1, 2 eller 3)
+    reachedSummerGoal?: boolean; // NYTT: Om användaren uppnått veckans sommar mål med detta pass
+    overDeliveredSummerGoal?: boolean; // NYTT: Om användaren passerat sitt veckomål
 }
 
 export interface CheckInEvent {

@@ -247,6 +247,36 @@ const App: React.FC = () => {
     };
   }, []);
 
+  // --- SERVICE WORKER AUTO-UPDATE & FRESH PUSHES ---
+  useEffect(() => {
+    if (typeof window === 'undefined' || !('serviceWorker' in navigator)) return;
+
+    // Listen for the controllerchange event. This fires when a new service worker 
+    // takes over (usually because it downloaded a new push and called skipWaiting() + clients.claim()).
+    const handleControllerChange = () => {
+      console.log('New Service Worker activated! Reloading page to load the latest code...');
+      window.location.reload();
+    };
+
+    navigator.serviceWorker.addEventListener('controllerchange', handleControllerChange);
+
+    // To make sure a long-running/permanent screen checks for updates periodically 
+    // (even if no manual navigation/reload is done), check for updates every 15 minutes.
+    const intervalId = setInterval(() => {
+      navigator.serviceWorker.ready.then((registration) => {
+        console.log('Checking for service worker updates periodically...');
+        registration.update().catch((err) => {
+          console.warn('Failed to update service worker registration:', err);
+        });
+      });
+    }, 15 * 60 * 1000); // 15 minutes
+
+    return () => {
+      navigator.serviceWorker.removeEventListener('controllerchange', handleControllerChange);
+      clearInterval(intervalId);
+    };
+  }, []);
+
   useEffect(() => {
     window.scrollTo(0, 0);
     pageEntryTimestampRef.current = Date.now();
