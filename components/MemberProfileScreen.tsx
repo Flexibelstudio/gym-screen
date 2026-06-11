@@ -1917,7 +1917,7 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                                                                         <p className="text-base font-extrabold text-amber-950">{summerStats.totalPoints} poäng</p>
                                                                     </div>
                                                                     <div>
-                                                                        <p className="text-xs font-black text-amber-900/60 uppercase tracking-wider mb-0.5">Klubbens veckomål (Låst)</p>
+                                                                        <p className="text-xs font-black text-amber-900/60 uppercase tracking-wider mb-0.5">Klubbens veckomål </p>
                                                                         <p className="text-base font-extrabold text-amber-950">
                                                                             {summerStats.clubWeeklyTarget} poäng
                                                                         </p>
