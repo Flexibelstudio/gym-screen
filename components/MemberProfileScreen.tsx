@@ -1785,9 +1785,9 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                                 className="w-full px-5 py-4 sm:px-6 sm:py-5 flex items-center justify-between text-left focus:outline-none bg-black/5 hover:bg-black/10 transition-all duration-150"
                             >
                                 <div className="flex items-center gap-3">
-                                    <span className="text-2xl select-none animate-bounce origin-bottom [animation-duration:3s]">🌻</span>
+                                    <span className="text-2xl select-none animate-bounce origin-bottom [animation-duration:3s]">☀️</span>
                                     <div>
-                                        <span className="text-xs font-black tracking-widest text-orange-950/75 uppercase block leading-none mb-1">Du deltar i utmaningen! ☀️</span>
+                                        <span className="text-xs font-black tracking-widest text-orange-950/75 uppercase block leading-none mb-1">Du deltar i utmaningen! </span>
                                         <span className="text-xs sm:text-sm font-extrabold text-amber-950 leading-none">
                                             {!isChallengeStarted ? (
                                                 <span>Utmaningen startar snart! ⏳</span>
