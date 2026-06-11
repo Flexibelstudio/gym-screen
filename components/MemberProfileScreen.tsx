@@ -1678,7 +1678,8 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                             <div className="absolute -right-2 -bottom-2 text-white opacity-20 transform -rotate-12 transition-transform group-hover:scale-110">
                                 <ChartBarIcon className="w-16 h-16" />
                             </div>
-                            <span className="block text-[10px] font-black text-white/80 uppercase tracking-widest mb-1 relative z-10">{new Date().toLocaleString('sv-SE', { month: 'long' })}</span>
+                            <span className="block text-[8px] font-black text-white/70 uppercase tracking-widest leading-none mb-1 relative z-10">Totalt antal pass i</span>
+                            <span className="block text-xs font-black text-white uppercase tracking-widest mb-1 relative z-10">{new Date().toLocaleString('sv-SE', { month: 'long' })}</span>
                             <p className="text-3xl sm:text-4xl font-black text-white leading-none tracking-tight relative z-10">{stats.thisMonth}</p>
                         </div>
 
@@ -1787,7 +1788,7 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                                 <div className="flex items-center gap-3">
                                     <span className="text-2xl select-none animate-bounce origin-bottom [animation-duration:3s]">☀️</span>
                                     <div>
-                                        <span className="text-xs font-black tracking-widest text-orange-950/75 uppercase block leading-none mb-1">Du deltar i utmaningen! </span>
+                                        <span className="text-xs font-black tracking-widest text-orange-950/75 uppercase block leading-none mb-1">Du deltar i utmaningen!</span>
                                         <span className="text-xs sm:text-sm font-extrabold text-amber-950 leading-none">
                                             {!isChallengeStarted ? (
                                                 <span>Utmaningen startar snart! ⏳</span>
@@ -1894,7 +1895,7 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                                                             <div className="bg-amber-50/70 dark:bg-amber-955/20 backdrop-blur-md rounded-2xl p-4 sm:p-5 border border-amber-200/35 relative overflow-hidden shadow-sm text-amber-950">
                                                                 <div className="flex justify-between items-start select-none">
                                                                     <div>
-                                                                        <p className="text-xs font-bold text-amber-900 uppercase tracking-widest mb-1.5 font-black font-sans">Gymmet tillsammans </p>
+                                                                        <p className="text-xs font-bold text-amber-900 uppercase tracking-widest mb-1.5 font-black font-sans">Gymmet tillsammans ☀️</p>
                                                                         <h3 className="text-3xl sm:text-4xl font-black text-amber-950 tracking-tight mb-1 flex items-center gap-2">
                                                                             <span>{summerStats.label} ({summerStats.completedPercentage}%)</span>
                                                                             <span className="text-2xl sm:text-3xl">{summerStats.emoji}</span>
@@ -1917,7 +1918,7 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                                                                         <p className="text-base font-extrabold text-amber-950">{summerStats.totalPoints} poäng</p>
                                                                     </div>
                                                                     <div>
-                                                                        <p className="text-xs font-black text-amber-900/60 uppercase tracking-wider mb-0.5">Klubbens veckomål </p>
+                                                                        <p className="text-xs font-black text-amber-900/60 uppercase tracking-wider mb-0.5">Klubbens veckomål</p>
                                                                         <p className="text-base font-extrabold text-amber-950">
                                                                             {summerStats.clubWeeklyTarget} poäng
                                                                         </p>
@@ -1952,7 +1953,13 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                                                                     />
                                                                 </div>
 
-                                                                <p className="text-xs sm:text-sm font-bold text-amber-900/75 dark:text-amber-100/85 tracking-tight leading-relaxed italic mb-4">
+                                                                <p className={`text-xs sm:text-sm tracking-tight leading-relaxed font-black rounded-xl p-2.5 text-center border shadow-inner ${
+                                                                    personalFeedback.includes('Överhettning')
+                                                                        ? 'bg-red-500/10 text-red-950 border-red-500/15 dark:bg-red-500/20 dark:text-red-100 dark:border-red-500/30'
+                                                                        : personalFeedback.includes('Målet')
+                                                                        ? 'bg-amber-500/15 text-amber-950 border-amber-500/15 dark:bg-amber-500/25 dark:text-amber-50 dark:border-amber-500/30'
+                                                                        : 'bg-white/40 text-amber-950 border-amber-950/5 dark:bg-white/5 dark:text-amber-50 dark:border-white/5'
+                                                                } mb-4`}>
                                                                     {personalFeedback}
                                                                 </p>
 
@@ -1964,7 +1971,7 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                                                                         onClick={() => setIsEditingNextGoal(true)}
                                                                         className="w-full py-3 px-4 bg-amber-950/10 hover:bg-amber-950/15 text-amber-950 text-xs font-black uppercase tracking-wider rounded-xl transition-all flex items-center justify-center gap-2 border border-amber-950/10 cursor-pointer"
                                                                     >
-                                                                        Redigera mitt veckomål
+                                                                        Redigera mitt veckomål p)
                                                                     </button>
                                                                 ) : (
                                                                     <div className="bg-amber-950/5 rounded-xl p-3 border border-amber-250/10 animate-fade-in">
@@ -2119,15 +2126,15 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
 
                                             {/* Photo feed inline */}
                                             {filteredCommunityLogs.filter(log => log.imageUrl && log.imageUrl.trim() !== '').length > 0 && (
-                                                <div className="space-y-3 pt-4 border-t border-white/5">
-                                                    <div className="flex justify-between items-center">
-                                                        <h5 className="text-xs font-black uppercase tracking-wider text-gray-400 flex items-center gap-1.5">
+                                                <div className="space-y-3 pt-4 border-t border-amber-950/10 dark:border-white/5 animate-fade-in">
+                                                    <div className="flex justify-between items-center mb-1">
+                                                        <h5 className="text-[11px] sm:text-xs font-black uppercase tracking-wider text-amber-950/80 dark:text-amber-950/90 flex items-center gap-1.5">
                                                             <span>📸</span> Sommarfeeden i gymmet
                                                         </h5>
                                                         <button 
                                                             type="button"
                                                             onClick={() => setIsShowingAllPhotos(true)}
-                                                            className="text-xs font-black uppercase tracking-wider text-primary hover:underline px-2.5 py-1.5 bg-white/5 rounded-lg border border-white/5 transition-colors hover:bg-white/10"
+                                                            className="text-[10px] font-black uppercase tracking-wider text-amber-50 bg-amber-950 hover:bg-amber-900 active:scale-95 px-3 py-1.5 rounded-xl transition-all shadow-sm cursor-pointer"
                                                         >
                                                             Se alla ({filteredCommunityLogs.filter(log => log.imageUrl && log.imageUrl.trim() !== '').length})
                                                         </button>
@@ -2161,6 +2168,40 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                                     </motion.div>
                                 )}
                             </AnimatePresence>
+                        </div>
+                    )}
+
+                    {/* Compact, slim bottom-placed join card if user clicked "Kanske senare" */}
+                    {isSummerThemeActive && !userData.joinedSummerChallenge && dismissedSummerChallenge && (
+                        <div className="relative overflow-hidden bg-gradient-to-br from-orange-400 via-amber-300 to-yellow-50 dark:from-orange-600/35 dark:via-amber-500/25 dark:to-yellow-500/10 text-amber-950 dark:text-amber-100 border border-amber-500/20 rounded-2xl p-4 sm:p-5 shadow-sm text-left animate-fade-in">
+                            <div className="flex sm:flex-row flex-col items-start sm:items-center justify-between gap-4 relative z-10 w-full">
+                                <div className="flex items-center gap-3">
+                                    <span className="text-2xl animate-pulse select-none">🌻</span>
+                                    <div>
+                                        <h4 className="text-xs sm:text-sm font-black text-amber-950 dark:text-amber-50 leading-tight uppercase tracking-wider">
+                                            Sommarutmaningen 2026
+                                        </h4>
+                                        <p className="text-[11px] font-bold text-amber-900/80 dark:text-amber-300 leading-tight mt-0.5 max-w-md">
+                                            Sugen på att logga pass och öka temperaturen i gymmet ändå? Du kan gå med när som helst!
+                                        </p>
+                                    </div>
+                                </div>
+                                <button
+                                    onClick={async () => {
+                                        try {
+                                            await updateUserProfile(userData.uid, { joinedSummerChallenge: true, joinedSummerChallengeAt: Date.now() } as any);
+                                            setJustActivatedSummer(true);
+                                            const confetti = await import('canvas-confetti');
+                                            confetti.default({ particleCount: 150, spread: 80, origin: { y: 0.6 } });
+                                        } catch (err) {
+                                            console.error("Kunde inte gå med i utmaningen:", err);
+                                        }
+                                    }}
+                                    className="sm:w-auto w-full px-5 py-2.5 bg-amber-950 hover:bg-amber-900 text-amber-50 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all shadow-sm hover:shadow-orange-700/25 active:scale-95 duration-100 cursor-pointer text-center"
+                                >
+                                    Gå med nu! ☀️
+                                </button>
+                            </div>
                         </div>
                     )}
 
