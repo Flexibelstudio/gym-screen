@@ -686,6 +686,7 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
     const [showFormulaInfo, setShowFormulaInfo] = useState(false);
     const [justSavedGoalMsg, setJustSavedGoalMsg] = useState('');
     const [isEditingNextGoal, setIsEditingNextGoal] = useState(false);
+    const [globalChallenge, setGlobalChallenge] = useState<any>(null);
     const [dismissedSummerChallenge, setDismissedSummerChallenge] = useState(() => {
         if (typeof window !== 'undefined' && userData?.uid) {
             return localStorage.getItem(`dismissed-summer-challenge-${userData.uid}`) === 'true';
@@ -702,23 +703,44 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
 
     useEffect(() => {
         const activeTheme = !!(studioConfig?.enableSummerChallenge || selectedOrganization?.globalConfig?.enableSummerChallenge);
-        if (!activeTheme || !userData.organizationId) return;
+        if (!activeTheme) return;
+        
+        let unsubChallenge = () => {};
+        import('../services/firebaseService').then(({ listenToGlobalSummerChallenge }) => {
+            unsubChallenge = listenToGlobalSummerChallenge((data) => {
+                setGlobalChallenge(data);
+            });
+        });
+
+        if (!userData.organizationId) return;
+        let unsubMembers = () => {};
         import('../services/firebaseService').then(({ listenToMembers }) => {
-            const unsubscribe = listenToMembers(userData.organizationId!, (members) => {
+            unsubMembers = listenToMembers(userData.organizationId!, (members) => {
                 setMembersList(members);
             });
-            return () => unsubscribe();
         });
+
+        return () => {
+            unsubChallenge();
+            unsubMembers();
+        };
     }, [studioConfig, selectedOrganization, userData.organizationId]);
 
     const configToUse = useMemo(() => {
-        if (!selectedOrganization) return studioConfig || {};
-        return {
+        const base = !selectedOrganization ? (studioConfig || {}) : {
             ...(selectedOrganization || {}),
             ...(selectedOrganization.globalConfig || {}),
             ...(studioConfig || {})
-        } as any;
-    }, [studioConfig, selectedOrganization]);
+        };
+        if (globalChallenge) {
+            return {
+                ...base,
+                summerChallengeStartDate: globalChallenge.startDate,
+                summerChallengeEndDate: globalChallenge.endDate
+            } as any;
+        }
+        return base as any;
+    }, [studioConfig, selectedOrganization, globalChallenge]);
 
     const isSummerThemeActive = useMemo(() => {
         return !!configToUse?.enableSummerChallenge;
