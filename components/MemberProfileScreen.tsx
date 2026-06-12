@@ -2040,36 +2040,9 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
 
                                                     return (
                                                         <div className="space-y-4">
-                                                            {/* Utmaningens tidsperiod & Nedräkning */}
-                                                            {configToUse?.summerChallengeStartDate && configToUse?.summerChallengeEndDate && (
-                                                                <div className="bg-gradient-to-r from-amber-500/10 to-orange-500/10 dark:from-amber-500/5 dark:to-orange-500/5 rounded-2xl p-4 border border-amber-500/20 text-amber-950 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-sm select-none">
-                                                                    <div className="space-y-0.5">
-                                                                        <div className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider text-amber-800 dark:text-amber-400 font-sans">
-                                                                            <span>📅</span> Kampanjperiod
-                                                                        </div>
-                                                                        <div className="text-xs font-black dark:text-amber-105">
-                                                                            {new Date(configToUse.summerChallengeStartDate).toLocaleDateString('sv-SE', { day: 'numeric', month: 'short' })}
-                                                                            {" - "}
-                                                                            {new Date(configToUse.summerChallengeEndDate).toLocaleDateString('sv-SE', { day: 'numeric', month: 'short', year: 'numeric' })}
-                                                                        </div>
-                                                                        {userData?.joinedSummerChallengeAt && (
-                                                                            <div className="text-[10px] text-emerald-800 dark:text-emerald-400 font-bold mt-1 flex items-center gap-1">
-                                                                                <span className="text-emerald-650">✓</span> Du gick med: {new Date(userData.joinedSummerChallengeAt).toLocaleDateString('sv-SE', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
-                                                                            </div>
-                                                                        )}
-                                                                    </div>
-                                                                    <div className="flex flex-col gap-1 select-none items-start sm:items-end font-sans shrink-0">
-                                                                        <div className="flex items-center gap-1 text-[10px] uppercase tracking-wider font-extrabold text-amber-900 dark:text-amber-400 font-sans justify-start sm:justify-end">
-                                                                            <span>⏳</span> TID KVAR:
-                                                                        </div>
-                                                                        {countdownToEnd !== null ? (
-                                                                            <div className="bg-amber-955/15 dark:bg-amber-100/10 px-3 py-1.5 rounded-xl font-black text-amber-955 dark:text-amber-100 text-xs sm:text-sm">
-                                                                                {countdownToEnd === 0 ? "Avslutas idag!" : countdownToEnd === 1 ? "1 dag kvar!" : `${countdownToEnd} dagar kvar`}
-                                                                            </div>
-                                                                        ) : (
-                                                                            <span className="text-[10px] font-black uppercase text-red-650 bg-red-500/10 px-2 py-1 rounded-lg text-center font-sans">Avslutad</span>
-                                                                        )}
-                                                                    </div>
+                                                            {userData?.joinedSummerChallengeAt && (
+                                                                <div className="text-[11px] text-emerald-800 dark:text-emerald-400 font-extrabold flex items-center gap-1.5 px-1 py-0.5 select-none animate-fade-in">
+                                                                    <span>✓</span> Du gick med i utmaningen: {new Date(userData.joinedSummerChallengeAt).toLocaleDateString('sv-SE', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
                                                                 </div>
                                                             )}
 

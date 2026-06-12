@@ -2220,8 +2220,15 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
                                     {/* Collapsible Block Header */}
                                     <button
                                         type="button"
-                                        onClick={() => {
+                                        onClick={(e) => {
+                                            const target = e.currentTarget;
+                                            const isNowExpanded = expandedBlockId !== group.blockId;
                                             setExpandedBlockId(prev => prev === group.blockId ? null : group.blockId);
+                                            if (isNowExpanded) {
+                                                setTimeout(() => {
+                                                    target?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                                                }, 120);
+                                            }
                                         }}
                                         className={`w-full text-left p-4 rounded-2xl border transition-all flex items-center justify-between select-none ${headerBgClass}`}
                                     >
@@ -2330,11 +2337,18 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
                                                                     {/* Superset Header */}
                                                                     <button
                                                                         type="button"
-                                                                        onClick={() => {
+                                                                        onClick={(e) => {
+                                                                            const target = e.currentTarget;
+                                                                            const isNowExpanded = !isSubExpanded;
                                                                             setExpandedSubGroups(prev => ({
                                                                                 ...prev,
-                                                                                [subGroup.groupId!]: !isSubExpanded
+                                                                                [subGroup.groupId!]: isNowExpanded
                                                                             }));
+                                                                            if (isNowExpanded) {
+                                                                                setTimeout(() => {
+                                                                                    target?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                                                                                }, 120);
+                                                                            }
                                                                         }}
                                                                         className={`w-full text-left p-3 flex items-center justify-between select-none transition-colors ${headerBg} ${borderLeftClass} ${textHover}`}
                                                                     >
