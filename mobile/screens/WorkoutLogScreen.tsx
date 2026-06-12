@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { getMemberLogs, getWorkoutsForOrganization, saveWorkoutLog, uploadImage, updateWorkoutLog, deleteWorkoutLog, getOrganizationExerciseBank, getMemberCustomExercises, addMemberCustomExercise, deleteMemberCustomExercise, updateMemberCustomExercise } from '../../services/firebaseService';
+import { getMemberLogs, getWorkoutsForOrganization, saveWorkoutLog, uploadImage, updateWorkoutLog, deleteWorkoutLog, getOrganizationExerciseBank, getMemberCustomExercises, addMemberCustomExercise, deleteMemberCustomExercise, updateMemberCustomExercise, listenToPersonalBests } from '../../services/firebaseService';
 import { generateSingleMemberInsight, InsightContent, MemberInsightResponse, generateWorkoutDiploma, generateImage, getExerciseDagsformAdvice, ExerciseDagsformAdvice } from '../../services/geminiService';
 import { useAuth } from '../../context/AuthContext'; 
 import { useWorkout } from '../../context/WorkoutContext'; 
@@ -8,7 +8,7 @@ import { CloseIcon, SparklesIcon, FireIcon, InformationCircleIcon, LightningIcon
 import { Modal } from '../../components/ui/Modal';
 import { ConfirmModal } from '../../components/ui/ConfirmModal';
 import { calculate1RM } from '../../utils/workoutUtils';
-import { ExerciseResult, MemberFeeling, WorkoutDiploma, WorkoutLog, BenchmarkDefinition, BankExercise, Workout } from '../../types';
+import { ExerciseResult, MemberFeeling, WorkoutDiploma, WorkoutLog, BenchmarkDefinition, BankExercise, Workout, PersonalBest } from '../../types';
 import { MOCK_EXERCISE_BANK } from '../../data/mockData';
 import { saveCustomProgram, fetchCustomPrograms } from '../../services/firebaseService';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -407,10 +407,11 @@ const ExerciseLogCard: React.FC<{
   aiSuggestion?: string; // Koncept 1: Coach Whisper
   scaling?: string;      // Koncept 1: Alternativ
   lastPerformance?: { weight: number, reps: string, note?: string } | null;
+  personalBest?: PersonalBest | null;
   isLastInGroup?: boolean;
   onAddGroupSet?: () => void;
   onOpenCalculator?: (context: { exerciseName: string, current1RM?: number }) => void;
-}> = ({ name, result, onUpdate, onRemove, aiSuggestion, scaling, lastPerformance, isLastInGroup, onAddGroupSet, onOpenCalculator }) => {
+}> = ({ name, result, onUpdate, onRemove, aiSuggestion, scaling, lastPerformance, personalBest, isLastInGroup, onAddGroupSet, onOpenCalculator }) => {
     
     const trackingFields = result.trackingFields || ['reps', 'weight'];
     const showReps = trackingFields.includes('reps');
@@ -495,8 +496,21 @@ const ExerciseLogCard: React.FC<{
                         {onOpenCalculator && (
                             <button 
                                 onClick={() => {
-                                    const estimatedOneRM = lastPerformance ? calculate1RM(lastPerformance.weight, lastPerformance.reps) : undefined;
-                                    onOpenCalculator({ exerciseName: name, current1RM: estimatedOneRM || undefined });
+                                    let estimatedOneRM: number | undefined = undefined;
+                                    if (personalBest) {
+                                        if (personalBest.calculated1RM !== undefined) {
+                                            estimatedOneRM = personalBest.calculated1RM > 0 ? personalBest.calculated1RM : undefined;
+                                        } else if (personalBest.weight > 0) {
+                                            estimatedOneRM = calculate1RM(personalBest.weight, personalBest.reps || 1) || undefined;
+                                        }
+                                    } else if (lastPerformance) {
+                                        const lastWeight = parseFloat(lastPerformance.weight as any) || 0;
+                                        const lastReps = parseFloat(lastPerformance.reps as any) || 0;
+                                        if (lastWeight > 0 && lastReps > 0 && lastReps <= 10) {
+                                            estimatedOneRM = calculate1RM(lastWeight, lastReps) || undefined;
+                                        }
+                                    }
+                                    onOpenCalculator({ exerciseName: name, current1RM: estimatedOneRM });
                                 }}
                                 className="p-3 rounded-2xl transition-all active:scale-90 bg-gray-50 dark:bg-gray-800 text-primary hover:bg-primary/20 dark:hover:bg-primary/20 shadow-sm"
                             >
@@ -1080,6 +1094,32 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
   const [inStudio, setInStudio] = useState<boolean | null>(scanSource === 'qr_scan' ? true : null);
 
   const [history, setHistory] = useState<Record<string, { weight: number, reps: string }>>({}); 
+  const [personalBests, setPersonalBests] = useState<Record<string, PersonalBest>>({});
+
+  useEffect(() => {
+      if (!userId) return;
+      try {
+          const unsubscribe = listenToPersonalBests(
+              userId,
+              (data) => {
+                  const pbMap: Record<string, PersonalBest> = {};
+                  data.forEach(pb => {
+                      if (pb && pb.exerciseName) {
+                          pbMap[pb.exerciseName.toLowerCase().trim()] = pb;
+                      }
+                  });
+                  setPersonalBests(pbMap);
+              },
+              (err) => {
+                  console.error("listenToPersonalBests subscription error in WorkoutLogScreen", err);
+              }
+          );
+          return () => unsubscribe();
+      } catch (e) {
+          console.error("Failed to register listenToPersonalBests in WorkoutLogScreen", e);
+      }
+  }, [userId]);
+
   const [aiInsight, setAiInsight] = useState<InsightContent | null>(null);
   const [isGeneratingInsight, setIsGeneratingInsight] = useState(false);
   const [exerciseBank, setExerciseBank] = useState<BankExercise[]>(MOCK_EXERCISE_BANK);
@@ -1316,7 +1356,27 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
                 const historyMap: Record<string, { weight: number, reps: string, note?: string }> = {};
                 
                 exercises.forEach(currentEx => {
-                    const match = logs.find(log => log.exerciseResults?.some(logEx => isExerciseMatch(currentEx.exerciseName, currentEx.exerciseId, logEx.exerciseName, logEx.exerciseId)));
+                    const hasRealPerformance = (logEx: any) => {
+                        if (logEx.setDetails && logEx.setDetails.length > 0) {
+                            return logEx.setDetails.some((s: any) => (parseFloat(String(s.weight)) || 0) > 0 || (parseFloat(String(s.reps)) || 0) > 0);
+                        }
+                        return (parseFloat(String(logEx.weight)) || 0) > 0 || (parseFloat(String(logEx.reps)) || 0) > 0;
+                    };
+
+                    let match = logs.find(log => 
+                        log.exerciseResults?.some(logEx => 
+                            isExerciseMatch(currentEx.exerciseName, currentEx.exerciseId, logEx.exerciseName, logEx.exerciseId) &&
+                            hasRealPerformance(logEx)
+                        )
+                    );
+                    
+                    if (!match) {
+                        match = logs.find(log => 
+                            log.exerciseResults?.some(logEx => 
+                                isExerciseMatch(currentEx.exerciseName, currentEx.exerciseId, logEx.exerciseName, logEx.exerciseId)
+                            )
+                        );
+                    }
                     
                     let mostRecentNote: string | undefined = undefined;
                     const logWithNote = logs.find(log => log.exerciseResults?.some(logEx => isExerciseMatch(currentEx.exerciseName, currentEx.exerciseId, logEx.exerciseName, logEx.exerciseId) && logEx.note));
@@ -1388,7 +1448,27 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
                  if (loadedResults) {
                      const historyMap: Record<string, { weight: number, reps: string, note?: string }> = {};
                      loadedResults.forEach(currentEx => {
-                         const match = logs.find(log => log.exerciseResults?.some(logEx => logEx.exerciseName.toLowerCase() === currentEx.exerciseName.toLowerCase()));
+                         const hasRealPerformance = (logEx: any) => {
+							if (logEx.setDetails && logEx.setDetails.length > 0) {
+								return logEx.setDetails.some((s: any) => (parseFloat(String(s.weight)) || 0) > 0 || (parseFloat(String(s.reps)) || 0) > 0);
+							}
+							return (parseFloat(String(logEx.weight)) || 0) > 0 || (parseFloat(String(logEx.reps)) || 0) > 0;
+						};
+
+						let match = logs.find(log => 
+							log.exerciseResults?.some(logEx => 
+								logEx.exerciseName.toLowerCase() === currentEx.exerciseName.toLowerCase() &&
+								hasRealPerformance(logEx)
+							)
+						);
+
+						if (!match) {
+							match = logs.find(log => 
+								log.exerciseResults?.some(logEx => 
+									logEx.exerciseName.toLowerCase() === currentEx.exerciseName.toLowerCase()
+								)
+							);
+						}
 
                          let mostRecentNote: string | undefined = undefined;
                          const logWithNote = logs.find(log => log.exerciseResults?.some(logEx => logEx.exerciseName.toLowerCase() === currentEx.exerciseName.toLowerCase() && logEx.note));
@@ -2066,6 +2146,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
                                         aiSuggestion={activeInsight?.suggestions?.[result.exerciseName]} 
                                         scaling={activeInsight?.scaling?.[result.exerciseName]} 
                                         lastPerformance={history[result.exerciseName]} 
+                                        personalBest={personalBests[result.exerciseName.toLowerCase().trim()]}
                                         isLastInGroup={isLastInGroup}
                                         onAddGroupSet={() => handleAddGroupSet(result.groupId!)}
                                         onOpenCalculator={(ctx) => {
@@ -2298,6 +2379,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
                                                                                             aiSuggestion={activeInsight?.suggestions?.[result.exerciseName]} 
                                                                                             scaling={activeInsight?.scaling?.[result.exerciseName]} 
                                                                                             lastPerformance={history[result.exerciseName]} 
+                                                                                            personalBest={personalBests[result.exerciseName.toLowerCase().trim()]}
                                                                                             isLastInGroup={isLastInGroup}
                                                                                             onAddGroupSet={() => handleAddGroupSet(result.groupId!)}
                                                                                             onOpenCalculator={(ctx) => {
@@ -2343,6 +2425,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
                                                                     aiSuggestion={activeInsight?.suggestions?.[result.exerciseName]} 
                                                                     scaling={activeInsight?.scaling?.[result.exerciseName]} 
                                                                     lastPerformance={history[result.exerciseName]} 
+                                                                    personalBest={personalBests[result.exerciseName.toLowerCase().trim()]}
                                                                     isLastInGroup={false}
                                                                     onOpenCalculator={(ctx) => {
                                                                         setCalculatorContext({
