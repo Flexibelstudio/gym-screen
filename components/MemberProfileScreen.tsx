@@ -764,7 +764,7 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
         return communityLogs.filter(log => log.locationId === userData.locationId);
     }, [communityLogs, userData?.locationId]);
 
-    const [sisuDetailsExpanded, setSisuDetailsExpanded] = useState(true);
+    const [sisuDetailsExpanded, setSisuDetailsExpanded] = useState(false);
     const [justActivatedSummer, setJustActivatedSummer] = useState(false);
 
     const summerStats = useMemo(() => {
@@ -1874,18 +1874,23 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                             >
                                 <div className="flex items-center gap-3">
                                     <span className="text-2xl select-none animate-bounce origin-bottom [animation-duration:3s]">☀️</span>
-                                                                   <div>
-                                        <div className="flex flex-wrap items-center gap-1.5 mb-1">
+                                    <div>
+                                        <div className="flex flex-wrap items-center gap-1.5 mb-1 bg-transparent border-0 p-0">
                                             <span className="text-xs font-black tracking-widest text-orange-950/75 uppercase block leading-none">Du deltar i utmaningen!</span>
                                             {configToUse?.summerChallengeStartDate && configToUse?.summerChallengeEndDate && (
                                                 <span className="bg-amber-950/15 text-[9px] font-extrabold px-1.5 py-0.5 rounded-md text-amber-950 uppercase tracking-wider">
                                                     📅 {new Date(configToUse.summerChallengeStartDate).toLocaleDateString('sv-SE', { day: 'numeric', month: 'short' })} - {new Date(configToUse.summerChallengeEndDate).toLocaleDateString('sv-SE', { day: 'numeric', month: 'short', year: 'numeric' })}
                                                 </span>
                                             )}
+                                            {isChallengeStarted && !isChallengeEnded && countdownToEnd !== null && (
+                                                <span className="bg-amber-950/15 text-[9px] font-extrabold px-1.5 py-0.5 rounded-md text-amber-950 uppercase tracking-wider">
+                                                    ⏳ {countdownToEnd === 0 ? "Avslutas idag!" : countdownToEnd === 1 ? "1 dag kvar!" : `${countdownToEnd} dagar kvar`}
+                                                </span>
+                                            )}
                                         </div>
                                         <span className="text-xs sm:text-sm font-extrabold text-amber-950 leading-none">
                                             {!isChallengeStarted ? (
-                                                <span>Utmaningen startar snart! ⏳</span>
+                                                <span>Utmaningen startar snart! ⏳ {countdownToStart !== null && `(${countdownToStart === 1 ? "1 dag" : `${countdownToStart} dagar`} kvar)`}</span>
                                             ) : (
                                                 <span>Studions mätare: <span className="inline-flex items-center gap-1 bg-amber-950/20 px-2 py-0.5 rounded-lg text-xs font-black text-amber-950 tracking-wider ml-1">{summerStats.label} {summerStats.emoji}</span></span>
                                             )}
