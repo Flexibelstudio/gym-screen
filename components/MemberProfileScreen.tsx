@@ -1875,22 +1875,27 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                                 <div className="flex items-center gap-3">
                                     <span className="text-2xl select-none animate-bounce origin-bottom [animation-duration:3s]">☀️</span>
                                     <div>
-                                        <div className="flex flex-wrap items-center gap-1.5 mb-1 bg-transparent border-0 p-0">
-                                            <span className="text-xs font-black tracking-widest text-orange-950/75 uppercase block leading-none">Du deltar i utmaningen!</span>
-                                            {configToUse?.summerChallengeStartDate && configToUse?.summerChallengeEndDate && (
-                                                <span className="bg-amber-950/15 text-[9px] font-extrabold px-1.5 py-0.5 rounded-md text-amber-950 uppercase tracking-wider">
-                                                    📅 {new Date(configToUse.summerChallengeStartDate).toLocaleDateString('sv-SE', { day: 'numeric', month: 'short' })} - {new Date(configToUse.summerChallengeEndDate).toLocaleDateString('sv-SE', { day: 'numeric', month: 'short', year: 'numeric' })}
-                                                </span>
-                                            )}
-                                            {isChallengeStarted && !isChallengeEnded && countdownToEnd !== null && (
-                                                <span className="bg-amber-950/15 text-[9px] font-extrabold px-1.5 py-0.5 rounded-md text-amber-950 uppercase tracking-wider">
-                                                    ⏳ {countdownToEnd === 0 ? "Avslutas idag!" : countdownToEnd === 1 ? "1 dag kvar!" : `${countdownToEnd} dagar kvar`}
-                                                </span>
-                                            )}
-                                        </div>
+                                        <span className="text-xs font-black tracking-widest text-orange-950/75 uppercase block leading-none mb-1">Du deltar i utmaningen!</span>
+                                        {configToUse?.summerChallengeStartDate && configToUse?.summerChallengeEndDate && (
+                                            <div className="flex flex-wrap gap-2 items-center text-[11px] font-bold text-amber-950/80 font-mono mb-1.5">
+                                                 <span>Giltighetsperiod: {new Date(configToUse.summerChallengeStartDate).toLocaleDateString('sv-SE', { day: 'numeric', month: 'long' })} - {new Date(configToUse.summerChallengeEndDate).toLocaleDateString('sv-SE', { day: 'numeric', month: 'long' })}</span>
+                                                 <span className="px-2 py-0.5 rounded-md bg-amber-950/15 text-amber-950 font-sans text-[10px] font-extrabold">
+                                                     {(() => {
+                                                         if (!isChallengeStarted && countdownToStart !== null) {
+                                                             return `⏳ Startar om ${countdownToStart} ${countdownToStart === 1 ? 'dag' : 'dagar'}`;
+                                                         }
+                                                         if (isChallengeEnded) {
+                                                             return `⌛ Avslutad`;
+                                                         }
+                                                         if (countdownToEnd === 0) return `⏳ Avslutas idag!`;
+                                                         return `⏳ ${countdownToEnd} dagar kvar`;
+                                                     })()}
+                                                 </span>
+                                            </div>
+                                        )}
                                         <span className="text-xs sm:text-sm font-extrabold text-amber-950 leading-none">
                                             {!isChallengeStarted ? (
-                                                <span>Utmaningen startar snart! ⏳ {countdownToStart !== null && `(${countdownToStart === 1 ? "1 dag" : `${countdownToStart} dagar`} kvar)`}</span>
+                                                <span>Utmaningen startar snart!</span>
                                             ) : (
                                                 <span>Studions mätare: <span className="inline-flex items-center gap-1 bg-amber-950/20 px-2 py-0.5 rounded-lg text-xs font-black text-amber-950 tracking-wider ml-1">{summerStats.label} {summerStats.emoji}</span></span>
                                             )}
