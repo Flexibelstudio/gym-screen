@@ -1137,6 +1137,8 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
 
   const [expandedBlockId, setExpandedBlockId] = useState<string | null>(null);
   const [expandedSubGroups, setExpandedSubGroups] = useState<Record<string, boolean>>({});
+  const [logStep, setLogStep] = useState<'exercises' | 'summary'>('exercises');
+  const scrollContainerRef = useRef<HTMLDivElement | null>(null);
 
   const blockGroups = useMemo(() => {
       const groups: BlockGroup[] = [];
@@ -1270,6 +1272,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
         setIsGeneratingInsight(false);
         setViewMode(isManualMode ? 'logging' : 'pre-game');
         setDailyFeeling(null);
+        setLogStep('exercises');
         
         try {
             let foundWorkout: any = null;
@@ -2056,594 +2059,668 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto bg-gray-5 dark:bg-black scrollbar-hide">
+      <div ref={scrollContainerRef} className="flex-1 overflow-y-auto bg-gray-5 dark:bg-black scrollbar-hide">
           <div className="p-2 sm:p-4 max-w-2xl mx-auto w-full">
               
-              {!isManualMode && workout?.coachTips && (
-                  <div className="mb-6 p-5 rounded-[2rem] bg-gray-50/75 dark:bg-gray-800/40 border border-gray-100 dark:border-gray-800 shadow-sm">
-                      <div className="flex items-center gap-2 mb-2">
-                          <span className="w-1.5 h-1.5 bg-orange-500 rounded-full animate-pulse" />
-                          <label className="text-[11px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest leading-none">Coachens passbeskrivning</label>
-                      </div>
-                      <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed font-semibold whitespace-pre-line">
-                          {workout.coachTips}
-                      </p>
-                  </div>
-              )}
-
-              <div className="mb-6">
-                  <label className="block text-[11px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-2 ml-1">Datum</label>
-                  <div className="relative">
-                      <input 
-                          type="date"
-                          value={logDate}
-                          onChange={(e) => setLogDate(e.target.value)}
-                          className="w-full bg-white dark:bg-gray-800 text-gray-900 dark:text-white p-4 rounded-2xl border border-gray-200 dark:border-gray-700 focus:ring-2 focus:ring-primary outline-none transition font-bold text-lg shadow-sm"
-                      />
-                  </div>
+              {/* Steg-indikator */}
+              <div className="mb-6 flex gap-2 select-none">
+                  <button
+                      type="button"
+                      onClick={() => {
+                          setLogStep('exercises');
+                          setTimeout(() => {
+                              scrollContainerRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+                          }, 50);
+                      }}
+                      className={`flex-1 p-3.5 rounded-2xl text-xs font-black uppercase tracking-wider border transition-all flex items-center justify-center gap-2 ${logStep === 'exercises' ? 'bg-primary/15 text-primary border-primary/25 shadow-sm' : 'bg-white dark:bg-gray-900 text-gray-400 dark:text-gray-500 border-gray-150 dark:border-gray-800'}`}
+                  >
+                      <span className={`flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-bold ${logStep === 'exercises' ? 'bg-primary text-white' : 'bg-gray-100 dark:bg-gray-800 text-gray-400'}`}>1</span>
+                      <span>Övningar ({exerciseResults.length})</span>
+                  </button>
+                  <button
+                      type="button"
+                      onClick={() => {
+                          setLogStep('summary');
+                          setTimeout(() => {
+                              scrollContainerRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+                          }, 50);
+                      }}
+                      className={`flex-1 p-3.5 rounded-2xl text-xs font-black uppercase tracking-wider border transition-all flex items-center justify-center gap-2 ${logStep === 'summary' ? 'bg-primary/15 text-primary border-primary/25 shadow-sm' : 'bg-white dark:bg-gray-900 text-gray-400 dark:text-gray-500 border-gray-150 dark:border-gray-800'}`}
+                  >
+                      <span className={`flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-bold ${logStep === 'summary' ? 'bg-primary text-white' : 'bg-gray-100 dark:bg-gray-800 text-gray-400'}`}>2</span>
+                      <span>Sammanfattning</span>
+                  </button>
               </div>
 
-              {/* MISSION BANNER (KONCEPT 2) */}
-              {!isManualMode && activeInsight && dailyFeeling && (
-                  <MissionHeader 
-                      strategy={activeInsight.strategy || activeInsight.readiness.message} 
-                      feeling={dailyFeeling} 
-                  />
-              )}
-              
-              {isManualMode && (
-                  <CustomActivityForm 
-                      activityName={customActivity.name}
-                      duration={customActivity.duration}
-                      distance={customActivity.distance}
-                      calories={customActivity.calories}
-                      onUpdate={handleCustomActivityUpdate}
-                      isQuickMode={false}
-                      hasExercises={exerciseResults.length > 0}
-                      organizationConfig={selectedOrganization?.globalConfig}
-                  />
-              )}
-
-              {isManualMode && (
-                  <div className="mt-8 mb-4 flex flex-col gap-4">
-                      <div className="flex items-center justify-between">
-                          <h3 className="text-base font-black uppercase tracking-widest text-gray-800 dark:text-gray-200">
-                              {exerciseResults.length > 0 ? 'Dina övningar' : 'Valfria övningar'}
-                          </h3>
-                          {exerciseResults.length === 0 && (
-                              <button 
-                                  onClick={() => setShowExerciseSearch(true)}
-                                  className="px-4 py-2 bg-gray-100 dark:bg-gray-800 text-primary rounded-full text-xs font-bold flex items-center gap-2 hover:bg-gray-200 dark:hover:bg-gray-700 transition uppercase tracking-wider"
-                              >
-                                  <PlusIcon className="w-4 h-4" />
-                                  Lägg till övning
-                              </button>
-                          )}
-                      </div>
-                  </div>
-              )}
-
-              {(!isManualMode || exerciseResults.length > 0) && (
-                  <>
-                    {!isManualMode && exerciseResults.length === 0 && (
-                        <div className="bg-white dark:bg-gray-900 p-6 rounded-3xl border border-dashed border-gray-200 dark:border-gray-800 text-center mb-8">
-                            <p className="text-gray-500 text-sm">Inga övningar i detta pass är markerade för specifik loggning. Du kan fortfarande ange distans, kcal och skriva en kommentar nedan.</p>
-                        </div>
-                    )}
-                    
-                    {isManualMode ? (
-                        <div className="flex flex-col gap-4">
-                            {exerciseResults.map((result, index) => {
-                                const isLastInGroup = result.groupId && (index === exerciseResults.length - 1 || exerciseResults[index + 1].groupId !== result.groupId);
-
-                                return (
-                                    <ExerciseLogCard
-                                        key={result.exerciseId}
-                                        name={result.exerciseName}
-                                        result={result}
-                                        onUpdate={(updates) => handleUpdateResult(index, updates)}
-                                        onRemove={() => setExerciseResults(prev => prev.filter((_, i) => i !== index))}
-                                        aiSuggestion={activeInsight?.suggestions?.[result.exerciseName]} 
-                                        scaling={activeInsight?.scaling?.[result.exerciseName]} 
-                                        lastPerformance={history[result.exerciseName]} 
-                                        personalBest={personalBests[result.exerciseName.toLowerCase().trim()]}
-                                        isLastInGroup={isLastInGroup}
-                                        onAddGroupSet={() => handleAddGroupSet(result.groupId!)}
-                                        onOpenCalculator={(ctx) => {
-                                            setCalculatorContext({
-                                                ...ctx,
-                                                onSelectWeight: (weight: number) => {
-                                                    setExerciseResults(prev => {
-                                                        const newResults = [...prev];
-                                                        const res = {...newResults[index]};
-                                                        res.setDetails = res.setDetails.map(s => ({...s}));
-                                                        
-                                                        // Find first uncompleted set
-                                                        let targetIdx = res.setDetails.findIndex(s => !s.completed);
-                                                        if (targetIdx === -1) {
-                                                            // if all completed, just use the last one
-                                                            targetIdx = res.setDetails.length - 1;
-                                                        }
-                                                        if (targetIdx !== -1) {
-                                                            res.setDetails[targetIdx].weight = weight.toString();
-                                                        }
-                                                        newResults[index] = res;
-                                                        return newResults;
-                                                    });
-                                                }
-                                            });
-                                            setShowCalculator(true);
-                                        }}
-                                    />
-                                );
-                            })}
-                            
-                            <div className="flex justify-center pt-2">
-                                <button 
-                                    onClick={() => setShowExerciseSearch(true)}
-                                    className="w-full py-4 bg-gray-50 dark:bg-gray-900 border-2 border-dashed border-primary/20 hover:border-primary/50 text-primary dark:text-primary-light hover:bg-primary/5 rounded-2xl text-xs font-black flex items-center justify-center gap-2 transition-all uppercase tracking-wider shadow-sm"
-                                >
-                                    <PlusIcon className="w-5 h-5" />
-                                    Lägg till övning
-                                </button>
-                            </div>
-                        </div>
-                    ) : (
-                        blockGroups.map((group) => {
-                            const isExpanded = expandedBlockId === group.blockId;
-                            const { totalSets, completedSets } = getBlockCompletionInfo(group);
-                            const isAllDone = totalSets > 0 && completedSets === totalSets;
-                            const isStarted = totalSets > 0 && completedSets > 0 && completedSets < totalSets;
-
-                            let headerBgClass = '';
-                            let lineClass = '';
-                            let statusTextClass = '';
-
-                            if (isAllDone) {
-                                headerBgClass = 'bg-green-50/60 hover:bg-green-100/70 dark:bg-green-950/10 dark:hover:bg-green-950/20 border-green-200/50 dark:border-green-800/20';
-                                lineClass = 'bg-green-500';
-                                statusTextClass = 'text-green-600 dark:text-green-400 font-bold';
-                            } else if (isStarted) {
-                                headerBgClass = 'bg-amber-50/30 hover:bg-amber-100/40 dark:bg-amber-950/5 dark:hover:bg-amber-950/10 border-amber-200/40 dark:border-amber-900/30 shadow-sm';
-                                lineClass = 'bg-amber-500';
-                                statusTextClass = 'text-amber-600 dark:text-amber-400 font-bold';
-                            } else {
-                                headerBgClass = isExpanded
-                                    ? 'bg-gray-100/75 hover:bg-gray-100 dark:bg-slate-900/90 dark:hover:bg-slate-900 border-gray-200/50 dark:border-gray-850/40 shadow-sm'
-                                    : 'bg-white hover:bg-gray-50 dark:bg-gray-900 dark:hover:bg-slate-900/60 border-gray-150 dark:border-gray-800/40 shadow-sm';
-                                lineClass = 'bg-gray-300 dark:bg-gray-750';
-                                statusTextClass = 'text-gray-500 dark:text-gray-450';
-                            }
-
-                            return (
-                                <div key={group.blockId} className="mb-2 last:mb-3 animate-fade-in">
-                                    {/* Collapsible Block Header */}
-                                    <button
-                                        type="button"
-                                        onClick={(e) => {
-                                            const target = e.currentTarget;
-                                            const isNowExpanded = expandedBlockId !== group.blockId;
-                                            setExpandedBlockId(prev => prev === group.blockId ? null : group.blockId);
-                                            if (isNowExpanded) {
-                                                setTimeout(() => {
-                                                    target?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                                                }, 120);
-                                            }
-                                        }}
-                                        className={`w-full text-left p-4 rounded-2xl border transition-all flex items-center justify-between select-none ${headerBgClass}`}
-                                    >
-                                        <div className="flex items-center gap-3">
-                                            <div className={`h-6 w-1 rounded-full transition-colors ${lineClass}`}></div>
-                                            <div>
-                                                <h4 className="text-sm font-black uppercase text-gray-800 dark:text-gray-100 tracking-wider">
-                                                    {group.blockTitle}
-                                                </h4>
-                                                <div className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5 flex items-center gap-2">
-                                                    <span>{group.exercises.length} {group.exercises.length === 1 ? 'övning' : 'övningar'}</span>
-                                                    {totalSets > 0 && (
-                                                        <>
-                                                            <span>•</span>
-                                                            <span className={statusTextClass}>
-                                                                {completedSets}/{totalSets} set klara
-                                                            </span>
-                                                        </>
-                                                    )}
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div className="flex items-center gap-2 pr-1">
-                                            {isAllDone && (
-                                                <span className="text-[10px] bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 font-extrabold px-2.5 py-0.5 rounded-full uppercase tracking-wider">
-                                                    Klar 🏆
-                                                </span>
-                                            )}
-                                            {isStarted && (
-                                                <span className="text-[10px] bg-amber-100 dark:bg-amber-950/45 text-amber-700 dark:text-amber-400 font-extrabold px-2.5 py-0.5 rounded-full uppercase tracking-wider">
-                                                    Pågår ⚡
-                                                </span>
-                                            )}
-                                            <span className={`text-gray-400 dark:text-gray-500 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`}>
-                                                <ChevronDownIcon className="w-5 h-5 stroke-[2.5]" />
-                                            </span>
-                                        </div>
-                                    </button>
-
-                                    {/* Collapsible Content */}
-                                    <AnimatePresence initial={false}>
-                                        {isExpanded && (
-                                            <motion.div
-                                                initial={{ opacity: 0, height: 0 }}
-                                                animate={{ opacity: 1, height: 'auto' }}
-                                                exit={{ opacity: 0, height: 0 }}
-                                                transition={{ duration: 0.2, ease: "easeOut" }}
-                                                className="overflow-hidden space-y-2 mt-2 px-0.5"
-                                            >
-                                                {(() => {
-                                                    // Gruppera övningar inom detta block efter deras groupId (superset)
-                                                    const subGroups: {
-                                                        groupId?: string;
-                                                        groupColor?: string;
-                                                        exercises: typeof group.exercises;
-                                                    }[] = [];
-
-                                                    group.exercises.forEach(ex => {
-                                                        const gId = ex.result.groupId;
-                                                        if (!gId) {
-                                                            // Ingen grupp = fristående övning
-                                                            subGroups.push({
-                                                                exercises: [ex]
-                                                            });
-                                                        } else {
-                                                            // Sök om det redan finns en undergrupp med detta groupId
-                                                            let subG = subGroups.find(sg => sg.groupId === gId);
-                                                            if (!subG) {
-                                                                subG = {
-                                                                    groupId: gId,
-                                                                    groupColor: ex.result.groupColor,
-                                                                    exercises: []
-                                                                };
-                                                                subGroups.push(subG);
-                                                            }
-                                                            subG.exercises.push(ex);
-                                                        }
-                                                    });
-
-                                                    const getGroupColorStyles = (colorName?: string) => {
-                                                        if (!colorName) return null;
-                                                        return GROUP_COLORS.find(c => c.bg === colorName) || null;
-                                                    };
-
-                                                    return subGroups.map((subGroup) => {
-                                                        if (subGroup.groupId) {
-                                                            // Det här är ett superset (undergrupp)
-                                                            const isSubExpanded = expandedSubGroups[subGroup.groupId] === true; // Standard-ihopfälld (false)
-                                                            const subGroupColorObj = getGroupColorStyles(subGroup.groupColor);
-                                                            
-                                                            const borderLeftClass = subGroupColorObj ? `border-l-4 ${subGroupColorObj.border}` : '';
-                                                            const headerBg = subGroupColorObj ? subGroupColorObj.lightBg : 'bg-gray-50 dark:bg-gray-800/40';
-                                                            const textColor = subGroupColorObj ? subGroupColorObj.text : 'text-gray-700 dark:text-gray-300';
-                                                            const textHover = subGroupColorObj ? 'hover:bg-opacity-80' : 'hover:bg-gray-100 dark:hover:bg-gray-800/60';
-                                                            
-                                                            // Beräkna antal färdiga set inom detta superset för en liten badge (t.ex. "3/6 klara")
-                                                            let subTotalSets = 0;
-                                                            let subCompletedSets = 0;
-                                                            subGroup.exercises.forEach(ex => {
-                                                                subTotalSets += ex.result.setDetails.length;
-                                                                subCompletedSets += ex.result.setDetails.filter(s => s.completed).length;
-                                                            });
-
-                                                            return (
-                                                                <div key={subGroup.groupId} className="border border-gray-100 dark:border-gray-800 rounded-2xl overflow-hidden mb-2 shadow-sm">
-                                                                    {/* Superset Header */}
-                                                                    <button
-                                                                        type="button"
-                                                                        onClick={(e) => {
-                                                                            const target = e.currentTarget;
-                                                                            const isNowExpanded = !isSubExpanded;
-                                                                            setExpandedSubGroups(prev => ({
-                                                                                ...prev,
-                                                                                [subGroup.groupId!]: isNowExpanded
-                                                                            }));
-                                                                            if (isNowExpanded) {
-                                                                                setTimeout(() => {
-                                                                                    target?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                                                                                }, 120);
-                                                                            }
-                                                                        }}
-                                                                        className={`w-full text-left p-3 flex items-center justify-between select-none transition-colors ${headerBg} ${borderLeftClass} ${textHover}`}
-                                                                    >
-                                                                        <div className="flex items-center gap-2">
-                                                                            <div className={`text-xs font-black uppercase tracking-widest ${textColor} flex items-center gap-1.5`}>
-                                                                                <span className="flex h-1.5 w-1.5 relative">
-                                                                                   <span className={`animate-ping absolute inline-flex h-full w-full rounded-full ${subGroupColorObj ? subGroupColorObj.bg : 'bg-gray-400'} opacity-75`}></span>
-                                                                                   <span className={`relative inline-flex rounded-full h-1.5 w-1.5 ${subGroupColorObj ? subGroupColorObj.bg : 'bg-gray-400'}`}></span>
-                                                                                </span>
-                                                                                Superset ({subGroup.exercises.length} övningar)
-                                                                            </div>
-                                                                            {subTotalSets > 0 && (
-                                                                                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-white/85 dark:bg-black/20 text-gray-600 dark:text-gray-300">
-                                                                                    {subCompletedSets}/{subTotalSets} set
-                                                                                </span>
-                                                                            )}
-                                                                        </div>
-                                                                        <span className={`text-gray-400 dark:text-gray-500 transition-transform duration-200 ${isSubExpanded ? 'rotate-180' : ''}`}>
-                                                                            <ChevronDownIcon className="w-4 h-4 stroke-[2.5]" />
-                                                                        </span>
-                                                                    </button>
-                                                                    
-                                                                    {/* Superset Content */}
-                                                                    <AnimatePresence initial={false}>
-                                                                        {isSubExpanded && (
-                                                                            <motion.div
-                                                                                initial={{ opacity: 0, height: 0 }}
-                                                                                animate={{ opacity: 1, height: 'auto' }}
-                                                                                exit={{ opacity: 0, height: 0 }}
-                                                                                transition={{ duration: 0.2, ease: "easeOut" }}
-                                                                                className="p-1 space-y-1 bg-gray-50/25 dark:bg-gray-950/5"
-                                                                            >
-                                                                                {subGroup.exercises.map(({ result, originalIndex }, idxInsideSub) => {
-                                                                                    const isLastInGroup = idxInsideSub === subGroup.exercises.length - 1;
-                                                                                    
-                                                                                    return (
-                                                                                        <ExerciseLogCard
-                                                                                            key={result.exerciseId}
-                                                                                            name={result.exerciseName}
-                                                                                            result={result}
-                                                                                            onUpdate={(updates) => handleUpdateResult(originalIndex, updates)}
-                                                                                            aiSuggestion={activeInsight?.suggestions?.[result.exerciseName]} 
-                                                                                            scaling={activeInsight?.scaling?.[result.exerciseName]} 
-                                                                                            lastPerformance={history[result.exerciseName]} 
-                                                                                            personalBest={personalBests[result.exerciseName.toLowerCase().trim()]}
-                                                                                            isLastInGroup={isLastInGroup}
-                                                                                            onAddGroupSet={() => handleAddGroupSet(result.groupId!)}
-                                                                                            onOpenCalculator={(ctx) => {
-                                                                                                setCalculatorContext({
-                                                                                                    ...ctx,
-                                                                                                    onSelectWeight: (weight: number) => {
-                                                                                                        setExerciseResults(prev => {
-                                                                                                            const newResults = [...prev];
-                                                                                                            const res = {...newResults[originalIndex]};
-                                                                                                            res.setDetails = res.setDetails.map(s => ({...s}));
-                                                                                                            
-                                                                                                            let targetIdx = res.setDetails.findIndex(s => !s.completed);
-                                                                                                            if (targetIdx === -1) {
-                                                                                                                targetIdx = res.setDetails.length - 1;
-                                                                                                            }
-                                                                                                            if (targetIdx !== -1) {
-                                                                                                                res.setDetails[targetIdx].weight = weight.toString();
-                                                                                                            }
-                                                                                                            newResults[originalIndex] = res;
-                                                                                                            return newResults;
-                                                                                                        });
-                                                                                                    }
-                                                                                                });
-                                                                                                setShowCalculator(true);
-                                                                                            }}
-                                                                                        />
-                                                                                    );
-                                                                                })}
-                                                                            </motion.div>
-                                                                        )}
-                                                                    </AnimatePresence>
-                                                                </div>
-                                                            );
-                                                        } else {
-                                                            // Det här är en helt vanlig, fristående övning (subGroup har inget groupId)
-                                                            const { result, originalIndex } = subGroup.exercises[0];
-                                                            return (
-                                                                <ExerciseLogCard
-                                                                    key={result.exerciseId}
-                                                                    name={result.exerciseName}
-                                                                    result={result}
-                                                                    onUpdate={(updates) => handleUpdateResult(originalIndex, updates)}
-                                                                    aiSuggestion={activeInsight?.suggestions?.[result.exerciseName]} 
-                                                                    scaling={activeInsight?.scaling?.[result.exerciseName]} 
-                                                                    lastPerformance={history[result.exerciseName]} 
-                                                                    personalBest={personalBests[result.exerciseName.toLowerCase().trim()]}
-                                                                    isLastInGroup={false}
-                                                                    onOpenCalculator={(ctx) => {
-                                                                        setCalculatorContext({
-                                                                            ...ctx,
-                                                                            onSelectWeight: (weight: number) => {
-                                                                                setExerciseResults(prev => {
-                                                                                    const newResults = [...prev];
-                                                                                    const res = {...newResults[originalIndex]};
-                                                                                    res.setDetails = res.setDetails.map(s => ({...s}));
-                                                                                    
-                                                                                    let targetIdx = res.setDetails.findIndex(s => !s.completed);
-                                                                                    if (targetIdx === -1) {
-                                                                                        targetIdx = res.setDetails.length - 1;
-                                                                                    }
-                                                                                    if (targetIdx !== -1) {
-                                                                                        res.setDetails[targetIdx].weight = weight.toString();
-                                                                                    }
-                                                                                    newResults[originalIndex] = res;
-                                                                                    return newResults;
-                                                                                });
-                                                                            }
-                                                                        });
-                                                                        setShowCalculator(true);
-                                                                    }}
-                                                                />
-                                                            );
-                                                        }
-                                                    });
-                                                })()}
-                                            </motion.div>
-                                        )}
-                                    </AnimatePresence>
-                                </div>
-                            );
-                        })
-                    )}
-
-                    {!isManualMode && (
-                        <div className="mt-8 mb-6 bg-white dark:bg-gray-900 p-5 rounded-[2rem] border border-gray-100 dark:border-gray-800 shadow-sm">
-                            <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                    <label className={`block text-[10px] font-black uppercase tracking-widest mb-2 flex justify-between ${benchmarkDefinition?.type === 'time' ? 'text-yellow-600 dark:text-yellow-500' : 'text-gray-400 dark:text-gray-500'}`}>
-                                        Tid (min:sek)
-                                        {benchmarkDefinition?.type === 'time' && prevBenchmarkBest && (
-                                            <span className="text-[9px] bg-yellow-100 dark:bg-yellow-900/30 px-1.5 py-0.5 rounded">PB: {formatPrev(prevBenchmarkBest, 'time')}</span>
-                                        )}
-                                    </label>
-                                    <div className={`bg-gray-50 dark:bg-gray-800 rounded-xl p-2 border transition-colors ${benchmarkDefinition?.type === 'time' ? 'border-yellow-400 dark:border-yellow-600 ring-2 ring-yellow-400/20' : 'border-gray-100 dark:border-gray-700'}`}>
-                                        <TimeInput
-                                            value={sessionStats.time}
-                                            onChange={(val) => setSessionStats(prev => ({ ...prev, time: val }))}
-                                            placeholder={benchmarkDefinition?.type === 'time' ? "45" : "-"}
-                                            className="w-full bg-transparent text-gray-900 dark:text-white font-black text-lg focus:outline-none text-center"
-                                            compact={true}
-                                        />
-                                    </div>
-                                </div>
-                                <div>
-                                    <label className={`block text-[10px] font-black uppercase tracking-widest mb-2 flex justify-between ${benchmarkDefinition?.type === 'reps' ? 'text-yellow-600 dark:text-yellow-500' : 'text-gray-400 dark:text-gray-500'}`}>
-                                        Varv / Reps
-                                        {benchmarkDefinition?.type === 'reps' && prevBenchmarkBest && (
-                                            <span className="text-[9px] bg-yellow-100 dark:bg-yellow-900/30 px-1.5 py-0.5 rounded">PB: {formatPrev(prevBenchmarkBest, 'reps')}</span>
-                                        )}
-                                    </label>
-                                    <div className={`bg-gray-50 dark:bg-gray-800 rounded-xl p-2 border transition-colors ${benchmarkDefinition?.type === 'reps' ? 'border-yellow-400 dark:border-yellow-600 ring-2 ring-yellow-400/20' : 'border-gray-100 dark:border-gray-700'}`}>
-                                        <input 
-                                            type="number"
-                                            value={sessionStats.rounds}
-                                            onChange={(e) => setSessionStats(prev => ({ ...prev, rounds: e.target.value }))}
-                                            placeholder={benchmarkDefinition?.type === 'reps' ? "T.ex. 5" : "-"}
-                                            className="w-full bg-transparent text-gray-900 dark:text-white font-black text-lg focus:outline-none text-center"
-                                        />
-                                    </div>
-                                </div>
-                                <div>
-                                    <label className="block text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-2">kcal</label>
-                                    <div className="bg-gray-50 dark:bg-gray-800 rounded-xl p-2 border border-gray-100 dark:border-gray-700">
-                                        <input 
-                                            type="number"
-                                            value={sessionStats.calories}
-                                            onChange={(e) => setSessionStats(prev => ({ ...prev, calories: e.target.value }))}
-                                            placeholder="T.ex. 350"
-                                            className="w-full bg-transparent text-gray-900 dark:text-white font-black text-lg focus:outline-none text-center"
-                                        />
-                                    </div>
-                                </div>
-                                <div>
-                                    <label className="block text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-2">km</label>
-                                    <div className="bg-gray-50 dark:bg-gray-800 rounded-xl p-2 border border-gray-100 dark:border-gray-700">
-                                        <input 
-                                            type="number"
-                                            value={sessionStats.distance}
-                                            onChange={(e) => setSessionStats(prev => ({ ...prev, distance: e.target.value }))}
-                                            placeholder="T.ex. 3.5"
-                                            className="w-full bg-transparent text-gray-900 dark:text-white font-black text-lg focus:outline-none text-center"
-                                        />
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    )}
-                  </>
-              )}
-
-              {isManualMode && exerciseResults.length > 0 && (
-                  <div className="mt-6 p-5 bg-white dark:bg-gray-900 rounded-3xl border border-gray-100 dark:border-gray-800 shadow-sm flex flex-col gap-4">
-                      <div className="flex items-center gap-3">
-                          <input 
-                              type="checkbox" 
-                              checked={saveAsProgram}
-                              onChange={(e) => setSaveAsProgram(e.target.checked)}
-                              id="saveAsProgram"
-                              className="w-5 h-5 rounded border-gray-300 text-primary focus:ring-primary"
-                          />
-                          <label htmlFor="saveAsProgram" className="text-sm font-bold text-gray-800 dark:text-gray-200">
-                              Spara som nytt program
-                          </label>
-                      </div>
-                      {saveAsProgram && (
-                          <div className="animate-fade-in">
-                              <input 
-                                  type="text"
-                                  value={programName}
-                                  onChange={(e) => setProgramName(e.target.value)}
-                                  placeholder="T.ex. Axlar & Rygg"
-                                  className="w-full bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 focus:outline-none focus:ring-2 focus:ring-primary transition-all font-medium placeholder-gray-400"
-                              />
+              {logStep === 'exercises' ? (
+                  <div className="space-y-6 animate-fade-in">
+                      {!isManualMode && workout?.coachTips && (
+                          <div className="p-5 rounded-[2rem] bg-gray-50/75 dark:bg-gray-800/40 border border-gray-100 dark:border-gray-800 shadow-sm">
+                              <div className="flex items-center gap-2 mb-2">
+                                  <span className="w-1.5 h-1.5 bg-orange-500 rounded-full animate-pulse" />
+                                  <label className="text-[11px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest leading-none">Coachens passbeskrivning</label>
+                              </div>
+                              <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed font-semibold whitespace-pre-line">
+                                  {workout.coachTips}
+                              </p>
                           </div>
                       )}
+
+                      <div>
+                          <label className="block text-[11px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-2 ml-1">Datum</label>
+                          <div className="relative">
+                              <input 
+                                  type="date"
+                                  value={logDate}
+                                  onChange={(e) => setLogDate(e.target.value)}
+                                  className="w-full bg-white dark:bg-gray-800 text-gray-900 dark:text-white p-4 rounded-2xl border border-gray-200 dark:border-gray-700 focus:ring-2 focus:ring-primary outline-none transition font-bold text-lg shadow-sm"
+                              />
+                          </div>
+                      </div>
+
+                      {/* MISSION BANNER (KONCEPT 2) */}
+                      {!isManualMode && activeInsight && dailyFeeling && (
+                          <MissionHeader 
+                              strategy={activeInsight.strategy || activeInsight.readiness.message} 
+                              feeling={dailyFeeling} 
+                          />
+                      )}
+                      
+                      {isManualMode && (
+                          <CustomActivityForm 
+                              activityName={customActivity.name}
+                              duration={customActivity.duration}
+                              distance={customActivity.distance}
+                              calories={customActivity.calories}
+                              onUpdate={handleCustomActivityUpdate}
+                              isQuickMode={false}
+                              hasExercises={exerciseResults.length > 0}
+                              organizationConfig={selectedOrganization?.globalConfig}
+                          />
+                      )}
+
+                      {isManualMode && (
+                          <div className="mt-8 mb-4 flex flex-col gap-4">
+                              <div className="flex items-center justify-between">
+                                  <h3 className="text-base font-black uppercase tracking-widest text-gray-800 dark:text-gray-200">
+                                      {exerciseResults.length > 0 ? 'Dina övningar' : 'Valfria övningar'}
+                                  </h3>
+                                  {exerciseResults.length === 0 && (
+                                      <button 
+                                          onClick={() => setShowExerciseSearch(true)}
+                                          className="px-4 py-2 bg-gray-100 dark:bg-gray-800 text-primary rounded-full text-xs font-bold flex items-center gap-2 hover:bg-gray-200 dark:hover:bg-gray-700 transition uppercase tracking-wider"
+                                      >
+                                          <PlusIcon className="w-4 h-4" />
+                                          Lägg till övning
+                                      </button>
+                                  )}
+                              </div>
+                          </div>
+                      )}
+
+                      {(!isManualMode || exerciseResults.length > 0) && (
+                          <>
+                            {!isManualMode && exerciseResults.length === 0 && (
+                                <div className="bg-white dark:bg-gray-900 p-6 rounded-3xl border border-dashed border-gray-200 dark:border-gray-800 text-center mb-8">
+                                    <p className="text-gray-500 text-sm">Inga övningar i detta pass är markerade för specifik loggning. Du kan gå till nästa steg för att fylla i övriga resultat.</p>
+                                </div>
+                            )}
+                            
+                            {isManualMode ? (
+                                <div className="flex flex-col gap-4">
+                                    {exerciseResults.map((result, index) => {
+                                        const isLastInGroup = result.groupId && (index === exerciseResults.length - 1 || exerciseResults[index + 1].groupId !== result.groupId);
+
+                                        return (
+                                            <ExerciseLogCard
+                                                key={result.exerciseId}
+                                                name={result.exerciseName}
+                                                result={result}
+                                                onUpdate={(updates) => handleUpdateResult(index, updates)}
+                                                onRemove={() => setExerciseResults(prev => prev.filter((_, i) => i !== index))}
+                                                aiSuggestion={activeInsight?.suggestions?.[result.exerciseName]} 
+                                                scaling={activeInsight?.scaling?.[result.exerciseName]} 
+                                                lastPerformance={history[result.exerciseName]} 
+                                                personalBest={personalBests[result.exerciseName.toLowerCase().trim()]}
+                                                isLastInGroup={isLastInGroup}
+                                                onAddGroupSet={() => handleAddGroupSet(result.groupId!)}
+                                                onOpenCalculator={(ctx) => {
+                                                    setCalculatorContext({
+                                                        ...ctx,
+                                                        onSelectWeight: (weight: number) => {
+                                                            setExerciseResults(prev => {
+                                                                const newResults = [...prev];
+                                                                const res = {...newResults[index]};
+                                                                res.setDetails = res.setDetails.map(s => ({...s}));
+                                                                
+                                                                // Find first uncompleted set
+                                                                let targetIdx = res.setDetails.findIndex(s => !s.completed);
+                                                                if (targetIdx === -1) {
+                                                                    // if all completed, just use the last one
+                                                                    targetIdx = res.setDetails.length - 1;
+                                                                }
+                                                                if (targetIdx !== -1) {
+                                                                    res.setDetails[targetIdx].weight = weight.toString();
+                                                                }
+                                                                newResults[index] = res;
+                                                                return newResults;
+                                                            });
+                                                        }
+                                                    });
+                                                    setShowCalculator(true);
+                                                }}
+                                            />
+                                        );
+                                    })}
+                                    
+                                    <div className="flex justify-center pt-2">
+                                        <button 
+                                            onClick={() => setShowExerciseSearch(true)}
+                                            className="w-full py-4 bg-gray-50 dark:bg-gray-900 border-2 border-dashed border-primary/20 hover:border-primary/50 text-primary dark:text-primary-light hover:bg-primary/5 rounded-2xl text-xs font-black flex items-center justify-center gap-2 transition-all uppercase tracking-wider shadow-sm"
+                                        >
+                                            <PlusIcon className="w-5 h-5" />
+                                            Lägg till övning
+                                        </button>
+                                    </div>
+                                </div>
+                            ) : (
+                                blockGroups.map((group) => {
+                                    const isExpanded = expandedBlockId === group.blockId;
+                                    const { totalSets, completedSets } = getBlockCompletionInfo(group);
+                                    const isAllDone = totalSets > 0 && completedSets === totalSets;
+                                    const isStarted = totalSets > 0 && completedSets > 0 && completedSets < totalSets;
+
+                                    let headerBgClass = '';
+                                    let lineClass = '';
+                                    let statusTextClass = '';
+
+                                    if (isAllDone) {
+                                        headerBgClass = 'bg-green-50/60 hover:bg-green-100/70 dark:bg-green-950/10 dark:hover:bg-green-950/20 border-green-200/50 dark:border-green-800/20';
+                                        lineClass = 'bg-green-500';
+                                        statusTextClass = 'text-green-600 dark:text-green-400 font-bold';
+                                    } else if (isStarted) {
+                                        headerBgClass = 'bg-amber-50/30 hover:bg-amber-100/40 dark:bg-amber-955/5 dark:hover:bg-amber-955/10 border-amber-200/40 dark:border-amber-900/30 shadow-sm';
+                                        lineClass = 'bg-amber-500';
+                                        statusTextClass = 'text-amber-600 dark:text-amber-400 font-bold';
+                                    } else {
+                                        headerBgClass = isExpanded
+                                            ? 'bg-gray-100/75 hover:bg-gray-100 dark:bg-slate-900/90 dark:hover:bg-slate-900 border-gray-200/50 dark:border-gray-850/40 shadow-sm'
+                                            : 'bg-white hover:bg-gray-50 dark:bg-gray-900 dark:hover:bg-slate-900/60 border-gray-150 dark:border-gray-800/40 shadow-sm';
+                                        lineClass = 'bg-gray-300 dark:bg-gray-750';
+                                        statusTextClass = 'text-gray-500 dark:text-gray-450';
+                                    }
+
+                                    return (
+                                        <div key={group.blockId} className="mb-2 last:mb-3 animate-fade-in">
+                                            {/* Collapsible Block Header */}
+                                            <button
+                                                type="button"
+                                                onClick={(e) => {
+                                                    const target = e.currentTarget;
+                                                    const isNowExpanded = expandedBlockId !== group.blockId;
+                                                    setExpandedBlockId(prev => prev === group.blockId ? null : group.blockId);
+                                                    if (isNowExpanded) {
+                                                        setTimeout(() => {
+                                                            target?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                                                        }, 120);
+                                                    }
+                                                }}
+                                                className={`w-full text-left p-4 rounded-2xl border transition-all flex items-center justify-between select-none ${headerBgClass}`}
+                                            >
+                                                <div className="flex items-center gap-3">
+                                                    <div className={`h-6 w-1 rounded-full transition-colors ${lineClass}`}></div>
+                                                    <div>
+                                                        <h4 className="text-sm font-black uppercase text-gray-800 dark:text-gray-100 tracking-wider">
+                                                            {group.blockTitle}
+                                                        </h4>
+                                                        <div className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5 flex items-center gap-2">
+                                                            <span>{group.exercises.length} {group.exercises.length === 1 ? 'övning' : 'övningar'}</span>
+                                                            {totalSets > 0 && (
+                                                                <>
+                                                                    <span>•</span>
+                                                                    <span className={statusTextClass}>
+                                                                        {completedSets}/{totalSets} set klara
+                                                                    </span>
+                                                                </>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <div className="flex items-center gap-2 pr-1">
+                                                    {isAllDone && (
+                                                        <span className="text-[10px] bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 font-extrabold px-2.5 py-0.5 rounded-full uppercase tracking-wider">
+                                                            Klar 🏆
+                                                        </span>
+                                                    )}
+                                                    {isStarted && (
+                                                        <span className="text-[10px] bg-amber-100 dark:bg-amber-955/45 text-amber-700 dark:text-amber-400 font-extrabold px-2.5 py-0.5 rounded-full uppercase tracking-wider">
+                                                            Pågår ⚡
+                                                        </span>
+                                                    )}
+                                                    <span className={`text-gray-400 dark:text-gray-500 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`}>
+                                                        <ChevronDownIcon className="w-5 h-5 stroke-[2.5]" />
+                                                    </span>
+                                                </div>
+                                            </button>
+
+                                            {/* Collapsible Content */}
+                                            <AnimatePresence initial={false}>
+                                                {isExpanded && (
+                                                    <motion.div
+                                                        initial={{ opacity: 0, height: 0 }}
+                                                        animate={{ opacity: 1, height: 'auto' }}
+                                                        exit={{ opacity: 0, height: 0 }}
+                                                        transition={{ duration: 0.2, ease: "easeOut" }}
+                                                        className="overflow-hidden space-y-2 mt-2 px-0.5"
+                                                    >
+                                                        {(() => {
+                                                            // Gruppera övningar inom detta block efter deras groupId (superset)
+                                                            const subGroups: {
+                                                                groupId?: string;
+                                                                groupColor?: string;
+                                                                exercises: typeof group.exercises;
+                                                            }[] = [];
+
+                                                            group.exercises.forEach(ex => {
+                                                                const gId = ex.result.groupId;
+                                                                if (!gId) {
+                                                                    // Ingen grupp = fristående övning
+                                                                    subGroups.push({
+                                                                        exercises: [ex]
+                                                                    });
+                                                                } else {
+                                                                    // Sök om det redan finns en undergrupp med detta groupId
+                                                                    let subG = subGroups.find(sg => sg.groupId === gId);
+                                                                    if (!subG) {
+                                                                        subG = {
+                                                                            groupId: gId,
+                                                                            groupColor: ex.result.groupColor,
+                                                                            exercises: []
+                                                                        };
+                                                                        subGroups.push(subG);
+                                                                    }
+                                                                    subG.exercises.push(ex);
+                                                                }
+                                                            });
+
+                                                            const getGroupColorStyles = (colorName?: string) => {
+                                                                if (!colorName) return null;
+                                                                return GROUP_COLORS.find(c => c.bg === colorName) || null;
+                                                            };
+
+                                                            return subGroups.map((subGroup) => {
+                                                                if (subGroup.groupId) {
+                                                                    // Det här är ett superset (undergrupp)
+                                                                    const isSubExpanded = expandedSubGroups[subGroup.groupId] === true; // Standard-ihopfälld (false)
+                                                                    const subGroupColorObj = getGroupColorStyles(subGroup.groupColor);
+                                                                    
+                                                                    const borderLeftClass = subGroupColorObj ? `border-l-4 ${subGroupColorObj.border}` : '';
+                                                                    const headerBg = subGroupColorObj ? subGroupColorObj.lightBg : 'bg-gray-50 dark:bg-gray-800/40';
+                                                                    const textColor = subGroupColorObj ? subGroupColorObj.text : 'text-gray-700 dark:text-gray-300';
+                                                                    const textHover = subGroupColorObj ? 'hover:bg-opacity-80' : 'hover:bg-gray-100 dark:hover:bg-gray-800/60';
+                                                                    
+                                                                    // Beräkna antal färdiga set inom detta superset för en liten badge (t.ex. "3/6 klara")
+                                                                    let subTotalSets = 0;
+                                                                    let subCompletedSets = 0;
+                                                                    subGroup.exercises.forEach(ex => {
+                                                                        subTotalSets += ex.result.setDetails.length;
+                                                                        subCompletedSets += ex.result.setDetails.filter(s => s.completed).length;
+                                                                    });
+
+                                                                    return (
+                                                                        <div key={subGroup.groupId} className="border border-gray-100 dark:border-gray-800 rounded-2xl overflow-hidden mb-2 shadow-sm">
+                                                                            {/* Superset Header */}
+                                                                            <button
+                                                                                type="button"
+                                                                                onClick={(e) => {
+                                                                                    const target = e.currentTarget;
+                                                                                    const isNowExpanded = !isSubExpanded;
+                                                                                    setExpandedSubGroups(prev => ({
+                                                                                        ...prev,
+                                                                                        [subGroup.groupId!]: isNowExpanded
+                                                                                    }));
+                                                                                    if (isNowExpanded) {
+                                                                                        setTimeout(() => {
+                                                                                            target?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                                                                                        }, 120);
+                                                                                    }
+                                                                                }}
+                                                                                className={`w-full text-left p-3 flex items-center justify-between select-none transition-colors ${headerBg} ${borderLeftClass} ${textHover}`}
+                                                                            >
+                                                                                <div className="flex items-center gap-2">
+                                                                                    <div className={`text-xs font-black uppercase tracking-widest ${textColor} flex items-center gap-1.5`}>
+                                                                                        <span className="flex h-1.5 w-1.5 relative">
+                                                                                           <span className={`animate-ping absolute inline-flex h-full w-full rounded-full ${subGroupColorObj ? subGroupColorObj.bg : 'bg-gray-400'} opacity-75`}></span>
+                                                                                           <span className={`relative inline-flex rounded-full h-1.5 w-1.5 ${subGroupColorObj ? subGroupColorObj.bg : 'bg-gray-400'}`}></span>
+                                                                                        </span>
+                                                                                        Superset ({subGroup.exercises.length} övningar)
+                                                                                    </div>
+                                                                                    {subTotalSets > 0 && (
+                                                                                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-white/85 dark:bg-black/20 text-gray-600 dark:text-gray-300">
+                                                                                            {subCompletedSets}/{subTotalSets} set
+                                                                                        </span>
+                                                                                    )}
+                                                                                </div>
+                                                                                <span className={`text-gray-400 dark:text-gray-500 transition-transform duration-200 ${isSubExpanded ? 'rotate-180' : ''}`}>
+                                                                                    <ChevronDownIcon className="w-4 h-4 stroke-[2.5]" />
+                                                                                </span>
+                                                                            </button>
+                                                                            
+                                                                            {/* Superset Content */}
+                                                                            <AnimatePresence initial={false}>
+                                                                                {isSubExpanded && (
+                                                                                    <motion.div
+                                                                                        initial={{ opacity: 0, height: 0 }}
+                                                                                        animate={{ opacity: 1, height: 'auto' }}
+                                                                                        exit={{ opacity: 0, height: 0 }}
+                                                                                        transition={{ duration: 0.2, ease: "easeOut" }}
+                                                                                        className="p-1 space-y-1 bg-gray-50/25 dark:bg-gray-950/5"
+                                                                                    >
+                                                                                        {subGroup.exercises.map(({ result, originalIndex }, idxInsideSub) => {
+                                                                                            const isLastInGroup = idxInsideSub === subGroup.exercises.length - 1;
+                                                                                            
+                                                                                            return (
+                                                                                                <ExerciseLogCard
+                                                                                                    key={result.exerciseId}
+                                                                                                    name={result.exerciseName}
+                                                                                                    result={result}
+                                                                                                    onUpdate={(updates) => handleUpdateResult(originalIndex, updates)}
+                                                                                                    aiSuggestion={activeInsight?.suggestions?.[result.exerciseName]} 
+                                                                                                    scaling={activeInsight?.scaling?.[result.exerciseName]} 
+                                                                                                    lastPerformance={history[result.exerciseName]} 
+                                                                                                    personalBest={personalBests[result.exerciseName.toLowerCase().trim()]}
+                                                                                                    isLastInGroup={isLastInGroup}
+                                                                                                    onAddGroupSet={() => handleAddGroupSet(result.groupId!)}
+                                                                                                    onOpenCalculator={(ctx) => {
+                                                                                                        setCalculatorContext({
+                                                                                                            ...ctx,
+                                                                                                            onSelectWeight: (weight: number) => {
+                                                                                                                setExerciseResults(prev => {
+                                                                                                                    const newResults = [...prev];
+                                                                                                                    const res = {...newResults[originalIndex]};
+                                                                                                                    res.setDetails = res.setDetails.map(s => ({...s}));
+                                                                                                                    
+                                                                                                                    let targetIdx = res.setDetails.findIndex(s => !s.completed);
+                                                                                                                    if (targetIdx === -1) {
+                                                                                                                        targetIdx = res.setDetails.length - 1;
+                                                                                                                    }
+                                                                                                                    if (targetIdx !== -1) {
+                                                                                                                        res.setDetails[targetIdx].weight = weight.toString();
+                                                                                                                    }
+                                                                                                                    newResults[originalIndex] = res;
+                                                                                                                    return newResults;
+                                                                                                                });
+                                                                                                            }
+                                                                                                        });
+                                                                                                        setShowCalculator(true);
+                                                                                                    }}
+                                                                                                />
+                                                                                            );
+                                                                                        })}
+                                                                                    </motion.div>
+                                                                                )}
+                                                                            </AnimatePresence>
+                                                                        </div>
+                                                                    );
+                                                                } else {
+                                                                    // Det här är en helt vanlig, fristående övning (subGroup har inget groupId)
+                                                                    const { result, originalIndex } = subGroup.exercises[0];
+                                                                    return (
+                                                                        <ExerciseLogCard
+                                                                            key={result.exerciseId}
+                                                                            name={result.exerciseName}
+                                                                            result={result}
+                                                                            onUpdate={(updates) => handleUpdateResult(originalIndex, updates)}
+                                                                            aiSuggestion={activeInsight?.suggestions?.[result.exerciseName]} 
+                                                                            scaling={activeInsight?.scaling?.[result.exerciseName]} 
+                                                                            lastPerformance={history[result.exerciseName]} 
+                                                                            personalBest={personalBests[result.exerciseName.toLowerCase().trim()]}
+                                                                            isLastInGroup={false}
+                                                                            onOpenCalculator={(ctx) => {
+                                                                                setCalculatorContext({
+                                                                                    ...ctx,
+                                                                                    onSelectWeight: (weight: number) => {
+                                                                                        setExerciseResults(prev => {
+                                                                                            const newResults = [...prev];
+                                                                                            const res = {...newResults[originalIndex]};
+                                                                                            res.setDetails = res.setDetails.map(s => ({...s}));
+                                                                                            
+                                                                                            let targetIdx = res.setDetails.findIndex(s => !s.completed);
+                                                                                            if (targetIdx === -1) {
+                                                                                                targetIdx = res.setDetails.length - 1;
+                                                                                            }
+                                                                                            if (targetIdx !== -1) {
+                                                                                                res.setDetails[targetIdx].weight = weight.toString();
+                                                                                            }
+                                                                                            newResults[originalIndex] = res;
+                                                                                            return newResults;
+                                                                                        });
+                                                                                    }
+                                                                                });
+                                                                                setShowCalculator(true);
+                                                                            }}
+                                                                        />
+                                                                    );
+                                                                }
+                                                            });
+                                                        })()}
+                                                    </motion.div>
+                                                )}
+                                            </AnimatePresence>
+                                        </div>
+                                    );
+                                })
+                            )}
+                          </>
+                      )}
+
+                      {isManualMode && exerciseResults.length > 0 && (
+                          <div className="mt-4 p-5 bg-white dark:bg-gray-900 rounded-3xl border border-gray-100 dark:border-gray-800 shadow-sm flex flex-col gap-4">
+                              <div className="flex items-center gap-3">
+                                  <input 
+                                      type="checkbox" 
+                                      checked={saveAsProgram}
+                                      onChange={(e) => setSaveAsProgram(e.target.checked)}
+                                      id="saveAsProgram"
+                                      className="w-5 h-5 rounded border-gray-300 text-primary focus:ring-primary"
+                                  />
+                                  <label htmlFor="saveAsProgram" className="text-sm font-bold text-gray-800 dark:text-gray-200">
+                                      Spara som nytt program
+                                  </label>
+                              </div>
+                              {saveAsProgram && (
+                                  <div className="animate-fade-in">
+                                      <input 
+                                          type="text"
+                                          value={programName}
+                                          onChange={(e) => setProgramName(e.target.value)}
+                                          placeholder="T.ex. Axlar & Rygg"
+                                          className="w-full bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 focus:outline-none focus:ring-2 focus:ring-primary transition-all font-medium placeholder-gray-400"
+                                      />
+                                  </div>
+                              )}
+                          </div>
+                      )}
+
+                      {/* NÄSTA / GÅ VIDARE KNAPP */}
+                      <div className="pt-6 pb-12 space-y-4">
+                          {!isManualMode && uncheckedSetsCount > 0 && (
+                              <div className="text-center animate-fade-in bg-amber-500/10 border border-amber-500/20 py-3.5 rounded-2xl">
+                                  <p className="text-amber-700 dark:text-amber-400 text-xs font-black uppercase tracking-widest flex items-center justify-center gap-1.5 px-3">
+                                      <InformationCircleIcon className="w-4 h-4 flex-shrink-0 text-amber-500" /> {uncheckedSetsCount} set kvar att checka av innan du kan spara passet
+                                  </p>
+                              </div>
+                          )}
+                          <button
+                              type="button"
+                              onClick={() => {
+                                  setLogStep('summary');
+                                  setTimeout(() => {
+                                      scrollContainerRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+                                  }, 50);
+                              }}
+                              className="w-full bg-primary hover:brightness-110 text-white font-black py-5 rounded-2xl shadow-xl shadow-primary/20 transition-all transform active:scale-95 text-lg uppercase tracking-tight flex items-center justify-center gap-2"
+                          >
+                              <span>Gå vidare till sammanfattning</span>
+                              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="3" stroke="currentColor" className="w-5 h-5">
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3" />
+                              </svg>
+                          </button>
+                      </div>
+                  </div>
+              ) : (
+                  <div className="space-y-6 animate-fade-in">
+                      {/* STEP 2: SUMMARY */}
+                      {!isManualMode && (
+                          <div className="p-5 bg-white dark:bg-gray-900 rounded-[2rem] border border-gray-100 dark:border-gray-800 shadow-sm">
+                              <div className="grid grid-cols-2 gap-4">
+                                  <div>
+                                      <label className={`block text-[10px] font-black uppercase tracking-widest mb-2 flex justify-between ${benchmarkDefinition?.type === 'time' ? 'text-yellow-600 dark:text-yellow-500' : 'text-gray-400 dark:text-gray-500'}`}>
+                                          Tid (min:sek)
+                                          {benchmarkDefinition?.type === 'time' && prevBenchmarkBest && (
+                                              <span className="text-[9px] bg-yellow-105 dark:bg-yellow-900/30 px-1.5 py-0.5 rounded">PB: {formatPrev(prevBenchmarkBest, 'time')}</span>
+                                          )}
+                                      </label>
+                                      <div className={`bg-gray-50 dark:bg-gray-800 rounded-xl p-2 border transition-colors ${benchmarkDefinition?.type === 'time' ? 'border-yellow-400 dark:border-yellow-600 ring-2 ring-yellow-400/20' : 'border-gray-100 dark:border-gray-700'}`}>
+                                          <TimeInput
+                                              value={sessionStats.time}
+                                              onChange={(val) => setSessionStats(prev => ({ ...prev, time: val }))}
+                                              placeholder={benchmarkDefinition?.type === 'time' ? "45" : "-"}
+                                              className="w-full bg-transparent text-gray-900 dark:text-white font-black text-lg focus:outline-none text-center"
+                                              compact={true}
+                                          />
+                                      </div>
+                                  </div>
+                                  <div>
+                                      <label className={`block text-[10px] font-black uppercase tracking-widest mb-2 flex justify-between ${benchmarkDefinition?.type === 'reps' ? 'text-yellow-600 dark:text-yellow-500' : 'text-gray-400 dark:text-gray-500'}`}>
+                                          Varv / Reps
+                                          {benchmarkDefinition?.type === 'reps' && prevBenchmarkBest && (
+                                              <span className="text-[9px] bg-yellow-101 dark:bg-yellow-900/30 px-1.5 py-0.5 rounded">PB: {formatPrev(prevBenchmarkBest, 'reps')}</span>
+                                          )}
+                                      </label>
+                                      <div className={`bg-gray-50 dark:bg-gray-800 rounded-xl p-2 border transition-colors ${benchmarkDefinition?.type === 'reps' ? 'border-yellow-400 dark:border-yellow-600 ring-2 ring-yellow-400/20' : 'border-gray-100 dark:border-gray-700'}`}>
+                                          <input 
+                                              type="number"
+                                              value={sessionStats.rounds}
+                                              onChange={(e) => setSessionStats(prev => ({ ...prev, rounds: e.target.value }))}
+                                              placeholder={benchmarkDefinition?.type === 'reps' ? "T.ex. 5" : "-"}
+                                              className="w-full bg-transparent text-gray-900 dark:text-white font-black text-lg focus:outline-none text-center"
+                                          />
+                                      </div>
+                                  </div>
+                                  <div>
+                                      <label className="block text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-2">kcal</label>
+                                      <div className="bg-gray-50 dark:bg-gray-800 rounded-xl p-2 border border-gray-100 dark:border-gray-700">
+                                          <input 
+                                              type="number"
+                                              value={sessionStats.calories}
+                                              onChange={(e) => setSessionStats(prev => ({ ...prev, calories: e.target.value }))}
+                                              placeholder="T.ex. 350"
+                                              className="w-full bg-transparent text-gray-900 dark:text-white font-black text-lg focus:outline-none text-center"
+                                          />
+                                      </div>
+                                  </div>
+                                  <div>
+                                      <label className="block text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-2">km</label>
+                                      <div className="bg-gray-50 dark:bg-gray-800 rounded-xl p-2 border border-gray-100 dark:border-gray-700">
+                                          <input 
+                                              type="number"
+                                              value={sessionStats.distance}
+                                              onChange={(e) => setSessionStats(prev => ({ ...prev, distance: e.target.value }))}
+                                              placeholder="T.ex. 3.5"
+                                              className="w-full bg-transparent text-gray-900 dark:text-white font-black text-lg focus:outline-none text-center"
+                                          />
+                                      </div>
+                                  </div>
+                              </div>
+                          </div>
+                      )}
+
+                      <PostWorkoutForm 
+                          data={logData} 
+                          onUpdate={u => setLogData(prev => ({ ...prev, ...u }))} 
+                          userId={userId}
+                      />
+
+                      <div className="mt-8 space-y-6 pb-12">
+                          <div className="space-y-3">
+                              <h3 className="text-xs font-black text-gray-500 dark:text-gray-400 uppercase tracking-widest px-1 text-center">Var genomfördes passet?</h3>
+                              <div className="grid grid-cols-2 gap-3">
+                                  <button
+                                      type="button"
+                                      onClick={() => setInStudio(true)}
+                                      className={`py-4 px-3 rounded-2xl border-2 font-bold text-sm transition-all ${inStudio === true ? 'border-primary bg-primary/10 text-primary' : 'border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800'}`}
+                                  >
+                                      {selectedOrganization?.name || 'På Gymmet'}
+                                  </button>
+                                  <button
+                                      type="button"
+                                      onClick={() => setInStudio(false)}
+                                      className={`py-4 px-3 rounded-2xl border-2 font-bold text-sm transition-all ${inStudio === false ? 'border-primary bg-primary/10 text-primary' : 'border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800'}`}
+                                  >
+                                      Annan plats
+                                  </button>
+                              </div>
+                          </div>
+
+                          {!isFormValid && !isManualMode && uncheckedSetsCount > 0 && (
+                              <div className="text-center animate-fade-in bg-amber-500/10 border border-amber-500/20 py-3.5 rounded-2xl">
+                                  <p className="text-amber-700 dark:text-amber-400 text-xs font-black uppercase tracking-widest flex items-center justify-center gap-1.5 px-3">
+                                      <InformationCircleIcon className="w-4 h-4 flex-shrink-0 text-amber-500" /> {uncheckedSetsCount} set kvar att checka av för att kunna spara
+                                  </p>
+                              </div>
+                          )}
+
+                          <div className="flex flex-col sm:flex-row gap-4 pt-4">
+                              <button 
+                                  type="button"
+                                  onClick={() => {
+                                      setLogStep('exercises');
+                                      setTimeout(() => {
+                                          scrollContainerRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+                                      }, 50);
+                                  }}
+                                  className="flex-1 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 font-black py-5 rounded-2xl transition-all active:scale-95 uppercase tracking-widest text-sm flex items-center justify-center gap-2"
+                              >
+                                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="3" stroke="currentColor" className="w-4 h-4">
+                                      <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18" />
+                                  </svg>
+                                  <span>Gå tillbaka</span>
+                              </button>
+                              
+                              <div className="flex-[2] flex flex-col items-center gap-3">
+                                  <button 
+                                      onClick={handleSubmit}
+                                      disabled={!isFormValid || isSubmitting}
+                                      className="w-full bg-primary text-white font-black py-5 rounded-2xl shadow-xl shadow-primary/20 transition-all transform active:scale-95 disabled:bg-gray-300 dark:disabled:bg-gray-800 disabled:text-gray-400 dark:disabled:text-gray-600 disabled:shadow-none disabled:transform-none text-xl uppercase tracking-tight flex items-center justify-center gap-3"
+                                  >
+                                      {isSubmitting ? (
+                                          <>
+                                              <div className="w-6 h-6 border-4 border-white/30 border-t-white rounded-full animate-spin" />
+                                              <span>Sparar...</span>
+                                          </>
+                                      ) : (
+                                          <span>{isManualMode ? 'Spara Aktivitet' : 'Spara Pass'}</span>
+                                      )}
+                                  </button>
+                                  
+                                  <AnimatePresence>
+                                      {isSubmitting && saveStatus && (
+                                          <motion.p 
+                                              initial={{ opacity: 0, y: 10 }}
+                                              animate={{ opacity: 1, y: 0 }}
+                                              exit={{ opacity: 0 }}
+                                              className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest animate-pulse"
+                                          >
+                                              {saveStatus}
+                                          </motion.p>
+                                      )}
+                                  </AnimatePresence>
+                              </div>
+                          </div>
+                      </div>
                   </div>
               )}
-
-              <PostWorkoutForm 
-                data={logData} 
-                onUpdate={u => setLogData(prev => ({ ...prev, ...u }))} 
-                userId={userId}
-              />
-
-              <div className="mt-12 space-y-4 pb-12">
-                  <div className="mb-6 space-y-3">
-                      <h3 className="text-xs font-black text-gray-500 dark:text-gray-400 uppercase tracking-widest px-1 text-center">Var genomfördes passet?</h3>
-                      <div className="grid grid-cols-2 gap-3">
-                          <button
-                              onClick={() => setInStudio(true)}
-                              className={`py-4 px-3 rounded-2xl border-2 font-bold text-sm transition-all ${inStudio === true ? 'border-primary bg-primary/10 text-primary' : 'border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800'}`}
-                          >
-                              {selectedOrganization?.name || 'På Gymmet'}
-                          </button>
-                          <button
-                              onClick={() => setInStudio(false)}
-                              className={`py-4 px-3 rounded-2xl border-2 font-bold text-sm transition-all ${inStudio === false ? 'border-primary bg-primary/10 text-primary' : 'border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800'}`}
-                          >
-                              Annan plats
-                          </button>
-                      </div>
-                  </div>
-
-                  {!isFormValid && !isManualMode && uncheckedSetsCount > 0 && (
-                      <div className="text-center animate-fade-in">
-                          <p className="text-orange-600 dark:text-orange-400 text-xs font-black uppercase tracking-widest mb-1 flex items-center justify-center gap-1">
-                              <InformationCircleIcon className="w-3.5 h-3.5" /> {uncheckedSetsCount} set kvar att checka av
-                          </p>
-                      </div>
-                  )}
-
-                  <div className="flex flex-col sm:flex-row gap-4">
-                      <button 
-                          onClick={() => handleCancel(false)}
-                          disabled={isSubmitting}
-                          className="flex-1 bg-gray-100 dark:bg-gray-800 text-gray-500 font-black py-5 rounded-2xl transition-all active:scale-95 uppercase tracking-widest text-sm disabled:opacity-50"
-                      >
-                          Avbryt
-                      </button>
-                      <div className="flex-[2] flex flex-col items-center gap-3">
-                          <button 
-                              onClick={handleSubmit}
-                              disabled={!isFormValid || isSubmitting}
-                              className="w-full bg-primary text-white font-black py-5 rounded-2xl shadow-xl shadow-primary/20 transition-all transform active:scale-95 disabled:bg-gray-300 dark:disabled:bg-gray-800 disabled:text-gray-400 dark:disabled:text-gray-600 disabled:shadow-none disabled:transform-none text-xl uppercase tracking-tight flex items-center justify-center gap-3"
-                          >
-                              {isSubmitting ? (
-                                  <>
-                                      <div className="w-6 h-6 border-4 border-white/30 border-t-white rounded-full animate-spin" />
-                                      <span>Sparar...</span>
-                                  </>
-                              ) : (
-                                  <span>{isManualMode ? 'Spara Aktivitet' : 'Spara Pass'}</span>
-                              )}
-                          </button>
-                          
-                          <AnimatePresence>
-                              {isSubmitting && saveStatus && (
-                                  <motion.p 
-                                      initial={{ opacity: 0, y: 10 }}
-                                      animate={{ opacity: 1, y: 0 }}
-                                      exit={{ opacity: 0 }}
-                                      className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest animate-pulse"
-                                  >
-                                      {saveStatus}
-                                  </motion.p>
-                              )}
-                          </AnimatePresence>
-                      </div>
-                  </div>
-              </div>
           </div>
       </div>
 {showExerciseSearch && (

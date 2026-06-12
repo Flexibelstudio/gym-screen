@@ -2040,11 +2040,7 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
 
                                                     return (
                                                         <div className="space-y-4">
-                                                            {userData?.joinedSummerChallengeAt && (
-                                                                <div className="text-[11px] text-emerald-800 dark:text-emerald-400 font-extrabold flex items-center gap-1.5 px-1 py-0.5 select-none animate-fade-in">
-                                                                    <span>✓</span> Du gick med i utmaningen: {new Date(userData.joinedSummerChallengeAt).toLocaleDateString('sv-SE', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
-                                                                </div>
-                                                            )}
+
 
                                                             {/* Gymmet tillsammans (Club stats block) */}
                                                             <div className="bg-amber-50/70 dark:bg-amber-955/20 backdrop-blur-md rounded-2xl p-4 sm:p-5 border border-amber-200/35 relative overflow-hidden shadow-sm text-amber-950">
