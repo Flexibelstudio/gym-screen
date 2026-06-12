@@ -273,10 +273,17 @@ const GymThermometerMascot = ({ isStudioMode = false }: { isStudioMode?: boolean
             thisWeeksLogs = thisWeeksLogs.filter(log => log.locationId === activeLocationId);
         }
 
+        let totalPoints = 0;
         const userPointsMap: Record<string, number> = {};
         thisWeeksLogs.forEach(log => {
             const uid = log.memberId;
             if (!uid) return;
+            
+            const logMember = membersList.find(m => m.uid === uid);
+            if (!logMember || !logMember.joinedSummerChallenge) return;
+            
+            const logTime = new Date(log.date || 0).getTime();
+            if (logTime < (logMember.joinedSummerChallengeAt || 0)) return;
             
             let pts = 0;
             if (log.inStudio === true) {
@@ -288,14 +295,10 @@ const GymThermometerMascot = ({ isStudioMode = false }: { isStudioMode?: boolean
                 }
             }
             userPointsMap[uid] = (userPointsMap[uid] || 0) + pts;
+            totalPoints += pts;
         });
 
-        const activeUsers = Object.keys(userPointsMap);
-        const activeUsersCount = activeUsers.length;
-        let totalPoints = 0;
-        activeUsers.forEach(uid => {
-            totalPoints += userPointsMap[uid];
-        });
+        const activeUsersCount = Object.keys(userPointsMap).length;
 
         // Basantal registrerade (N): anmälda innan veckans måndag startar
         const locationMembers = membersList.filter(m => {
