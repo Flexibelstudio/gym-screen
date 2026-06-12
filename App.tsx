@@ -67,6 +67,28 @@ const App: React.FC = () => {
   const { role, userData, isStudioMode, signOut, isImpersonating, startImpersonation, stopImpersonation, showTerms, acceptTerms, currentUser, authLoading, clearDeviceProvisioning } = useAuth();
   const { workouts, activeWorkout, setActiveWorkout, saveWorkout, deleteWorkout } = useWorkout();
   
+  // --- DOMAIN ROUTING LOGIC ---
+  const { isMarketingSite, isAppPortal } = useMemo(() => {
+    const hostname = typeof window !== 'undefined' ? window.location.hostname : '';
+    
+    // Check if we are on the main marketing domain (smartstudio.se or www.smartstudio.se)
+    const isMarketing = hostname === 'smartstudio.se' || hostname === 'www.smartstudio.se';
+    
+    // If the URL has ?marketing=true (useful for dev/testing), treat it as marketing site
+    const searchParams = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '');
+    const forceMarketing = searchParams.get('marketing') === 'true';
+    
+    // If the URL has ?app=true (useful for testing), treat it as app portal
+    const forceAppPortal = searchParams.get('app') === 'true';
+
+    const finalIsMarketing = (isMarketing || forceMarketing) && !forceAppPortal;
+    
+    return {
+      isMarketingSite: finalIsMarketing,
+      isAppPortal: !finalIsMarketing
+    };
+  }, []);
+
   const [sessionRole, setSessionRole] = useState<UserRole>(role);
   const [showLogin, setShowLogin] = useState(false);
   const [showRegisterGym, setShowRegisterGym] = useState(false); 
@@ -1191,13 +1213,31 @@ const App: React.FC = () => {
   }
 
   if (!authLoading && !currentUser && !isStudioMode) {
+      if (isAppPortal) {
+          // På app.smartstudio.se (eller i utvecklingsmiljö / staging-app utan ?marketing=true)
+          // visar vi enbart LoginScreen, och skickar inte in onRegisterGym så knappen för att registrera gym göms helt!
+          return <LoginScreen onClose={undefined} onRegisterGym={undefined} />;
+      }
+
+      // Annars på smartstudio.se (marknadsföringssidan/huvuddomänen eller i dev med ?marketing=true)
       if (showRegisterGym) {
           return <RegisterGymScreen onCancel={() => setShowRegisterGym(false)} />;
       }
       if (showLogin) {
           return <LoginScreen onClose={() => setShowLogin(false)} onRegisterGym={() => setShowRegisterGym(true)} />;
       }
-      return <LandingPage onLoginClick={() => setShowLogin(true)} onRegisterGymClick={() => setShowRegisterGym(true)} />;
+      return (
+          <LandingPage 
+              onLoginClick={() => {
+                  const hostname = window.location.hostname;
+                  const targetAppUrl = hostname.includes('staging.smartstudio.se')
+                      ? 'https://app.staging.smartstudio.se'
+                      : 'https://app.smartstudio.se';
+                  window.location.href = targetAppUrl + window.location.search;
+              }} 
+              onRegisterGymClick={() => setShowRegisterGym(true)} 
+          />
+      );
   }
 
   if (currentUser && !userData && !isStudioMode && !authLoading) {
