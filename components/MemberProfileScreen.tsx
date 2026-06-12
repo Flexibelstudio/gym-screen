@@ -764,7 +764,7 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
         return communityLogs.filter(log => log.locationId === userData.locationId);
     }, [communityLogs, userData?.locationId]);
 
-    const [sisuDetailsExpanded, setSisuDetailsExpanded] = useState(false);
+    const [sisuDetailsExpanded, setSisuDetailsExpanded] = useState(true);
     const [justActivatedSummer, setJustActivatedSummer] = useState(false);
 
     const summerStats = useMemo(() => {
@@ -1874,8 +1874,15 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                             >
                                 <div className="flex items-center gap-3">
                                     <span className="text-2xl select-none animate-bounce origin-bottom [animation-duration:3s]">☀️</span>
-                                    <div>
-                                        <span className="text-xs font-black tracking-widest text-orange-950/75 uppercase block leading-none mb-1">Du deltar i utmaningen!</span>
+                                                                   <div>
+                                        <div className="flex flex-wrap items-center gap-1.5 mb-1">
+                                            <span className="text-xs font-black tracking-widest text-orange-950/75 uppercase block leading-none">Du deltar i utmaningen!</span>
+                                            {configToUse?.summerChallengeStartDate && configToUse?.summerChallengeEndDate && (
+                                                <span className="bg-amber-950/15 text-[9px] font-extrabold px-1.5 py-0.5 rounded-md text-amber-950 uppercase tracking-wider">
+                                                    📅 {new Date(configToUse.summerChallengeStartDate).toLocaleDateString('sv-SE', { day: 'numeric', month: 'short' })} - {new Date(configToUse.summerChallengeEndDate).toLocaleDateString('sv-SE', { day: 'numeric', month: 'short', year: 'numeric' })}
+                                                </span>
+                                            )}
+                                        </div>
                                         <span className="text-xs sm:text-sm font-extrabold text-amber-950 leading-none">
                                             {!isChallengeStarted ? (
                                                 <span>Utmaningen startar snart! ⏳</span>
