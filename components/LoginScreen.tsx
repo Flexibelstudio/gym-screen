@@ -155,18 +155,18 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onClose, onRegisterGym
 
     const renderLoginView = () => (
         <>
-            <div className="text-center mb-6">
+            <div className="text-center mb-6 shrink-0">
                 <h2 className="text-2xl font-bold text-white uppercase tracking-tight">Logga in</h2>
                 <p className="text-gray-400 mt-1 text-sm font-medium">För administratörer och medlemmar</p>
             </div>
             
-            {error && (
-                <div className="bg-red-900/50 border border-red-500 text-red-200 px-4 py-3 rounded-lg text-sm text-center mb-4">
-                    {error}
-                </div>
-            )}
+            <div className="space-y-6 flex-1 min-h-0 overflow-y-auto pr-1 pb-1 custom-scrollbar">
+                {error && (
+                    <div className="bg-red-900/50 border border-red-500 text-red-200 px-4 py-3 rounded-lg text-sm text-center mb-4">
+                        {error}
+                    </div>
+                )}
 
-            <div className="space-y-6">
                 <div className="space-y-6" onKeyDown={(e) => { if (e.key === 'Enter') handleLogin(e); }}>
                     <div>
                         <label htmlFor="email" className="sr-only">E-post</label>
@@ -248,11 +248,11 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onClose, onRegisterGym
 
     const renderResetView = () => (
         <>
-            <div className="text-center mb-6">
+            <div className="text-center mb-6 shrink-0">
                 <h2 className="text-2xl font-bold text-white uppercase tracking-tight">Återställ lösenord</h2>
                 <p className="text-gray-400 mt-1">Ange din e-post så skickar vi en länk.</p>
             </div>
-            <div className="space-y-6" onKeyDown={(e) => { if (e.key === 'Enter') handleResetPassword(e); }}>
+            <div className="space-y-6 flex-1 min-h-0 overflow-y-auto pr-1 pb-1 custom-scrollbar" onKeyDown={(e) => { if (e.key === 'Enter') handleResetPassword(e); }}>
                 <div>
                         <label htmlFor="reset-email" className="sr-only">E-post</label>
                     <input
@@ -292,11 +292,11 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onClose, onRegisterGym
 
     const renderRegisterView = () => (
         <>
-            <div className="text-center mb-6">
+            <div className="text-center mb-6 shrink-0">
                 <h2 className="text-2xl font-bold text-white uppercase tracking-tight">Skapa konto</h2>
                 <p className="text-gray-400 mt-1">Gå med i ett befintligt gym</p>
             </div>
-            <div className="space-y-4 max-h-[70vh] overflow-y-auto pr-2 custom-scrollbar" onKeyDown={(e) => { if (e.key === 'Enter') handleRegister(e); }}>
+            <div className="space-y-4 flex-1 min-h-0 overflow-y-auto pr-1 pb-1 custom-scrollbar" onKeyDown={(e) => { if (e.key === 'Enter') handleRegister(e); }}>
                 
                 <div className="flex flex-col items-center mb-4">
                     <div 
@@ -503,7 +503,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onClose, onRegisterGym
                         <CloseIcon className="w-8 h-8" />
                     </button>
                 )}
-                <div className="bg-gray-900 border border-gray-800 rounded-[2.5rem] p-8 sm:p-10 max-h-[95vh] flex flex-col shadow-[0_50px_100px_-20px_rgba(0,0,0,0.5)]">
+                <div className="bg-gray-900 border border-gray-800 rounded-[2.5rem] p-6 sm:p-10 max-h-[90vh] sm:max-h-[95vh] w-full max-w-md flex flex-col shadow-[0_50px_100px_-20px_rgba(0,0,0,0.5)]">
                     {view === 'login' && renderLoginView()}
                     {view === 'reset' && renderResetView()}
                     {view === 'register' && renderRegisterView()}
