@@ -724,7 +724,14 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
         return !!configToUse?.enableSummerChallenge;
     }, [configToUse]);
 
-    const currentTimestamp = Date.now();
+    const [currentTimestamp, setCurrentTimestamp] = useState(Date.now());
+
+    useEffect(() => {
+        const timer = setInterval(() => {
+            setCurrentTimestamp(Date.now());
+        }, 1000);
+        return () => clearInterval(timer);
+    }, []);
 
     const isChallengeStarted = useMemo(() => {
         if (!isSummerThemeActive) return false;
@@ -737,6 +744,20 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
         if (!configToUse?.summerChallengeEndDate) return false;
         return currentTimestamp > configToUse.summerChallengeEndDate;
     }, [isSummerThemeActive, configToUse, currentTimestamp]);
+
+    const countdownToStart = useMemo(() => {
+        if (!configToUse?.summerChallengeStartDate) return null;
+        const diffMs = configToUse.summerChallengeStartDate - currentTimestamp;
+        if (diffMs <= 0) return null;
+        return Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+    }, [configToUse?.summerChallengeStartDate, currentTimestamp]);
+
+    const countdownToEnd = useMemo(() => {
+        if (!configToUse?.summerChallengeEndDate) return null;
+        const diffMs = configToUse.summerChallengeEndDate - currentTimestamp;
+        if (diffMs <= 0) return null;
+        return Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+    }, [configToUse?.summerChallengeEndDate, currentTimestamp]);
 
     const filteredCommunityLogs = useMemo(() => {
         if (!userData?.locationId) return communityLogs;
@@ -1888,17 +1909,35 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                                                 <div className="bg-amber-50/70 dark:bg-amber-955/20 backdrop-blur-md rounded-2xl p-4 sm:p-5 border border-amber-200/35 relative overflow-hidden shadow-sm">
                                                     <div className="flex justify-between items-start select-none">
                                                         <div>
-                                                            <p className="text-xs font-bold text-amber-900 uppercase tracking-widest mb-1.5 font-black font-sans">Nedräkning ⏳</p>
-                                                            <h3 className="text-2xl sm:text-3xl font-black text-amber-950 tracking-tight mb-1">
+                                                            <p className="text-xs font-bold text-amber-900 uppercase tracking-widest mb-1.5 font-black font-sans flex items-center gap-1.5"><span>⏳</span> TID KVAR TILL START</p>
+                                                            <h3 className="text-2xl sm:text-3xl font-black text-amber-950 dark:text-amber-100 tracking-tight mb-3">
                                                                 Utmaningen startar snart!
                                                             </h3>
+
+                                                            {/* LIVE COUNTDOWN METRIC */}
+                                                            {countdownToStart !== null ? (
+                                                                <div className="mb-4 select-none font-sans inline-block bg-orange-500/10 dark:bg-orange-955/40 px-3.5 py-2 rounded-2xl border border-orange-500/25 shadow-sm">
+                                                                    <span className="text-xl sm:text-2xl font-black text-orange-655 dark:text-orange-400">
+                                                                        {countdownToStart === 1 ? "1 dag kvar!" : `${countdownToStart} dagar kvar!`}
+                                                                    </span>
+                                                                </div>
+                                                            ) : (
+                                                                <div className="py-2 px-3 bg-orange-500/10 rounded-xl text-center mb-4 text-xs font-black text-orange-950">
+                                                                    Startar alldeles strax! 🚀
+                                                                </div>
+                                                            )}
                                                             <p className="text-xs sm:text-sm text-amber-900/90 font-semibold leading-normal max-w-sm mt-1">
                                                                 {configToUse?.summerChallengeStartDate ? (
-                                                                    <>Startdatum: <span className="font-extrabold">{new Date(configToUse.summerChallengeStartDate).toLocaleDateString('sv-SE', { weekday: 'long', day: 'numeric', month: 'long' })}</span></>
+                                                                    <>Startdatum: <span className="font-extrabold">{new Date(configToUse.summerChallengeStartDate).toLocaleDateString('sv-SE', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</span></>
                                                                 ) : 'Startdatum ej satt.'}
                                                                 {configToUse?.summerChallengeEndDate && (
                                                                     <span className="block text-xs text-amber-900/85 mt-1 font-bold">
-                                                                        Slutdatum: {new Date(configToUse.summerChallengeEndDate).toLocaleDateString('sv-SE', { weekday: 'long', day: 'numeric', month: 'long' })}
+                                                                        Slutdatum: {new Date(configToUse.summerChallengeEndDate).toLocaleDateString('sv-SE', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+                                                                    </span>
+                                                                )}
+                                                                {userData?.joinedSummerChallengeAt && (
+                                                                    <span className="block text-[11px] text-emerald-800 dark:text-emerald-400 mt-2.5 font-bold bg-emerald-500/10 p-2 rounded-xl border border-emerald-500/20 shadow-sm leading-normal">
+                                                                        ✅ Du är anmäld! Gick med {new Date(userData.joinedSummerChallengeAt).toLocaleDateString('sv-SE', { weekday: 'long', day: 'numeric', month: 'long' }) + ' kl ' + new Date(userData.joinedSummerChallengeAt).toLocaleTimeString('sv-SE', { hour: '2-digit', minute: '2-digit' })}
                                                                     </span>
                                                                 )}
                                                             </p>
@@ -1974,17 +2013,23 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                                                                             {" - "}
                                                                             {new Date(configToUse.summerChallengeEndDate).toLocaleDateString('sv-SE', { day: 'numeric', month: 'short', year: 'numeric' })}
                                                                         </div>
+                                                                        {userData?.joinedSummerChallengeAt && (
+                                                                            <div className="text-[10px] text-emerald-800 dark:text-emerald-400 font-bold mt-1 flex items-center gap-1">
+                                                                                <span className="text-emerald-650">✓</span> Du gick med: {new Date(userData.joinedSummerChallengeAt).toLocaleDateString('sv-SE', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+                                                                            </div>
+                                                                        )}
                                                                     </div>
-                                                                    <div className="bg-amber-950/15 dark:bg-amber-100/10 px-3 py-1.5 rounded-xl text-center flex items-center gap-2 font-black shrink-0">
-                                                                        <span className="text-[10px] uppercase tracking-wider text-amber-900/90 dark:text-amber-100 font-sans">
-                                                                            ⏳ {(() => {
-                                                                                const diffMs = configToUse.summerChallengeEndDate - Date.now();
-                                                                                const days = Math.max(0, Math.ceil(diffMs / (1000 * 60 * 60 * 24)));
-                                                                                if (days === 0) return "Avslutas idag!";
-                                                                                if (days === 1) return "1 dag kvar!";
-                                                                                return `${days} dagar kvar!`;
-                                                                            })()}
-                                                                        </span>
+                                                                    <div className="flex flex-col gap-1 select-none items-start sm:items-end font-sans shrink-0">
+                                                                        <div className="flex items-center gap-1 text-[10px] uppercase tracking-wider font-extrabold text-amber-900 dark:text-amber-400 font-sans justify-start sm:justify-end">
+                                                                            <span>⏳</span> TID KVAR:
+                                                                        </div>
+                                                                        {countdownToEnd !== null ? (
+                                                                            <div className="bg-amber-955/15 dark:bg-amber-100/10 px-3 py-1.5 rounded-xl font-black text-amber-955 dark:text-amber-100 text-xs sm:text-sm">
+                                                                                {countdownToEnd === 0 ? "Avslutas idag!" : countdownToEnd === 1 ? "1 dag kvar!" : `${countdownToEnd} dagar kvar`}
+                                                                            </div>
+                                                                        ) : (
+                                                                            <span className="text-[10px] font-black uppercase text-red-650 bg-red-500/10 px-2 py-1 rounded-lg text-center font-sans">Avslutad</span>
+                                                                        )}
                                                                     </div>
                                                                 </div>
                                                             )}
