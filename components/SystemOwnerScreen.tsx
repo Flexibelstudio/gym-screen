@@ -691,8 +691,17 @@ const ChallengesTab: React.FC<{
                 if (data) {
                     setTitle(data.title || 'Sommarutmaningen ☀️');
                     setDescription(data.description || '');
-                    setStartDate(data.startDate ? new Date(data.startDate).toISOString().split('T')[0] : '');
-                    setEndDate(data.endDate ? new Date(data.endDate).toISOString().split('T')[0] : '');
+                    
+                    const toLocalDateString = (ts: number) => {
+                        const d = new Date(ts);
+                        const y = d.getFullYear();
+                        const m = String(d.getMonth() + 1).padStart(2, '0');
+                        const day = String(d.getDate()).padStart(2, '0');
+                        return `${y}-${m}-${day}`;
+                    };
+
+                    setStartDate(data.startDate ? toLocalDateString(data.startDate) : '');
+                    setEndDate(data.endDate ? toLocalDateString(data.endDate) : '');
                     setIsPublished(data.isPublished || false);
                 }
                 setIsLoading(false);

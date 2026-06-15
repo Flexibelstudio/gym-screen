@@ -855,8 +855,7 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
 
         const challengeParticipantsOnSunday = locationMembers.filter(m => {
             if (!(m.joinedSummerChallenge && m.joinedChallengeId === configToUse?.id)) return false;
-            const joinedAt = m.joinedSummerChallengeAt || 0;
-            return joinedAt < monday.getTime();
+            return true;
         });
 
         const N = Math.max(1, challengeParticipantsOnSunday.length);
@@ -2133,7 +2132,7 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                                                                 </div>
 
                                                                 <div className="mt-3 text-xs text-amber-950/70 flex flex-col gap-1 border-t border-amber-950/5 pt-2 font-medium">
-                                                                    <span>• Basantal registrerade i söndags: <strong className="text-amber-950">{summerStats.N} st</strong></span>
+                                                                    <span>• Anmälda deltagare: <strong className="text-amber-950">{summerStats.N} st</strong></span>
                                                                     <span>• Aktiva deltagare denna vecka: <strong className="text-amber-950">{summerStats.activeUsersCount} st</strong></span>
                                                                     <span>• Nästa temperaturtröskel: <strong className="text-amber-950">{summerStats.nextTarget > 0 ? `${summerStats.nextTarget} poäng` : "Maximal temperatur nådd! 🎉"}</strong></span>
                                                                 </div>

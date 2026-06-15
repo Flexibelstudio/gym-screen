@@ -333,8 +333,7 @@ const GymThermometerMascot = ({ isStudioMode = false }: { isStudioMode?: boolean
 
         const challengeParticipantsOnSunday = locationMembers.filter(m => {
             if (!(m.joinedSummerChallenge && m.joinedChallengeId === configToUse?.id)) return false;
-            const joinedAt = m.joinedSummerChallengeAt || 0;
-            return joinedAt < startOfWeek.getTime();
+            return true;
         });
 
         const N = Math.max(1, challengeParticipantsOnSunday.length);
