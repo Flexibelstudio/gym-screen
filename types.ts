@@ -415,6 +415,7 @@ export interface UserData {
   isTrainingMember?: boolean;
   joinedSummerChallenge?: boolean;
   joinedSummerChallengeAt?: number;
+  joinedChallengeId?: string;
   summerChallengeGoal?: number;
   nextSummerChallengeGoal?: number;
   summerChallengeGoals?: Record<number, number>;

@@ -230,11 +230,36 @@ const HalloweenMascot = () => (
 );
 
 const GymThermometerMascot = ({ isStudioMode = false }: { isStudioMode?: boolean }) => {
-    const { selectedOrganization, selectedStudio } = useStudio();
+    const { selectedOrganization, selectedStudio, studioConfig } = useStudio();
     const { userData } = useAuth();
     
     const [weeklyLogs, setWeeklyLogs] = useState<any[]>([]);
     const [membersList, setMembersList] = useState<any[]>([]);
+    const [globalChallenge, setGlobalChallenge] = useState<any>(null);
+
+    useEffect(() => {
+        const unsubscribe = listenToGlobalSummerChallenge((data) => {
+            setGlobalChallenge(data);
+        });
+        return () => unsubscribe();
+    }, []);
+
+    const configToUse = useMemo(() => {
+        const base = !selectedOrganization ? (studioConfig || {}) : {
+            ...(selectedOrganization || {}),
+            ...(selectedOrganization.globalConfig || {}),
+            ...(studioConfig || {})
+        };
+        if (globalChallenge) {
+            return {
+                ...base,
+                summerChallengeStartDate: globalChallenge.startDate,
+                summerChallengeEndDate: globalChallenge.endDate,
+                id: globalChallenge.id || 'default'
+            } as any;
+        }
+        return base as any;
+    }, [studioConfig, selectedOrganization, globalChallenge]);
 
     useEffect(() => {
         if (!selectedOrganization?.id) return;
