@@ -2352,50 +2352,57 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                                                 </div>
                                             )}
 
-                                            {/* Photo feed inline */}
-                                            {filteredCommunityLogs.filter(log => log.imageUrl && log.imageUrl.trim() !== '').length > 0 && (
-                                                <div className="space-y-3 pt-4 border-t border-amber-950/10 dark:border-white/5 animate-fade-in">
-                                                    <div className="flex justify-between items-center mb-1">
-                                                        <h5 className="text-[11px] sm:text-xs font-black uppercase tracking-wider text-amber-950/80 dark:text-amber-950/90 flex items-center gap-1.5">
-                                                            <span>📸</span> Sommarfeeden i gymmet
-                                                        </h5>
-                                                        <button 
-                                                            type="button"
-                                                            onClick={() => setIsShowingAllPhotos(true)}
-                                                            className="text-[10px] font-black uppercase tracking-wider text-amber-50 bg-amber-950 hover:bg-amber-900 active:scale-95 px-3 py-1.5 rounded-xl transition-all shadow-sm cursor-pointer"
-                                                        >
-                                                            Se alla ({filteredCommunityLogs.filter(log => log.imageUrl && log.imageUrl.trim() !== '').length})
-                                                        </button>
-                                                    </div>
-                                                    <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-none">
-                                                        {filteredCommunityLogs
-                                                            .filter(log => log.imageUrl && log.imageUrl.trim() !== '')
-                                                            .sort((a, b) => b.date - a.date)
-                                                            .map((log) => (
-                                                                <button
-                                                                    key={log.id || `${log.memberId}_${log.date}`}
-                                                                    onClick={() => setSelectedPhoto(log)}
-                                                                    className="flex-shrink-0 w-28 text-left bg-amber-950/5 dark:bg-white/5 rounded-2xl p-1 shadow-md border border-amber-950/10 dark:border-white/5 transition-transform hover:scale-[1.02]"
-                                                                >
-                                                                    <div className="relative w-full h-24 rounded-xl overflow-hidden mb-1">
-                                                                        <img 
-                                                                            src={log.imageUrl} 
-                                                                            alt={log.workoutTitle || "Sommarbild"}
-                                                                            className="w-full h-full object-cover"
-                                                                        />
-                                                                    </div>
-                                                                    <span className="block text-[9px] font-black text-amber-950 dark:text-amber-50 truncate px-1">
-                                                                        {log.memberName || 'Medlem'}
-                                                                    </span>
-                                                                </button>
-                                                            ))}
-                                                    </div>
-                                                </div>
-                                            )}
                                         </div>
                                     </motion.div>
                                 )}
                             </AnimatePresence>
+
+                            {/* Photo feed inline - visible when collapsed or expanded */}
+                            {filteredCommunityLogs.filter(log => log.imageUrl && log.imageUrl.trim() !== '').length > 0 && (
+                                <div className="p-5 sm:p-6 pt-3.5 pb-5 border-t border-amber-950/10 bg-amber-50/15 backdrop-blur-sm relative z-10">
+                                    <div className="flex justify-between items-center mb-2.5">
+                                        <h5 className="text-[11px] sm:text-xs font-black uppercase tracking-wider text-amber-950/80 flex items-center gap-1.5">
+                                            <span>📸</span> Sommarfeeden i gymmet
+                                        </h5>
+                                        <button 
+                                            type="button"
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                setIsShowingAllPhotos(true);
+                                            }}
+                                            className="text-[10px] font-black uppercase tracking-wider text-amber-50 bg-amber-950 hover:bg-amber-900 active:scale-95 px-3 py-1.5 rounded-xl transition-all shadow-sm cursor-pointer"
+                                        >
+                                            Se alla ({filteredCommunityLogs.filter(log => log.imageUrl && log.imageUrl.trim() !== '').length})
+                                        </button>
+                                    </div>
+                                    <div className="flex gap-3 overflow-x-auto pb-1 scrollbar-none animate-fade-in">
+                                        {filteredCommunityLogs
+                                            .filter(log => log.imageUrl && log.imageUrl.trim() !== '')
+                                            .sort((a, b) => b.date - a.date)
+                                            .map((log) => (
+                                                <button
+                                                    key={log.id || `${log.memberId}_${log.date}`}
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        setSelectedPhoto(log);
+                                                    }}
+                                                    className="flex-shrink-0 w-28 text-left bg-amber-950/5 rounded-2xl p-1 shadow-md border border-amber-950/10 transition-transform hover:scale-[1.02]"
+                                                >
+                                                    <div className="relative w-full h-24 rounded-xl overflow-hidden mb-1">
+                                                        <img 
+                                                            src={log.imageUrl} 
+                                                            alt={log.workoutTitle || "Sommarbild"}
+                                                            className="w-full h-full object-cover"
+                                                        />
+                                                    </div>
+                                                    <span className="block text-[9px] font-black text-amber-950 truncate px-1">
+                                                        {log.memberName || 'Medlem'}
+                                                    </span>
+                                                </button>
+                                            ))}
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     )}
 

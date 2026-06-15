@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useMemo } from 'react';
-import { listenToLeaderboardLogs, getMembers, listenToGlobalSummerChallenge } from '../../services/firebaseService';
+import { listenToLeaderboardLogs, getMembers, listenToGlobalSummerChallenge, listenToMembers } from '../../services/firebaseService';
 import { TrophyIcon, FireIcon, ChartBarIcon } from '@heroicons/react/24/solid';
 import { useStudio } from '../../context/StudioContext';
 import { useAuth } from '../../context/AuthContext';
@@ -11,8 +11,10 @@ interface LeaderboardProps {
 export const Leaderboard: React.FC<LeaderboardProps> = ({ organizationId }) => {
     const { selectedOrganization, studioConfig } = useStudio();
     const { userData } = useAuth();
-    const [leaderboard, setLeaderboard] = useState<{ memberId: string, name: string, photoUrl: string, count: number, pbs: number, sisuWeekly: number, sisuTotal: number }[]>([]);
-    const [loading, setLoading] = useState(true);
+    const [members, setMembers] = useState<any[]>([]);
+    const [logs, setLogs] = useState<any[]>([]);
+    const [loadingMembers, setLoadingMembers] = useState(true);
+    const [loadingLogs, setLoadingLogs] = useState(true);
     const [activeTab, setActiveTab] = useState<'workouts' | 'pbs' | 'sisu'>('workouts');
     const [sisuTimeframe, setSisuTimeframe] = useState<'weekly' | 'total'>('weekly');
     
@@ -50,6 +52,13 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ organizationId }) => {
     const currentTimestamp = Date.now();
     const sisuTabVisible = isSummerActive;
 
+    // Default to sisu tab if summer challenge is active
+    useEffect(() => {
+        if (isSummerActive) {
+            setActiveTab('sisu');
+        }
+    }, [isSummerActive]);
+
     useEffect(() => {
         if (userData?.locationId) {
             setSelectedLocationId(userData.locationId);
@@ -63,125 +72,124 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ organizationId }) => {
     useEffect(() => {
         if (!organizationId) return;
 
-        let unsubscribeLogs: () => void;
+        setLoadingMembers(true);
+        setLoadingLogs(true);
 
-        const setupLeaderboard = async () => {
-            setLoading(true);
-            try {
-                const members = await getMembers(organizationId);
-                
-                // Map uid -> member so we can easily check their current location and details
-                const memberMap = new Map<string, any>();
-                members.forEach(m => {
-                    memberMap.set(m.uid, m);
-                });
+        const unsubMembers = listenToMembers(organizationId, (mList) => {
+            setMembers(mList);
+            setLoadingMembers(false);
+        });
 
-                // Filter out members who opted out
-                const optedOutMemberIds = new Set(
-                    members.filter(m => m.showOnLeaderboard === false).map(m => m.uid)
-                );
-
-                unsubscribeLogs = listenToLeaderboardLogs(organizationId, 300, (logs) => {
-                    // Räkna ut veckans start och slut (måndag till söndag)
-                    const now = new Date();
-                    const currentDay = now.getDay() || 7; // 1 = måndag, ..., 7 = söndag
-                    const monday = new Date(now);
-                    monday.setDate(now.getDate() - (currentDay - 1));
-                    monday.setHours(0, 0, 0, 0);
-                    
-                    const sunday = new Date(monday);
-                    sunday.setDate(monday.getDate() + 6);
-                    sunday.setHours(23, 59, 59, 999);
-                    
-                    const startMs = monday.getTime();
-                    const endMs = sunday.getTime();
-                    
-                    // Gruppera per medlem
-                    const counts: Record<string, { count: number, pbs: number, sisuWeekly: number, sisuTotal: number }> = {};
-                    
-                    logs.forEach(log => {
-                        const mId = log.memberId;
-                        if (optedOutMemberIds.has(mId)) return;
-                        if (log.showOnLeaderboard === false) return;
-
-                        // Hitta medlemmens nuvarande ort från medlemslistan som fallback om logens ort är null/saknas
-                        const member = memberMap.get(mId);
-                        const userLocationId = log.locationId || member?.locationId || 'all';
-
-                        const matchesLocation = selectedLocationId === 'all' || userLocationId === selectedLocationId;
-                        if (!matchesLocation) return;
-
-                        if (!counts[mId]) {
-                            counts[mId] = { count: 0, pbs: 0, sisuWeekly: 0, sisuTotal: 0 };
-                        }
-
-                        const logTime = log.date;
-                        const isThisWeek = logTime >= startMs && logTime <= endMs;
-
-                        // 1. Pass & PB (Endast den här veckan, och endast i studion [i.e. inStudio !== false])
-                        if (isThisWeek && log.inStudio !== false) {
-                            counts[mId].count += 1;
-                            counts[mId].pbs += (log.newPBs || []).length;
-                        }
-
-                        // 2. Beräkna sisu-poäng för denna logg med den nya, förenklade regeln:
-                        // 2 poäng i studion, 1 poäng utanför studion (minst 30 min)
-                        // ENDAST för de deltagare som har gått med aktivt i utmaningen
-                        if (member?.joinedSummerChallenge && member?.joinedChallengeId === configToUse?.id) {
-                            const joinedAt = member.joinedSummerChallengeAt || 0;
-                            if (logTime >= joinedAt) {
-                                let pts = 0;
-                                if (log.inStudio === true) {
-                                    pts = 2;
-                                } else {
-                                    const isLessThan30 = log.durationMinutes !== undefined && log.durationMinutes > 0 && log.durationMinutes < 30;
-                                    if (!isLessThan30) {
-                                        pts = 1;
-                                    }
-                                }
-
-                                if (pts > 0) {
-                                    counts[mId].sisuTotal += pts;
-                                    if (isThisWeek) {
-                                        counts[mId].sisuWeekly += pts;
-                                    }
-                                }
-                            }
-                        }
-                    });
-                    
-                    const leaderboardData = Object.entries(counts).map(([mId, stats]) => {
-                        const memberInfo = memberMap.get(mId);
-                        return {
-                            memberId: mId,
-                            name: memberInfo 
-                                ? `${memberInfo.firstName || 'Medlem'} ${memberInfo.lastName ? memberInfo.lastName[0] + '.' : ''}`.trim()
-                                : (logs.find(l => l.memberId === mId)?.memberName || 'Okänd Medlem'),
-                            photoUrl: memberInfo?.photoUrl || logs.find(l => l.memberId === mId)?.memberPhotoUrl || '',
-                            count: stats.count,
-                            pbs: stats.pbs,
-                            sisuWeekly: stats.sisuWeekly,
-                            sisuTotal: stats.sisuTotal
-                        };
-                    });
-                    
-                    setLeaderboard(leaderboardData);
-                    setLoading(false);
-                });
-            } catch (error) {
-                console.error("Failed to setup leaderboard", error);
-                setLoading(false);
-            }
-        };
-
-        setupLeaderboard();
+        const unsubLogs = listenToLeaderboardLogs(organizationId, 300, (lList) => {
+            setLogs(lList);
+            setLoadingLogs(false);
+        });
 
         return () => {
-            if (unsubscribeLogs) {
-                unsubscribeLogs();
-            }
+            unsubMembers();
+            unsubLogs();
         };
-    }, [organizationId, selectedLocationId]);
+    }, [organizationId]);
+
+    const leaderboard = useMemo(() => {
+        if (!members.length) return [];
+
+        const memberMap = new Map<string, any>();
+        members.forEach(m => {
+            memberMap.set(m.uid, m);
+        });
+
+        // Filter out members who opted out
+        const optedOutMemberIds = new Set(
+            members.filter(m => m.showOnLeaderboard === false).map(m => m.uid)
+        );
+
+        // Räkna ut veckans start och slut (måndag till söndag)
+        const now = new Date();
+        const currentDay = now.getDay() || 7; // 1 = måndag, ..., 7 = söndag
+        const monday = new Date(now);
+        monday.setDate(now.getDate() - (currentDay - 1));
+        monday.setHours(0, 0, 0, 0);
+        
+        const sunday = new Date(monday);
+        sunday.setDate(monday.getDate() + 6);
+        sunday.setHours(23, 59, 59, 999);
+        
+        const startMs = monday.getTime();
+        const endMs = sunday.getTime();
+
+        const counts: Record<string, { count: number, pbs: number, sisuWeekly: number, sisuTotal: number }> = {};
+
+        logs.forEach(log => {
+            const mId = log.memberId;
+            if (optedOutMemberIds.has(mId)) return;
+            if (log.showOnLeaderboard === false) return;
+
+            // Hitta medlemmens nuvarande ort från medlemslistan som fallback om logens ort är null/saknas
+            const member = memberMap.get(mId);
+            const userLocationId = log.locationId || member?.locationId || 'all';
+
+            const matchesLocation = selectedLocationId === 'all' || userLocationId === selectedLocationId;
+            if (!matchesLocation) return;
+
+            if (!counts[mId]) {
+                counts[mId] = { count: 0, pbs: 0, sisuWeekly: 0, sisuTotal: 0 };
+            }
+
+            const logTime = log.date;
+            const isThisWeek = logTime >= startMs && logTime <= endMs;
+
+            // 1. Pass & PB (Endast den här veckan, och endast i studion [i.e. inStudio !== false])
+            if (isThisWeek && log.inStudio !== false) {
+                counts[mId].count += 1;
+                counts[mId].pbs += (log.newPBs || []).length;
+            }
+
+            // 2. Beräkna sisu-poäng för denna logg med den nya, förenklade regeln:
+            // 2 poäng i studion, 1 poäng utanför studion (minst 30 min)
+            // ENDAST för de deltagare som har gått med aktivt i utmaningen
+            if (member?.joinedSummerChallenge && member?.joinedChallengeId === configToUse?.id) {
+                const joinedAt = member.joinedSummerChallengeAt || 0;
+                if (logTime >= joinedAt) {
+                    let pts = 0;
+                    if (log.inStudio === true) {
+                        pts = 2;
+                    } else {
+                        const isLessThan30 = log.durationMinutes !== undefined && log.durationMinutes > 0 && log.durationMinutes < 30;
+                        if (!isLessThan30) {
+                            pts = 1;
+                        }
+                    }
+
+                    if (pts > 0) {
+                        counts[mId].sisuTotal += pts;
+                        if (isThisWeek) {
+                            counts[mId].sisuWeekly += pts;
+                        }
+                    }
+                }
+            }
+        });
+
+        const leaderboardData = Object.entries(counts).map(([mId, stats]) => {
+            const memberInfo = memberMap.get(mId);
+            return {
+                memberId: mId,
+                name: memberInfo 
+                    ? `${memberInfo.firstName || 'Medlem'} ${memberInfo.lastName ? memberInfo.lastName[0] + '.' : ''}`.trim()
+                    : (logs.find(l => l.memberId === mId)?.memberName || 'Okänd Medlem'),
+                photoUrl: memberInfo?.photoUrl || logs.find(l => l.memberId === mId)?.memberPhotoUrl || '',
+                count: stats.count,
+                pbs: stats.pbs,
+                sisuWeekly: stats.sisuWeekly,
+                sisuTotal: stats.sisuTotal
+            };
+        });
+
+        return leaderboardData;
+    }, [members, logs, selectedLocationId, configToUse?.id]);
+
+    const loading = loadingMembers || loadingLogs;
 
     if (loading) {
         return (
