@@ -1736,6 +1736,12 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                                         <h4 className="text-xl sm:text-2xl font-black text-amber-950 tracking-tight leading-tight mb-2">
                                             Vill du anta utmaningen? 🌻
                                         </h4>
+                                        {configToUse?.summerChallengeStartDate && configToUse?.summerChallengeEndDate && (
+                                            <p className="inline-flex items-center gap-1.5 text-[11px] sm:text-xs font-black text-amber-950 mb-3 bg-white/30 backdrop-blur-sm px-3 py-1.5 rounded-xl border border-white/20 shadow-sm">
+                                                <span>📅</span>
+                                                <span>Period: {new Date(configToUse.summerChallengeStartDate).toLocaleDateString('sv-SE', { day: 'numeric', month: 'long' })} - {new Date(configToUse.summerChallengeEndDate).toLocaleDateString('sv-SE', { day: 'numeric', month: 'long', year: 'numeric' })}</span>
+                                            </p>
+                                        )}
                                         <p className="text-xs sm:text-sm text-amber-900 font-semibold leading-relaxed mb-5 max-w-xl">
                                             Varje pass du loggar ger dig poäng och hjälper till att öka snittpoängen och temperaturen i studion. Du kan logga både pass i gymmet och utomhusaktiviteter! Tillsammans får vi temperaturnålen att stiga.
                                         </p>
@@ -2371,6 +2377,11 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                                         <h4 className="text-xs sm:text-sm font-black text-amber-950 leading-tight uppercase tracking-wider">
                                             {configToUse?.title || 'Sommarutmaningen 2026'}
                                         </h4>
+                                        {configToUse?.summerChallengeStartDate && configToUse?.summerChallengeEndDate && (
+                                            <p className="text-[10px] sm:text-[11px] font-black text-amber-950/80 bg-white/20 inline-block px-2 py-0.5 rounded-md mt-0.5 mb-1">
+                                                📅 Period: {new Date(configToUse.summerChallengeStartDate).toLocaleDateString('sv-SE', { day: 'numeric', month: 'short' })} - {new Date(configToUse.summerChallengeEndDate).toLocaleDateString('sv-SE', { day: 'numeric', month: 'short', year: 'numeric' })}
+                                            </p>
+                                        )}
                                         <p className="text-[11px] font-bold text-amber-900/85 leading-tight mt-0.5 max-w-md">
                                             Sugen på att logga pass och öka temperaturen i gymmet ändå? Du kan gå med när som helst!
                                         </p>
