@@ -748,6 +748,7 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
     }, [userData?.joinedSummerChallenge, userData?.joinedChallengeId, configToUse?.id]);
 
     const [currentTimestamp, setCurrentTimestamp] = useState(Date.now());
+    const [selectedSummerGoal, setSelectedSummerGoal] = useState(3);
 
     useEffect(() => {
         const timer = setInterval(() => {
@@ -1745,6 +1746,41 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                                         <p className="text-xs sm:text-sm text-amber-900 font-semibold leading-relaxed mb-5 max-w-xl">
                                             Varje pass du loggar ger dig poäng och hjälper till att öka snittpoängen och temperaturen i studion. Du kan logga både pass i gymmet och utomhusaktiviteter! Tillsammans får vi temperaturnålen att stiga.
                                         </p>
+
+                                        {/* Elegant direct goal selector */}
+                                        <div className="mb-6 p-4 sm:p-5 rounded-3xl bg-white/45 backdrop-blur-md border border-white/40 shadow-sm max-w-md">
+                                            <span className="block text-[10px] sm:text-xs font-black text-amber-950 uppercase tracking-widest mb-1.5 opacity-90">
+                                                Sätt ditt personliga veckomål direkt:
+                                            </span>
+                                            <div className="flex items-center gap-3">
+                                                <button 
+                                                    type="button"
+                                                    onClick={() => setSelectedSummerGoal(Math.max(1, selectedSummerGoal - 1))}
+                                                    className="w-10 h-10 flex items-center justify-center rounded-2xl bg-amber-950 text-amber-50 hover:bg-amber-900 active:scale-90 transition-all font-black text-lg shadow-sm cursor-pointer select-none"
+                                                >
+                                                    -
+                                                </button>
+                                                <div className="flex flex-col items-center justify-center min-w-[100px] flex-1 bg-white/70 px-4 py-1.5 rounded-2xl border border-white/60 shadow-inner">
+                                                    <span className="text-2xl font-black text-amber-950 leading-none">
+                                                        {selectedSummerGoal}
+                                                    </span>
+                                                    <span className="text-[10px] font-black text-amber-900/80 uppercase tracking-widest mt-1">
+                                                        {selectedSummerGoal === 1 ? 'poäng / vecka' : 'poäng / vecka'}
+                                                    </span>
+                                                </div>
+                                                <button 
+                                                    type="button"
+                                                    onClick={() => setSelectedSummerGoal(Math.min(20, selectedSummerGoal + 1))}
+                                                    className="w-10 h-10 flex items-center justify-center rounded-2xl bg-amber-950 text-amber-50 hover:bg-amber-900 active:scale-90 transition-all font-black text-lg shadow-sm cursor-pointer select-none"
+                                                >
+                                                    +
+                                                </button>
+                                            </div>
+                                            <p className="text-[10px] sm:text-[11px] text-amber-900/90 font-bold mt-2.5 leading-normal bg-orange-500/10 p-2.5 rounded-2xl border border-orange-500/15">
+                                                💡 <strong>Träningspoäng:</strong> 1 pass i gymmet ger <strong>2 poäng</strong>, och utomhus-/gruppträning ger <strong>1 poäng</strong> (minst 30 min). Sätt ett veckomål som peppar dig att klara utmaningen!
+                                            </p>
+                                        </div>
+
                                         <div className="flex flex-wrap items-center gap-3">
                                             <button
                                                 onClick={async () => {
@@ -1754,7 +1790,7 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                                                             joinedChallengeId: configToUse?.id || 'default',
                                                             joinedSummerChallengeAt: Date.now(),
                                                             summerChallengeGoals: {},
-                                                            summerChallengeGoal: 3
+                                                            summerChallengeGoal: selectedSummerGoal
                                                         } as any);
                                                         setJustActivatedSummer(true);
                                                         const confetti = await import('canvas-confetti');
@@ -2385,6 +2421,26 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                                         <p className="text-[11px] font-bold text-amber-900/85 leading-tight mt-0.5 max-w-md">
                                             Sugen på att logga pass och öka temperaturen i gymmet ändå? Du kan gå med när som helst!
                                         </p>
+                                        <div className="mt-3 flex items-center gap-2 bg-white/35 backdrop-blur-xs p-1.5 px-2.5 rounded-xl border border-white/25 inline-flex">
+                                            <span className="text-[9px] font-black uppercase tracking-wider text-amber-950/80">Ditt veckomål:</span>
+                                            <button 
+                                                type="button" 
+                                                onClick={() => setSelectedSummerGoal(Math.max(1, selectedSummerGoal - 1))}
+                                                className="w-6 h-6 flex items-center justify-center rounded-lg bg-amber-950 hover:bg-amber-900 text-white font-black text-xs cursor-pointer select-none"
+                                            >
+                                                -
+                                            </button>
+                                            <span className="text-xs font-black text-amber-950 min-w-[50px] text-center">
+                                                {selectedSummerGoal} poäng
+                                            </span>
+                                            <button 
+                                                type="button" 
+                                                onClick={() => setSelectedSummerGoal(Math.min(20, selectedSummerGoal + 1))}
+                                                className="w-6 h-6 flex items-center justify-center rounded-lg bg-amber-950 hover:bg-amber-900 text-white font-black text-xs cursor-pointer select-none"
+                                            >
+                                                +
+                                            </button>
+                                        </div>
                                     </div>
                                 </div>
                                 <button
@@ -2395,7 +2451,7 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                                                 joinedChallengeId: configToUse?.id || 'default',
                                                 joinedSummerChallengeAt: Date.now(),
                                                 summerChallengeGoals: {},
-                                                summerChallengeGoal: 3
+                                                summerChallengeGoal: selectedSummerGoal
                                             } as any);
                                             setJustActivatedSummer(true);
                                             const confetti = await import('canvas-confetti');
@@ -2404,7 +2460,7 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                                             console.error("Kunde inte gå med i utmaningen:", err);
                                         }
                                     }}
-                                    className="sm:w-auto w-full px-5 py-2.5 bg-amber-950 hover:bg-amber-900 text-amber-50 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all shadow-sm hover:shadow-orange-700/25 active:scale-95 duration-100 cursor-pointer text-center"
+                                    className="sm:w-auto w-full px-5 py-2.5 bg-amber-950 hover:bg-amber-900 text-amber-50 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all shadow-sm hover:shadow-orange-700/25 active:scale-95 duration-100 cursor-pointer text-center whitespace-nowrap"
                                 >
                                     Gå med nu! ☀️
                                 </button>
