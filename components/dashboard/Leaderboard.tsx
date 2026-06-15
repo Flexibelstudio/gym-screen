@@ -39,7 +39,8 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ organizationId }) => {
             return {
                 ...base,
                 summerChallengeStartDate: globalChallenge.startDate,
-                summerChallengeEndDate: globalChallenge.endDate
+                summerChallengeEndDate: globalChallenge.endDate,
+                id: globalChallenge.id || 'default'
             };
         }
         return base;
@@ -126,7 +127,7 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ organizationId }) => {
                         // 2. Beräkna sisu-poäng för denna logg med den nya, förenklade regeln:
                         // 2 poäng i studion, 1 poäng utanför studion (minst 30 min)
                         // ENDAST för de deltagare som har gått med aktivt i utmaningen
-                        if (member?.joinedSummerChallenge) {
+                        if (member?.joinedSummerChallenge && member?.joinedChallengeId === configToUse?.id) {
                             const joinedAt = member.joinedSummerChallengeAt || 0;
                             if (logTime >= joinedAt) {
                                 let pts = 0;

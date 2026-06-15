@@ -280,7 +280,7 @@ const GymThermometerMascot = ({ isStudioMode = false }: { isStudioMode?: boolean
             if (!uid) return;
             
             const logMember = membersList.find(m => m.uid === uid);
-            if (!logMember || !logMember.joinedSummerChallenge) return;
+            if (!logMember || !(logMember.joinedSummerChallenge && logMember.joinedChallengeId === configToUse?.id)) return;
             
             const logTime = new Date(log.date || 0).getTime();
             if (logTime < (logMember.joinedSummerChallengeAt || 0)) return;
@@ -307,7 +307,7 @@ const GymThermometerMascot = ({ isStudioMode = false }: { isStudioMode?: boolean
         });
 
         const challengeParticipantsOnSunday = locationMembers.filter(m => {
-            if (!m.joinedSummerChallenge) return false;
+            if (!(m.joinedSummerChallenge && m.joinedChallengeId === configToUse?.id)) return false;
             const joinedAt = m.joinedSummerChallengeAt || 0;
             return joinedAt < startOfWeek.getTime();
         });
@@ -626,7 +626,8 @@ export const SeasonalOverlay: React.FC<SeasonalOverlayProps> = ({ page, isStudio
             return {
                 ...base,
                 summerChallengeStartDate: globalChallenge.startDate,
-                summerChallengeEndDate: globalChallenge.endDate
+                summerChallengeEndDate: globalChallenge.endDate,
+                id: globalChallenge.id || 'default'
             } as any;
         }
         return base as any;

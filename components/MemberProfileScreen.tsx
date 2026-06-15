@@ -687,19 +687,15 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
     const [justSavedGoalMsg, setJustSavedGoalMsg] = useState('');
     const [isEditingNextGoal, setIsEditingNextGoal] = useState(false);
     const [globalChallenge, setGlobalChallenge] = useState<any>(null);
-    const [dismissedSummerChallenge, setDismissedSummerChallenge] = useState(() => {
-        if (typeof window !== 'undefined' && userData?.uid) {
-            return localStorage.getItem(`dismissed-summer-challenge-${userData.uid}`) === 'true';
-        }
-        return false;
-    });
+    const [dismissedSummerChallenge, setDismissedSummerChallenge] = useState(false);
 
     useEffect(() => {
         if (userData?.uid) {
-            const dismissed = localStorage.getItem(`dismissed-summer-challenge-${userData.uid}`) === 'true';
+            const challengeId = globalChallenge?.id || 'default';
+            const dismissed = localStorage.getItem(`dismissed-summer-challenge-${userData.uid}-${challengeId}`) === 'true';
             setDismissedSummerChallenge(dismissed);
         }
-    }, [userData?.uid]);
+    }, [userData?.uid, globalChallenge?.id]);
 
     useEffect(() => {
         const activeTheme = !!(studioConfig?.enableSummerChallenge || selectedOrganization?.globalConfig?.enableSummerChallenge);
@@ -736,7 +732,8 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
             return {
                 ...base,
                 summerChallengeStartDate: globalChallenge.startDate,
-                summerChallengeEndDate: globalChallenge.endDate
+                summerChallengeEndDate: globalChallenge.endDate,
+                id: globalChallenge.id || 'default'
             } as any;
         }
         return base as any;
@@ -745,6 +742,10 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
     const isSummerThemeActive = useMemo(() => {
         return !!configToUse?.enableSummerChallenge;
     }, [configToUse]);
+
+    const isUserJoined = useMemo(() => {
+        return !!(userData?.joinedSummerChallenge && userData?.joinedChallengeId === configToUse?.id);
+    }, [userData?.joinedSummerChallenge, userData?.joinedChallengeId, configToUse?.id]);
 
     const [currentTimestamp, setCurrentTimestamp] = useState(Date.now());
 
@@ -782,9 +783,15 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
     }, [configToUse?.summerChallengeEndDate, currentTimestamp]);
 
     const filteredCommunityLogs = useMemo(() => {
-        if (!userData?.locationId) return communityLogs;
-        return communityLogs.filter(log => log.locationId === userData.locationId);
-    }, [communityLogs, userData?.locationId]);
+        let logs = communityLogs;
+        if (userData?.locationId) {
+            logs = logs.filter(log => log.locationId === userData.locationId);
+        }
+        if (isSummerThemeActive && configToUse?.summerChallengeStartDate && configToUse?.summerChallengeEndDate) {
+            logs = logs.filter(log => (log.date || 0) >= configToUse.summerChallengeStartDate && (log.date || 0) <= configToUse.summerChallengeEndDate);
+        }
+        return logs;
+    }, [communityLogs, userData?.locationId, isSummerThemeActive, configToUse?.summerChallengeStartDate, configToUse?.summerChallengeEndDate]);
 
     const [sisuDetailsExpanded, setSisuDetailsExpanded] = useState(false);
     const [justActivatedSummer, setJustActivatedSummer] = useState(false);
@@ -820,7 +827,7 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
             const uid = log.memberId;
             if (!uid) return;
             const logMember = membersList.find(m => m.uid === uid);
-            if (!logMember || !logMember.joinedSummerChallenge) return;
+            if (!logMember || !(logMember.joinedSummerChallenge && logMember.joinedChallengeId === configToUse?.id)) return;
             const logTime = log.date || 0;
             if (logTime < (logMember.joinedSummerChallengeAt || 0)) return;
 
@@ -846,7 +853,7 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
         });
 
         const challengeParticipantsOnSunday = locationMembers.filter(m => {
-            if (!m.joinedSummerChallenge) return false;
+            if (!(m.joinedSummerChallenge && m.joinedChallengeId === configToUse?.id)) return false;
             const joinedAt = m.joinedSummerChallengeAt || 0;
             return joinedAt < monday.getTime();
         });
@@ -919,7 +926,7 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
 
         const nextTarget = nextTargetPct > 0 ? Math.ceil((nextTargetPct / 100) * clubWeeklyTarget) : -1;
         const avgPoints = N > 0 ? Number((totalPoints / N).toFixed(1)) : 0;
-        const totalRegisteredCount = locationMembers.filter(m => m.joinedSummerChallenge).length;
+        const totalRegisteredCount = locationMembers.filter(m => m.joinedSummerChallenge && m.joinedChallengeId === configToUse?.id).length;
 
         return {
             totalPoints,
@@ -936,7 +943,7 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
             nextTarget,
             totalRegisteredCount
         };
-    }, [filteredCommunityLogs, isSummerThemeActive, membersList, userData?.locationId]);
+    }, [filteredCommunityLogs, isSummerThemeActive, membersList, userData?.locationId, configToUse?.id]);
 
     const summerLeaderboardData = useMemo(() => {
         if (!isSummerThemeActive || !membersList.length) return [];
@@ -951,7 +958,7 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
 
         const challengeMembers = membersList.filter(m => {
             if (userData?.locationId && m.locationId !== userData.locationId) return false;
-            return !!m.joinedSummerChallenge;
+            return !!(m.joinedSummerChallenge && m.joinedChallengeId === configToUse?.id);
         });
 
         const ranking = challengeMembers.map(member => {
@@ -1254,7 +1261,7 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
         let summerTotalPoints = 0;
         let summerWeekPoints = 0;
 
-        if (userData?.joinedSummerChallenge) {
+        if (isUserJoined) {
             const joinedAt = userData.joinedSummerChallengeAt || 0;
             logs.forEach(log => {
                 const logTime = new Date(log.date).getTime();
@@ -1695,7 +1702,7 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                 <div className="space-y-3 sm:space-y-5 animate-fade-in">
                     
                     {/* Sommar-Sisu aktivering (Card 1) */}
-                    {isSummerThemeActive && !userData.joinedSummerChallenge && !dismissedSummerChallenge && (
+                    {isSummerThemeActive && !isUserJoined && !dismissedSummerChallenge && (
                         <div className="relative overflow-hidden bg-gradient-to-br from-orange-500 via-amber-400 to-yellow-100 dark:from-orange-600 dark:via-amber-500 dark:to-yellow-200 text-amber-950 border-none rounded-[2rem] p-6 sm:p-8 shadow-[0_12px_40px_rgba(249,115,22,0.18)] text-left animate-fade-in">
                             {/* Spinning animated sun */}
                             <div className="absolute -right-8 -top-8 w-36 h-36 text-white/25 pointer-events-none select-none">
@@ -1724,7 +1731,7 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                                     <span className="text-4xl select-none animate-bounce origin-bottom drop-shadow-[0_4px_6px_rgba(0,0,0,0.15)]">☀️</span>
                                     <div className="flex-1 min-w-0">
                                         <span className="inline-block bg-white/40 px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-wider text-amber-950 mb-2">
-                                            Sommarutmaning 2026
+                                            {configToUse?.title || 'Sommarutmaning 2026'}
                                         </span>
                                         <h4 className="text-xl sm:text-2xl font-black text-amber-950 tracking-tight leading-tight mb-2">
                                             Vill du anta utmaningen? 🌻
@@ -1736,7 +1743,13 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                                             <button
                                                 onClick={async () => {
                                                     try {
-                                                        await updateUserProfile(userData.uid, { joinedSummerChallenge: true, joinedSummerChallengeAt: Date.now() } as any);
+                                                        await updateUserProfile(userData.uid, { 
+                                                            joinedSummerChallenge: true, 
+                                                            joinedChallengeId: configToUse?.id || 'default',
+                                                            joinedSummerChallengeAt: Date.now(),
+                                                            summerChallengeGoals: {},
+                                                            summerChallengeGoal: 3
+                                                        } as any);
                                                         setJustActivatedSummer(true);
                                                         const confetti = await import('canvas-confetti');
                                                         confetti.default({ particleCount: 150, spread: 80, origin: { y: 0.6 } });
@@ -1750,7 +1763,8 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                                             </button>
                                             <button
                                                 onClick={() => {
-                                                    localStorage.setItem(`dismissed-summer-challenge-${userData.uid}`, 'true');
+                                                    const challengeId = configToUse?.id || 'default';
+                                                    localStorage.setItem(`dismissed-summer-challenge-${userData.uid}-${challengeId}`, 'true');
                                                     setDismissedSummerChallenge(true);
                                                 }}
                                                 className="px-4 py-3 text-[10px] sm:text-[11px] font-black uppercase tracking-widest text-amber-900/80 hover:text-amber-950 hover:bg-white/30 rounded-2xl transition-all duration-100"
@@ -1768,7 +1782,7 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                     <WeeklyGoalRing 
                         current={stats.thisWeek} 
                         goal={userData.weeklyGoal || 3} 
-                        hasSummerSisu={isSummerThemeActive && !!userData.joinedSummerChallenge}
+                        hasSummerSisu={isSummerThemeActive && isUserJoined}
                         summerWeekPoints={stats.summerWeekPoints}
                         summerTotalPoints={stats.summerTotalPoints}
                     />
@@ -1880,7 +1894,7 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                     </div>
 
                     {/* Sommar-Sisu status & rules (collapsible) (Card 2) */}
-                    {isSummerThemeActive && !!userData.joinedSummerChallenge && (
+                    {isSummerThemeActive && isUserJoined && (
                         <div className="relative overflow-hidden bg-gradient-to-br from-orange-500 via-amber-400 to-yellow-100 dark:from-orange-600 dark:via-amber-500 dark:to-yellow-200 text-amber-950 border-none rounded-[2rem] shadow-[0_12px_40px_rgba(249,115,22,0.18)] animate-fade-in text-left">
                             
                             {/* Summer sun rays backdrop glow */}
@@ -1974,7 +1988,7 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                                                                         Slutdatum: {new Date(configToUse.summerChallengeEndDate).toLocaleDateString('sv-SE', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
                                                                     </span>
                                                                 )}
-                                                                {userData?.joinedSummerChallengeAt && (
+                                                                {isUserJoined && userData?.joinedSummerChallengeAt && (
                                                                     <span className="block text-[11px] text-emerald-800 dark:text-emerald-400 mt-2.5 font-bold bg-emerald-500/10 p-2 rounded-xl border border-emerald-500/20 shadow-sm leading-normal">
                                                                         ✅ Du är anmäld! Gick med {new Date(userData.joinedSummerChallengeAt).toLocaleDateString('sv-SE', { weekday: 'long', day: 'numeric', month: 'long' }) + ' kl ' + new Date(userData.joinedSummerChallengeAt).toLocaleTimeString('sv-SE', { hour: '2-digit', minute: '2-digit' })}
                                                                     </span>
@@ -2345,7 +2359,7 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                     )}
 
                     {/* Compact, slim bottom-placed join card if user clicked "Kanske senare" */}
-                    {isSummerThemeActive && !userData.joinedSummerChallenge && dismissedSummerChallenge && (
+                    {isSummerThemeActive && !isUserJoined && dismissedSummerChallenge && (
                         <div className="relative overflow-hidden bg-gradient-to-br from-orange-500 via-amber-400 to-yellow-100 dark:from-orange-600 dark:via-amber-500 dark:to-yellow-200 text-amber-955 border-none rounded-[2rem] p-5 shadow-[0_12px_40px_rgba(249,115,22,0.18)] text-left animate-fade-in mb-3.5">
                             {/* Sun rays backdrop */}
                             <div className="absolute top-[-40px] right-[-40px] w-64 h-64 bg-white/10 rounded-full blur-[50px] pointer-events-none"></div>
@@ -2355,7 +2369,7 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                                     <span className="text-2xl animate-pulse select-none">🌻</span>
                                     <div>
                                         <h4 className="text-xs sm:text-sm font-black text-amber-950 leading-tight uppercase tracking-wider">
-                                            Sommarutmaningen 2026
+                                            {configToUse?.title || 'Sommarutmaningen 2026'}
                                         </h4>
                                         <p className="text-[11px] font-bold text-amber-900/85 leading-tight mt-0.5 max-w-md">
                                             Sugen på att logga pass och öka temperaturen i gymmet ändå? Du kan gå med när som helst!
@@ -2365,7 +2379,13 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                                 <button
                                     onClick={async () => {
                                         try {
-                                            await updateUserProfile(userData.uid, { joinedSummerChallenge: true, joinedSummerChallengeAt: Date.now() } as any);
+                                            await updateUserProfile(userData.uid, { 
+                                                joinedSummerChallenge: true, 
+                                                joinedChallengeId: configToUse?.id || 'default',
+                                                joinedSummerChallengeAt: Date.now(),
+                                                summerChallengeGoals: {},
+                                                summerChallengeGoal: 3
+                                            } as any);
                                             setJustActivatedSummer(true);
                                             const confetti = await import('canvas-confetti');
                                             confetti.default({ particleCount: 150, spread: 80, origin: { y: 0.6 } });
