@@ -888,6 +888,17 @@ app.post("/create-member-checkout", async (req, res) => {
       };
     }
 
+    // Automatiskt gratis fram till 31 augusti 2026 för nya medlemmar
+    const nowSeconds = Math.floor(Date.now() / 1000);
+    const trialEnd = Math.floor(new Date('2026-08-31T23:59:59Z').getTime() / 1000);
+    
+    if (trialEnd > nowSeconds + (48 * 3600)) {
+      if (!sessionParams.subscription_data) {
+        sessionParams.subscription_data = {};
+      }
+      sessionParams.subscription_data.trial_end = trialEnd;
+    }
+
     const session = await stripe.checkout.sessions.create(sessionParams);
 
     res.json({ url: session.url });
