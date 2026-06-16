@@ -855,17 +855,29 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
 
         const challengeParticipantsOnSunday = locationMembers.filter(m => {
             if (!(m.joinedSummerChallenge && m.joinedChallengeId === configToUse?.id)) return false;
+            const joinedAt = m.joinedSummerChallengeAt || 0;
+            const sundayEnd = monday.getTime() + 7 * 24 * 60 * 60 * 1000;
+            if (joinedAt >= sundayEnd) return false;
             return true;
         });
 
         const N = Math.max(1, challengeParticipantsOnSunday.length);
 
-        // Sum of all Sunday registered members' goals - locked on Monday 00:00
+        // Sum of all registered members' goals - scaling if joined mid-week
         let clubWeeklyTarget = 0;
         challengeParticipantsOnSunday.forEach(m => {
-            const goalVal = m.summerChallengeGoals?.[monday.getTime()] !== undefined
+            const baseGoal = m.summerChallengeGoals?.[monday.getTime()] !== undefined
                 ? m.summerChallengeGoals[monday.getTime()]
                 : (m.summerChallengeGoal || 3);
+            
+            let goalVal = baseGoal;
+            const joinedAt = m.joinedSummerChallengeAt || 0;
+            if (joinedAt >= monday.getTime() && joinedAt < monday.getTime() + 7 * 24 * 60 * 60 * 1000) {
+                const joinDate = new Date(joinedAt);
+                const joinDay = joinDate.getDay() || 7; // Monday = 1, ..., Sunday = 7
+                const daysLeft = Math.max(0, 7 - joinDay);
+                goalVal = Math.max(1, Math.round((daysLeft / 7) * baseGoal));
+            }
             clubWeeklyTarget += goalVal;
         });
 
@@ -999,7 +1011,7 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
         });
 
         return ranking;
-    }, [communityLogs, membersList, isSummerThemeActive, userData?.locationId]);
+    }, [communityLogs, membersList, isSummerThemeActive, userData?.locationId, configToUse?.id]);
 
     const [activeTab, setActiveTab] = useState<'overview' | 'goals' | 'strength' | 'benchmarks'>(() => {
         const saved = localStorage.getItem('smart-skarm-profile-active-tab');
@@ -1293,7 +1305,7 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
             summerTotalPoints, 
             summerWeekPoints 
         };
-    }, [logs, userData?.migratedStats]);
+    }, [logs, userData, isUserJoined]);
 
     const daysLeft = useMemo(() => {
         if (!userData.goals?.targetDate) return null;
@@ -1778,6 +1790,10 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                                             <p className="text-[10px] sm:text-[11px] text-amber-900/90 font-bold mt-2.5 leading-normal bg-orange-500/10 p-2.5 rounded-2xl border border-orange-500/15">
                                                 💡 <strong>Träningspoäng:</strong> 1 pass i gymmet ger <strong>2 poäng</strong>, och utomhus-/gruppträning ger <strong>1 poäng</strong> (minst 30 min). Sätt ett veckomål som peppar dig att klara utmaningen!
                                             </p>
+                                            <div className="mt-2.5 text-[10px] sm:text-[11px] text-amber-950 dark:text-red-200 font-bold leading-normal bg-red-500/10 p-2.5 rounded-2xl border border-red-500/15 flex items-start gap-1.5 shadow-sm">
+                                                <span>⚠️</span>
+                                                <span><strong>Satt mål gäller:</strong> Du kan inte ändra ditt veckomål efter att du har gått med i utmaningen. Välj ett mål du vet att du vill och kan hålla!</span>
+                                            </div>
                                         </div>
 
                                         <div className="flex flex-wrap items-center gap-3">
@@ -2000,7 +2016,7 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                                             
                                             {!isChallengeStarted ? (
                                                 /* Pre-start Countdown Stats Block */
-                                                <div className="bg-amber-50/70 dark:bg-amber-955/20 backdrop-blur-md rounded-2xl p-4 sm:p-5 border border-amber-200/35 relative overflow-hidden shadow-sm">
+                                                <div className="bg-amber-50/70 dark:bg-amber-950/20 backdrop-blur-md rounded-2xl p-4 sm:p-5 border border-amber-200/35 relative overflow-hidden shadow-sm">
                                                     <div className="flex justify-between items-start select-none">
                                                         <div>
                                                             <p className="text-xs font-bold text-amber-900 uppercase tracking-widest mb-1.5 font-black font-sans flex items-center gap-1.5"><span>⏳</span> TID KVAR TILL START</p>
@@ -2010,8 +2026,8 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
 
                                                             {/* LIVE COUNTDOWN METRIC */}
                                                             {countdownToStart !== null ? (
-                                                                <div className="mb-4 select-none font-sans inline-block bg-orange-500/10 dark:bg-orange-955/40 px-3.5 py-2 rounded-2xl border border-orange-500/25 shadow-sm">
-                                                                    <span className="text-xl sm:text-2xl font-black text-orange-655 dark:text-orange-400">
+                                                                <div className="mb-4 select-none font-sans inline-block bg-orange-500/10 dark:bg-orange-900/40 px-3.5 py-2 rounded-2xl border border-orange-500/25 shadow-sm">
+                                                                    <span className="text-xl sm:text-2xl font-black text-orange-600 dark:text-orange-400">
                                                                         {countdownToStart === 1 ? "1 dag kvar!" : `${countdownToStart} dagar kvar!`}
                                                                     </span>
                                                                 </div>
@@ -2073,9 +2089,27 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                                                     nextMondaySec.setDate(mondaySec.getDate() + 7);
                                                     const nextWeekMon = nextMondaySec.getTime();
 
-                                                    const myGoalThisWeek = userData.summerChallengeGoals?.[thisWeekMon] !== undefined 
-                                                        ? userData.summerChallengeGoals[thisWeekMon] 
-                                                        : (userData.summerChallengeGoal || 3);
+                                                    const baseGoalThisWeek = userData.summerChallengeGoals?.[thisWeekMon] !== undefined 
+                                                         ? userData.summerChallengeGoals[thisWeekMon] 
+                                                         : (userData.summerChallengeGoal || 3);
+
+                                                     let myGoalThisWeek = baseGoalThisWeek;
+                                                     const joinedAt = userData.joinedSummerChallengeAt || 0;
+                                                     let isScaledWeek = false;
+                                                     let originalGoal = baseGoalThisWeek;
+                                                     let daysLeftInStartWeek = 0;
+                                                     let joinDayName = 'onsdag';
+
+                                                     if (joinedAt >= thisWeekMon && joinedAt < thisWeekMon + 7 * 24 * 60 * 60 * 1000) {
+                                                         const joinDate = new Date(joinedAt);
+                                                         const joinDay = joinDate.getDay() || 7; // Monday = 1, ..., Sunday = 7
+                                                         daysLeftInStartWeek = Math.max(0, 7 - joinDay);
+                                                         myGoalThisWeek = Math.max(1, Math.round((daysLeftInStartWeek / 7) * baseGoalThisWeek));
+                                                         isScaledWeek = true;
+                                                         
+                                                         const swedishDays = ['söndag', 'måndag', 'tisdag', 'onsdag', 'torsdag', 'fredag', 'lördag'];
+                                                         joinDayName = swedishDays[joinDate.getDay()];
+                                                     }
 
                                                     const myGoalNextWeek = userData.summerChallengeGoals?.[nextWeekMon] !== undefined 
                                                         ? userData.summerChallengeGoals[nextWeekMon] 
@@ -2098,7 +2132,7 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
 
 
                                                             {/* Gymmet tillsammans (Club stats block) */}
-                                                            <div className="bg-amber-50/70 dark:bg-amber-955/20 backdrop-blur-md rounded-2xl p-4 sm:p-5 border border-amber-200/35 relative overflow-hidden shadow-sm text-amber-950">
+                                                            <div className="bg-amber-50/70 dark:bg-amber-950/20 backdrop-blur-md rounded-2xl p-4 sm:p-5 border border-amber-200/35 relative overflow-hidden shadow-sm text-amber-950">
                                                                 <div className="flex justify-between items-start select-none">
                                                                     <div>
                                                                         <p className="text-xs font-bold text-amber-900 uppercase tracking-widest mb-1.5 font-black font-sans">Gymmet tillsammans ☀️</p>
@@ -2133,14 +2167,20 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
 
                                                                 <div className="mt-3 text-xs text-amber-950/70 flex flex-col gap-1 border-t border-amber-950/5 pt-2 font-medium">
                                                                     <span>• Anmälda deltagare: <strong className="text-amber-950">{summerStats.N} st</strong></span>
-                                                                    <span>• Aktiva deltagare denna vecka: <strong className="text-amber-950">{summerStats.activeUsersCount} st</strong></span>
+                                                                    
                                                                     <span>• Nästa temperaturtröskel: <strong className="text-amber-950">{summerStats.nextTarget > 0 ? `${summerStats.nextTarget} poäng` : "Maximal temperatur nådd! 🎉"}</strong></span>
                                                                 </div>
                                                             </div>
 
                                                             {/* Mina Personliga Framsteg block */}
-                                                            <div className="bg-amber-50/70 dark:bg-amber-955/20 backdrop-blur-md rounded-2xl p-4 sm:p-5 border border-amber-200/35 text-amber-950">
-                                                                <div className="flex justify-between items-center mb-3">
+                                                             <div className="bg-amber-50/70 dark:bg-amber-950/20 backdrop-blur-md rounded-2xl p-4 sm:p-5 border border-amber-200/35 text-amber-950">
+                                                                 {isScaledWeek && (
+                                                                     <div className="mt-1 mb-3.5 bg-white dark:bg-white/15 border border-amber-950/25 dark:border-white/20 rounded-xl shadow-xs p-3 text-[11px] font-bold text-amber-950 dark:text-amber-100 leading-normal shadow-xs">
+                                                                         👋 <strong>Välkommen till utmaningen!</strong><br />
+                                                                         Eftersom du gick med i utmaningen på en <span className="text-amber-950 dark:text-white underline decoration-orange-400 decoration-2 font-black">{joinDayName}</span> är ditt veckomål för denna första vecka anpassat till <strong className="text-amber-950 dark:text-white">{myGoalThisWeek} poäng</strong> (baserat på träningsdagarna efter din startdag). Ditt ordinarie veckomål är <strong className="text-amber-950 dark:text-white">{originalGoal} poäng</strong> som gäller fullt ut från och med nästa måndag.
+                                                                     </div>
+                                                                 )}
+                                                                 <div className="flex justify-between items-center mb-3">
                                                                     <div>
                                                                         <p className="text-xs font-bold text-amber-900 uppercase tracking-widest mb-0.5 font-black font-sans">Mina bidrag denna vecka 🎯</p>
                                                                         <h4 className="text-base font-black text-amber-950">
@@ -2171,92 +2211,14 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
 
                                                                 <div className="h-[1px] bg-amber-950/10 my-3.5" />
 
-                                                                {!isEditingNextGoal ? (
-                                                                    <button
-                                                                        type="button"
-                                                                        onClick={() => setIsEditingNextGoal(true)}
-                                                                        className="w-full py-3 px-4 bg-amber-950/10 hover:bg-amber-950/15 text-amber-950 text-xs font-black uppercase tracking-wider rounded-xl transition-all flex items-center justify-center gap-2 border border-amber-950/10 cursor-pointer"
-                                                                    >
-                                                                        Redigera mitt veckomål
-                                                                    </button>
-                                                                ) : (
-                                                                    <div className="bg-amber-950/5 rounded-xl p-3 border border-amber-250/10 animate-fade-in">
-                                                                        <div className="flex sm:flex-row flex-col justify-between sm:items-center gap-3">
-                                                                            <div>
-                                                                                <h5 className="text-xs font-black text-amber-950 uppercase tracking-wider mb-0.5">Veckomål för nästa vecka</h5>
-                                                                                <p className="text-xs text-amber-900/70 font-semibold leading-normal">
-                                                                                    Träder i kraft måndag kl. 00:00 (Minst 1 p).
-                                                                                </p>
-                                                                            </div>
-
-                                                                            <div className="flex items-center gap-2.5">
-                                                                                <div className="flex items-center gap-2 bg-white/40 dark:bg-amber-955/35 border border-amber-950/10 rounded-xl p-1.5 shadow-inner">
-                                                                                    <button
-                                                                                        type="button"
-                                                                                        disabled={myGoalNextWeek <= 1}
-                                                                                        onClick={async () => {
-                                                                                            if (myGoalNextWeek <= 1) return;
-                                                                                            const targetVal = myGoalNextWeek - 1;
-                                                                                            try {
-                                                                                                const updatedGoals = {
-                                                                                                    ...(userData.summerChallengeGoals || {}),
-                                                                                                    [nextWeekMon]: targetVal
-                                                                                                };
-                                                                                                await updateUserProfile(userData.uid, {
-                                                                                                    nextSummerChallengeGoal: targetVal,
-                                                                                                    summerChallengeGoals: updatedGoals
-                                                                                                } as any);
-                                                                                                setJustSavedGoalMsg(`Ditt veckomål för nästa vecka är nu ${targetVal} poäng! 🏁`);
-                                                                                                setTimeout(() => setJustSavedGoalMsg(''), 4000);
-                                                                                            } catch (err) {
-                                                                                                console.error("Kunde inte ändra veckomål:", err);
-                                                                                            }
-                                                                                        }}
-                                                                                        className="w-8 h-8 rounded-lg bg-amber-950 hover:bg-amber-900 text-amber-50 flex items-center justify-center font-black select-none disabled:opacity-45 cursor-pointer"
-                                                                                    >
-                                                                                        -
-                                                                                    </button>
-                                                                                    <span className="font-sans text-xs sm:text-sm font-black text-amber-950 dark:text-amber-50 min-w-[2.5rem] text-center">
-                                                                                        {myGoalNextWeek} p
-                                                                                    </span>
-                                                                                    <button
-                                                                                        type="button"
-                                                                                        onClick={async () => {
-                                                                                            const targetVal = myGoalNextWeek + 1;
-                                                                                            try {
-                                                                                                const updatedGoals = {
-                                                                                                    ...(userData.summerChallengeGoals || {}),
-                                                                                                    [nextWeekMon]: targetVal
-                                                                                                };
-                                                                                                await updateUserProfile(userData.uid, {
-                                                                                                    nextSummerChallengeGoal: targetVal,
-                                                                                                    summerChallengeGoals: updatedGoals
-                                                                                                } as any);
-                                                                                                setJustSavedGoalMsg(`Ditt veckomål för nästa vecka är nu ${targetVal} poäng! 🏁`);
-                                                                                                setTimeout(() => setJustSavedGoalMsg(''), 4000);
-                                                                                            } catch (err) {
-                                                                                                console.error("Kunde inte ändra veckomål:", err);
-                                                                                            }
-                                                                                        }}
-                                                                                        className="w-8 h-8 rounded-lg bg-amber-950 hover:bg-amber-900 text-amber-50 flex items-center justify-center font-black select-none cursor-pointer"
-                                                                                    >
-                                                                                        +
-                                                                                    </button>
-                                                                                </div>
-                                                                                <button
-                                                                                    type="button"
-                                                                                    onClick={() => setIsEditingNextGoal(false)}
-                                                                                    className="px-3.5 py-2 bg-amber-950 hover:bg-amber-900 text-amber-50 text-[10px] font-black uppercase tracking-wider rounded-xl cursor-pointer shadow-sm transition-all"
-                                                                                >
-                                                                                    Klar
-                                                                                </button>
-                                                                            </div>
-                                                                        </div>
-                                                                    </div>
-                                                                )}
+                                                                                                                                 <div className="mt-4 p-3.5 bg-white dark:bg-white/5 border border-amber-950/30 dark:border-white/15 rounded-2xl text-center shadow-sm">
+                                                                    <p className="text-xs text-amber-950 dark:text-amber-100 font-bold leading-normal">
+                                                                        🏁 <strong className="text-amber-950 dark:text-white">Satt mål gäller:</strong> Ditt veckomål på <strong className="text-amber-950 dark:text-white">{originalGoal} poäng</strong> är låst under hela utmaningen för att hålla studions träningstermometer rättvis!
+                                                                    </p>
+                                                                </div>
 
                                                                 {justSavedGoalMsg && (
-                                                                    <div className="mt-3 bg-amber-200/50 dark:bg-amber-955/40 text-[11px] font-bold text-amber-950 dark:text-amber-100 rounded-xl px-3 py-2 text-center animate-pulse">
+                                                                    <div className="mt-3 bg-amber-200/50 dark:bg-amber-950/40 text-[11px] font-bold text-amber-950 dark:text-amber-100 rounded-xl px-3 py-2 text-center animate-pulse">
                                                                         {justSavedGoalMsg}
                                                                     </div>
                                                                 )}
@@ -2295,7 +2257,7 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                                                     <button
                                                         type="button"
                                                         onClick={() => setShowFormulaInfo(true)}
-                                                        className="w-4 h-4 rounded-full bg-amber-500/15 hover:bg-amber-500/35 text-amber-955 border border-amber-500/25 flex items-center justify-center text-xs font-black transition-all cursor-pointer shadow-sm"
+                                                        className="w-4 h-4 rounded-full bg-amber-500/15 hover:bg-amber-500/35 text-amber-950 border border-amber-500/25 flex items-center justify-center text-xs font-black transition-all cursor-pointer shadow-sm"
                                                         title="Visa information om mätarens smarta formel"
                                                     >
                                                         i
@@ -2408,7 +2370,7 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
 
                     {/* Compact, slim bottom-placed join card if user clicked "Kanske senare" */}
                     {isSummerThemeActive && !isUserJoined && dismissedSummerChallenge && (
-                        <div className="relative overflow-hidden bg-gradient-to-br from-orange-500 via-amber-400 to-yellow-100 dark:from-orange-600 dark:via-amber-500 dark:to-yellow-200 text-amber-955 border-none rounded-[2rem] p-5 shadow-[0_12px_40px_rgba(249,115,22,0.18)] text-left animate-fade-in mb-3.5">
+                        <div className="relative overflow-hidden bg-gradient-to-br from-orange-500 via-amber-400 to-yellow-100 dark:from-orange-600 dark:via-amber-500 dark:to-yellow-200 text-amber-950 border-none rounded-[2rem] p-5 shadow-[0_12px_40px_rgba(249,115,22,0.18)] text-left animate-fade-in mb-3.5">
                             {/* Sun rays backdrop */}
                             <div className="absolute top-[-40px] right-[-40px] w-64 h-64 bg-white/10 rounded-full blur-[50px] pointer-events-none"></div>
                             
@@ -2447,6 +2409,9 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                                                 +
                                             </button>
                                         </div>
+                                        <p className="text-[10px] font-extrabold text-amber-950 bg-white px-3 py-1.5 rounded-xl border border-amber-950/25 shadow-sm text-sm mt-2 flex items-center gap-1.5 select-none w-fit shadow-xs">
+                                            <span className="text-red-700">⚠️</span> Satt mål gäller (kan ej ändras efter anmälan)
+                                        </p>
                                     </div>
                                 </div>
                                 <button

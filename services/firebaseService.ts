@@ -542,10 +542,19 @@ export const saveWorkoutLog = async (logData: any): Promise<{ log: any, newRecor
                     monday.setHours(0, 0, 0, 0);
                     const thisWeekMonday = monday.getTime();
 
-                    // Hämta deltagarens veckomål för innevarande vecka
-                    const myGoal = userData.summerChallengeGoals?.[thisWeekMonday] !== undefined 
+                    // Hämta deltagarens veckomål för innevarande vecka (med anpassning om det är första veckan)
+                    const baseGoal = userData.summerChallengeGoals?.[thisWeekMonday] !== undefined 
                         ? userData.summerChallengeGoals[thisWeekMonday] 
                         : (userData.summerChallengeGoal || 3);
+
+                    let myGoal = baseGoal;
+                    const joinedAt = userData.joinedSummerChallengeAt || 0;
+                    if (joinedAt >= thisWeekMonday && joinedAt < thisWeekMonday + 7 * 24 * 60 * 60 * 1000) {
+                        const joinDate = new Date(joinedAt);
+                        const joinDay = joinDate.getDay() || 7; // Monday = 1, ..., Sunday = 7
+                        const daysLeft = Math.max(0, 7 - joinDay);
+                        myGoal = Math.max(1, Math.round((daysLeft / 7) * baseGoal));
+                    }
 
                     // Beräkna poäng för detta NYA pass
                     let newPassPoints = 0;
