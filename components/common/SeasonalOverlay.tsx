@@ -333,17 +333,29 @@ const GymThermometerMascot = ({ isStudioMode = false }: { isStudioMode?: boolean
 
         const challengeParticipantsOnSunday = locationMembers.filter(m => {
             if (!(m.joinedSummerChallenge && m.joinedChallengeId === configToUse?.id)) return false;
+            const joinedAt = m.joinedSummerChallengeAt || 0;
+            const sundayEnd = startOfWeek.getTime() + 7 * 24 * 60 * 60 * 1000;
+            if (joinedAt >= sundayEnd) return false;
             return true;
         });
 
         const N = Math.max(1, challengeParticipantsOnSunday.length);
 
-        // Sum of all Sunday registered members' goals - locked on Monday 00:00
+        // Sum of all registered members' goals - scaling if joined mid-week
         let clubWeeklyTarget = 0;
         challengeParticipantsOnSunday.forEach(m => {
-            const goalVal = m.summerChallengeGoals?.[startOfWeek.getTime()] !== undefined
+            const baseGoal = m.summerChallengeGoals?.[startOfWeek.getTime()] !== undefined
                 ? m.summerChallengeGoals[startOfWeek.getTime()]
                 : (m.summerChallengeGoal || 3);
+            
+            let goalVal = baseGoal;
+            const joinedAt = m.joinedSummerChallengeAt || 0;
+            if (joinedAt >= startOfWeek.getTime() && joinedAt < startOfWeek.getTime() + 7 * 24 * 60 * 60 * 1000) {
+                const joinDate = new Date(joinedAt);
+                const joinDay = joinDate.getDay() || 7; // Monday = 1, ..., Sunday = 7
+                const daysLeft = Math.max(0, 7 - joinDay);
+                goalVal = Math.max(1, Math.round((daysLeft / 7) * baseGoal));
+            }
             clubWeeklyTarget += goalVal;
         });
 
