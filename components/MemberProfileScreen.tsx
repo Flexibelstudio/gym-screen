@@ -1011,7 +1011,7 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
         });
 
         return ranking;
-    }, [communityLogs, membersList, isSummerThemeActive, userData?.locationId]);
+    }, [communityLogs, membersList, isSummerThemeActive, userData?.locationId, configToUse?.id]);
 
     const [activeTab, setActiveTab] = useState<'overview' | 'goals' | 'strength' | 'benchmarks'>(() => {
         const saved = localStorage.getItem('smart-skarm-profile-active-tab');
@@ -1305,7 +1305,7 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
             summerTotalPoints, 
             summerWeekPoints 
         };
-    }, [logs, userData?.migratedStats]);
+    }, [logs, userData, isUserJoined]);
 
     const daysLeft = useMemo(() => {
         if (!userData.goals?.targetDate) return null;
