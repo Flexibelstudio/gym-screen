@@ -65,6 +65,7 @@ interface SuperAdminScreenProps {
     onUpdatePasswords: (organizationId: string, passwords: Organization['passwords']) => Promise<void>;
     onUpdateLogos: (organizationId: string, logos: { light: string; dark: string }) => Promise<void>;
     onUpdateFavicon: (organizationId: string, faviconUrl: string) => Promise<void>;
+    onUpdateAppIcon?: (organizationId: string, appIconUrl: string) => Promise<void>;
     onUpdatePrimaryColor: (organizationId: string, color: string) => Promise<void>;
     onUpdateOrganization: (organizationId: string, name: string, subdomain: string, inviteCode?: string, coachCode?: string, maxFreeCoaches?: number) => Promise<void>;
     onUpdateOrganizationCompanyDetails?: (organizationId: string, details: CompanyDetails) => Promise<void>;
@@ -468,7 +469,7 @@ export const SuperAdminScreen: React.FC<SuperAdminScreenProps> = (props) => {
             case 'studios':
                 return <StudiosContent {...props} onLockStudioDevice={props.onLockStudioDevice} />;
             case 'varumarke':
-                return <VarumarkeContent organization={organization} onUpdatePasswords={props.onUpdatePasswords} onUpdateLogos={props.onUpdateLogos} onUpdateFavicon={props.onUpdateFavicon} onUpdatePrimaryColor={props.onUpdatePrimaryColor} onShowToast={(msg) => setToast({ message: msg, visible: true })} />;
+                return <VarumarkeContent organization={organization} onUpdatePasswords={props.onUpdatePasswords} onUpdateLogos={props.onUpdateLogos} onUpdateFavicon={props.onUpdateFavicon} onUpdateAppIcon={props.onUpdateAppIcon} onUpdatePrimaryColor={props.onUpdatePrimaryColor} onShowToast={(msg) => setToast({ message: msg, visible: true })} />;
             case 'company-info':
                 return <CompanyInfoContent organization={organization} onEdit={() => setShowOnboardingModal(true)} />;
             case 'ovningsbank':

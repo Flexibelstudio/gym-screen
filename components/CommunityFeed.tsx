@@ -152,10 +152,22 @@ export const CommunityFeed: React.FC<CommunityFeedProps> = ({ onExpand, isExpand
 
                                 <div className="flex-grow min-w-0">
                                     <div className="flex justify-between items-baseline">
-                                        <p className="text-gray-900 dark:text-white font-bold text-sm truncate mr-2">
-                                            {log.memberName || 'Anonym'}
-                                        </p>
-                                        <span className="text-[9px] text-gray-500 dark:text-white/30 font-bold uppercase whitespace-nowrap">
+                                        <div className="flex items-center gap-1.5 truncate mr-2 min-w-0">
+                                            <p className="text-gray-900 dark:text-white font-bold text-sm truncate">
+                                                {log.memberName || 'Anonym'}
+                                            </p>
+                                            {log.reachedSummerGoal && (
+                                                <span className="shrink-0 bg-gradient-to-r from-amber-500/15 to-orange-500/15 text-orange-700 dark:text-orange-400 border border-orange-500/20 px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-wider animate-bounce [animation-duration:2.5s]">
+                                                    Målet nått! ☀️
+                                                </span>
+                                            )}
+                                            {log.overDeliveredSummerGoal && (
+                                                <span className="shrink-0 bg-gradient-to-r from-orange-500/15 to-rose-500/15 text-rose-700 dark:text-rose-400 border border-rose-500/20 px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-wider animate-pulse">
+                                                    Överlevererat! 🔥
+                                                </span>
+                                            )}
+                                        </div>
+                                        <span className="text-[9px] text-gray-500 dark:text-white/30 font-bold uppercase whitespace-nowrap shrink-0">
                                             {getRelativeTime(log.date)}
                                         </span>
                                     </div>

@@ -191,6 +191,9 @@ export interface StudioConfig {
   enableWorkoutGames?: boolean; // NYTT: Träningslekar
   enableTimer?: boolean; // NYTT: Fristående timer
   enableOtherWorkouts?: boolean; // NYTT: Övriga pass
+  enableSummerChallenge?: boolean; // NYTT: Sommarutmaning (Sommar-Sisu)
+  summerChallengeStartDate?: number; // NYTT: Sommarutmaning startdatum
+  summerChallengeEndDate?: number; // NYTT: Sommarutmaning slutdatum
   checkInImageEnabled?: boolean;
   checkInImageUrl?: string;
   seasonalTheme?: ThemeOption;
@@ -282,6 +285,7 @@ export interface Organization {
   logoUrlLight?: string;
   logoUrlDark?: string;
   faviconUrl?: string;
+  appIconUrl?: string;
   primaryColor?: string;
   passwords?: {
     coach: string;
@@ -410,6 +414,12 @@ export interface UserData {
   showOnLeaderboard?: boolean;
   usePreGameForCustomWorkouts?: boolean;
   isTrainingMember?: boolean;
+  joinedSummerChallenge?: boolean;
+  joinedSummerChallengeAt?: number;
+  joinedChallengeId?: string;
+  summerChallengeGoal?: number;
+  nextSummerChallengeGoal?: number;
+  summerChallengeGoals?: Record<number, number>;
   createdAt?: any;
 
   migratedStats?: {
@@ -550,6 +560,10 @@ export interface WorkoutLog {
     totalVolume?: number; // NYTT: Total vikt x reps under passet
     inStudio?: boolean; // NYTT: Indikerar om träningspasset genomfördes på plats på gymmet
     locationId?: string; // NYTT: Ort/Studio där passet loggades eller användaren tillhör
+    imageUrl?: string; // NYTT: Alternativ sommarfeedsbild bifogad till passet
+    summerPoints?: number; // NYTT: Poäng i sommarutmaningen (1, 2 eller 3)
+    reachedSummerGoal?: boolean; // NYTT: Om användaren uppnått veckans sommar mål med detta pass
+    overDeliveredSummerGoal?: boolean; // NYTT: Om användaren passerat sitt veckomål
 }
 
 export interface CheckInEvent {

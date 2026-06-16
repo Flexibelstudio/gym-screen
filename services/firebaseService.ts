@@ -13,7 +13,9 @@ import {
   createUserWithEmailAndPassword,
   EmailAuthProvider,
   Auth,
-  User
+  User,
+  confirmPasswordReset as firebaseConfirmPasswordReset,
+  verifyPasswordResetCode as firebaseVerifyPasswordResetCode
 } from 'firebase/auth';
 import { 
   getFirestore, 
@@ -219,6 +221,12 @@ export const signInAsStudio = async (): Promise<User> => {
 export const signOut = (): Promise<void> => (isOffline || !auth) ? Promise.resolve() : firebaseSignOut(auth);
 
 export const sendPasswordResetEmail = (email: string) => (isOffline || !auth) ? Promise.resolve() : firebaseSendPasswordResetEmail(auth, email);
+
+export const verifyPasswordResetCode = (code: string): Promise<string> => 
+  (isOffline || !auth) ? Promise.resolve('test@flexibelfriskvardhalsa.se') : firebaseVerifyPasswordResetCode(auth, code);
+
+export const confirmPasswordReset = (code: string, newPassword: string): Promise<void> => 
+  (isOffline || !auth) ? Promise.resolve() : firebaseConfirmPasswordReset(auth, code, newPassword);
 
 export const reauthenticateUser = async (user: User, password: string) => {
   if (isOffline || !auth || !user.email) return;
@@ -505,6 +513,65 @@ export const saveWorkoutLog = async (logData: any): Promise<{ log: any, newRecor
                 // Add location from user object if not already explicitly sent
                 if (!newLog.locationId && userData.locationId) {
                     newLog.locationId = userData.locationId;
+                }
+
+                // Beräkna Sommarutmaning-poäng & veckomål-milestones för denna log
+                if (userData.joinedSummerChallenge) {
+                    const now = new Date();
+                    const currentDay = now.getDay() || 7;
+                    const monday = new Date(now);
+                    monday.setDate(now.getDate() - (currentDay - 1));
+                    monday.setHours(0, 0, 0, 0);
+                    const thisWeekMonday = monday.getTime();
+
+                    // Hämta deltagarens veckomål för innevarande vecka
+                    const myGoal = userData.summerChallengeGoals?.[thisWeekMonday] !== undefined 
+                        ? userData.summerChallengeGoals[thisWeekMonday] 
+                        : (userData.summerChallengeGoal || 3);
+
+                    // Beräkna poäng för detta NYA pass
+                    let newPassPoints = 0;
+                    if (newLog.inStudio === true) {
+                        newPassPoints = 2;
+                    } else {
+                        const isLessThan30 = newLog.durationMinutes !== undefined && newLog.durationMinutes > 0 && newLog.durationMinutes < 30;
+                        if (!isLessThan30) {
+                            newPassPoints = 1;
+                        }
+                    }
+
+                    if (newPassPoints > 0) {
+                        // Hämta användarens loggar för innevarande vecka för att se ackumulerade veckopoäng innan detta pass
+                        const q = query(
+                            collection(db, 'workoutLogs'),
+                            where("memberId", "==", logData.memberId),
+                            where("date", ">=", thisWeekMonday)
+                        );
+                        const weekLogsSnap = await getDocs(q);
+                        let previousWeekPoints = 0;
+                        
+                        weekLogsSnap.forEach(snap => {
+                            const l = snap.data();
+                            let pts = 0;
+                            if (l.inStudio === true) {
+                                pts = 2;
+                            } else {
+                                const isLessThan30 = l.durationMinutes !== undefined && l.durationMinutes > 0 && l.durationMinutes < 30;
+                                if (!isLessThan30) {
+                                    pts = 1;
+                                }
+                            }
+                            previousWeekPoints += pts;
+                        });
+
+                        const totalPointsWithNew = previousWeekPoints + newPassPoints;
+
+                        if (previousWeekPoints < myGoal && totalPointsWithNew >= myGoal) {
+                            newLog.reachedSummerGoal = true;
+                        } else if (previousWeekPoints >= myGoal) {
+                            newLog.overDeliveredSummerGoal = true;
+                        }
+                    }
                 }
             }
         } catch (e) { console.warn("Failed to enrich log", e); }
@@ -1022,6 +1089,12 @@ export const updateOrganizationLogos = async (id: string, logos: { light: string
 export const updateOrganizationFavicon = async (id: string, faviconUrl: string) => {
     if(isOffline || !db || !id) return;
     await updateDoc(doc(db, 'organizations', id), { faviconUrl });
+    return getOrganizationById(id);
+};
+
+export const updateOrganizationAppIcon = async (id: string, appIconUrl: string) => {
+    if(isOffline || !db || !id) return;
+    await updateDoc(doc(db, 'organizations', id), { appIconUrl });
     return getOrganizationById(id);
 };
 
@@ -1626,6 +1699,61 @@ export const updateSeasonalThemes = async (themes: SeasonalThemeSetting[]) => {
     try {
         await setDoc(doc(db, 'system', 'seasonalThemes'), { themes: sanitizeData(themes) }, { merge: true });
     } catch (e) { console.error("updateSeasonalThemes failed", e); }
+};
+
+export const getGlobalSummerChallenge = async () => {
+    if (isOffline || !db) {
+        return {
+            title: "Sommarutmaningen ☀️",
+            description: "Samla poäng tillsammans genom att träna under sommaren! Träning på gymmet ger 2 poäng, all annan träning minst 30 min ger 1 poäng.",
+            startDate: new Date("2026-06-01T00:00:00").getTime(),
+            endDate: new Date("2026-08-31T23:59:59").getTime(),
+            isPublished: false
+        };
+    }
+    try {
+        const snap = await getDoc(doc(db, 'system', 'summerChallenge'));
+        return snap.exists() ? snap.data() : {
+            title: "Sommarutmaningen ☀️",
+            description: "Samla poäng tillsammans genom att träna under sommaren! Träning på gymmet ger 2 poäng, all annan träning minst 30 min ger 1 poäng.",
+            startDate: new Date("2026-06-01T00:00:00").getTime(),
+            endDate: new Date("2026-08-31T23:59:59").getTime(),
+            isPublished: false
+        };
+    } catch (e) { return null; }
+};
+
+export const updateGlobalSummerChallenge = async (data: any) => {
+    if (isOffline || !db) return;
+    try {
+        await setDoc(doc(db, 'system', 'summerChallenge'), sanitizeData(data), { merge: true });
+    } catch (e) { console.error("updateGlobalSummerChallenge failed", e); }
+};
+
+export const listenToGlobalSummerChallenge = (callback: (data: any) => void) => {
+    if (isOffline || !db) {
+        callback({
+            title: "Sommarutmaningen ☀️",
+            description: "Samla poäng tillsammans genom att träna under sommaren! Träning på gymmet ger 2 poäng, all annan träning minst 30 min ger 1 poäng.",
+            startDate: new Date("2026-06-01T00:00:00").getTime(),
+            endDate: new Date("2026-08-31T23:59:59").getTime(),
+            isPublished: false
+        });
+        return () => {};
+    }
+    return onSnapshot(doc(db, 'system', 'summerChallenge'), (snap) => {
+        if (snap.exists()) {
+            callback(snap.data());
+        } else {
+            callback({
+                title: "Sommarutmaningen ☀️",
+                description: "Samla poäng tillsammans genom att träna under sommaren! Träning på gymmet ger 2 poäng, all annan träning minst 30 min ger 1 poäng.",
+                startDate: new Date("2026-06-01T00:00:00").getTime(),
+                endDate: new Date("2026-08-31T23:59:59").getTime(),
+                isPublished: false
+            });
+        }
+    });
 };
 
 export const archiveOrganization = async (id: string) => {

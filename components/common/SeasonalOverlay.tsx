@@ -1,8 +1,9 @@
 
 import React, { useMemo, useState, useEffect } from 'react';
 import { useStudio } from '../../context/StudioContext';
+import { useAuth } from '../../context/AuthContext';
 import { ThemeOption, Page, SeasonalThemeSetting, ThemeDateRange } from '../../types';
-import { getSeasonalThemes } from '../../services/firebaseService';
+import { getSeasonalThemes, listenToCommunityLogs, listenToLeaderboardLogs, listenToMembers, listenToGlobalSummerChallenge } from '../../services/firebaseService';
 
 // Helper to get week number
 const getISOWeek = (date: Date): number => {
@@ -228,25 +229,382 @@ const HalloweenMascot = () => (
     </div>
 );
 
-const SummerMascot = () => (
-    <div className="fixed bottom-0 left-4 w-40 h-40 pointer-events-none z-[2000]">
-        <svg viewBox="0 0 200 200" className="w-full h-full drop-shadow-xl">
-            {/* Sun Body */}
-            <circle cx="150" cy="150" r="40" fill="#fbbf24" />
-            {/* Rays */}
-            <g stroke="#fbbf24" strokeWidth="8" strokeLinecap="round">
-                <line x1="150" y1="90" x2="150" y2="70" />
-                <line x1="90" y1="150" x2="70" y2="150" />
-                <line x1="110" y1="110" x2="95" y2="95" />
-            </g>
-            {/* Sunglasses */}
-            <path d="M125,145 L175,145 L175,155 Q175,165 165,165 L160,165 Q150,165 150,155 L150,150 L145,150 L145,155 Q145,165 135,165 L130,165 Q120,165 120,155 Z" fill="#1f2937" />
-            <line x1="120" y1="148" x2="110" y2="140" stroke="#1f2937" strokeWidth="2" />
-            {/* Smile */}
-            <path d="M135,175 Q150,185 165,175" stroke="#b45309" strokeWidth="3" fill="none" strokeLinecap="round" />
-        </svg>
-    </div>
-);
+const GymThermometerMascot = ({ isStudioMode = false }: { isStudioMode?: boolean }) => {
+    const { selectedOrganization, selectedStudio, studioConfig } = useStudio();
+    const { userData } = useAuth();
+    
+    const [weeklyLogs, setWeeklyLogs] = useState<any[]>([]);
+    const [membersList, setMembersList] = useState<any[]>([]);
+    const [globalChallenge, setGlobalChallenge] = useState<any>(null);
+
+    useEffect(() => {
+        const unsubscribe = listenToGlobalSummerChallenge((data) => {
+            setGlobalChallenge(data);
+        });
+        return () => unsubscribe();
+    }, []);
+
+    const configToUse = useMemo(() => {
+        const base = !selectedOrganization ? (studioConfig || {}) : {
+            ...(selectedOrganization || {}),
+            ...(selectedOrganization.globalConfig || {}),
+            ...(studioConfig || {})
+        };
+        if (globalChallenge) {
+            return {
+                ...base,
+                summerChallengeStartDate: globalChallenge.startDate,
+                summerChallengeEndDate: globalChallenge.endDate,
+                id: globalChallenge.id || 'default'
+            } as any;
+        }
+        return base as any;
+    }, [studioConfig, selectedOrganization, globalChallenge]);
+
+    useEffect(() => {
+        if (!selectedOrganization?.id) return;
+        const unsubscribe = listenToMembers(selectedOrganization.id, (members) => {
+            setMembersList(members);
+        });
+        return () => unsubscribe();
+    }, [selectedOrganization?.id]);
+
+    useEffect(() => {
+        if (!selectedOrganization?.id) return;
+        
+        const unsubscribe = listenToLeaderboardLogs(selectedOrganization.id, 1000, (logs) => {
+            setWeeklyLogs(logs);
+        });
+
+        return () => unsubscribe();
+    }, [selectedOrganization?.id]);
+
+    const stats = useMemo(() => {
+        const now = new Date();
+        const startOfWeek = new Date(now);
+        const day = startOfWeek.getDay();
+        const diff = startOfWeek.getDate() - day + (day === 0 ? -6 : 1);
+        startOfWeek.setDate(diff);
+        startOfWeek.setHours(0, 0, 0, 0);
+
+        let thisWeeksLogs = weeklyLogs.filter(log => {
+            const d = new Date(log.date).getTime();
+            return d >= startOfWeek.getTime();
+        });
+
+        // Filtrera efter ort/studio om det finns på skärmen eller användaren
+        const activeLocationId = isStudioMode ? selectedStudio?.locationId : userData?.locationId;
+        if (activeLocationId) {
+            thisWeeksLogs = thisWeeksLogs.filter(log => log.locationId === activeLocationId);
+        }
+
+        let totalPoints = 0;
+        const userPointsMap: Record<string, number> = {};
+        thisWeeksLogs.forEach(log => {
+            const uid = log.memberId;
+            if (!uid) return;
+            
+            const logMember = membersList.find(m => m.uid === uid);
+            if (!logMember || !(logMember.joinedSummerChallenge && logMember.joinedChallengeId === configToUse?.id)) return;
+            
+            const logTime = new Date(log.date || 0).getTime();
+            if (logTime < (logMember.joinedSummerChallengeAt || 0)) return;
+            
+            let pts = 0;
+            if (log.inStudio === true) {
+                pts = 2;
+            } else {
+                const isLessThan30 = log.durationMinutes !== undefined && log.durationMinutes > 0 && log.durationMinutes < 30;
+                if (!isLessThan30) {
+                    pts = 1;
+                }
+            }
+            userPointsMap[uid] = (userPointsMap[uid] || 0) + pts;
+            totalPoints += pts;
+        });
+
+        const activeUsersCount = Object.keys(userPointsMap).length;
+
+        // Basantal registrerade (N): anmälda innan veckans måndag startar
+        const locationMembers = membersList.filter(m => {
+            if (activeLocationId && m.locationId !== activeLocationId) return false;
+            return true;
+        });
+
+        const challengeParticipantsOnSunday = locationMembers.filter(m => {
+            if (!(m.joinedSummerChallenge && m.joinedChallengeId === configToUse?.id)) return false;
+            return true;
+        });
+
+        const N = Math.max(1, challengeParticipantsOnSunday.length);
+
+        // Sum of all Sunday registered members' goals - locked on Monday 00:00
+        let clubWeeklyTarget = 0;
+        challengeParticipantsOnSunday.forEach(m => {
+            const goalVal = m.summerChallengeGoals?.[startOfWeek.getTime()] !== undefined
+                ? m.summerChallengeGoals[startOfWeek.getTime()]
+                : (m.summerChallengeGoal || 3);
+            clubWeeklyTarget += goalVal;
+        });
+
+        if (clubWeeklyTarget <= 0) {
+            clubWeeklyTarget = 3 * N; // Fallback
+        }
+
+        const completedPercentage = clubWeeklyTarget > 0 ? Math.round((totalPoints / clubWeeklyTarget) * 100) : 0;
+
+        let status: 'kallt' | 'ljummet' | 'varmt' | 'hett' | 'overhettat' = 'kallt';
+        if (completedPercentage >= 110) {
+            status = 'overhettat';
+        } else if (completedPercentage >= 100) {
+            status = 'hett';
+        } else if (completedPercentage >= 70) {
+            status = 'varmt';
+        } else if (completedPercentage >= 40) {
+            status = 'ljummet';
+        }
+
+        // Beräkna fyllnadsgrad (percentage) mer linjärt/analogt för en snygg rörlig mätare!
+        let percentage = 0.20; // Default kall bas fyllning
+        if (completedPercentage >= 110) {
+            const diff = completedPercentage - 110;
+            percentage = Math.min(1.0, 0.85 + (diff / 100) * 0.15);
+        } else if (completedPercentage >= 100) {
+            const range = 110 - 100;
+            const diff = completedPercentage - 100;
+            percentage = 0.70 + (diff / range) * 0.15;
+        } else if (completedPercentage >= 70) {
+            const range = 100 - 70;
+            const diff = completedPercentage - 70;
+            percentage = 0.50 + (diff / range) * 0.20;
+        } else if (completedPercentage >= 40) {
+            const range = 70 - 40;
+            const diff = completedPercentage - 40;
+            percentage = 0.35 + (diff / range) * 0.15;
+        } else {
+            percentage = 0.10 + (completedPercentage / 40) * 0.25;
+        }
+
+        return {
+            activeUsersCount,
+            totalPoints,
+            status,
+            percentage
+        };
+    }, [weeklyLogs, membersList, isStudioMode, selectedStudio?.locationId, userData?.locationId]);
+
+    const getStatusConfig = () => {
+        switch (stats.status) {
+            case 'overhettat':
+                return {
+                    color: '#dc2626',
+                    percentage: stats.percentage,
+                    label: 'ÖVERHETTNING 🌋',
+                };
+            case 'hett':
+                return {
+                    color: '#ef4444',
+                    percentage: stats.percentage,
+                    label: 'HET 🔥',
+                };
+            case 'varmt':
+                return {
+                    color: '#f97316',
+                    percentage: stats.percentage,
+                    label: 'VARM ☀️',
+                };
+            case 'ljummet':
+                return {
+                    color: '#eab308',
+                    percentage: stats.percentage,
+                    label: 'LJUMMEN 🌤️',
+                };
+            case 'kallt':
+            default:
+                return {
+                    color: '#3b82f6',
+                    percentage: stats.percentage,
+                    label: 'SVALT ❄️',
+                };
+        }
+    };
+
+    const config = getStatusConfig();
+    const percentage = config.percentage;
+    const color = config.color;
+
+    const startY = 152;
+    const endY = 14;
+    const currentY = startY - (percentage * (startY - endY));
+
+    if (isStudioMode) {
+        return (
+            <div className="fixed bottom-10 left-10 z-[2000] flex flex-col items-center pointer-events-none select-none animate-fade-in origin-bottom rotate-[5deg] drop-shadow-[0_3px_6px_rgba(0,0,0,0.3)]">
+                <svg 
+                    viewBox="0 0 40 160" 
+                    className="w-16 h-52 overflow-visible drop-shadow-[0_2px_4px_rgba(0,0,0,0.2)]"
+                >
+                    <defs>
+                        <filter id={`glow-large-${color.replace('#', '')}`} x="-30%" y="-30%" width="160%" height="160%">
+                            <feGaussianBlur stdDeviation="5" result="blur" />
+                            <feComposite in="SourceGraphic" in2="blur" operator="over" />
+                        </filter>
+                        <linearGradient id={`liquid-grad-large-${color.replace('#', '')}`} x1="0%" y1="0%" x2="0%" y2="100%">
+                            <stop offset="0%" stopColor={color} />
+                            <stop offset="100%" stopColor={color === '#ef4444' ? '#991b1b' : color === '#f97316' ? '#c2410c' : color === '#eab308' ? '#a16207' : '#1e40af'} />
+                        </linearGradient>
+                        <clipPath id="glass-inner-large">
+                            <path d="M 12,14 L 12,112 A 22,22 0 1,0 28,112 L 28,14 A 8,8 0 0,0 12,14 Z" />
+                        </clipPath>
+                    </defs>
+
+                    <path 
+                        d="M 12,14 L 12,112 A 22,22 0 1,0 28,112 L 28,14 A 8,8 0 0,0 12,14 Z"
+                        fill={color}
+                        opacity="0.25"
+                        filter={`url(#glow-large-${color.replace('#', '')})`}
+                    />
+
+                    <path 
+                        d="M 10,12 L 10,110 A 24,24 0 1,0 30,110 L 30,12 A 10,10 0 0,0 10,12 Z" 
+                        fill="rgba(254, 243, 199, 0.94)"
+                        stroke="rgba(0, 0, 0, 0.35)"
+                        strokeWidth="1.5"
+                    />
+
+                    <g clipPath="url(#glass-inner-large)">
+                        <rect 
+                            x="-10" 
+                            y={currentY} 
+                            width="60" 
+                            height={160 - currentY} 
+                            fill={`url(#liquid-grad-large-${color.replace('#', '')})`} 
+                            className="transition-all duration-1000 ease-out"
+                        />
+                        <rect x="18" y="10" width="1" height="130" fill="white" opacity="0.15" />
+                    </g>
+
+                    <path 
+                        d="M 12.5,15 L 12.5,110" 
+                        stroke="white" 
+                        strokeWidth="1.2" 
+                        strokeLinecap="round"
+                        opacity="0.5" 
+                    />
+
+                    <g stroke="rgba(15, 23, 42, 0.75)" strokeWidth="0.9" opacity="0.8" strokeLinecap="round">
+                        <line x1="10" y1="35" x2="13" y2="35" />
+                        <line x1="10" y1="55" x2="13" y2="55" />
+                        <line x1="10" y1="75" x2="13" y2="75" />
+                        <line x1="10" y1="95" x2="13" y2="95" />
+                        <line x1="10" y1="115" x2="13" y2="115" />
+                        
+                        <line x1="30" y1="35" x2="27" y2="35" />
+                        <line x1="30" y1="55" x2="27" y2="55" />
+                        <line x1="30" y1="75" x2="27" y2="75" />
+                        <line x1="30" y1="95" x2="27" y2="95" />
+                        <line x1="30" y1="115" x2="27" y2="115" />
+                    </g>
+
+                    <text
+                        x="20"
+                        y="139.5"
+                        textAnchor="middle"
+                        fill="white"
+                        fontSize="15.5"
+                        fontWeight="950"
+                        fontFamily="ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
+                        className="select-none font-black tracking-tighter"
+                    >
+                        {stats.totalPoints}
+                    </text>
+                </svg>
+            </div>
+        );
+    }
+
+    return (
+        <div className="fixed bottom-3 left-3 z-[90] flex flex-col items-center pointer-events-none select-none animate-fade-in origin-bottom rotate-[5deg] drop-shadow-[0_2px_5px_rgba(0,0,0,0.25)]">
+            <svg 
+                viewBox="0 0 40 160" 
+                className="w-12 h-36 overflow-visible drop-shadow-[0_1px_3px_rgba(0,0,0,0.15)]"
+            >
+                <defs>
+                    <filter id={`glow-small-${color.replace('#', '')}`} x="-30%" y="-30%" width="160%" height="160%">
+                        <feGaussianBlur stdDeviation="4" result="blur" />
+                        <feComposite in="SourceGraphic" in2="blur" operator="over" />
+                    </filter>
+                    <linearGradient id={`liquid-grad-small-${color.replace('#', '')}`} x1="0%" y1="0%" x2="0%" y2="100%">
+                        <stop offset="0%" stopColor={color} />
+                        <stop offset="100%" stopColor={color === '#ef4444' ? '#991b1b' : color === '#f97316' ? '#c2410c' : color === '#eab308' ? '#a16207' : '#1e40af'} />
+                    </linearGradient>
+                    <clipPath id="glass-inner-small">
+                        <path d="M 12,14 L 12,112 A 22,22 0 1,0 28,112 L 28,14 A 8,8 0 0,0 12,14 Z" />
+                    </clipPath>
+                </defs>
+
+                <path 
+                    d="M 12,14 L 12,112 A 22,22 0 1,0 28,112 L 28,14 A 8,8 0 0,0 12,14 Z"
+                    fill={color}
+                    opacity="0.2"
+                    filter={`url(#glow-small-${color.replace('#', '')})`}
+                />
+
+                <path 
+                    d="M 10,12 L 10,110 A 24,24 0 1,0 30,110 L 30,12 A 10,10 0 0,0 10,12 Z" 
+                    fill="rgba(254, 243, 199, 0.94)"
+                    stroke="rgba(0, 0, 0, 0.35)"
+                    strokeWidth="1.5"
+                />
+
+                <g clipPath="url(#glass-inner-small)">
+                    <rect 
+                        x="-10" 
+                        y={currentY} 
+                        width="60" 
+                        height={160 - currentY} 
+                        fill={`url(#liquid-grad-small-${color.replace('#', '')})`} 
+                        className="transition-all duration-1000 ease-out"
+                    />
+                    <rect x="18" y="10" width="1" height="130" fill="white" opacity="0.1" />
+                </g>
+
+                <path 
+                    d="M 12.5,15 L 12.5,110" 
+                    stroke="white" 
+                    strokeWidth="1.2" 
+                    strokeLinecap="round"
+                    opacity="0.4" 
+                />
+
+                <g stroke="rgba(15, 23, 42, 0.75)" strokeWidth="0.9" opacity="0.8" strokeLinecap="round">
+                    <line x1="10" y1="40" x2="13" y2="40" />
+                    <line x1="10" y1="65" x2="13" y2="65" />
+                    <line x1="10" y1="90" x2="13" y2="90" />
+                    <line x1="10" y1="115" x2="13" y2="115" />
+                    
+                    <line x1="30" y1="40" x2="27" y2="40" />
+                    <line x1="30" y1="65" x2="27" y2="65" />
+                    <line x1="30" y1="90" x2="27" y2="90" />
+                    <line x1="30" y1="115" x2="27" y2="115" />
+                </g>
+
+                <text
+                    x="20"
+                    y="139.5"
+                    textAnchor="middle"
+                    fill="white"
+                    fontSize="15.5"
+                    fontWeight="950"
+                    fontFamily="ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
+                    className="select-none font-black tracking-tighter"
+                >
+                    {stats.totalPoints}
+                </text>
+            </svg>
+        </div>
+    );
+};
 
 const ValentinesMascot = () => (
     <div className="fixed bottom-0 left-4 w-32 h-32 pointer-events-none z-[2000]">
@@ -263,34 +621,82 @@ const ValentinesMascot = () => (
 
 interface SeasonalOverlayProps {
     page: Page;
+    isStudioMode?: boolean;
+    isAdminView?: boolean;
 }
 
-export const SeasonalOverlay: React.FC<SeasonalOverlayProps> = ({ page }) => {
+export const SeasonalOverlay: React.FC<SeasonalOverlayProps> = ({ page, isStudioMode = false, isAdminView = false }) => {
+    const { studioConfig, selectedOrganization } = useStudio();
     const theme = useActiveTheme();
+    const [globalChallenge, setGlobalChallenge] = useState<any>(null);
 
-    if (theme === 'none') return null;
+    useEffect(() => {
+        if (isAdminView) return;
+        const unsubscribe = listenToGlobalSummerChallenge((data) => {
+            setGlobalChallenge(data);
+        });
+        return () => unsubscribe();
+    }, [isAdminView]);
+
+    if (isAdminView) return null;
+
+    const configToUse = useMemo(() => {
+        const base = !selectedOrganization ? (studioConfig || {}) : {
+            ...(selectedOrganization || {}),
+            ...(selectedOrganization.globalConfig || {}),
+            ...(studioConfig || {})
+        };
+        if (globalChallenge) {
+            return {
+                ...base,
+                summerChallengeStartDate: globalChallenge.startDate,
+                summerChallengeEndDate: globalChallenge.endDate,
+                id: globalChallenge.id || 'default'
+            } as any;
+        }
+        return base as any;
+    }, [studioConfig, selectedOrganization, globalChallenge]);
+
+    const isChallengeActive = useMemo(() => {
+        const hasTheme = !!configToUse?.enableSummerChallenge;
+        if (!hasTheme) return false;
+        
+        const currentTimestamp = Date.now();
+        const start = configToUse.summerChallengeStartDate;
+        const end = configToUse.summerChallengeEndDate;
+        
+        const isStarted = !start || currentTimestamp >= start;
+        const isEnded = !!end && currentTimestamp > end;
+        
+        return isStarted && !isEnded;
+    }, [configToUse]);
+
+    // Om en utmaning pågår (t.ex. Sommar-Sisu), ska säsongstemat pausas och döljas för att prioritera träningstermometern
+    const activeTheme = isChallengeActive ? 'none' : theme;
+
+    if (activeTheme === 'none' && !isChallengeActive) return null;
 
     return (
         <>
             {/* 1. Background Particles */}
-            {(theme === 'winter' || theme === 'christmas') && <SnowParticles />}
-            {theme === 'halloween' && <FogEffect />}
-            {theme === 'valentines' && <FloatingHearts />}
-            {theme === 'newyear' && <ConfettiRain />}
-            {(theme === 'summer' || theme === 'midsummer') && <SummerSun />}
+            {activeTheme !== 'none' && (activeTheme === 'winter' || activeTheme === 'christmas') && <SnowParticles />}
+            {activeTheme === 'halloween' && <FogEffect />}
+            {activeTheme === 'valentines' && <FloatingHearts />}
+            {activeTheme === 'newyear' && <ConfettiRain />}
+            {activeTheme !== 'none' && (activeTheme === 'summer' || activeTheme === 'midsummer') && <SummerSun />}
             
             {/* 2. Corner Mascots */}
-            {theme === 'christmas' && <ChristmasMascot page={page} />}
-            {theme === 'easter' && <EasterMascot />}
-            {theme === 'halloween' && <HalloweenMascot />}
-            {(theme === 'summer' || theme === 'midsummer') && <SummerMascot />}
-            {theme === 'valentines' && <ValentinesMascot />}
+            {activeTheme === 'christmas' && <ChristmasMascot page={page} />}
+            {activeTheme === 'easter' && <EasterMascot />}
+            {activeTheme === 'halloween' && <HalloweenMascot />}
+            {isChallengeActive && <GymThermometerMascot isStudioMode={isStudioMode} />}
+            {activeTheme === 'valentines' && <ValentinesMascot />}
 
             {/* 3. Screen Vignettes/Tints */}
-            {(theme === 'winter' || theme === 'christmas') && (
+            {(activeTheme === 'winter' || activeTheme === 'christmas') && (
                 <div className="fixed inset-0 pointer-events-none z-[1999] shadow-[inset_0_0_100px_rgba(200,230,255,0.2)]"></div>
             )}
-            {theme === 'halloween' && (
+            {activeTheme === 'halloween' && (
                 <div className="fixed inset-0 pointer-events-none z-[1999] shadow-[inset_0_-50px_150px_rgba(0,0,0,0.6)] bg-purple-900/5 mix-blend-overlay"></div>
             )}
         </>

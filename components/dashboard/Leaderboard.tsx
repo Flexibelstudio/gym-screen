@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { listenToLeaderboardLogs, getMembers } from '../../services/firebaseService';
+import React, { useEffect, useState, useMemo } from 'react';
+import { listenToLeaderboardLogs, getMembers, listenToGlobalSummerChallenge, listenToMembers } from '../../services/firebaseService';
 import { TrophyIcon, FireIcon, ChartBarIcon } from '@heroicons/react/24/solid';
 import { useStudio } from '../../context/StudioContext';
 import { useAuth } from '../../context/AuthContext';
@@ -9,14 +9,55 @@ interface LeaderboardProps {
 }
 
 export const Leaderboard: React.FC<LeaderboardProps> = ({ organizationId }) => {
-    const { selectedOrganization } = useStudio();
+    const { selectedOrganization, studioConfig } = useStudio();
     const { userData } = useAuth();
-    const [leaderboard, setLeaderboard] = useState<{ memberId: string, name: string, photoUrl: string, count: number, pbs: number }[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [activeTab, setActiveTab] = useState<'workouts' | 'pbs'>('workouts');
+    const [members, setMembers] = useState<any[]>([]);
+    const [logs, setLogs] = useState<any[]>([]);
+    const [loadingMembers, setLoadingMembers] = useState(true);
+    const [loadingLogs, setLoadingLogs] = useState(true);
+    const [activeTab, setActiveTab] = useState<'workouts' | 'pbs' | 'sisu'>('workouts');
+    const [sisuTimeframe, setSisuTimeframe] = useState<'weekly' | 'total'>('weekly');
     
     const [selectedLocationId, setSelectedLocationId] = useState<string | 'all'>('all');
     const [hasInitialized, setHasInitialized] = useState(false);
+    const [globalChallenge, setGlobalChallenge] = useState<any>(null);
+
+    useEffect(() => {
+        const unsubscribe = listenToGlobalSummerChallenge((data) => {
+            setGlobalChallenge(data);
+        });
+        return () => unsubscribe();
+    }, []);
+
+    const [selectedLocationIdState, setSelectedLocationIdState] = useState<string | 'all'>('all');
+
+    const configToUse = useMemo(() => {
+        const base = {
+            ...(selectedOrganization || {}),
+            ...(selectedOrganization?.globalConfig || {}),
+            ...(studioConfig || {})
+        } as any;
+        if (globalChallenge) {
+            return {
+                ...base,
+                summerChallengeStartDate: globalChallenge.startDate,
+                summerChallengeEndDate: globalChallenge.endDate,
+                id: globalChallenge.id || 'default'
+            };
+        }
+        return base;
+    }, [selectedOrganization, studioConfig, globalChallenge]);
+
+    const isSummerActive = !!configToUse?.enableSummerChallenge;
+    const currentTimestamp = Date.now();
+    const sisuTabVisible = isSummerActive;
+
+    // Default to sisu tab if summer challenge is active
+    useEffect(() => {
+        if (isSummerActive) {
+            setActiveTab('sisu');
+        }
+    }, [isSummerActive]);
 
     useEffect(() => {
         if (userData?.locationId) {
@@ -31,95 +72,124 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ organizationId }) => {
     useEffect(() => {
         if (!organizationId) return;
 
-        let unsubscribeLogs: () => void;
+        setLoadingMembers(true);
+        setLoadingLogs(true);
 
-        const setupLeaderboard = async () => {
-            setLoading(true);
-            try {
-                const members = await getMembers(organizationId);
-                
-                // Map uid -> member so we can easily check their current location and details
-                const memberMap = new Map<string, any>();
-                members.forEach(m => {
-                    memberMap.set(m.uid, m);
-                });
+        const unsubMembers = listenToMembers(organizationId, (mList) => {
+            setMembers(mList);
+            setLoadingMembers(false);
+        });
 
-                // Filter out members who opted out
-                const optedOutMemberIds = new Set(
-                    members.filter(m => m.showOnLeaderboard === false).map(m => m.uid)
-                );
-
-                unsubscribeLogs = listenToLeaderboardLogs(organizationId, 300, (logs) => {
-                    // Räkna ut veckans start och slut (måndag till söndag)
-                    const now = new Date();
-                    const currentDay = now.getDay() || 7; // 1 = måndag, ..., 7 = söndag
-                    const monday = new Date(now);
-                    monday.setDate(now.getDate() - (currentDay - 1));
-                    monday.setHours(0, 0, 0, 0);
-                    
-                    const sunday = new Date(monday);
-                    sunday.setDate(monday.getDate() + 6);
-                    sunday.setHours(23, 59, 59, 999);
-                    
-                    const startMs = monday.getTime();
-                    const endMs = sunday.getTime();
-                    
-                    // Filtrera loggar för den här veckan, rätt studio-krav, samt rätt ort om valt
-                    const weeklyLogs = logs.filter(log => {
-                        const logTime = log.date;
-                        const isThisWeek = logTime >= startMs && logTime <= endMs;
-                        const isStudio = log.inStudio !== false;
-                        const isShown = log.showOnLeaderboard !== false;
-                        
-                        // Hitta medlemmens nuvarande ort från medlemslistan som fallback om logens ort är null/saknas
-                        const member = memberMap.get(log.memberId);
-                        const userLocationId = log.locationId || member?.locationId || 'all';
-
-                        const matchesLocation = selectedLocationId === 'all' || userLocationId === selectedLocationId;
-                        return isThisWeek && isStudio && isShown && matchesLocation && !optedOutMemberIds.has(log.memberId);
-                    });
-                    
-                    // Gruppera per medlem
-                    const counts: Record<string, { count: number, pbs: number }> = {};
-                    weeklyLogs.forEach(log => {
-                        const mId = log.memberId;
-                        if (!counts[mId]) {
-                            counts[mId] = { count: 0, pbs: 0 };
-                        }
-                        counts[mId].count += 1;
-                        counts[mId].pbs += (log.newPBs || []).length;
-                    });
-                    
-                    const leaderboardData = Object.entries(counts).map(([mId, stats]) => {
-                        const memberInfo = memberMap.get(mId);
-                        return {
-                            memberId: mId,
-                            name: memberInfo 
-                                ? `${memberInfo.firstName || 'Medlem'} ${memberInfo.lastName ? memberInfo.lastName[0] + '.' : ''}`.trim()
-                                : (weeklyLogs.find(l => l.memberId === mId)?.memberName || 'Okänd Medlem'),
-                            photoUrl: memberInfo?.photoUrl || weeklyLogs.find(l => l.memberId === mId)?.memberPhotoUrl || '',
-                            count: stats.count,
-                            pbs: stats.pbs
-                        };
-                    });
-                    
-                    setLeaderboard(leaderboardData);
-                    setLoading(false);
-                });
-            } catch (error) {
-                console.error("Failed to setup leaderboard", error);
-                setLoading(false);
-            }
-        };
-
-        setupLeaderboard();
+        const unsubLogs = listenToLeaderboardLogs(organizationId, 300, (lList) => {
+            setLogs(lList);
+            setLoadingLogs(false);
+        });
 
         return () => {
-            if (unsubscribeLogs) {
-                unsubscribeLogs();
-            }
+            unsubMembers();
+            unsubLogs();
         };
-    }, [organizationId, selectedLocationId]);
+    }, [organizationId]);
+
+    const leaderboard = useMemo(() => {
+        if (!members.length) return [];
+
+        const memberMap = new Map<string, any>();
+        members.forEach(m => {
+            memberMap.set(m.uid, m);
+        });
+
+        // Filter out members who opted out
+        const optedOutMemberIds = new Set(
+            members.filter(m => m.showOnLeaderboard === false).map(m => m.uid)
+        );
+
+        // Räkna ut veckans start och slut (måndag till söndag)
+        const now = new Date();
+        const currentDay = now.getDay() || 7; // 1 = måndag, ..., 7 = söndag
+        const monday = new Date(now);
+        monday.setDate(now.getDate() - (currentDay - 1));
+        monday.setHours(0, 0, 0, 0);
+        
+        const sunday = new Date(monday);
+        sunday.setDate(monday.getDate() + 6);
+        sunday.setHours(23, 59, 59, 999);
+        
+        const startMs = monday.getTime();
+        const endMs = sunday.getTime();
+
+        const counts: Record<string, { count: number, pbs: number, sisuWeekly: number, sisuTotal: number }> = {};
+
+        logs.forEach(log => {
+            const mId = log.memberId;
+            if (optedOutMemberIds.has(mId)) return;
+            if (log.showOnLeaderboard === false) return;
+
+            // Hitta medlemmens nuvarande ort från medlemslistan som fallback om logens ort är null/saknas
+            const member = memberMap.get(mId);
+            const userLocationId = log.locationId || member?.locationId || 'all';
+
+            const matchesLocation = selectedLocationId === 'all' || userLocationId === selectedLocationId;
+            if (!matchesLocation) return;
+
+            if (!counts[mId]) {
+                counts[mId] = { count: 0, pbs: 0, sisuWeekly: 0, sisuTotal: 0 };
+            }
+
+            const logTime = log.date;
+            const isThisWeek = logTime >= startMs && logTime <= endMs;
+
+            // 1. Pass & PB (Endast den här veckan, och endast i studion [i.e. inStudio !== false])
+            if (isThisWeek && log.inStudio !== false) {
+                counts[mId].count += 1;
+                counts[mId].pbs += (log.newPBs || []).length;
+            }
+
+            // 2. Beräkna sisu-poäng för denna logg med den nya, förenklade regeln:
+            // 2 poäng i studion, 1 poäng utanför studion (minst 30 min)
+            // ENDAST för de deltagare som har gått med aktivt i utmaningen
+            if (member?.joinedSummerChallenge && member?.joinedChallengeId === configToUse?.id) {
+                const joinedAt = member.joinedSummerChallengeAt || 0;
+                if (logTime >= joinedAt) {
+                    let pts = 0;
+                    if (log.inStudio === true) {
+                        pts = 2;
+                    } else {
+                        const isLessThan30 = log.durationMinutes !== undefined && log.durationMinutes > 0 && log.durationMinutes < 30;
+                        if (!isLessThan30) {
+                            pts = 1;
+                        }
+                    }
+
+                    if (pts > 0) {
+                        counts[mId].sisuTotal += pts;
+                        if (isThisWeek) {
+                            counts[mId].sisuWeekly += pts;
+                        }
+                    }
+                }
+            }
+        });
+
+        const leaderboardData = Object.entries(counts).map(([mId, stats]) => {
+            const memberInfo = memberMap.get(mId);
+            return {
+                memberId: mId,
+                name: memberInfo 
+                    ? `${memberInfo.firstName || 'Medlem'} ${memberInfo.lastName ? memberInfo.lastName[0] + '.' : ''}`.trim()
+                    : (logs.find(l => l.memberId === mId)?.memberName || 'Okänd Medlem'),
+                photoUrl: memberInfo?.photoUrl || logs.find(l => l.memberId === mId)?.memberPhotoUrl || '',
+                count: stats.count,
+                pbs: stats.pbs,
+                sisuWeekly: stats.sisuWeekly,
+                sisuTotal: stats.sisuTotal
+            };
+        });
+
+        return leaderboardData;
+    }, [members, logs, selectedLocationId, configToUse?.id]);
+
+    const loading = loadingMembers || loadingLogs;
 
     if (loading) {
         return (
@@ -129,14 +199,39 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ organizationId }) => {
         );
     }
 
-    const sortedData = [...leaderboard].sort((a, b) => activeTab === 'workouts' ? b.count - a.count : b.pbs - a.pbs);
-    const displayData = (activeTab === 'pbs' ? sortedData.filter(u => u.pbs > 0) : sortedData).slice(0, 10);
+    const sortedData = [...leaderboard].sort((a, b) => {
+        if (activeTab === 'workouts') return b.count - a.count;
+        if (activeTab === 'pbs') return b.pbs - a.pbs;
+        if (sisuTimeframe === 'weekly') {
+            return (b.sisuWeekly || 0) - (a.sisuWeekly || 0);
+        } else {
+            return (b.sisuTotal || 0) - (a.sisuTotal || 0);
+        }
+    });
+
+    const displayData = (() => {
+        if (activeTab === 'pbs') {
+            return sortedData.filter(u => u.pbs > 0);
+        }
+        if (activeTab === 'sisu') {
+            if (sisuTimeframe === 'weekly') {
+                return sortedData.filter(u => u.sisuWeekly > 0);
+            } else {
+                return sortedData.filter(u => u.sisuTotal > 0);
+            }
+        }
+        return sortedData;
+    })().slice(0, 10);
 
     return (
         <div className="bg-white dark:bg-gray-900 rounded-2xl p-3 sm:p-4 shadow-sm border border-gray-100 dark:border-gray-800">
             <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg font-black text-gray-900 dark:text-white flex items-center gap-2">
-                    <TrophyIcon className="w-5 h-5 text-yellow-500" /> Veckans Topplista
+                    <TrophyIcon className="w-5 h-5 text-yellow-500" />{' '}
+                    {activeTab === 'sisu' 
+                        ? (sisuTimeframe === 'total' ? 'Sommarutmaningen - Totalt' : 'Sommarutmaningen - Denna Vecka')
+                        : 'Veckans Topplista'
+                    }
                 </h3>
             </div>
 
@@ -163,7 +258,7 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ organizationId }) => {
                                     isSelected
                                         ? 'bg-white dark:bg-gray-700 text-primary shadow-sm'
                                         : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
-                                }`}
+                                    }`}
                             >
                                 {loc.name}
                             </button>
@@ -173,36 +268,79 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ organizationId }) => {
             )}
             
             <div className="flex bg-gray-100 dark:bg-gray-800 p-1 rounded-xl mb-4">
+                {sisuTabVisible && (
+                    <button
+                        onClick={() => setActiveTab('sisu')}
+                        className={`flex-1 py-1.5 text-xs font-black uppercase tracking-widest rounded-lg transition-all flex items-center justify-center gap-1.5 ${
+                            activeTab === 'sisu' ? 'bg-white dark:bg-gray-700 text-amber-500 shadow-sm font-black' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
+                        }`}
+                    >
+                        ☀️ Sisu
+                    </button>
+                )}
                 <button
                     onClick={() => setActiveTab('workouts')}
-                    className={`flex-1 py-2 text-xs font-black uppercase tracking-widest rounded-lg transition-all flex items-center justify-center gap-2 ${
+                    className={`flex-1 py-1.5 text-xs font-black uppercase tracking-widest rounded-lg transition-all flex items-center justify-center gap-1.5 ${
                         activeTab === 'workouts' ? 'bg-white dark:bg-gray-700 text-primary shadow-sm' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
                     }`}
                 >
-                    <ChartBarIcon className="w-4 h-4" /> Pass
+                    <ChartBarIcon className="w-3.5 h-3.5" /> Pass
                 </button>
                 <button
                     onClick={() => setActiveTab('pbs')}
-                    className={`flex-1 py-2 text-xs font-black uppercase tracking-widest rounded-lg transition-all flex items-center justify-center gap-2 ${
+                    className={`flex-1 py-1.5 text-xs font-black uppercase tracking-widest rounded-lg transition-all flex items-center justify-center gap-1.5 ${
                         activeTab === 'pbs' ? 'bg-white dark:bg-gray-700 text-orange-500 shadow-sm' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
                     }`}
                 >
-                    <FireIcon className="w-4 h-4" /> PB
+                    <FireIcon className="w-3.5 h-3.5" /> PB
                 </button>
             </div>
+
+            {/* Veckovis vs Totalt för SISU */}
+            {activeTab === 'sisu' && (
+                <div className="flex gap-1.5 mb-4 p-1 bg-amber-500/5 dark:bg-amber-500/10 rounded-xl border border-amber-500/10 shadow-sm transition-all">
+                    <button
+                        onClick={() => setSisuTimeframe('weekly')}
+                        className={`flex-1 py-1 px-3 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all ${
+                            sisuTimeframe === 'weekly'
+                                ? 'bg-amber-500 text-white shadow-md'
+                                : 'text-amber-500 hover:text-amber-600 dark:hover:text-amber-400 font-bold'
+                        }`}
+                    >
+                        Veckovis
+                    </button>
+                    <button
+                        onClick={() => setSisuTimeframe('total')}
+                        className={`flex-1 py-1 px-3 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all ${
+                            sisuTimeframe === 'total'
+                                ? 'bg-amber-500 text-white shadow-md'
+                                : 'text-amber-500 hover:text-amber-600 dark:hover:text-amber-400 font-bold'
+                        }`}
+                    >
+                        Totalt
+                    </button>
+                </div>
+            )}
             
-            <p className="text-[10px] text-center text-gray-400 dark:text-gray-500 mb-3 uppercase tracking-wider font-bold">
-                Endast pass utförda på {selectedLocationId !== 'all' ? selectedOrganization?.locations?.find(l => l.id === selectedLocationId)?.name || 'plats' : selectedOrganization?.name || 'plats'} räknas
-            </p>
+            {activeTab !== 'sisu' && (
+                <p className="text-[10px] text-center text-gray-400 dark:text-gray-500 mb-3 uppercase tracking-wider font-bold">
+                    Endast pass utförda på {selectedLocationId !== 'all' ? selectedOrganization?.locations?.find(l => l.id === selectedLocationId)?.name || 'plats' : selectedOrganization?.name || 'plats'} räknas
+                </p>
+            )}
             
             {displayData.length === 0 ? (
                 <p className="text-sm text-gray-500 text-center py-4">
-                    {activeTab === 'workouts' ? 'Inga pass loggade denna vecka än.' : 'Inga personbästan satta denna vecka än.'}
+                    {activeTab === 'workouts' 
+                        ? 'Inga pass loggade denna vecka än.' 
+                        : activeTab === 'sisu' 
+                            ? (sisuTimeframe === 'weekly' ? 'Inga Sisu-poäng intjänade denna vecka än.' : 'Inga Sisu-poäng intjänade än under utmaningen.') 
+                            : 'Inga personbästan satta denna vecka än.'
+                    }
                 </p>
             ) : (
                 <div className="space-y-3">
                     {displayData.map((user, index) => (
-                        <div key={user.memberId} className="flex items-center justify-between bg-gray-50 dark:bg-gray-800/50 p-3 rounded-xl">
+                        <div key={user.memberId} className="flex items-center justify-between bg-gray-50 dark:bg-gray-800 p-3 rounded-xl">
                             <div className="flex items-center gap-3">
                                 <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-black
                                     ${index === 0 ? 'bg-yellow-100 text-yellow-600' : 
@@ -224,6 +362,10 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ organizationId }) => {
                                 {activeTab === 'workouts' ? (
                                     <div className="text-sm font-black text-primary bg-primary/10 px-2 py-1 rounded-lg">
                                         {user.count} pass
+                                    </div>
+                                ) : activeTab === 'sisu' ? (
+                                    <div className="text-sm font-black text-amber-500 bg-amber-500/10 px-2.5 py-1 rounded-lg flex items-center gap-1">
+                                        ☀️ {sisuTimeframe === 'weekly' ? user.sisuWeekly : user.sisuTotal} p
                                     </div>
                                 ) : (
                                     <div className="flex items-center gap-1 text-sm font-black text-orange-500 bg-orange-50 dark:bg-orange-900/20 px-2 py-1 rounded-lg">

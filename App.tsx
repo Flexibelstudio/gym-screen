@@ -14,7 +14,7 @@ import { WelcomePaywall } from './components/WelcomePaywall';
 import PendingCoachScreen from './components/PendingCoachScreen';
 
 // --- Services ---
-import { createOrganization, updateGlobalConfig, updateStudioConfig, createStudio, updateOrganization, updateOrganizationPasswords, updateOrganizationLogos, updateOrganizationPrimaryColor, updateOrganizationCustomPages, updateStudio, deleteStudio, archiveOrganization as deleteOrganization, updateOrganizationInfoCarousel, updateOrganizationFavicon, listenToOrganizationChanges, getWorkoutById, getFreshCategoryWorkouts, listenToForegroundMessages } from './services/firebaseService';
+import { createOrganization, updateGlobalConfig, updateStudioConfig, createStudio, updateOrganization, updateOrganizationPasswords, updateOrganizationLogos, updateOrganizationPrimaryColor, updateOrganizationCustomPages, updateStudio, deleteStudio, archiveOrganization as deleteOrganization, updateOrganizationInfoCarousel, updateOrganizationFavicon, updateOrganizationAppIcon, listenToOrganizationChanges, getWorkoutById, getFreshCategoryWorkouts, listenToForegroundMessages } from './services/firebaseService';
 import { Toast } from './components/ui/ToastNotification';
 
 // --- Utils ---
@@ -29,6 +29,7 @@ import { StudioConfigModal } from './components/AdminConfigScreen';
 import { LoginScreen } from './components/LoginScreen';
 import { RegisterGymScreen } from './components/RegisterGymScreen'; 
 import { LandingPage } from './components/LandingPage';
+import { ResetPasswordScreen } from './components/ResetPasswordScreen';
 import { DeveloperToolbar } from './components/DeveloperToolbar';
 import { InfoCarouselBanner } from './components/InfoCarouselBanner';
 import { TermsOfServiceModal } from './components/TermsOfServiceModal';
@@ -67,6 +68,28 @@ const App: React.FC = () => {
   const { role, userData, isStudioMode, signOut, isImpersonating, startImpersonation, stopImpersonation, showTerms, acceptTerms, currentUser, authLoading, clearDeviceProvisioning } = useAuth();
   const { workouts, activeWorkout, setActiveWorkout, saveWorkout, deleteWorkout } = useWorkout();
   
+  // --- DOMAIN ROUTING LOGIC ---
+  const { isMarketingSite, isAppPortal } = useMemo(() => {
+    const hostname = typeof window !== 'undefined' ? window.location.hostname : '';
+    
+    // Check if we are on the main marketing domain (smartstudio.se or www.smartstudio.se)
+    const isMarketing = hostname === 'smartstudio.se' || hostname === 'www.smartstudio.se';
+    
+    // If the URL has ?marketing=true (useful for dev/testing), treat it as marketing site
+    const searchParams = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '');
+    const forceMarketing = searchParams.get('marketing') === 'true';
+    
+    // If the URL has ?app=true (useful for testing), treat it as app portal
+    const forceAppPortal = searchParams.get('app') === 'true';
+
+    const finalIsMarketing = (isMarketing || forceMarketing) && !forceAppPortal;
+    
+    return {
+      isMarketingSite: finalIsMarketing,
+      isAppPortal: !finalIsMarketing
+    };
+  }, []);
+
   const [sessionRole, setSessionRole] = useState<UserRole>(role);
   const [showLogin, setShowLogin] = useState(false);
   const [showRegisterGym, setShowRegisterGym] = useState(false); 
@@ -215,6 +238,11 @@ const App: React.FC = () => {
     return null;
   }, []);
 
+  const isResetPasswordPath = useMemo(() => {
+    const path = window.location.pathname;
+    return path === '/reset-password' || path === '/reset-password/';
+  }, []);
+
   useEffect(() => {
       const searchParams = new URLSearchParams(window.location.search);
       if (searchParams.get('connect') === 'success' && userData?.organizationId) {
@@ -244,6 +272,36 @@ const App: React.FC = () => {
     return () => {
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
+
+  // --- SERVICE WORKER AUTO-UPDATE & FRESH PUSHES ---
+  useEffect(() => {
+    if (typeof window === 'undefined' || !('serviceWorker' in navigator)) return;
+
+    // Listen for the controllerchange event. This fires when a new service worker 
+    // takes over (usually because it downloaded a new push and called skipWaiting() + clients.claim()).
+    const handleControllerChange = () => {
+      console.log('New Service Worker activated! Reloading page to load the latest code...');
+      window.location.reload();
+    };
+
+    navigator.serviceWorker.addEventListener('controllerchange', handleControllerChange);
+
+    // To make sure a long-running/permanent screen checks for updates periodically 
+    // (even if no manual navigation/reload is done), check for updates every 15 minutes.
+    const intervalId = setInterval(() => {
+      navigator.serviceWorker.ready.then((registration) => {
+        console.log('Checking for service worker updates periodically...');
+        registration.update().catch((err) => {
+          console.warn('Failed to update service worker registration:', err);
+        });
+      });
+    }, 15 * 60 * 1000); // 15 minutes
+
+    return () => {
+      navigator.serviceWorker.removeEventListener('controllerchange', handleControllerChange);
+      clearInterval(intervalId);
     };
   }, []);
 
@@ -343,7 +401,10 @@ const App: React.FC = () => {
   const [profileEditTrigger, setProfileEditTrigger] = useState(0);
 
   useEffect(() => {
-    const faviconUrl = selectedOrganization?.faviconUrl;
+    const faviconUrl = selectedOrganization?.faviconUrl || '/favicon.png';
+    const appIconUrl = selectedOrganization?.appIconUrl || selectedOrganization?.faviconUrl || '/apple-touch-icon.png';
+
+    // 1. Browser Tab Icon (Favicon)
     if (faviconUrl) {
       let link = document.querySelector("link[rel~='icon']") as HTMLLinkElement | null;
       if (!link) {
@@ -352,16 +413,19 @@ const App: React.FC = () => {
         document.getElementsByTagName('head')[0].appendChild(link);
       }
       link.href = faviconUrl;
+    }
 
+    // 2. iOS Home Screen Icon (Apple Touch Icon)
+    if (appIconUrl) {
       let appleLink: HTMLLinkElement | null = document.querySelector("link[rel='apple-touch-icon']") as HTMLLinkElement | null;
       if (!appleLink) {
         appleLink = document.createElement('link');
         appleLink.rel = 'apple-touch-icon';
         document.getElementsByTagName('head')[0].appendChild(appleLink);
       }
-      appleLink.href = faviconUrl;
+      appleLink.href = appIconUrl;
     }
-  }, [selectedOrganization?.faviconUrl]);
+  }, [selectedOrganization?.faviconUrl, selectedOrganization?.appIconUrl]);
 
   useEffect(() => {
       const params = new URLSearchParams(window.location.search);
@@ -434,10 +498,12 @@ const App: React.FC = () => {
 
   const activeInfoMessages = useMemo((): InfoMessage[] => {
     const infoCarousel = selectedOrganization?.infoCarousel;
-    if (!infoCarousel?.isEnabled || !selectedStudio || !infoCarousel.messages) return [];
+    if (!infoCarousel?.isEnabled || !infoCarousel.messages) return [];
     const now = new Date();
     return infoCarousel.messages.filter(msg => {
-        const isStudioMatch = msg.visibleInStudios.includes('all') || msg.visibleInStudios.includes(selectedStudio.id);
+        const isStudioMatch = !selectedStudio 
+          ? msg.visibleInStudios.includes('all')
+          : (msg.visibleInStudios.includes('all') || msg.visibleInStudios.includes(selectedStudio.id));
         if (!isStudioMatch) return false;
         if (msg.startDate && new Date(msg.startDate) > now) return false;
         if (msg.endDate && new Date(msg.endDate) < now) return false;
@@ -1032,6 +1098,17 @@ const App: React.FC = () => {
     }
   };
 
+  const handleUpdateOrganizationAppIcon = async (organizationId: string, appIconUrl: string) => {
+    try {
+        const updatedOrg = await updateOrganizationAppIcon(organizationId, appIconUrl);
+        setAllOrganizations(prev => prev.map(o => (o.id === organizationId ? updatedOrg : o)));
+        if (selectedOrganization?.id === organizationId) selectOrganization(updatedOrg);
+    } catch (error) {
+        console.error("Failed to update app icon:", error);
+        throw error;
+    }
+  };
+
   const handleUpdateOrganizationPrimaryColor = async (organizationId: string, color: string) => {
     try {
         const updatedOrg = await updateOrganizationPrimaryColor(organizationId, color);
@@ -1136,6 +1213,10 @@ const App: React.FC = () => {
     );
   }
   
+  if (isResetPasswordPath) {
+    return <ResetPasswordScreen />;
+  }
+  
   if (publicLiveRaceId) {
     return (
       <div id="public-live-results" className={`min-h-screen ${theme === 'dark' ? 'bg-black text-white' : 'bg-white text-gray-800'} p-4 sm:p-6 lg:p-8 flex flex-col`}>
@@ -1159,13 +1240,31 @@ const App: React.FC = () => {
   }
 
   if (!authLoading && !currentUser && !isStudioMode) {
+      if (isAppPortal) {
+          // På app.smartstudio.se (eller i utvecklingsmiljö / staging-app utan ?marketing=true)
+          // visar vi enbart LoginScreen, och skickar inte in onRegisterGym så knappen för att registrera gym göms helt!
+          return <LoginScreen onClose={undefined} onRegisterGym={undefined} />;
+      }
+
+      // Annars på smartstudio.se (marknadsföringssidan/huvuddomänen eller i dev med ?marketing=true)
       if (showRegisterGym) {
           return <RegisterGymScreen onCancel={() => setShowRegisterGym(false)} />;
       }
       if (showLogin) {
           return <LoginScreen onClose={() => setShowLogin(false)} onRegisterGym={() => setShowRegisterGym(true)} />;
       }
-      return <LandingPage onLoginClick={() => setShowLogin(true)} onRegisterGymClick={() => setShowRegisterGym(true)} />;
+      return (
+          <LandingPage 
+              onLoginClick={() => {
+                  const hostname = window.location.hostname;
+                  const targetAppUrl = hostname.includes('staging.smartstudio.se')
+                      ? 'https://app.staging.smartstudio.se'
+                      : 'https://app.smartstudio.se';
+                  window.location.href = targetAppUrl + window.location.search;
+              }} 
+              onRegisterGymClick={() => setShowRegisterGym(true)} 
+          />
+      );
   }
 
   if (currentUser && !userData && !isStudioMode && !authLoading) {
@@ -1232,7 +1331,7 @@ const App: React.FC = () => {
                 Du är offline - allt du loggar sparas lokalt
             </div>
        )}
-       <SeasonalOverlay page={page} />
+       <SeasonalOverlay page={page} isStudioMode={isStudioMode} />
        
        <Toast 
          message={pushToast.message} 
@@ -1343,6 +1442,7 @@ const App: React.FC = () => {
                     updatePasswords: handleUpdateOrganizationPasswords,
                     updateLogos: handleUpdateOrganizationLogos,
                     updateFavicon: handleUpdateOrganizationFavicon,
+                    updateAppIcon: handleUpdateOrganizationAppIcon,
                     updatePrimaryColor: handleUpdateOrganizationPrimaryColor,
                     updateOrganization: handleUpdateOrganization,
                     updateCustomPages: handleUpdateOrganizationCustomPages,
