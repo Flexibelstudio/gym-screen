@@ -13,7 +13,9 @@ import {
   createUserWithEmailAndPassword,
   EmailAuthProvider,
   Auth,
-  User
+  User,
+  confirmPasswordReset as firebaseConfirmPasswordReset,
+  verifyPasswordResetCode as firebaseVerifyPasswordResetCode
 } from 'firebase/auth';
 import { 
   getFirestore, 
@@ -219,6 +221,12 @@ export const signInAsStudio = async (): Promise<User> => {
 export const signOut = (): Promise<void> => (isOffline || !auth) ? Promise.resolve() : firebaseSignOut(auth);
 
 export const sendPasswordResetEmail = (email: string) => (isOffline || !auth) ? Promise.resolve() : firebaseSendPasswordResetEmail(auth, email);
+
+export const verifyPasswordResetCode = (code: string): Promise<string> => 
+  (isOffline || !auth) ? Promise.resolve('test@flexibelfriskvardhalsa.se') : firebaseVerifyPasswordResetCode(auth, code);
+
+export const confirmPasswordReset = (code: string, newPassword: string): Promise<void> => 
+  (isOffline || !auth) ? Promise.resolve() : firebaseConfirmPasswordReset(auth, code, newPassword);
 
 export const reauthenticateUser = async (user: User, password: string) => {
   if (isOffline || !auth || !user.email) return;

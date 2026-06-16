@@ -29,6 +29,7 @@ import { StudioConfigModal } from './components/AdminConfigScreen';
 import { LoginScreen } from './components/LoginScreen';
 import { RegisterGymScreen } from './components/RegisterGymScreen'; 
 import { LandingPage } from './components/LandingPage';
+import { ResetPasswordScreen } from './components/ResetPasswordScreen';
 import { DeveloperToolbar } from './components/DeveloperToolbar';
 import { InfoCarouselBanner } from './components/InfoCarouselBanner';
 import { TermsOfServiceModal } from './components/TermsOfServiceModal';
@@ -235,6 +236,11 @@ const App: React.FC = () => {
        return pathParts[liveIndex + 1];
     }
     return null;
+  }, []);
+
+  const isResetPasswordPath = useMemo(() => {
+    const path = window.location.pathname;
+    return path === '/reset-password' || path === '/reset-password/';
   }, []);
 
   useEffect(() => {
@@ -1188,6 +1194,10 @@ const App: React.FC = () => {
             />
         </div>
     );
+  }
+  
+  if (isResetPasswordPath) {
+    return <ResetPasswordScreen />;
   }
   
   if (publicLiveRaceId) {
