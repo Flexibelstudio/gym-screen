@@ -220,7 +220,25 @@ export const signInAsStudio = async (): Promise<User> => {
 
 export const signOut = (): Promise<void> => (isOffline || !auth) ? Promise.resolve() : firebaseSignOut(auth);
 
-export const sendPasswordResetEmail = (email: string) => (isOffline || !auth) ? Promise.resolve() : firebaseSendPasswordResetEmail(auth, email);
+export const sendPasswordResetEmail = (email: string) => {
+    if (isOffline || !auth) return Promise.resolve();
+    
+    // Om vi är på app.smartstudio.se (eller i produktion), anger vi ActionCodeSettings
+    // så att Firebase djuplänkar direkt tillbaka till appens lösenordsåterställningsvy.
+    // Detta tillåter app.smartstudio.se utan att du behöver konfigurera "Custom Action URL" i Firebase-konsolen.
+    const hostname = typeof window !== 'undefined' ? window.location.hostname : '';
+    const isProd = hostname === 'app.smartstudio.se';
+    
+    if (isProd) {
+        const actionCodeSettings = {
+            url: 'https://app.smartstudio.se/reset-password',
+            handleCodeInApp: true,
+        };
+        return firebaseSendPasswordResetEmail(auth, email, actionCodeSettings);
+    }
+    
+    return firebaseSendPasswordResetEmail(auth, email);
+};
 
 export const verifyPasswordResetCode = (code: string): Promise<string> => 
   (isOffline || !auth) ? Promise.resolve('test@flexibelfriskvardhalsa.se') : firebaseVerifyPasswordResetCode(auth, code);
