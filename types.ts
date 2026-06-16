@@ -285,6 +285,7 @@ export interface Organization {
   logoUrlLight?: string;
   logoUrlDark?: string;
   faviconUrl?: string;
+  appIconUrl?: string;
   primaryColor?: string;
   passwords?: {
     coach: string;

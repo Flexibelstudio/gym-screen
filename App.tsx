@@ -14,7 +14,7 @@ import { WelcomePaywall } from './components/WelcomePaywall';
 import PendingCoachScreen from './components/PendingCoachScreen';
 
 // --- Services ---
-import { createOrganization, updateGlobalConfig, updateStudioConfig, createStudio, updateOrganization, updateOrganizationPasswords, updateOrganizationLogos, updateOrganizationPrimaryColor, updateOrganizationCustomPages, updateStudio, deleteStudio, archiveOrganization as deleteOrganization, updateOrganizationInfoCarousel, updateOrganizationFavicon, listenToOrganizationChanges, getWorkoutById, getFreshCategoryWorkouts, listenToForegroundMessages } from './services/firebaseService';
+import { createOrganization, updateGlobalConfig, updateStudioConfig, createStudio, updateOrganization, updateOrganizationPasswords, updateOrganizationLogos, updateOrganizationPrimaryColor, updateOrganizationCustomPages, updateStudio, deleteStudio, archiveOrganization as deleteOrganization, updateOrganizationInfoCarousel, updateOrganizationFavicon, updateOrganizationAppIcon, listenToOrganizationChanges, getWorkoutById, getFreshCategoryWorkouts, listenToForegroundMessages } from './services/firebaseService';
 import { Toast } from './components/ui/ToastNotification';
 
 // --- Utils ---
@@ -401,7 +401,10 @@ const App: React.FC = () => {
   const [profileEditTrigger, setProfileEditTrigger] = useState(0);
 
   useEffect(() => {
-    const faviconUrl = selectedOrganization?.faviconUrl;
+    const faviconUrl = selectedOrganization?.faviconUrl || '/favicon.png';
+    const appIconUrl = selectedOrganization?.appIconUrl || selectedOrganization?.faviconUrl || '/apple-touch-icon.png';
+
+    // 1. Browser Tab Icon (Favicon)
     if (faviconUrl) {
       let link = document.querySelector("link[rel~='icon']") as HTMLLinkElement | null;
       if (!link) {
@@ -410,16 +413,19 @@ const App: React.FC = () => {
         document.getElementsByTagName('head')[0].appendChild(link);
       }
       link.href = faviconUrl;
+    }
 
+    // 2. iOS Home Screen Icon (Apple Touch Icon)
+    if (appIconUrl) {
       let appleLink: HTMLLinkElement | null = document.querySelector("link[rel='apple-touch-icon']") as HTMLLinkElement | null;
       if (!appleLink) {
         appleLink = document.createElement('link');
         appleLink.rel = 'apple-touch-icon';
         document.getElementsByTagName('head')[0].appendChild(appleLink);
       }
-      appleLink.href = faviconUrl;
+      appleLink.href = appIconUrl;
     }
-  }, [selectedOrganization?.faviconUrl]);
+  }, [selectedOrganization?.faviconUrl, selectedOrganization?.appIconUrl]);
 
   useEffect(() => {
       const params = new URLSearchParams(window.location.search);
@@ -1092,6 +1098,17 @@ const App: React.FC = () => {
     }
   };
 
+  const handleUpdateOrganizationAppIcon = async (organizationId: string, appIconUrl: string) => {
+    try {
+        const updatedOrg = await updateOrganizationAppIcon(organizationId, appIconUrl);
+        setAllOrganizations(prev => prev.map(o => (o.id === organizationId ? updatedOrg : o)));
+        if (selectedOrganization?.id === organizationId) selectOrganization(updatedOrg);
+    } catch (error) {
+        console.error("Failed to update app icon:", error);
+        throw error;
+    }
+  };
+
   const handleUpdateOrganizationPrimaryColor = async (organizationId: string, color: string) => {
     try {
         const updatedOrg = await updateOrganizationPrimaryColor(organizationId, color);
@@ -1425,6 +1442,7 @@ const App: React.FC = () => {
                     updatePasswords: handleUpdateOrganizationPasswords,
                     updateLogos: handleUpdateOrganizationLogos,
                     updateFavicon: handleUpdateOrganizationFavicon,
+                    updateAppIcon: handleUpdateOrganizationAppIcon,
                     updatePrimaryColor: handleUpdateOrganizationPrimaryColor,
                     updateOrganization: handleUpdateOrganization,
                     updateCustomPages: handleUpdateOrganizationCustomPages,

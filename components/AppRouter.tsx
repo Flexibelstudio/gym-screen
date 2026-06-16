@@ -87,6 +87,7 @@ interface AppRouterProps {
         updatePasswords: (organizationId: string, passwords: Organization['passwords']) => Promise<void>;
         updateLogos: (organizationId: string, logos: { light: string; dark: string }) => Promise<void>;
         updateFavicon: (organizationId: string, faviconUrl: string) => Promise<void>;
+        updateAppIcon: (organizationId: string, appIconUrl: string) => Promise<void>;
         updatePrimaryColor: (organizationId: string, color: string) => Promise<void>;
         updateOrganization: (organizationId: string, name: string, subdomain: string, inviteCode?: string, coachCode?: string, maxFreeCoaches?: number) => Promise<void>;
         updateCustomPages: (organizationId: string, customPages: CustomPage[]) => Promise<void>;
@@ -382,6 +383,7 @@ export const AppRouter: React.FC<AppRouterProps> = (props) => {
                 onUpdatePasswords={functions.updatePasswords}
                 onUpdateLogos={functions.updateLogos}
                 onUpdateFavicon={functions.updateFavicon}
+                onUpdateAppIcon={functions.updateAppIcon}
                 onUpdatePrimaryColor={functions.updatePrimaryColor}
                 onUpdateOrganization={functions.updateOrganization}
                 onUpdateCustomPages={functions.updateCustomPages}

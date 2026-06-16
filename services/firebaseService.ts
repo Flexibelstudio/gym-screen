@@ -1092,6 +1092,12 @@ export const updateOrganizationFavicon = async (id: string, faviconUrl: string) 
     return getOrganizationById(id);
 };
 
+export const updateOrganizationAppIcon = async (id: string, appIconUrl: string) => {
+    if(isOffline || !db || !id) return;
+    await updateDoc(doc(db, 'organizations', id), { appIconUrl });
+    return getOrganizationById(id);
+};
+
 export const updateOrganizationPrimaryColor = async (id: string, color: string) => {
     if(isOffline || !db || !id) return;
     await updateDoc(doc(db, 'organizations', id), { primaryColor: color });

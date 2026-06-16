@@ -8,17 +8,19 @@ interface VarumarkeContentProps {
     onUpdatePasswords: (organizationId: string, passwords: Organization['passwords']) => Promise<void>;
     onUpdateLogos: (organizationId: string, logos: { light: string; dark: string }) => Promise<void>;
     onUpdateFavicon: (organizationId: string, faviconUrl: string) => Promise<void>;
+    onUpdateAppIcon?: (organizationId: string, appIconUrl: string) => Promise<void>;
     onUpdatePrimaryColor: (organizationId: string, color: string) => Promise<void>;
     onShowToast: (message: string) => void;
 }
 
 export const VarumarkeContent: React.FC<VarumarkeContentProps> = ({ 
-    organization, onUpdatePasswords, onUpdateLogos, onUpdateFavicon, onUpdatePrimaryColor, onShowToast
+    organization, onUpdatePasswords, onUpdateLogos, onUpdateFavicon, onUpdateAppIcon, onUpdatePrimaryColor, onShowToast
 }) => {
     const [passwords, setPasswords] = useState(organization.passwords);
     const [logoLight, setLogoLight] = useState(organization.logoUrlLight || '');
     const [logoDark, setLogoDark] = useState(organization.logoUrlDark || '');
     const [favicon, setFavicon] = useState(organization.faviconUrl || '');
+    const [appIcon, setAppIcon] = useState(organization.appIconUrl || '');
     const [primaryColor, setPrimaryColor] = useState(organization.primaryColor || '#14b8a6');
     const [isSaving, setIsSaving] = useState(false);
 
@@ -27,17 +29,22 @@ export const VarumarkeContent: React.FC<VarumarkeContentProps> = ({
         logoLight !== (organization.logoUrlLight || '') ||
         logoDark !== (organization.logoUrlDark || '') ||
         favicon !== (organization.faviconUrl || '') ||
+        appIcon !== (organization.appIconUrl || '') ||
         primaryColor !== (organization.primaryColor || '#14b8a6');
 
     const handleSave = async () => {
         setIsSaving(true);
         try {
-            await Promise.all([
+            const promises: Promise<any>[] = [
                 onUpdatePasswords(organization.id, passwords),
                 onUpdateLogos(organization.id, { light: logoLight, dark: logoDark }),
                 onUpdateFavicon(organization.id, favicon),
                 onUpdatePrimaryColor(organization.id, primaryColor)
-            ]);
+            ];
+            if (onUpdateAppIcon) {
+                promises.push(onUpdateAppIcon(organization.id, appIcon));
+            }
+            await Promise.all(promises);
             onShowToast("Ändringar sparade!");
         } catch (error) {
             onShowToast("Kunde inte spara ändringar.");
@@ -104,30 +111,72 @@ export const VarumarkeContent: React.FC<VarumarkeContentProps> = ({
                         </div>
                     </div>
                 </section>
-
-                {/* Favicon / App Icon */}
+                         {/* Favicon / App Icon */}
                 <section>
-                    <h4 className="text-sm font-bold uppercase tracking-wider text-gray-400 mb-4">App-ikon & Favicon</h4>
-                    <div className="bg-gray-50 dark:bg-gray-900/30 p-6 rounded-xl border border-gray-100 dark:border-gray-700">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-start">
+                    <h4 className="text-sm font-bold uppercase tracking-wider text-gray-400 mb-4">Ikoner & Hemskärm</h4>
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                        {/* 1. Favicon / Spel-ikon */}
+                        <div className="bg-gray-50 dark:bg-gray-900/30 p-6 rounded-xl border border-gray-100 dark:border-gray-700 flex flex-col justify-between">
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Ikon (512x512px rekommenderas)</label>
+                                <label className="block text-sm font-bold text-gray-900 dark:text-white mb-1">
+                                    1. Flik- & Spel-ikon (Favicon)
+                                </label>
+                                <p className="text-xs text-gray-500 mb-4">
+                                    Visas i webbläsarens flik och i träningslekar (t.ex. roulette, slotmachine). 
+                                </p>
                                 <ImageUploaderForBanner 
                                     imageUrl={favicon} 
                                     onImageChange={setFavicon} 
                                     organizationId={organization.id} 
                                 />
-                                <p className="text-xs text-gray-500 mt-2">Denna ikon visas när medlemmar sparar appen på sin hemskärm, som ikon i webbläsarfliken och i spelen. <strong className="text-gray-700 dark:text-gray-300">Bilden måste ha en genomskinlig bakgrund (oftast en .PNG eller .SVG)</strong> för att fungera optimalt mot olika bakgrunder.</p>
+                                <p className="text-xs text-gray-500 mt-3 leading-relaxed">
+                                    <strong className="text-teal-600 dark:text-teal-400">Genomskinlig bakgrund (.PNG eller .SVG) rekommenderas starkt</strong> för att spel och tabbar ska se sömlösa ut mot olika mörka och ljusa bakgrunder.
+                                </p>
                             </div>
-                            <div className="pt-8">
-                                <div className="bg-white dark:bg-gray-800 p-4 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm flex items-center gap-4">
-                                    <div className="w-12 h-12 rounded-xl overflow-hidden bg-gray-100 shrink-0 border border-gray-100">
-                                        {favicon ? <img src={favicon} alt="Preview" className="w-full h-full object-cover" /> : <div className="w-full h-full bg-primary/20"></div>}
-                                    </div>
-                                    <div>
-                                        <p className="font-bold text-sm text-gray-900 dark:text-white">Förhandsgranskning</p>
-                                        <p className="text-xs text-gray-500">Så här kommer er ikon se ut i mobilen.</p>
-                                    </div>
+
+                            <div className="mt-6 pt-4 border-t border-gray-200/50 dark:border-gray-700/50 flex items-center gap-4">
+                                <div className="w-12 h-12 rounded-xl overflow-hidden bg-slate-100 dark:bg-slate-900 shrink-0 border border-gray-200 dark:border-gray-700 flex items-center justify-center p-2">
+                                    {favicon ? <img src={favicon} alt="Preview" className="w-full h-full object-contain" /> : <div className="w-full h-full bg-primary/20"></div>}
+                                </div>
+                                <div>
+                                    <p className="font-bold text-xs text-gray-900 dark:text-white">Förhandsgranskning i spel/tabbar</p>
+                                    <p className="text-[11px] text-gray-500">Här syns ikonen med genomskinlighet.</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* 2. App-ikon / Hemskärm */}
+                        <div className="bg-gray-50 dark:bg-gray-900/30 p-6 rounded-xl border border-gray-100 dark:border-gray-700 flex flex-col justify-between">
+                            <div>
+                                <label className="block text-sm font-bold text-gray-900 dark:text-white mb-1">
+                                    2. Hemskärms-ikon (iOS & Android App-ikon)
+                                </label>
+                                <p className="text-xs text-gray-500 mb-4">
+                                    Visas på telefonens hemskärm när medlemmar sparar ner appen på sin mobil.
+                                </p>
+                                <ImageUploaderForBanner 
+                                    imageUrl={appIcon} 
+                                    onImageChange={setAppIcon} 
+                                    organizationId={organization.id} 
+                                />
+                                <p className="text-xs text-gray-500 mt-3 leading-relaxed">
+                                    <strong className="text-amber-600 dark:text-amber-400">VIKTIGT: Skall ha en helt SOLID/fylld bakgrundsbild</strong>. Undvik genomskinlig bakgrund här, annars blir ikonen ofta helt vit eller svart på iPhone-skärmar.
+                                </p>
+                            </div>
+
+                            <div className="mt-6 pt-4 border-t border-gray-200/50 dark:border-gray-700/50 flex items-center gap-4">
+                                <div className="w-12 h-12 rounded-2xl overflow-hidden shadow-md shrink-0 border border-gray-300 dark:border-gray-600">
+                                    {appIcon ? (
+                                        <img src={appIcon} alt="Preview" className="w-full h-full object-cover" />
+                                    ) : favicon ? (
+                                        <img src={favicon} alt="Preview fallback" className="w-full h-full object-cover bg-black" />
+                                    ) : (
+                                        <div className="w-full h-full bg-primary/20"></div>
+                                    )}
+                                </div>
+                                <div>
+                                    <p className="font-bold text-xs text-gray-900 dark:text-white">Förhandsgranskning på hemskärmen</p>
+                                    <p className="text-[11px] text-gray-500">Visas med avrundade hörn utan genomskinlig bakgrund.</p>
                                 </div>
                             </div>
                         </div>
