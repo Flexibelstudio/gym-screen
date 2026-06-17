@@ -267,7 +267,7 @@ export const MyStrengthScreen: React.FC<MyStrengthScreenProps> = ({ userData, lo
                                 <div className="px-4 pb-4 pt-2 border-t border-gray-100 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-800/20">
                                     {latestNote && (
                                         <div className="mb-4 bg-yellow-50/50 dark:bg-yellow-900/10 p-3 rounded-xl border border-yellow-100/50 dark:border-yellow-800/30">
-                                            <span className="block text-[9px] font-black uppercase tracking-widest text-yellow-600/70 dark:text-yellow-400/70 mb-1">Anteckning från förra passet:</span>
+                                            <span className="block text-[9px] font-black uppercase tracking-widest text-yellow-600/70 dark:text-yellow-400/70 mb-1">Anteckning:</span>
                                             <p className="text-xs text-yellow-900/80 dark:text-yellow-200/80 italic leading-relaxed">
                                                 "{latestNote}"
                                             </p>

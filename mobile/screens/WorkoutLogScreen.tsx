@@ -91,7 +91,8 @@ const TimeInput: React.FC<{
     placeholder?: string;
     className?: string;
     compact?: boolean;
-}> = ({ value, onChange, placeholder, className, compact }) => {
+    error?: boolean;
+}> = ({ value, onChange, placeholder, className, compact, error }) => {
     const [min, setMin] = useState('');
     const [sec, setSec] = useState('');
 
@@ -127,7 +128,11 @@ const TimeInput: React.FC<{
     };
 
     return (
-        <div className={`flex items-center ${compact ? '' : 'bg-gray-5 dark:bg-gray-800/50 rounded-2xl border border-gray-100 dark:border-gray-700 px-2'} focus-within:ring-2 focus-within:ring-primary focus-within:border-primary transition-all ${className}`}>
+        <div className={`flex items-center ${compact ? '' : 'bg-gray-5 dark:bg-gray-800/50 rounded-2xl border px-2'} ${
+            error 
+                ? 'border-red-500 ring-2 ring-red-500/20' 
+                : 'border-gray-100 dark:border-gray-700'
+        } focus-within:ring-2 focus-within:ring-primary focus-within:border-primary transition-all ${className}`}>
              <div className="flex-1 flex flex-col justify-center">
                 <input
                     type="text"
@@ -735,7 +740,7 @@ const ExerciseLogCard: React.FC<{
                             >
                                 {lastPerformance?.note && (
                                     <div className="mb-3 bg-blue-50/50 dark:bg-blue-900/10 p-4 rounded-xl border border-blue-100/50 dark:border-blue-800/30 shadow-sm">
-                                        <span className="block text-xs font-bold uppercase tracking-wider text-blue-500 dark:text-blue-400 mb-1">Anteckning från förra passet:</span>
+                                        <span className="block text-xs font-bold uppercase tracking-wider text-blue-500 dark:text-blue-400 mb-1">Anteckning:</span>
                                         <p className="text-sm text-blue-900/80 dark:text-blue-200/80 italic leading-relaxed">
                                             "{lastPerformance.note}"
                                         </p>
@@ -790,14 +795,17 @@ const ExerciseLogCard: React.FC<{
 };
 
 const CustomActivityForm: React.FC<{
-  activityName: string; duration: string; distance: string; calories: string; onUpdate: (field: string, value: string) => void; isQuickMode?: boolean; hasExercises?: boolean; organizationConfig?: any;
-}> = ({ activityName, duration, distance, calories, onUpdate, isQuickMode, hasExercises, organizationConfig }) => {
+  activityName: string; duration: string; distance: string; calories: string; onUpdate: (field: string, value: string) => void; isQuickMode?: boolean; hasExercises?: boolean; organizationConfig?: any; attemptedSubmit?: boolean;
+}> = ({ activityName, duration, distance, calories, onUpdate, isQuickMode, hasExercises, organizationConfig, attemptedSubmit }) => {
     const [isExpanded, setIsExpanded] = useState(!hasExercises);
     const commonActivities = organizationConfig?.commonActivities || ["Funktionell Träning", "HIIT", "Löpning", "Promenad", "Workout", "Yoga", "Cykling", "Simning", "Racketsport", "Vardagsmotion", "Styrketräning"];
 
     useEffect(() => {
         setIsExpanded(!hasExercises);
     }, [hasExercises]);
+
+    const isNameInvalid = !!(attemptedSubmit && !hasExercises && activityName.trim() === '');
+    const isDurationInvalid = !!(attemptedSubmit && !hasExercises && (duration.trim() === '' || duration.trim() === '0' || duration.trim() === '00:00'));
 
     if (hasExercises && !isExpanded) {
         return (
@@ -828,7 +836,7 @@ const CustomActivityForm: React.FC<{
                 {hasExercises && (
                     <button 
                         onClick={() => setIsExpanded(false)}
-                        className="absolute top-4 right-4 w-8 h-8 rounded-full bg-gray-50 dark:bg-gray-800 flex items-center justify-center text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors"
+                        className="absolute top-4 right-4 w-8 h-8 rounded-full bg-gray-50 dark:bg-gray-800 flex items-center justify-center text-gray-400 hover:text-gray-650 dark:hover:text-gray-200 transition-colors"
                     >
                         <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
@@ -849,11 +857,25 @@ const CustomActivityForm: React.FC<{
                 <div className={`mt-4 space-y-5 ${isQuickMode ? 'mt-0' : 'mt-8'}`}>
                     <div>
                         <label className="block text-xs font-extrabold text-gray-400 dark:text-gray-500 uppercase tracking-widest pl-1 mb-2">Aktivitet {!hasExercises && '*'}</label>
-                        <input value={activityName} onChange={(e) => onUpdate('name', e.target.value)} placeholder={hasExercises ? "T.ex. Funktionellt (Frivilligt)" : "T.ex. Powerwalk"} disabled={isQuickMode} className={`w-full text-xl font-black text-gray-900 dark:text-white focus:outline-none bg-gray-50 dark:bg-gray-800/50 p-4 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm ${isQuickMode ? 'opacity-70' : ''}`} />
+                        <input value={activityName} onChange={(e) => onUpdate('name', e.target.value)} placeholder={hasExercises ? "T.ex. Funktionellt (Frivilligt)" : "T.ex. Powerwalk"} disabled={isQuickMode} className={`w-full text-xl font-black text-gray-900 dark:text-white focus:outline-none bg-gray-50 dark:bg-gray-800/50 p-4 rounded-2xl border-2 shadow-sm focus:ring-2 transition-all ${
+                            isNameInvalid 
+                                ? 'border-red-500 focus:ring-red-500 shadow-sm shadow-red-500/10 focus:border-red-500' 
+                                : 'border-gray-100 dark:border-gray-700 focus:ring-primary'
+                        } ${isQuickMode ? 'opacity-70' : ''}`} />
+                        {isNameInvalid && (
+                            <p className="text-red-500 dark:text-red-400 text-xs font-bold pl-1 mt-1.5 flex items-center gap-1 animate-fade-in">
+                                <span>●</span> Du måste ange aktivitetens namn (t.ex. Powerwalk).
+                            </p>
+                        )}
                     </div>
                     <div>
                         <label className="block text-xs font-extrabold text-gray-400 dark:text-gray-500 uppercase tracking-widest pl-1 mb-2">Tid (min:sek) {!hasExercises && '*'}</label>
-                        <TimeInput value={duration} onChange={(val) => onUpdate('duration', val)} placeholder="60" className="w-full" />
+                        <TimeInput value={duration} onChange={(val) => onUpdate('duration', val)} placeholder="60" className="w-full" error={isDurationInvalid} />
+                        {isDurationInvalid && (
+                            <p className="text-red-500 dark:text-red-400 text-xs font-bold pl-1 mt-1.5 flex items-center gap-1 animate-fade-in">
+                                <span>●</span> Du måste ange en tid i minuter (t.ex. 45).
+                            </p>
+                        )}
                     </div>
                     <div className="grid grid-cols-2 gap-4">
                         <div>
@@ -1094,6 +1116,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
   const [exerciseSearchTerm, setExerciseSearchTerm] = useState('');
   const [saveAsProgram, setSaveAsProgram] = useState(false);
   const [programName, setProgramName] = useState('');
+  const [attemptedSubmit, setAttemptedSubmit] = useState(false);
   
   const scanSource = source || route?.params?.source;
   const [inStudio, setInStudio] = useState<boolean | null>(scanSource === 'qr_scan' ? true : null);
@@ -1201,23 +1224,45 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
       return val.toString();
   };
 
+  const getValidationErrors = () => {
+      const errors: string[] = [];
+      if (inStudio === null) {
+          errors.push("Du måste välja om du tränat på gymmet eller på annan plats.");
+      }
+      if (isManualMode) {
+          if (exerciseResults.length === 0) {
+              if (customActivity.name.trim().length === 0) {
+                  errors.push("Aktivitetens namn saknas. Ange vad du har tränat (t.ex. Powerwalk).");
+              }
+              if (customActivity.duration.trim().length === 0 || customActivity.duration.trim() === '0' || customActivity.duration.trim() === '00:00') {
+                  errors.push("Tid saknas. Fyll i hur länge du har tränat.");
+              }
+          }
+          if (saveAsProgram && programName.trim().length === 0) {
+              errors.push("Programnamn saknas. Du måste namnge ditt program.");
+          }
+      } else {
+          const totalSets = exerciseResults.reduce((acc, ex) => acc + ex.setDetails.length, 0);
+          if (totalSets === 0) {
+              errors.push("Inga övningar har genomförts. Kontrollera att du lagt till set.");
+          } else if (uncheckedSetsCount > 0) {
+              errors.push(`Du har ${uncheckedSetsCount} set kvar att checka av innan du kan spara passet.`);
+          }
+          if (benchmarkDefinition) {
+              if (benchmarkDefinition.type === 'time' && !sessionStats.time) {
+                  errors.push("Tid för benchmark-övning saknas.");
+              }
+              if (benchmarkDefinition.type === 'reps' && !sessionStats.rounds) {
+                  errors.push("Siffror för benchmark-reps/varv saknas.");
+              }
+          }
+      }
+      return errors;
+  };
+
   const isFormValid = useMemo(() => {
       if (isSubmitting) return false;
-      if (inStudio === null) return false;
-
-      if (isManualMode) {
-          if (saveAsProgram && programName.trim().length === 0) return false;
-          if (exerciseResults.length > 0) return true;
-          return customActivity.name.trim() !== '' && customActivity.duration.trim() !== '';
-      }
-
-      if (benchmarkDefinition) {
-          if (benchmarkDefinition.type === 'time' && !sessionStats.time) return false;
-          if (benchmarkDefinition.type === 'reps' && !sessionStats.rounds) return false;
-      }
-
-      const totalSets = exerciseResults.reduce((acc, ex) => acc + ex.setDetails.length, 0);
-      return totalSets > 0 && uncheckedSetsCount === 0;
+      return getValidationErrors().length === 0;
   }, [isSubmitting, isManualMode, customActivity, exerciseResults, uncheckedSetsCount, benchmarkDefinition, sessionStats, saveAsProgram, programName, inStudio]);
   
   // --- WAKE LOCK LOGIC ---
@@ -1677,7 +1722,14 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
   };
 
   const handleSubmit = async () => {
-      if (!isFormValid || !finalOrgId) return;
+      setAttemptedSubmit(true);
+      if (getValidationErrors().length > 0) {
+          setTimeout(() => {
+              scrollContainerRef.current?.scrollTo({ top: 400, behavior: 'smooth' });
+          }, 50);
+          return;
+      }
+      if (!finalOrgId) return;
 
       setIsSubmitting(true);
       setSaveStatus('Registrerar passet...');
@@ -2141,6 +2193,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
                               isQuickMode={false}
                               hasExercises={exerciseResults.length > 0}
                               organizationConfig={selectedOrganization?.globalConfig}
+                              attemptedSubmit={attemptedSubmit}
                           />
                       )}
 
@@ -2534,14 +2587,23 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
                                   </label>
                               </div>
                               {saveAsProgram && (
-                                  <div className="animate-fade-in">
+                                  <div className="animate-fade-in space-y-1.5">
                                       <input 
                                           type="text"
                                           value={programName}
                                           onChange={(e) => setProgramName(e.target.value)}
                                           placeholder="T.ex. Axlar & Rygg"
-                                          className="w-full bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 focus:outline-none focus:ring-2 focus:ring-primary transition-all font-medium placeholder-gray-400"
+                                          className={`w-full bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white px-4 py-3 rounded-xl border-2 focus:outline-none focus:ring-2 transition-all font-medium placeholder-gray-400 ${
+                                              attemptedSubmit && programName.trim().length === 0
+                                                  ? 'border-red-500 focus:ring-red-500 shadow-sm shadow-red-500/10'
+                                                  : 'border-gray-200 dark:border-gray-700 focus:ring-primary'
+                                          }`}
                                       />
+                                      {attemptedSubmit && programName.trim().length === 0 && (
+                                          <p className="text-red-500 dark:text-red-400 text-xs font-bold pl-1 animate-fade-in">
+                                              ● Programnamn saknas. Du måste namnge ditt program.
+                                          </p>
+                                      )}
                                   </div>
                               )}
                           </div>
@@ -2669,7 +2731,23 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
                               </div>
                           </div>
 
-                          {!isFormValid && !isManualMode && uncheckedSetsCount > 0 && (
+                          {attemptedSubmit && getValidationErrors().length > 0 && (
+                               <div className="space-y-3 p-5 rounded-[2rem] bg-red-500/10 border border-red-500/20 text-left animate-fade-in mb-4">
+                                   <p className="text-red-700 dark:text-red-400 text-xs font-black uppercase tracking-wider flex items-center gap-1.5 pl-1">
+                                       <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="3" stroke="currentColor" className="w-4 h-4 text-red-500 flex-shrink-0">
+                                           <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z" />
+                                       </svg>
+                                       Det går inte att spara än:
+                                   </p>
+                                   <ul className="list-disc pl-5 space-y-1 text-xs font-bold text-red-650 dark:text-red-350">
+                                       {getValidationErrors().map((err, idx) => (
+                                           <li key={idx}>{err}</li>
+                                       ))}
+                                   </ul>
+                               </div>
+                           )}
+
+                           {!attemptedSubmit && !isFormValid && !isManualMode && uncheckedSetsCount > 0 && (
                               <div className="text-center animate-fade-in bg-amber-500/10 border border-amber-500/20 py-3.5 rounded-2xl">
                                   <p className="text-amber-700 dark:text-amber-400 text-xs font-black uppercase tracking-widest flex items-center justify-center gap-1.5 px-3">
                                       <InformationCircleIcon className="w-4 h-4 flex-shrink-0 text-amber-500" /> {uncheckedSetsCount} set kvar att checka av för att kunna spara
@@ -2697,7 +2775,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
                               <div className="flex-[2] flex flex-col items-center gap-3">
                                   <button 
                                       onClick={handleSubmit}
-                                      disabled={!isFormValid || isSubmitting}
+                                      disabled={isSubmitting}
                                       className="w-full bg-primary text-white font-black py-5 rounded-2xl shadow-xl shadow-primary/20 transition-all transform active:scale-95 disabled:bg-gray-300 dark:disabled:bg-gray-800 disabled:text-gray-400 dark:disabled:text-gray-600 disabled:shadow-none disabled:transform-none text-xl uppercase tracking-tight flex items-center justify-center gap-3"
                                   >
                                       {isSubmitting ? (
