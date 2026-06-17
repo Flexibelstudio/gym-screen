@@ -2731,13 +2731,13 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
                               </div>
                           </div>
 
-                          {attemptedSubmit && getValidationErrors().length > 0 && (
+                          {getValidationErrors().length > 0 && (
                                <div className="space-y-3 p-5 rounded-[2rem] bg-red-500/10 border border-red-500/20 text-left animate-fade-in mb-4">
                                    <p className="text-red-700 dark:text-red-400 text-xs font-black uppercase tracking-wider flex items-center gap-1.5 pl-1">
                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="3" stroke="currentColor" className="w-4 h-4 text-red-500 flex-shrink-0">
                                            <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z" />
                                        </svg>
-                                       Det går inte att spara än:
+                                       Kvar att fylla i innan du kan spara:
                                    </p>
                                    <ul className="list-disc pl-5 space-y-1 text-xs font-bold text-red-650 dark:text-red-350">
                                        {getValidationErrors().map((err, idx) => (
@@ -2775,7 +2775,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
                               <div className="flex-[2] flex flex-col items-center gap-3">
                                   <button 
                                       onClick={handleSubmit}
-                                      disabled={isSubmitting}
+                                      disabled={!isFormValid || isSubmitting}
                                       className="w-full bg-primary text-white font-black py-5 rounded-2xl shadow-xl shadow-primary/20 transition-all transform active:scale-95 disabled:bg-gray-300 dark:disabled:bg-gray-800 disabled:text-gray-400 dark:disabled:text-gray-600 disabled:shadow-none disabled:transform-none text-xl uppercase tracking-tight flex items-center justify-center gap-3"
                                   >
                                       {isSubmitting ? (
