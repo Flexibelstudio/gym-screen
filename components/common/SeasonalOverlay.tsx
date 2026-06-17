@@ -655,8 +655,6 @@ export const SeasonalOverlay: React.FC<SeasonalOverlayProps> = ({ page, isStudio
         return () => unsubscribe();
     }, [isAdminView]);
 
-    if (isAdminView) return null;
-
     const configToUse = useMemo(() => {
         const base = !selectedOrganization ? (studioConfig || {}) : {
             ...(selectedOrganization || {}),
@@ -690,6 +688,8 @@ export const SeasonalOverlay: React.FC<SeasonalOverlayProps> = ({ page, isStudio
 
     // Om en utmaning pågår (t.ex. Sommar-Sisu), ska säsongstemat pausas och döljas för att prioritera träningstermometern
     const activeTheme = isChallengeActive ? 'none' : theme;
+
+    if (isAdminView) return null;
 
     if (activeTheme === 'none' && !isChallengeActive) return null;
 
