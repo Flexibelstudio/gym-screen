@@ -1331,7 +1331,7 @@ const App: React.FC = () => {
                 Du är offline - allt du loggar sparas lokalt
             </div>
        )}
-       <SeasonalOverlay page={page} isStudioMode={isStudioMode} />
+       <SeasonalOverlay page={page} isStudioMode={isStudioMode} isAdminView={isAdminFacingPage} />
        
        <Toast 
          message={pushToast.message} 

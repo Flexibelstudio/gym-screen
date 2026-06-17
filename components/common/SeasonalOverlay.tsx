@@ -405,6 +405,11 @@ const GymThermometerMascot = ({ isStudioMode = false }: { isStudioMode?: boolean
         };
     }, [weeklyLogs, membersList, isStudioMode, selectedStudio?.locationId, userData?.locationId]);
 
+    // Visa inte termometern i personliga medlemsvyer om man inte gått med i utmaningen
+    if (!isStudioMode && userData && userData.joinedSummerChallenge !== true) {
+        return null;
+    }
+
     const getStatusConfig = () => {
         switch (stats.status) {
             case 'overhettat':
@@ -650,8 +655,6 @@ export const SeasonalOverlay: React.FC<SeasonalOverlayProps> = ({ page, isStudio
         return () => unsubscribe();
     }, [isAdminView]);
 
-    if (isAdminView) return null;
-
     const configToUse = useMemo(() => {
         const base = !selectedOrganization ? (studioConfig || {}) : {
             ...(selectedOrganization || {}),
@@ -685,6 +688,8 @@ export const SeasonalOverlay: React.FC<SeasonalOverlayProps> = ({ page, isStudio
 
     // Om en utmaning pågår (t.ex. Sommar-Sisu), ska säsongstemat pausas och döljas för att prioritera träningstermometern
     const activeTheme = isChallengeActive ? 'none' : theme;
+
+    if (isAdminView) return null;
 
     if (activeTheme === 'none' && !isChallengeActive) return null;
 
