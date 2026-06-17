@@ -871,7 +871,7 @@ const CustomActivityForm: React.FC<{
     );
 };
 
-const PostWorkoutForm: React.FC<{ data: LogData; onUpdate: (updates: Partial<LogData>) => void; userId?: string; }> = ({ data, onUpdate, userId }) => {
+const PostWorkoutForm: React.FC<{ data: LogData; onUpdate: (updates: Partial<LogData>) => void; userId?: string; isSummerChallengeOn?: boolean; }> = ({ data, onUpdate, userId, isSummerChallengeOn = false }) => {
     const [showRpeInfo, setShowRpeInfo] = useState(false);
     const [isUploading, setIsUploading] = useState(false);
     const toggleTag = (tag: string) => onUpdate({ tags: data.tags.includes(tag) ? data.tags.filter(t => t !== tag) : [...data.tags, tag] });
@@ -906,44 +906,46 @@ const PostWorkoutForm: React.FC<{ data: LogData; onUpdate: (updates: Partial<Log
                         ))}
                     </div>
                 </div>
-                <div className="mt-10"><h5 className="text-[11px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-4">Kroppskänsla</h5><div className="flex flex-wrap gap-2">
+                <div className="mt-10"><h5 className="text-[11px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-4">Kroppskänla</h5><div className="flex flex-wrap gap-2">
                     {KROPPSKANSLA_TAGS.map(tag => (<button key={tag} onClick={() => toggleTag(tag)} className={`px-4 py-2.5 rounded-xl text-xs font-bold border-2 transition-all active:scale-95 ${data.tags.includes(tag) ? 'bg-gray-900 dark:bg-white text-white dark:text-gray-900 border-gray-900 dark:border-white shadow-md' : 'bg-white dark:bg-gray-800 text-gray-400 dark:text-gray-500 border-gray-100 dark:border-gray-700'}`}>{tag}</button>))}
                 </div></div>
                 
-                {/* --- Sommarpepp Bild-uppladdning --- */}
-                <div className="mt-10 border-2 border-dashed border-gray-100 dark:border-gray-800 rounded-[2rem] p-6 text-center bg-gray-50/50 dark:bg-gray-900/10 hover:border-primary/50 transition-colors">
-                    <h5 className="text-[11px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-2">📸 Dela en sommarbild</h5>
-                    <p className="text-xs text-gray-500 dark:text-gray-400 mb-4 max-w-sm mx-auto">Bifoga en bild till ditt pass så visas den i Sommarfeeden på Smart Skärmen och Topplistan! ☀️</p>
-                    {data.imageUrl ? (
-                        <div className="relative inline-block mt-2">
-                            <img src={data.imageUrl} alt="Bifogad sommarbild" className="w-32 h-32 object-cover rounded-2xl shadow-md border-2 border-primary" />
-                            <button 
-                                onClick={(e) => { e.preventDefault(); onUpdate({ imageUrl: '' }); }}
-                                className="absolute -top-2 -right-2 bg-red-500 hover:bg-red-600 text-white p-1.5 rounded-full shadow-lg transition-transform hover:scale-110 active:scale-95"
-                            >
-                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="2.5" stroke="currentColor" className="w-3 h-3">
-                                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
-                                </svg>
-                            </button>
-                        </div>
-                    ) : (
-                        <div className="flex justify-center">
-                            <label className={`cursor-pointer px-6 py-2.5 bg-gray-900 dark:bg-white text-white dark:text-gray-900 text-xs font-black uppercase tracking-widest rounded-xl transition-all shadow hover:bg-primary dark:hover:bg-primary dark:hover:text-white hover:text-white active:scale-95 flex items-center gap-2 ${isUploading ? 'opacity-50 pointer-events-none' : ''}`}>
-                                {isUploading ? (
-                                    <>
-                                        <div className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin"></div>
-                                        Laddar upp...
-                                    </>
-                                ) : (
-                                    <>
-                                        <span>Bifoga bild</span>
-                                    </>
-                                )}
-                                <input type="file" accept="image/*" className="hidden" onChange={handleFileChange} disabled={isUploading} />
-                            </label>
-                        </div>
-                    )}
-                </div>
+                {/* --- Sommarpepp Bild-uppladdning (visas endast under sommarutmaningen) --- */}
+                {isSummerChallengeOn && (
+                    <div className="mt-10 border-2 border-dashed border-gray-100 dark:border-gray-800 rounded-[2rem] p-6 text-center bg-gray-50/50 dark:bg-gray-900/10 hover:border-primary/50 transition-colors animate-fade-in">
+                        <h5 className="text-[11px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-2">📸 Dela en sommarbild</h5>
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mb-4 max-w-sm mx-auto">Bifoga en bild till ditt pass så visas den i Sommarfeeden på Smart Skärmen och Topplistan! ☀️</p>
+                        {data.imageUrl ? (
+                            <div className="relative inline-block mt-2">
+                                <img src={data.imageUrl} alt="Bifogad sommarbild" className="w-32 h-32 object-cover rounded-2xl shadow-md border-2 border-primary" />
+                                <button 
+                                    onClick={(e) => { e.preventDefault(); onUpdate({ imageUrl: '' }); }}
+                                    className="absolute -top-2 -right-2 bg-red-500 hover:bg-red-600 text-white p-1.5 rounded-full shadow-lg transition-transform hover:scale-110 active:scale-95"
+                                >
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="2.5" stroke="currentColor" className="w-3 h-3">
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
+                                    </svg>
+                                </button>
+                            </div>
+                        ) : (
+                            <div className="flex justify-center">
+                                <label className={`cursor-pointer px-6 py-2.5 bg-gray-900 dark:bg-white text-white dark:text-gray-900 text-xs font-black uppercase tracking-widest rounded-xl transition-all shadow hover:bg-primary dark:hover:bg-primary dark:hover:text-white hover:text-white active:scale-95 flex items-center gap-2 ${isUploading ? 'opacity-50 pointer-events-none' : ''}`}>
+                                    {isUploading ? (
+                                        <>
+                                            <div className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin"></div>
+                                            Laddar upp...
+                                        </>
+                                    ) : (
+                                        <>
+                                            <span>Bifoga bild</span>
+                                        </>
+                                    )}
+                                    <input type="file" accept="image/*" className="hidden" onChange={handleFileChange} disabled={isUploading} />
+                                </label>
+                            </div>
+                        )}
+                    </div>
+                )}
 
                 <div className="mt-10"><h5 className="text-[11px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-3 ml-1">Kommentar</h5><textarea value={data.comment} onChange={(e) => onUpdate({ comment: e.target.value })} placeholder="Anteckningar..." rows={4} className="w-full bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-800 rounded-[1.5rem] p-5 text-gray-900 dark:text-white text-base focus:ring-2 focus:ring-primary outline-none transition-all shadow-inner" /></div>
             </div>
@@ -1060,7 +1062,10 @@ const OneRMCalculatorModal: React.FC<{
 
 export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, navigation, route, workouts: contextWorkouts = [] }: any) => {
   const { currentUser, userData } = useAuth();
-  const { selectedOrganization } = useStudio();
+  const { selectedOrganization, studioConfig } = useStudio();
+  const isSummerChallengeOn = useMemo(() => {
+    return !!(studioConfig?.enableSummerChallenge || selectedOrganization?.globalConfig?.enableSummerChallenge);
+  }, [studioConfig?.enableSummerChallenge, selectedOrganization?.globalConfig?.enableSummerChallenge]);
   const userId = currentUser?.uid || "offline_member_uid"; 
   const passedWId = workoutId || route?.params?.workoutId;
   const isManualMode = passedWId === 'MANUAL_ENTRY';
@@ -2640,6 +2645,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
                           data={logData} 
                           onUpdate={u => setLogData(prev => ({ ...prev, ...u }))} 
                           userId={userId}
+                          isSummerChallengeOn={isSummerChallengeOn}
                       />
 
                       <div className="mt-8 space-y-6 pb-12">
