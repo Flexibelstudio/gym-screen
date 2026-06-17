@@ -405,6 +405,11 @@ const GymThermometerMascot = ({ isStudioMode = false }: { isStudioMode?: boolean
         };
     }, [weeklyLogs, membersList, isStudioMode, selectedStudio?.locationId, userData?.locationId]);
 
+    // Visa inte termometern i personliga medlemsvyer om man inte gått med i utmaningen
+    if (!isStudioMode && userData && userData.joinedSummerChallenge !== true) {
+        return null;
+    }
+
     const getStatusConfig = () => {
         switch (stats.status) {
             case 'overhettat':

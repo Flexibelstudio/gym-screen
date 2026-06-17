@@ -230,21 +230,45 @@
           margin: 0 !important;
           padding: 0 !important;
           background-color: white !important;
+          color: black !important;
+        }
+        /* Förhindra att webbläsarens mörka läge gör texten vit under utskrift */
+        html, html.dark, body, body.dark {
+          background-color: white !important;
+          color: black !important;
         }
         #root {
           display: none !important;
         }
         .print-only {
-          display: flex !important;
-          position: absolute !important;
-          left: 0 !important;
-          top: 0 !important;
+          display: block !important;
           width: 100% !important;
-          height: 100% !important;
+          height: auto !important;
+          min-height: 100vh !important;
           margin: 0 !important;
           padding: 0 !important;
           background-color: white !important;
-          z-index: 999999 !important;
+          color: black !important;
+        }
+        /* Tvinga all text inuti postern till svart */
+        .print-only * {
+          color: black !important;
+          background-color: transparent !important;
+          border-color: #e5e7eb !important;
+        }
+        /* Bevara fyllnadsklasser för specifika runda bubblor/knappar på postern */
+        .print-only .bg-gray-100, .print-only .bg-gray-50 {
+          background-color: #f3f4f6 !important;
+        }
+        .print-only .bg-black {
+          background-color: #000000 !important;
+          color: #ffffff !important;
+        }
+        .print-only .bg-black * {
+          color: #ffffff !important;
+        }
+        .print-only .text-white {
+          color: #ffffff !important;
         }
       }
     </style>
