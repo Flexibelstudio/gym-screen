@@ -89,6 +89,204 @@ const ResumeWorkoutBanner: React.FC<{
     </motion.div>
 );
 
+interface SummerChallengeDiplomaCardProps {
+    userData: any;
+    stats: any;
+    summerStats: any;
+    grandTotalPoints: number;
+    sortedLeaderboard: any[];
+    userRankIndex: number;
+    challengeTitle: string;
+    endDate?: number;
+}
+
+const getSisuAchievementTitle = (points: number) => {
+    if (points >= 20) return { title: "Superhjälte 🌟", desc: "Nivå Sisu-Elit", color: "text-yellow-300" };
+    if (points >= 10) return { title: "Sisu-Kämpe 💪", desc: "Stark hängivenhet", color: "text-amber-250" };
+    if (points > 0) return { title: "Deltagare 🎯", desc: "Aktiv lagspelare", color: "text-orange-200" };
+    return { title: "Hejaklack 📣", desc: "Tillsammans är vi starkast", color: "text-amber-100" };
+};
+
+const SummerChallengeDiplomaCard: React.FC<SummerChallengeDiplomaCardProps> = ({
+    userData,
+    stats,
+    summerStats,
+    grandTotalPoints,
+    sortedLeaderboard,
+    userRankIndex,
+    challengeTitle,
+    endDate
+}) => {
+    const [showStandings, setShowStandings] = useState(false);
+    
+    // Clean, formatted date
+    const endDateStr = endDate 
+        ? new Date(endDate).toLocaleDateString('sv-SE', { day: 'numeric', month: 'long', year: 'numeric' }) 
+        : '';
+        
+    const achieved = getSisuAchievementTitle(stats.summerTotalPoints);
+    
+    // Rank number
+    const rankNum = userRankIndex !== -1 ? userRankIndex + 1 : null;
+    
+    return (
+        <div className="space-y-6">
+            {/* The actual shareable certificate (designed to be full aspect screenshot-able) */}
+            <div className="relative overflow-hidden bg-gradient-to-br from-amber-600 via-orange-500 to-amber-950 text-white rounded-[2.5rem] p-6 sm:p-10 border-8 border-amber-300/40 border-double shadow-[0_20px_50px_rgba(249,115,22,0.25)] select-none text-center">
+                {/* Vintage star bursts backdrop glow */}
+                <div className="absolute top-[-80px] left-[-80px] w-96 h-96 bg-white/10 rounded-full blur-[80px] pointer-events-none"></div>
+                <div className="absolute bottom-[-100px] right-[-100px] w-96 h-96 bg-amber-400/10 rounded-full blur-[80px] pointer-events-none"></div>
+                
+                {/* Double frame lines to feel authentic */}
+                <div className="absolute inset-3 border border-white/10 rounded-[1.8rem] pointer-events-none"></div>
+                
+                <div className="relative z-10 space-y-6">
+                    {/* Header Seal */}
+                    <div className="flex flex-col items-center justify-center space-y-2">
+                        <div className="w-16 h-16 bg-white/10 border-2 border-amber-300 rounded-full flex items-center justify-center text-4xl shadow-md rotate-12">
+                            ☀️
+                        </div>
+                        <span className="text-[10px] font-black tracking-[0.3em] uppercase text-amber-200/90 leading-none">Officiellt Hedersdiplom</span>
+                    </div>
+                    
+                    {/* Decorative separators */}
+                    <div className="flex items-center justify-center gap-3">
+                        <div className="h-[1px] w-12 bg-gradient-to-r from-transparent to-amber-300"></div>
+                        <span className="text-amber-300 text-sm">🏆</span>
+                        <div className="h-[1px] w-12 bg-gradient-to-l from-transparent to-amber-300"></div>
+                    </div>
+                    
+                    {/* Participant Name */}
+                    <div className="space-y-1 py-1">
+                        <span className="text-[10px] sm:text-xs font-bold uppercase text-amber-200/70 tracking-widest block">Tilldelas härmed</span>
+                        <h2 className="text-3xl sm:text-5xl font-black tracking-tight text-white capitalize font-sans drop-shadow-[0_2px_10px_rgba(0,0,0,0.5)]">
+                            {userData?.name || userData?.displayName || 'Sisu-kämpe'}
+                        </h2>
+                    </div>
+
+                    {/* Achievement Narrative text */}
+                    <p className="text-xs sm:text-sm font-medium text-amber-50 max-w-lg mx-auto leading-relaxed">
+                        för att framgångsrikt ha genomfört och deltagit i <strong className="text-amber-200 font-extrabold">{challengeTitle}</strong> på ert gym. Med oerhörd uthållighet, glöd och hängivenhet har du bidragit till att lyfta hela studions temperatur till den fantastiska nivån:
+                    </p>
+
+                    {/* Studio Heat rating */}
+                    <div className="inline-flex items-center gap-2 bg-white/15 backdrop-blur-md px-4 py-2 rounded-2xl border border-white/10 shadow-inner select-none">
+                        <span className="text-xs font-bold text-amber-200 font-mono tracking-wider">STUDIO-TEMPERATUR:</span>
+                        <span className="text-base font-black bg-amber-500/30 px-2 py-0.5 rounded-lg inline-flex items-center gap-1">
+                            {summerStats.label} {summerStats.emoji}
+                        </span>
+                    </div>
+
+                    {/* Divider line */}
+                    <div className="flex items-center justify-center gap-3">
+                        <div className="h-[1px] w-20 bg-gradient-to-r from-transparent to-white/10"></div>
+                        <span className="text-xs text-white/30 font-mono">SAMMANSTÄLLT RESULTAT</span>
+                        <div className="h-[1px] w-20 bg-gradient-to-l from-transparent to-white/10"></div>
+                    </div>
+
+                    {/* Achievements Stats Grid */}
+                    <div className="grid grid-cols-3 gap-3 max-w-md mx-auto">
+                        <div className="bg-black/15 backdrop-blur-lg p-3 rounded-2xl border border-white/5 space-y-1">
+                            <span className="block text-[8px] font-black uppercase text-amber-200/80 tracking-wider">Ditt Bidrag</span>
+                            <span className="block text-lg font-black leading-none drop-shadow">{stats.summerTotalPoints} p</span>
+                        </div>
+                        <div className="bg-black/15 backdrop-blur-lg p-3 rounded-2xl border border-white/5 space-y-1">
+                            <span className="block text-[8px] font-black uppercase text-amber-200/80 tracking-wider">Din Rank</span>
+                            <span className="block text-lg font-black leading-none drop-shadow">
+                                {rankNum ? `#${rankNum}` : '–'}
+                            </span>
+                        </div>
+                        <div className="bg-black/15 backdrop-blur-lg p-3 rounded-2xl border border-white/5 space-y-1">
+                            <span className="block text-[8px] font-black uppercase text-amber-200/80 tracking-wider">Klubb Total</span>
+                            <span className="block text-lg font-black leading-none drop-shadow">{grandTotalPoints} p</span>
+                        </div>
+                    </div>
+
+                    {/* Personalized Title badge */}
+                    <div className="inline-block mt-2">
+                        <div className="px-4 py-2 bg-gradient-to-r from-amber-400 to-yellow-300 text-amber-950 font-black uppercase text-[10px] tracking-widest rounded-full shadow-lg border border-white/20">
+                            Prestation: <span className="underline">{achieved.title}</span> ({achieved.desc})
+                        </div>
+                    </div>
+
+                    {/* Signature / Footer */}
+                    <div className="pt-6 border-t border-white/10 flex items-center justify-between gap-4 text-left max-w-md mx-auto">
+                        <div>
+                            <span className="block text-[8px] font-bold text-amber-200/70 uppercase font-sans">Utfärdat på</span>
+                            <span className="block text-[11px] font-semibold text-white truncate max-w-[150px]">{userData?.organizationName || 'Ditt Gym'}</span>
+                        </div>
+                        <div className="text-right">
+                            <span className="block text-[8px] font-bold text-amber-200/70 uppercase font-sans">Officiellt slutdatum</span>
+                            <span className="block text-[11px] font-semibold text-white">{endDateStr}</span>
+                        </div>
+                    </div>
+
+                    {/* Screenshot note */}
+                    <p className="text-[10px] text-amber-200/60 font-semibold italic select-none">
+                        📸 Ta en skärmdump och dela på sociala medier! #Sommarutmaningen #Träningsglädje
+                    </p>
+                </div>
+            </div>
+
+            {/* Toggle Table for Standings */}
+            <div className="bg-gray-50 dark:bg-gray-800 rounded-3xl p-4 sm:p-5 border border-gray-200/50 dark:border-gray-700">
+                <button
+                    onClick={() => setShowStandings(!showStandings)}
+                    className="w-full flex items-center justify-between font-black text-xs uppercase tracking-wider text-slate-700 dark:text-slate-200 cursor-pointer"
+                >
+                    <span className="flex items-center gap-2">
+                        <span>🎖️</span> Visa slutgiltig topplista för gymmet
+                    </span>
+                    <span className="text-sm bg-gray-200 dark:bg-gray-700 p-1.5 rounded-lg select-none">
+                        {showStandings ? 'Dölj ↑' : 'Visa ↓'}
+                    </span>
+                </button>
+
+                {showStandings && (
+                    <div className="mt-4 border-t border-gray-200 dark:border-gray-750 pt-4 space-y-2 max-h-72 overflow-y-auto custom-scrollbar">
+                        {sortedLeaderboard.map((item, idx) => {
+                            const isMe = item.uid === userData.uid;
+                            const isTop3 = idx < 3;
+                            const medalEmoji = idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : null;
+                            
+                            return (
+                                <div
+                                    key={item.uid}
+                                    className={`flex items-center justify-between p-2.5 rounded-xl text-xs font-semibold ${
+                                        isMe 
+                                        ? 'bg-amber-100 dark:bg-amber-950/40 text-amber-900 dark:text-amber-200 border border-amber-300/30' 
+                                        : 'bg-white dark:bg-black/10 border border-transparent text-gray-700 dark:text-gray-300'
+                                    }`}
+                                >
+                                    <div className="flex items-center gap-3">
+                                        <span className="font-mono font-bold w-6 text-center text-gray-400">
+                                            {medalEmoji || `${idx + 1}.`}
+                                        </span>
+                                        {item.avatarUrl ? (
+                                            <img
+                                                src={item.avatarUrl}
+                                                alt={item.name}
+                                                className="w-6 h-6 rounded-full object-cover shrink-0"
+                                                referrerPolicy="no-referrer"
+                                            />
+                                        ) : (
+                                            <div className="w-6 h-6 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center text-[10px] shrink-0 font-bold">
+                                                {item.name.charAt(0)}
+                                            </div>
+                                        )}
+                                        <span className="truncate max-w-[150px] sm:max-w-xs">{item.name} {isMe && '(Du)'}</span>
+                                    </div>
+                                    <span className="font-mono font-black">{item.totalPoints} pt</span>
+                                </div>
+                            );
+                        })}
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+};
+
 // --- Helper Functions ---
 
 const getYearWeek = (date: Date) => {
@@ -769,6 +967,13 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
         return currentTimestamp > configToUse.summerChallengeEndDate;
     }, [isSummerThemeActive, configToUse, currentTimestamp]);
 
+    const isChallengeFullyExpired = useMemo(() => {
+        if (!isSummerThemeActive) return false;
+        if (!configToUse?.summerChallengeEndDate) return false;
+        const graceEnd = configToUse.summerChallengeEndDate + 7 * 24 * 60 * 60 * 1000;
+        return currentTimestamp > graceEnd;
+    }, [isSummerThemeActive, configToUse, currentTimestamp]);
+
     const countdownToStart = useMemo(() => {
         if (!configToUse?.summerChallengeStartDate) return null;
         const diffMs = configToUse.summerChallengeStartDate - currentTimestamp;
@@ -1012,6 +1217,18 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
 
         return ranking;
     }, [communityLogs, membersList, isSummerThemeActive, userData?.locationId, configToUse?.id]);
+
+    const sortedTotalPointsLeaderboard = useMemo(() => {
+        return [...summerLeaderboardData].sort((a, b) => b.totalPoints - a.totalPoints);
+    }, [summerLeaderboardData]);
+
+    const userRankIndex = useMemo(() => {
+        return sortedTotalPointsLeaderboard.findIndex(item => item.uid === userData?.uid);
+    }, [sortedTotalPointsLeaderboard, userData?.uid]);
+
+    const grandTotalPointsForStudio = useMemo(() => {
+        return summerLeaderboardData.reduce((acc, curr) => acc + curr.totalPoints, 0);
+    }, [summerLeaderboardData]);
 
     const [activeTab, setActiveTab] = useState<'overview' | 'goals' | 'strength' | 'benchmarks'>(() => {
         const saved = localStorage.getItem('smart-skarm-profile-active-tab');
@@ -1839,7 +2056,7 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                     <WeeklyGoalRing 
                         current={stats.thisWeek} 
                         goal={userData.weeklyGoal || 3} 
-                        hasSummerSisu={isSummerThemeActive && isUserJoined}
+                        hasSummerSisu={isSummerThemeActive && isUserJoined && !isChallengeEnded}
                         summerWeekPoints={stats.summerWeekPoints}
                         summerTotalPoints={stats.summerTotalPoints}
                     />
@@ -1951,8 +2168,20 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                     </div>
 
                     {/* Sommar-Sisu status & rules (collapsible) (Card 2) */}
-                    {isSummerThemeActive && isUserJoined && (
-                        <div className="relative overflow-hidden bg-gradient-to-br from-orange-500 via-amber-400 to-yellow-100 dark:from-orange-600 dark:via-amber-500 dark:to-yellow-200 text-amber-950 border-none rounded-[2rem] shadow-[0_12px_40px_rgba(249,115,22,0.18)] animate-fade-in text-left">
+                    {isSummerThemeActive && isUserJoined && !isChallengeFullyExpired && (
+                        isChallengeEnded ? (
+                            <SummerChallengeDiplomaCard
+                                userData={userData}
+                                stats={stats}
+                                summerStats={summerStats}
+                                grandTotalPoints={grandTotalPointsForStudio}
+                                sortedLeaderboard={sortedTotalPointsLeaderboard}
+                                userRankIndex={userRankIndex}
+                                challengeTitle={configToUse?.summerChallengeTitle || "Sommarutmaningen ☀️"}
+                                endDate={configToUse?.summerChallengeEndDate}
+                            />
+                        ) : (
+                            <div className="relative overflow-hidden bg-gradient-to-br from-orange-500 via-amber-400 to-yellow-100 dark:from-orange-600 dark:via-amber-500 dark:to-yellow-200 text-amber-950 border-none rounded-[2rem] shadow-[0_12px_40px_rgba(249,115,22,0.18)] animate-fade-in text-left">
                             
                             {/* Summer sun rays backdrop glow */}
                             <div className="absolute top-[-40px] right-[-40px] w-64 h-64 bg-white/10 rounded-full blur-[50px] pointer-events-none"></div>
@@ -2366,6 +2595,7 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                                 </div>
                             )}
                         </div>
+                        )
                     )}
 
                     {/* Compact, slim bottom-placed join card if user clicked "Kanske senare" */}
