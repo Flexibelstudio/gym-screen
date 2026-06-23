@@ -1,12 +1,13 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Organization, SmartScreenPricing, InvoiceDetails, SeasonalThemeSetting, ThemeDateRange } from '../types';
 import { OvningsbankContent } from './OvningsbankContent';
-import { getSmartScreenPricing, updateSmartScreenPricing, updateOrganizationFreeCoaches, getSeasonalThemes, updateSeasonalThemes, archiveOrganization, restoreOrganization, deleteOrganizationPermanently, updateOrganizationName, getMembers, requestPushNotificationPermission, auth, updateGlobalConfig, updateOrganizationMigrationOption, updateOrganizationStripeBypassOption, getGlobalSummerChallenge, updateGlobalSummerChallenge, listenToGlobalSummerChallenge } from '../services/firebaseService';
+import { getSmartScreenPricing, updateSmartScreenPricing, updateOrganizationFreeCoaches, getSeasonalThemes, updateSeasonalThemes, archiveOrganization, restoreOrganization, deleteOrganizationPermanently, updateOrganizationName, getMembers, requestPushNotificationPermission, auth, updateGlobalConfig, updateOrganizationMigrationOption, updateOrganizationStripeBypassOption, getGlobalSummerChallenge, updateGlobalSummerChallenge, listenToGlobalSummerChallenge, listenToMembers, listenToCommunityLogs } from '../services/firebaseService';
 import { PencilIcon, HomeIcon, BuildingIcon, SparklesIcon, ToggleSwitch, ChevronDownIcon, CloseIcon } from './icons';
 import { MoreVertical } from 'lucide-react';
 import { calculateInvoiceDetails } from '../utils/billing';
 import { SystemDashboardContent } from './admin/SystemDashboardContent';
 import { GalleryManagementTab } from './admin/GalleryManagementTab';
+import { PartnerManagementTab } from './admin/PartnerManagementTab';
 import { LeadsManagementTab } from './admin/LeadsManagementTab';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -669,6 +670,64 @@ const SeasonalThemesTab: React.FC = () => {
     );
 };
 
+const OrgChallengeStatsRow: React.FC<{ org: Organization; challengeId: string }> = ({ org, challengeId }) => {
+    const [members, setMembers] = useState<any[]>([]);
+    const [logs, setLogs] = useState<any[]>([]);
+
+    useEffect(() => {
+        if (!org.id) return;
+        const unsubMembers = listenToMembers(org.id, (data) => setMembers(data));
+        const unsubLogs = listenToCommunityLogs(org.id, (data) => setLogs(data));
+        return () => {
+            unsubMembers();
+            unsubLogs();
+        };
+    }, [org.id]);
+
+    const activeChallengeMembers = members.filter(m => m.joinedSummerChallenge && (m.joinedChallengeId === challengeId || m.joinedChallengeId === 'default' || !m.joinedChallengeId));
+    const participantsCount = activeChallengeMembers.length;
+
+    let grandTotalPoints = 0;
+    logs.forEach(log => {
+        const uid = log.memberId;
+        if (!uid) return;
+        const logMember = activeChallengeMembers.find(m => m.uid === uid);
+        if (!logMember) return;
+        const logTime = log.date || 0;
+        if (logTime < (logMember.joinedSummerChallengeAt || 0)) return;
+
+        let pts = 0;
+        if (log.inStudio === true) {
+            pts = 2;
+        } else {
+            const isLessThan30 = log.durationMinutes !== undefined && log.durationMinutes > 0 && log.durationMinutes < 30;
+            if (!isLessThan30) {
+                pts = 1;
+            }
+        }
+        grandTotalPoints += pts;
+    });
+
+    return (
+        <div className="mt-2.5 max-w-lg grid grid-cols-3 gap-3 bg-white/60 dark:bg-black/15 p-3 rounded-2xl border border-slate-200/50 dark:border-gray-750 text-xs text-slate-600 dark:text-slate-300 font-medium">
+            <div>
+                <span className="block text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-0.5">Deltagare</span>
+                <strong className="text-gray-900 dark:text-white text-xs font-black">{participantsCount} st</strong>
+            </div>
+            <div>
+                <span className="block text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-0.5">Totalt</span>
+                <strong className="text-emerald-600 dark:text-emerald-400 text-xs font-black">{grandTotalPoints} p</strong>
+            </div>
+            <div>
+                <span className="block text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-0.5">Snitt / medlem</span>
+                <strong className="text-gray-900 dark:text-white text-xs font-black">
+                    {participantsCount > 0 ? (grandTotalPoints / participantsCount).toFixed(1) : '–'} p
+                </strong>
+            </div>
+        </div>
+    );
+};
+
 const ChallengesTab: React.FC<{
     organizations: Organization[];
     onUpdateGlobalConfig: (orgId: string, config: any) => Promise<void>;
@@ -848,15 +907,18 @@ const ChallengesTab: React.FC<{
                     {activeOrgs.map(org => {
                         const isOrgEnabled = !!org.globalConfig?.enableSummerChallenge;
                         return (
-                            <div key={org.id} className="py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 first:pt-0 last:pb-0">
-                                <div>
+                            <div key={org.id} className="py-5 flex flex-col md:flex-row md:items-center justify-between gap-4 first:pt-0 last:pb-0">
+                                <div className="flex-1">
                                     <h4 className="font-bold text-gray-900 dark:text-white text-sm">{org.name}</h4>
                                     <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
                                         Subdomän: <span className="font-mono">{org.subdomain || 'saknas'}</span>
                                     </p>
+                                    {isOrgEnabled && (
+                                        <OrgChallengeStatsRow org={org} challengeId="summerChallenge" />
+                                    )}
                                 </div>
 
-                                <div className="flex items-center gap-4">
+                                <div className="flex items-center gap-4 shrink-0 sm:self-start md:self-auto">
                                     <span className={`text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-full ${
                                         isOrgEnabled 
                                         ? 'bg-emerald-100 dark:bg-emerald-950/45 text-emerald-800 dark:text-emerald-400' 
@@ -883,7 +945,7 @@ const ChallengesTab: React.FC<{
 };
 
 export const SystemOwnerScreen: React.FC<SystemOwnerScreenProps> = ({ allOrganizations, onSelectOrganization, onCreateOrganization, onDeleteOrganization }) => {
-    const [activeTab, setActiveTab] = useState<'dashboard' | 'list' | 'challenges' | 'themes' | 'bank' | 'gallery' | 'leads'>('dashboard');
+    const [activeTab, setActiveTab] = useState<'dashboard' | 'list' | 'challenges' | 'themes' | 'bank' | 'gallery' | 'partners' | 'leads'>('dashboard');
     const [newOrgName, setNewOrgName] = useState('');
     const [isCreating, setIsCreating] = useState(false);
     const [localOrgs, setLocalOrgs] = useState(allOrganizations);
@@ -968,6 +1030,7 @@ export const SystemOwnerScreen: React.FC<SystemOwnerScreenProps> = ({ allOrganiz
         { id: 'themes', label: 'Säsongsteman' },
         { id: 'bank', label: 'Övningsbank' },
         { id: 'gallery', label: 'Kundgalleri' },
+        { id: 'partners', label: 'Partners' },
         { id: 'leads', label: 'Leads' }
     ] as const;
 
@@ -1164,6 +1227,10 @@ export const SystemOwnerScreen: React.FC<SystemOwnerScreenProps> = ({ allOrganiz
 
                     {activeTab === 'gallery' && (
                         <GalleryManagementTab />
+                    )}
+
+                    {activeTab === 'partners' && (
+                        <PartnerManagementTab />
                     )}
 
                     {activeTab === 'leads' && (

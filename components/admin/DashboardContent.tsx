@@ -8,7 +8,7 @@ import { AIGeneratorScreen } from '../AIGeneratorScreen';
 import { WorkoutBuilderScreen } from '../WorkoutBuilderScreen';
 import { deepCopyAndPrepareAsNew } from '../../utils/workoutUtils';
 import { ManageBenchmarksModal } from './AdminModals';
-import { updateOrganizationBenchmarks, resolveAndCreateExercises, updateGlobalConfig, listenToGlobalSummerChallenge } from '../../services/firebaseService';
+import { updateOrganizationBenchmarks, resolveAndCreateExercises, updateGlobalConfig, listenToGlobalSummerChallenge, listenToMembers, listenToCommunityLogs } from '../../services/firebaseService';
 import { WorkoutPresentationModal } from '../WorkoutDetailScreen';
 
 // ... (Types and Interfaces remain same)
@@ -156,6 +156,8 @@ const ChallengePromoWidget: React.FC<{ org: Organization }> = ({ org }) => {
     const [challenge, setChallenge] = useState<any>(null);
     const [isSaving, setIsSaving] = useState(false);
     const [localEnabled, setLocalEnabled] = useState(!!org.globalConfig?.enableSummerChallenge);
+    const [members, setMembers] = useState<any[]>([]);
+    const [logs, setLogs] = useState<any[]>([]);
 
     useEffect(() => {
         setLocalEnabled(!!org.globalConfig?.enableSummerChallenge);
@@ -167,6 +169,16 @@ const ChallengePromoWidget: React.FC<{ org: Organization }> = ({ org }) => {
         });
         return () => unsubscribe();
     }, []);
+
+    useEffect(() => {
+        if (!org.id || !localEnabled) return;
+        const unsubMembers = listenToMembers(org.id, (data) => setMembers(data));
+        const unsubLogs = listenToCommunityLogs(org.id, (data) => setLogs(data));
+        return () => {
+            unsubMembers();
+            unsubLogs();
+        };
+    }, [org.id, localEnabled]);
 
     const handleActivate = async () => {
         setIsSaving(true);
@@ -186,57 +198,227 @@ const ChallengePromoWidget: React.FC<{ org: Organization }> = ({ org }) => {
 
     if (!challenge || !challenge.isPublished) return null;
 
+    const nowMs = Date.now();
+    const graceEnd = challenge.endDate ? challenge.endDate + 7 * 24 * 60 * 60 * 1000 : 0;
+    const isChallengeEnded = challenge.endDate ? nowMs > challenge.endDate : false;
+    const isExpired = challenge.endDate ? nowMs > graceEnd : false;
+
+    // Om utmaningen har löpt ut helt (mer än 1 vecka efter slutdatum), visa den inte alls
+    if (isExpired) return null;
+
     const startStr = challenge.startDate ? new Date(challenge.startDate).toLocaleDateString('sv-SE', { day: 'numeric', month: 'short' }) : '';
     const endStr = challenge.endDate ? new Date(challenge.endDate).toLocaleDateString('sv-SE', { day: 'numeric', month: 'short' }) : '';
 
-    return (
-        <div className="bg-gradient-to-br from-amber-50 to-orange-100 dark:from-amber-950/30 dark:to-orange-900/10 p-6 sm:p-8 rounded-3xl border border-amber-200/40 dark:border-amber-900/40 shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-6 mb-8 text-left">
-            <div className="flex-1 space-y-2">
-                <div className="flex items-center gap-2">
-                    <span className="text-2xl">☀️</span>
-                    <span className="text-xs font-black uppercase tracking-widest text-amber-800 dark:text-amber-400">Officiell Utmaning</span>
-                </div>
-                <h3 className="text-xl sm:text-2xl font-black text-amber-950 dark:text-amber-100 tracking-tight leading-none">
-                    {challenge.title}
-                </h3>
-                {challenge.startDate && challenge.endDate && (
-                    <div className="flex flex-wrap gap-2 items-center text-xs font-bold text-amber-900/80 dark:text-amber-300 font-mono">
-                         <span>Giltighetsperiod: {startStr} - {endStr}</span>
-                         <span className="px-2 py-0.5 rounded-md bg-amber-950/15 dark:bg-amber-100/10 text-amber-950 dark:text-amber-100 font-sans">
-                             {(() => {
-                                 const startDiff = challenge.startDate - Date.now();
-                                 const endDiff = challenge.endDate - Date.now();
-                                 const daysToStart = Math.max(0, Math.ceil(startDiff / (1000 * 60 * 60 * 24)));
-                                 const daysRemaining = Math.max(0, Math.ceil(endDiff / (1000 * 60 * 60 * 24)));
-                                 if (daysToStart > 0) return `⏳ Startar om ${daysToStart} dagar`;
-                                 if (daysRemaining === 0) return `⏳ Avslutas idag!`;
-                                 return `⏳ ${daysRemaining} dagar kvar`;
-                             })()}
-                         </span>
+    // Beräkna realtidssatstistik för detta gym
+    const activeChallengeMembers = members.filter(m => m.joinedSummerChallenge && m.joinedChallengeId === challenge.id);
+    const participantsCount = activeChallengeMembers.length;
+
+    const challengeLogs = logs.filter(l => {
+        if (!challenge.startDate || !challenge.endDate) return false;
+        return l.date >= challenge.startDate && l.date <= challenge.endDate;
+    });
+
+    let gymGrandTotalPoints = 0;
+    challengeLogs.forEach(log => {
+        const uid = log.memberId;
+        if (!uid) return;
+        const logMember = activeChallengeMembers.find(m => m.uid === uid);
+        if (!logMember) return;
+        const logTime = log.date || 0;
+        if (logTime < (logMember.joinedSummerChallengeAt || 0)) return;
+
+        let pts = 0;
+        if (log.inStudio === true) {
+            pts = 2;
+        } else {
+            const isLessThan30 = log.durationMinutes !== undefined && log.durationMinutes > 0 && log.durationMinutes < 30;
+            if (!isLessThan30) {
+                pts = 1;
+            }
+        }
+        gymGrandTotalPoints += pts;
+    });
+
+    // Veckostatistik (nuvarande vecka)
+    const now = new Date();
+    const currentDay = now.getDay() || 7;
+    const monday = new Date(now);
+    monday.setDate(now.getDate() - (currentDay - 1));
+    monday.setHours(0, 0, 0, 0);
+
+    const thisWeeksLogs = challengeLogs.filter(log => (log.date || 0) >= monday.getTime());
+    let gymThisWeekPoints = 0;
+    thisWeeksLogs.forEach(log => {
+        const uid = log.memberId;
+        if (!uid) return;
+        const logMember = activeChallengeMembers.find(m => m.uid === uid);
+        if (!logMember) return;
+        const logTime = log.date || 0;
+        if (logTime < (logMember.joinedSummerChallengeAt || 0)) return;
+
+        let pts = 0;
+        if (log.inStudio === true) {
+            pts = 2;
+        } else {
+            const isLessThan30 = log.durationMinutes !== undefined && log.durationMinutes > 0 && log.durationMinutes < 30;
+            if (!isLessThan30) {
+                pts = 1;
+            }
+        }
+        gymThisWeekPoints += pts;
+    });
+
+    let clubWeeklyTarget = 0;
+    activeChallengeMembers.forEach(m => {
+        const baseGoal = m.summerChallengeGoals?.[monday.getTime()] !== undefined
+            ? m.summerChallengeGoals[monday.getTime()]
+            : (m.summerChallengeGoal || 3);
+        
+        let goalVal = baseGoal;
+        const joinedAt = m.joinedSummerChallengeAt || 0;
+        if (joinedAt >= monday.getTime() && joinedAt < monday.getTime() + 7 * 24 * 60 * 60 * 1000) {
+            const joinDate = new Date(joinedAt);
+            const joinDay = joinDate.getDay() || 7;
+            const daysLeft = Math.max(0, 7 - joinDay);
+            goalVal = Math.max(1, Math.round((daysLeft / 7) * baseGoal));
+        }
+        clubWeeklyTarget += goalVal;
+    });
+    if (clubWeeklyTarget <= 0) {
+        clubWeeklyTarget = 3 * Math.max(1, participantsCount);
+    }
+    const completionPercentage = clubWeeklyTarget > 0 ? Math.round((gymThisWeekPoints / clubWeeklyTarget) * 100) : 0;
+
+    let temperatureLabel = 'SVALT';
+    let temperatureEmoji = '❄️';
+    if (completionPercentage >= 110) {
+        temperatureLabel = 'ÖVERHETTNING';
+        temperatureEmoji = '🌋';
+    } else if (completionPercentage >= 100) {
+        temperatureLabel = 'HET';
+        temperatureEmoji = '🔥';
+    } else if (completionPercentage >= 70) {
+        temperatureLabel = 'VARM';
+        temperatureEmoji = '☀️';
+    } else if (completionPercentage >= 40) {
+        temperatureLabel = 'LJUMMEN';
+        temperatureEmoji = '🌤️';
+    }
+
+    if (isChallengeEnded && localEnabled) {
+        // Vacker sammanfattning efter avslutad utmaning
+        return (
+            <div className="bg-gradient-to-br from-amber-600 via-orange-500 to-amber-900 text-white p-6 sm:p-8 rounded-[2rem] border-none shadow-[0_12px_40px_rgba(249,115,22,0.18)] flex flex-col md:flex-row items-stretch md:items-center justify-between gap-6 mb-8 text-left relative overflow-hidden">
+                <div className="absolute top-[-50px] right-[-50px] w-64 h-64 bg-white/10 rounded-full blur-[60px] pointer-events-none"></div>
+                <div className="flex-1 space-y-3 relative z-10">
+                    <div className="flex items-center gap-2">
+                        <span className="text-3xl animate-pulse">🏆</span>
+                        <span className="text-xs font-black uppercase tracking-widest text-amber-200">Avslutad Utmaning • Slutresultat</span>
                     </div>
-                )}
-                {challenge.description && (
-                    <p className="text-xs text-amber-900/80 dark:text-amber-200/70 leading-relaxed max-w-2xl font-medium">
-                        {challenge.description}
+                    <h3 className="text-xl sm:text-3xl font-black tracking-tight leading-none text-white">
+                        {challenge.title}
+                    </h3>
+                    <p className="text-xs sm:text-sm text-amber-100 font-medium max-w-2xl leading-relaxed">
+                        Utmaningen är officiellt avslutad! Era medlemmar kämpade fantastiskt. Nedan ser du gymmet sammanställda slutresultat. Denna rapport ligger kvar till <strong>{new Date(graceEnd).toLocaleDateString('sv-SE', { day: 'numeric', month: 'long' })}</strong> innan den försvinner helt.
                     </p>
-                )}
+
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 pt-2">
+                        <div className="bg-white/10 backdrop-blur-md p-3 rounded-2xl border border-white/10">
+                            <span className="block text-[10px] font-bold uppercase text-amber-200/80 mb-0.5 leading-none">Deltagare</span>
+                            <span className="text-lg font-black leading-none">{participantsCount} st</span>
+                        </div>
+                        <div className="bg-white/10 backdrop-blur-md p-3 rounded-2xl border border-white/10">
+                            <span className="block text-[10px] font-bold uppercase text-amber-200/80 mb-0.5 leading-none">Totala poäng</span>
+                            <span className="text-lg font-black leading-none">{gymGrandTotalPoints} p</span>
+                        </div>
+                        <div className="bg-white/10 backdrop-blur-md p-3 rounded-2xl border border-white/10 col-span-2 sm:col-span-1">
+                            <span className="block text-[10px] font-bold uppercase text-amber-200/80 mb-0.5 leading-none">Slutlig temp</span>
+                            <span className="text-sm font-black bg-white/20 px-2 py-1 rounded-lg inline-flex items-center gap-1 mt-0.5">{temperatureLabel} {temperatureEmoji}</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="shrink-0 flex items-center justify-center relative z-10">
+                    <div className="w-16 h-16 bg-amber-400/20 text-yellow-300 rounded-3xl flex items-center justify-center text-3xl border border-white/20 shadow-lg animate-bounce [animation-duration:4s]">
+                        🥇
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    return (
+        <div className="bg-gradient-to-br from-amber-50 to-orange-100 dark:from-amber-950/30 dark:to-orange-900/10 p-6 sm:p-8 rounded-[2rem] border border-amber-200/40 dark:border-amber-900/40 shadow-sm flex flex-col items-stretch justify-between gap-6 mb-8 text-left transition-all duration-300">
+            <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+                <div className="flex-1 space-y-2">
+                    <div className="flex items-center gap-2">
+                        <span className="text-2xl animate-spin [animation-duration:12s]">☀️</span>
+                        <span className="text-xs font-black uppercase tracking-widest text-amber-800 dark:text-amber-400">Officiell Utmaning</span>
+                    </div>
+                    <h3 className="text-2xl sm:text-3xl font-black text-amber-950 dark:text-amber-100 tracking-tight leading-none">
+                        {challenge.title}
+                    </h3>
+                    {challenge.startDate && challenge.endDate && (
+                        <div className="flex flex-wrap gap-2 items-center text-xs font-bold text-amber-900/80 dark:text-amber-300 font-mono">
+                             <span>Giltighetsperiod: {startStr} - {endStr}</span>
+                             <span className="px-2 py-0.5 rounded-md bg-amber-950/15 dark:bg-amber-100/10 text-amber-950 dark:text-amber-100 font-sans">
+                                 {(() => {
+                                     const startDiff = challenge.startDate - Date.now();
+                                     const endDiff = challenge.endDate - Date.now();
+                                     const daysToStart = Math.max(0, Math.ceil(startDiff / (1000 * 60 * 60 * 24)));
+                                     const daysRemaining = Math.max(0, Math.ceil(endDiff / (1000 * 60 * 60 * 24)));
+                                     if (daysToStart > 0) return `⏳ Startar om ${daysToStart} dagar`;
+                                     if (daysRemaining === 0) return `⏳ Avslutas idag!`;
+                                     return `⏳ ${daysRemaining} dagar kvar`;
+                                 })()}
+                             </span>
+                        </div>
+                    )}
+                    {challenge.description && (
+                        <p className="text-xs sm:text-sm text-amber-900/80 dark:text-amber-200/70 leading-relaxed max-w-2xl font-medium">
+                            {challenge.description}
+                        </p>
+                    )}
+                </div>
+
+                <div className="shrink-0 w-full md:w-auto">
+                    {localEnabled ? (
+                        <div className="bg-emerald-500/15 text-emerald-800 dark:text-emerald-400 border border-emerald-500/20 py-3 px-5 rounded-2xl text-center text-xs font-black uppercase tracking-wider h-auto flex items-center justify-center gap-2">
+                            <span>🟢</span> Aktiv på ert gym
+                        </div>
+                    ) : (
+                        <button
+                            onClick={handleActivate}
+                            disabled={isSaving}
+                            className="w-full bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 active:scale-95 text-white font-black uppercase text-xs tracking-wider py-4 px-6 rounded-2xl shadow-md transition-all cursor-pointer flex items-center justify-center gap-2"
+                        >
+                            {isSaving ? 'Aktiverar...' : 'Aktivera på vårt gym! 🚀'}
+                        </button>
+                    )}
+                </div>
             </div>
 
-            <div className="shrink-0 w-full md:w-auto">
-                {localEnabled ? (
-                    <div className="bg-emerald-500/15 text-emerald-800 dark:text-emerald-400 border border-emerald-500/20 py-3 px-5 rounded-2xl text-center text-xs font-black uppercase tracking-wider h-auto flex items-center justify-center gap-2">
-                        <span>🟢</span> Aktiv på ert gym
+            {/* Realtids-statistik i admin (visas endast om utmaningen är aktiv på detta gym) */}
+            {localEnabled && (
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-2 pt-5 border-t border-amber-950/10 dark:border-amber-100/15 text-amber-950 dark:text-amber-100">
+                    <div className="bg-white/40 dark:bg-black/10 p-3 rounded-2xl border border-amber-950/5 dark:border-white/5">
+                        <span className="block text-[10px] font-black uppercase text-amber-900/60 dark:text-amber-400/60 leading-none mb-1">Anmälda deltagare</span>
+                        <span className="text-lg font-black font-sans leading-none">{participantsCount} st</span>
                     </div>
-                ) : (
-                    <button
-                        onClick={handleActivate}
-                        disabled={isSaving}
-                        className="w-full bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 active:scale-95 text-white font-black uppercase text-xs tracking-wider py-4 px-6 rounded-2xl shadow-md transition-all cursor-pointer flex items-center justify-center gap-2"
-                    >
-                        {isSaving ? 'Aktiverar...' : 'Aktivera på vårt gym! 🚀'}
-                    </button>
-                )}
-            </div>
+                    <div className="bg-white/40 dark:bg-black/10 p-3 rounded-2xl border border-amber-950/5 dark:border-white/5">
+                        <span className="block text-[10px] font-black uppercase text-amber-900/60 dark:text-amber-400/60 leading-none mb-1">Totala poäng</span>
+                        <span className="text-lg font-black font-sans leading-none">{gymGrandTotalPoints} p</span>
+                    </div>
+                    <div className="bg-white/40 dark:bg-black/10 p-3 rounded-2xl border border-amber-950/5 dark:border-white/5">
+                        <span className="block text-[10px] font-black uppercase text-amber-900/60 dark:text-amber-400/60 leading-none mb-1">Gymmet denna vecka</span>
+                        <span className="text-lg font-black font-sans leading-none">{gymThisWeekPoints} / {clubWeeklyTarget} p</span>
+                    </div>
+                    <div className="bg-white/40 dark:bg-black/10 p-3 rounded-2xl border border-amber-950/5 dark:border-white/5">
+                        <span className="block text-[10px] font-black uppercase text-amber-900/60 dark:text-amber-400/60 leading-none mb-1.5">Nuvarande temperatur</span>
+                        <span className="text-xs font-black bg-amber-950/15 dark:bg-white/10 px-2 py-0.5 rounded-lg inline-flex items-center gap-1 leading-none">{temperatureLabel} {temperatureEmoji}</span>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

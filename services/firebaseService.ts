@@ -71,7 +71,7 @@ import {
   BankExercise, SuggestedExercise, WorkoutResult, CompanyDetails, 
   SmartScreenPricing, HyroxRace, SeasonalThemeSetting, MemberGoals, 
   WorkoutLog, CheckInEvent, Member, UserRole, PersonalBest, StudioEvent,
-  CustomPage, AdminActivity, BenchmarkDefinition, Studio, GalleryImage, Lead, CoachNote
+  CustomPage, AdminActivity, BenchmarkDefinition, Studio, GalleryImage, Lead, CoachNote, Partner
 } from '../types';
 import { MOCK_ORGANIZATIONS, MOCK_ORG_ADMIN, MOCK_EXERCISE_BANK, MOCK_MEMBERS, MOCK_SMART_SCREEN_PRICING } from '../data/mockData';
 
@@ -1990,6 +1990,55 @@ export const removeGalleryImage = async (id: string, imageUrl: string): Promise<
         }
     } catch (error) {
         console.error("Error removing gallery image:", error);
+    }
+};
+
+// --- PARTNERS ---
+export const getPartners = async (): Promise<Partner[]> => {
+    if (isOffline || !db) return [];
+    try {
+        const q = query(collection(db, 'system_partners'), orderBy('createdAt', 'desc'));
+        const snapshot = await getDocs(q);
+        return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Partner));
+    } catch (error) {
+        console.error("Error getting partners:", error);
+        return [];
+    }
+};
+
+export const addPartner = async (file: File, name: string, websiteUrl?: string): Promise<Partner | null> => {
+    if (isOffline || !db || !storage) return null;
+    try {
+        const storageRef = ref(storage, `partners/${Date.now()}_${file.name}`);
+        await uploadBytes(storageRef, file);
+        const logoUrl = await getDownloadURL(storageRef);
+        
+        const newDocRef = doc(collection(db, 'system_partners'));
+        const newPartner: Partner = {
+            id: newDocRef.id,
+            name,
+            logoUrl,
+            websiteUrl: websiteUrl || '',
+            createdAt: Date.now()
+        };
+        await setDoc(newDocRef, newPartner);
+        return newPartner;
+    } catch (error) {
+        console.error("Error adding partner:", error);
+        return null;
+    }
+};
+
+export const removePartner = async (id: string, logoUrl: string): Promise<void> => {
+    if (isOffline || !db || !storage) return;
+    try {
+        await deleteDoc(doc(db, 'system_partners', id));
+        if (logoUrl) {
+            const imageRef = ref(storage, logoUrl);
+            await deleteObject(imageRef).catch(e => console.log("Logo might already be deleted or not found", e));
+        }
+    } catch (error) {
+        console.error("Error removing partner:", error);
     }
 };
 

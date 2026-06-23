@@ -279,9 +279,21 @@ const App: React.FC = () => {
   useEffect(() => {
     if (typeof window === 'undefined' || !('serviceWorker' in navigator)) return;
 
+    const hadController = !!navigator.serviceWorker.controller;
+
     // Listen for the controllerchange event. This fires when a new service worker 
     // takes over (usually because it downloaded a new push and called skipWaiting() + clients.claim()).
+    let refreshing = false;
     const handleControllerChange = () => {
+      if (refreshing) return;
+      // Only reload if the page was already controlled by a service worker.
+      // If there was no controller, this is the very first service worker installation/activation,
+      // so we don't need to force a reload, which would disrupt initial routing and clear URL parameters.
+      if (!hadController) {
+          console.log('Initial Service Worker claimed the client. Skipping reload because there was no prior controller.');
+          return;
+      }
+      refreshing = true;
       console.log('New Service Worker activated! Reloading page to load the latest code...');
       window.location.reload();
     };

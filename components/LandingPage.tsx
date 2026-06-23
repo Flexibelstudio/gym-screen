@@ -2,8 +2,8 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { SparklesIcon, DumbbellIcon, BuildingIcon, ClockIcon, UsersIcon, ChevronDownIcon } from './icons';
-import { GalleryImage } from '../types';
-import { getGalleryImages, createLead } from '../services/firebaseService';
+import { GalleryImage, Partner } from '../types';
+import { getGalleryImages, getPartners, createLead } from '../services/firebaseService';
 
 interface LandingPageProps {
     onLoginClick: () => void;
@@ -61,17 +61,22 @@ const SystemImages = () => (
 
 export const LandingPage: React.FC<LandingPageProps> = ({ onLoginClick, onRegisterGymClick }) => {
     const [galleryImages, setGalleryImages] = useState<GalleryImage[]>([]);
+    const [partners, setPartners] = useState<Partner[]>([]);
     const [isDemoModalOpen, setIsDemoModalOpen] = useState(false);
     const [leadForm, setLeadForm] = useState({ name: '', email: '', gymName: '', phone: '', message: '' });
     const [isSubmittingLead, setIsSubmittingLead] = useState(false);
     const [leadSuccess, setLeadSuccess] = useState(false);
 
     useEffect(() => {
-        const loadGallery = async () => {
-            const images = await getGalleryImages();
+        const loadGalleryAndPartners = async () => {
+            const [images, partnersData] = await Promise.all([
+                getGalleryImages(),
+                getPartners()
+            ]);
             setGalleryImages(images);
+            setPartners(partnersData);
         };
-        loadGallery();
+        loadGalleryAndPartners();
     }, []);
 
     const handleLeadSubmit = async (e: React.FormEvent) => {
@@ -236,6 +241,58 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginClick, onRegist
                                 </div>
                             ))}
                         </motion.div>
+                    </div>
+                </section>
+            )}
+
+            {/* Partners Grid */}
+            {partners.length > 0 && (
+                <section className="py-20 bg-black relative overflow-hidden border-t border-white/5">
+                    <div className="max-w-7xl mx-auto px-6">
+                        <div className="text-center mb-12">
+                            <h2 className="text-2xl md:text-3xl font-bold mb-3 tracking-tight text-white">Våra Partners</h2>
+                            <p className="text-gray-400 text-sm max-w-xl mx-auto">
+                                Vi samarbetar med ledande varumärken inom träning och hälsa för att erbjuda bästa möjliga upplevelse.
+                            </p>
+                        </div>
+                        
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-6 items-center justify-center">
+                            {partners.map((partner) => {
+                                const CardContent = (
+                                    <div className="flex flex-col items-center justify-center p-6 bg-gray-900/40 rounded-2xl border border-gray-800 hover:border-primary/40 transition-colors h-32 group">
+                                        <div className="w-full h-16 flex items-center justify-center">
+                                            <img 
+                                                src={partner.logoUrl} 
+                                                alt={partner.name} 
+                                                className="max-w-[140px] max-h-full object-contain transition-all duration-300"
+                                                referrerPolicy="no-referrer"
+                                            />
+                                        </div>
+                                        <span className="text-xs text-gray-500 group-hover:text-gray-300 font-medium mt-2 transition-colors">{partner.name}</span>
+                                    </div>
+                                );
+
+                                if (partner.websiteUrl) {
+                                    return (
+                                        <a 
+                                            key={partner.id}
+                                            href={partner.websiteUrl} 
+                                            target="_blank" 
+                                            rel="noopener noreferrer"
+                                            className="block cursor-pointer transition-transform duration-200 hover:-translate-y-1 w-full"
+                                        >
+                                            {CardContent}
+                                        </a>
+                                    );
+                                }
+
+                                return (
+                                    <div key={partner.id} className="w-full">
+                                        {CardContent}
+                                    </div>
+                                );
+                            })}
+                        </div>
                     </div>
                 </section>
             )}

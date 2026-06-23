@@ -429,23 +429,37 @@ export async function parseWorkoutFromText(text: string, availableExercises: str
 }
 
 export async function parseWorkoutFromYoutube(url: string): Promise<Workout> {
-    const prompt = `Analysera denna YouTube-video: ${url}.
+    let videoTitle = "";
+    let authorName = "";
+    try {
+        const oembedUrl = `https://www.youtube.com/oembed?url=${encodeURIComponent(url)}&format=json`;
+        const res = await fetch(oembedUrl);
+        if (res.ok) {
+            const metadata = await res.json() as any;
+            if (metadata.title) videoTitle = metadata.title;
+            if (metadata.author_name) authorName = metadata.author_name;
+        }
+    } catch (e) {
+        console.warn("Failed to fetch youtube metadata via oembed", e);
+    }
+
+    const prompt = `Analysera denna YouTube-video för att skapa ett träningspass på svenska.
+    Video URL: ${url}
+    ${videoTitle ? `Hämtad video-titel: "${videoTitle}"` : ""}
+    ${authorName ? `Kanal/Skapare: "${authorName}"` : ""}
     
     DITT UPPDRAG:
-    Skapa ett strukturerat träningspass baserat ENBART på innehållet i videon (titel, beskrivning, transkribering, visuellt innehåll).
+    Skapa ett strukturerat träningspass baserat på denna video. Om videotiteln eller kanalen antyder ett visst fokus eller upplägg (t.ex. "${videoTitle || 'styrka/kondition'}"), anpassa passet efter detta tema.
 
     REGLER FÖR TOLKNING:
-    1. **KÄLLTROHET (VIKTIGAST):** Hitta inte på övningar som inte nämns eller visas. Om videon handlar om en specifik övning (t.ex. "Teknik i Marklyft"), ska passet bli ett teknikpass för den övningen, inte en slumpmässig WOD.
-    2. **KÄNDA BENCHMARKS:** Endast om videon *tydligt* namnger ett känt testpass (t.ex. "Murph", "Hyrox PFT", "Cindy"), använd den officiella standardstrukturen för det passet.
-    3. **ENSTAKA ÖVNINGAR:** Om videon är en demo av en enda övning, skapa ett "Teknik & Färdighet"-pass (t.ex. EMOM 10 min med den övningen).
-    4. **STRUKTUR:** Försök avgöra om det är AMRAP, EMOM, For Time eller Intervall. Om det är otydligt, skapa en logisk struktur (t.ex. 3-4 set).
-    5. **TIMER:** Välj lämplig timerinställning.
-    6. **FOLLOW ME:** Om videon är ett realtidspass ("Follow Along"), sätt 'followMe' till true.
-    7. **TITEL:** Använd videons titel som grund.
+    1. **KÄLLTROHET (VIKTIGAST):** Hitta inte på slumpmässiga övningar. Om videon handlar om en specifik övning (t.ex. "Teknik i Marklyft"), eller ett specifikt pass, ska passet spegla det innehållet.
+    2. **KÄNDA BENCHMARKS:** Om videotiteln ("${videoTitle || ''}") tydligt refererar till ett välkänt testpass (t.ex. "Murph", "Hyrox PFT", "Cindy", "Fran", "Cali"), använd den officiella strukturen för det specifika passet.
+    3. **STRUKTUR:** Försök avgöra om det är AMRAP, EMOM, For Time eller Intervaller. Om det är ostrukturerat på videon, skapa ett logiskt upplägg (t.ex. 3-4 set av övningarna).
+    4. **TIMER:** Välj lämplig timerinställning baserat på upplägget.
+    5. **FOLLOW ME:** Om det är en "Follow Along"-video där man tränar i realtid med videon, sätt 'followMe' till true.
+    6. **TITEL:** Sätt en passande titel för passet som härrör från videotiteln: "${videoTitle || 'YouTube-pass'}".`;
     
-    Använd Google Search för att bekräfta passets detaljer via videons metadata.`;
-    
-    const data = await _callGeminiJSON<any>(PRO_MODEL, prompt, workoutSchema, true);
+    const data = await _callGeminiJSON<any>(TEXT_MODEL, prompt, workoutSchema, false);
     return transformWorkout(data, '', false);
 }
 
