@@ -130,7 +130,7 @@ const SummerChallengeDiplomaCard: React.FC<SummerChallengeDiplomaCardProps> = ({
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-black/85 backdrop-blur-md overflow-y-auto">
             {/* Modal Glass Panel Container */}
-            <div className="relative w-full max-w-xl animate-fade-in py-4 flex flex-col items-center">
+            <div className="relative w-full max-w-xl animate-fade-in py-2 flex flex-col items-center">
                 
                 {/* Close button above diploma */}
                 <button
@@ -143,8 +143,8 @@ const SummerChallengeDiplomaCard: React.FC<SummerChallengeDiplomaCardProps> = ({
                     </svg>
                 </button>
 
-                {/* The actual shareable certificate (designed to be full aspect screenshot-able) */}
-                <div className="relative overflow-hidden bg-gradient-to-br from-amber-600 via-orange-500 to-amber-950 text-white rounded-[2rem] p-6 sm:p-10 border-8 border-amber-300/40 border-double shadow-[0_20px_50px_rgba(249,115,22,0.35)] select-none text-center w-full">
+                {/* The actual shareable certificate (designed to be more compact) */}
+                <div className="relative overflow-hidden bg-gradient-to-br from-amber-600 via-orange-500 to-amber-950 text-white rounded-[2rem] p-5 sm:p-8 border-4 sm:border-8 border-amber-300/40 border-double shadow-[0_20px_50px_rgba(249,115,22,0.35)] select-none text-center w-full">
                     {/* Vintage star bursts backdrop glow */}
                     <div className="absolute top-[-80px] left-[-80px] w-96 h-96 bg-white/10 rounded-full blur-[80px] pointer-events-none"></div>
                     <div className="absolute bottom-[-100px] right-[-100px] w-96 h-96 bg-amber-400/10 rounded-full blur-[80px] pointer-events-none"></div>
@@ -152,10 +152,10 @@ const SummerChallengeDiplomaCard: React.FC<SummerChallengeDiplomaCardProps> = ({
                     {/* Double frame lines to feel authentic */}
                     <div className="absolute inset-3 border border-white/10 rounded-[1.5rem] pointer-events-none"></div>
                     
-                    <div className="relative z-10 space-y-6">
+                    <div className="relative z-10 space-y-4">
                         {/* Header Seal */}
                         <div className="flex flex-col items-center justify-center space-y-1">
-                            <div className="w-14 h-14 bg-white/10 border-2 border-amber-300 rounded-full flex items-center justify-center text-3xl shadow-md rotate-12">
+                            <div className="w-12 h-12 bg-white/10 border-2 border-amber-300 rounded-full flex items-center justify-center text-2xl shadow-md rotate-12">
                                 ☀️
                             </div>
                             <span className="text-[9px] font-black tracking-[0.3em] uppercase text-amber-200/90 leading-none">Officiellt Hedersdiplom</span>
@@ -169,9 +169,9 @@ const SummerChallengeDiplomaCard: React.FC<SummerChallengeDiplomaCardProps> = ({
                         </div>
                         
                         {/* Participant Name */}
-                        <div className="space-y-1 py-1">
+                        <div className="space-y-0.5 py-0.5">
                             <span className="text-[9px] sm:text-[10px] font-bold uppercase text-amber-200/70 tracking-widest block">Tilldelas härmed</span>
-                            <h2 className="text-2xl sm:text-4xl font-black tracking-tight text-white capitalize font-sans drop-shadow-[0_2px_10px_rgba(0,0,0,0.5)] leading-tight">
+                            <h2 className="text-2xl sm:text-3xl font-black tracking-tight text-white capitalize font-sans drop-shadow-[0_2px_10px_rgba(0,0,0,0.5)] leading-tight">
                                 {userData?.name || userData?.displayName || 'Sisu-kämpe'}
                             </h2>
                         </div>
@@ -189,15 +189,8 @@ const SummerChallengeDiplomaCard: React.FC<SummerChallengeDiplomaCardProps> = ({
                             </span>
                         </div>
 
-                        {/* Divider line */}
-                        <div className="flex items-center justify-center gap-3">
-                            <div className="h-[1px] w-16 bg-gradient-to-r from-transparent to-white/10"></div>
-                            <span className="text-[10px] text-white/30 font-mono uppercase tracking-wider">SAMMANSTÄLLT RESULTAT</span>
-                            <div className="h-[1px] w-16 bg-gradient-to-l from-transparent to-white/10"></div>
-                        </div>
-
                         {/* Achievements Stats Grid */}
-                        <div className="grid grid-cols-3 gap-2.5 max-w-sm mx-auto">
+                        <div className="grid grid-cols-3 gap-2.5 max-w-sm mx-auto pt-1">
                             <div className="bg-black/15 backdrop-blur-lg p-2.5 rounded-xl border border-white/5 space-y-0.5">
                                 <span className="block text-[7px] font-black uppercase text-amber-200/80 tracking-wider">Ditt Bidrag</span>
                                 <span className="block text-base font-black leading-none drop-shadow">{stats.summerTotalPoints} p</span>
@@ -215,14 +208,14 @@ const SummerChallengeDiplomaCard: React.FC<SummerChallengeDiplomaCardProps> = ({
                         </div>
 
                         {/* Personalized Title badge */}
-                        <div className="inline-block mt-1">
+                        <div className="inline-block mt-0.5">
                             <div className="px-3.5 py-1.5 bg-gradient-to-r from-amber-400 to-yellow-300 text-amber-950 font-black uppercase text-[9px] tracking-widest rounded-full shadow-lg border border-white/20">
                                 Prestation: <span className="underline">{achieved.title}</span>
                             </div>
                         </div>
 
                         {/* Signature / Footer */}
-                        <div className="pt-4 border-t border-white/10 flex items-center justify-between gap-4 text-left max-w-sm mx-auto">
+                        <div className="pt-3 border-t border-white/10 flex items-center justify-between gap-4 text-left max-w-sm mx-auto">
                             <div>
                                 <span className="block text-[7px] font-bold text-amber-200/70 uppercase">Utfärdat på</span>
                                 <span className="block text-[10px] font-semibold text-white truncate max-w-[125px]">{userData?.organizationName || 'Ditt Gym'}</span>
@@ -234,19 +227,11 @@ const SummerChallengeDiplomaCard: React.FC<SummerChallengeDiplomaCardProps> = ({
                         </div>
 
                         {/* Screenshot note */}
-                        <p className="text-[9px] text-amber-200/50 font-semibold italic select-none">
+                        <p className="text-[9px] text-amber-200/50 font-semibold italic select-none pt-1">
                             📸 Ta en skärmdump och dela på sociala medier! #Sommarutmaningen
                         </p>
                     </div>
                 </div>
-
-                {/* Close button at the bottom */}
-                <button
-                    onClick={onClose}
-                    className="mt-5 bg-white/10 hover:bg-white/20 active:scale-95 text-white border border-white/20 font-black uppercase text-[10px] tracking-wider py-3 px-8 rounded-full shadow-md transition-all cursor-pointer"
-                >
-                    Stäng fönster
-                </button>
             </div>
         </div>
     );
@@ -1971,10 +1956,10 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                                                     +
                                                 </button>
                                             </div>
-                                            <p className="text-[10px] sm:text-[11px] text-amber-900/90 font-bold mt-2.5 leading-normal bg-orange-500/10 p-2.5 rounded-2xl border border-orange-500/15">
+                                            <p className="text-[10px] sm:text-[11px] text-amber-955 font-black mt-2.5 leading-normal bg-white/85 p-2.5 rounded-2xl border border-amber-250/50">
                                                 💡 <strong>Träningspoäng:</strong> 1 pass i gymmet ger <strong>2 poäng</strong>, och utomhus-/gruppträning ger <strong>1 poäng</strong> (minst 30 min). Sätt ett veckomål som peppar dig att klara utmaningen!
                                             </p>
-                                            <div className="mt-2.5 text-[10px] sm:text-[11px] text-amber-950 dark:text-red-200 font-bold leading-normal bg-red-500/10 p-2.5 rounded-2xl border border-red-500/15 flex items-start gap-1.5 shadow-sm">
+                                            <div className="mt-2.5 text-[10px] sm:text-[11px] text-red-950 font-black leading-normal bg-white/95 p-2.5 rounded-2xl border border-red-350 flex items-start gap-1.5 shadow-sm">
                                                 <span>⚠️</span>
                                                 <span><strong>Satt mål gäller:</strong> Du kan inte ändra ditt veckomål efter att du har gått med i utmaningen. Välj ett mål du vet att du vill och kan hålla!</span>
                                             </div>
@@ -2165,20 +2150,20 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                                         Du har personligen bidragit med <strong>{stats.summerTotalPoints} p</strong> under sommaren!
                                     </p>
 
-                                    {/* Mini Grid results */}
-                                    <div className="grid grid-cols-3 gap-3 max-w-sm bg-gray-50 dark:bg-gray-750 p-4 rounded-2xl border border-gray-150 dark:border-gray-700">
+                                    {/* Mini Grid results - Optimized for both light and dark mode visibility */}
+                                    <div className="grid grid-cols-3 gap-3 max-w-sm bg-slate-150 dark:bg-black/35 p-4 rounded-2xl border border-gray-200/60 dark:border-gray-800">
                                         <div className="text-center space-y-0.5">
-                                            <span className="block text-[8px] font-black uppercase text-gray-400 tracking-wider">Ditt Bidrag</span>
+                                            <span className="block text-[8px] font-black uppercase text-gray-500 dark:text-gray-400 tracking-wider">Ditt Bidrag</span>
                                             <span className="block text-base font-black text-gray-900 dark:text-white font-mono">{stats.summerTotalPoints} p</span>
                                         </div>
-                                        <div className="text-center space-y-0.5 border-x border-gray-200 dark:border-gray-750 border-double">
-                                            <span className="block text-[8px] font-black uppercase text-gray-400 tracking-wider">Din Rank</span>
+                                        <div className="text-center space-y-0.5 border-x border-gray-200 dark:border-gray-800 border-double">
+                                            <span className="block text-[8px] font-black uppercase text-gray-500 dark:text-gray-400 tracking-wider">Din Rank</span>
                                             <span className="block text-base font-black text-gray-900 dark:text-white font-mono">
                                                 {userRankIndex !== -1 ? `#${userRankIndex + 1}` : '–'}
                                             </span>
                                         </div>
                                         <div className="text-center space-y-0.5">
-                                            <span className="block text-[8px] font-black uppercase text-gray-400 tracking-wider">Klubb Total</span>
+                                            <span className="block text-[8px] font-black uppercase text-gray-500 dark:text-gray-400 tracking-wider">Klubb Total</span>
                                             <span className="block text-base font-black text-gray-900 dark:text-white font-mono">{grandTotalPointsForStudio} p</span>
                                         </div>
                                     </div>
@@ -2192,14 +2177,14 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                                         </button>
                                         <button
                                             onClick={() => setShowSummerStandings(!showSummerStandings)}
-                                            className="bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 font-extrabold text-xs py-3 px-5 rounded-2xl transition-all cursor-pointer flex items-center justify-center gap-2 border border-gray-200/50 dark:border-gray-750"
+                                            className="bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 font-extrabold text-xs py-3 px-5 rounded-2xl transition-all cursor-pointer flex items-center justify-center gap-2 border border-gray-200/50 dark:border-gray-800"
                                         >
                                             <span>🎖️</span> {showSummerStandings ? 'Dölj gymmets topplista' : 'Visa gymmets topplista'}
                                         </button>
                                     </div>
 
                                     {showSummerStandings && (
-                                        <div className="mt-4 border-t border-gray-200 dark:border-gray-750 pt-4 space-y-2 max-h-72 overflow-y-auto custom-scrollbar animate-fade-in w-full">
+                                        <div className="mt-4 border-t border-gray-200 dark:border-gray-800 pt-4 space-y-2 max-h-72 overflow-y-auto custom-scrollbar animate-fade-in w-full">
                                             <h5 className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-3 block">Slutgiltig Topplista</h5>
                                             {sortedTotalPointsLeaderboard.map((item, idx) => {
                                                 const isMe = item.uid === userData.uid;
