@@ -48,16 +48,24 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ organizationId }) => {
         return base;
     }, [selectedOrganization, studioConfig, globalChallenge]);
 
-    const isSummerActive = !!configToUse?.enableSummerChallenge;
     const currentTimestamp = Date.now();
-    const sisuTabVisible = isSummerActive;
 
-    // Default to sisu tab if summer challenge is active
+    const isSummerChallengeOngoing = useMemo(() => {
+        if (!configToUse?.enableSummerChallenge) return false;
+        if (!configToUse?.summerChallengeStartDate || !configToUse?.summerChallengeEndDate) return false;
+        return currentTimestamp >= configToUse.summerChallengeStartDate && currentTimestamp <= configToUse.summerChallengeEndDate;
+    }, [configToUse, currentTimestamp]);
+
+    const sisuTabVisible = isSummerChallengeOngoing;
+
+    // Default to sisu tab if summer challenge is active and currently ongoing
     useEffect(() => {
-        if (isSummerActive) {
+        if (isSummerChallengeOngoing) {
             setActiveTab('sisu');
+        } else {
+            setActiveTab('workouts');
         }
-    }, [isSummerActive]);
+    }, [isSummerChallengeOngoing]);
 
     useEffect(() => {
         if (userData?.locationId) {
