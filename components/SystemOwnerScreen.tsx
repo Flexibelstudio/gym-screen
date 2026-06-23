@@ -7,6 +7,7 @@ import { MoreVertical } from 'lucide-react';
 import { calculateInvoiceDetails } from '../utils/billing';
 import { SystemDashboardContent } from './admin/SystemDashboardContent';
 import { GalleryManagementTab } from './admin/GalleryManagementTab';
+import { PartnerManagementTab } from './admin/PartnerManagementTab';
 import { LeadsManagementTab } from './admin/LeadsManagementTab';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -944,7 +945,7 @@ const ChallengesTab: React.FC<{
 };
 
 export const SystemOwnerScreen: React.FC<SystemOwnerScreenProps> = ({ allOrganizations, onSelectOrganization, onCreateOrganization, onDeleteOrganization }) => {
-    const [activeTab, setActiveTab] = useState<'dashboard' | 'list' | 'challenges' | 'themes' | 'bank' | 'gallery' | 'leads'>('dashboard');
+    const [activeTab, setActiveTab] = useState<'dashboard' | 'list' | 'challenges' | 'themes' | 'bank' | 'gallery' | 'partners' | 'leads'>('dashboard');
     const [newOrgName, setNewOrgName] = useState('');
     const [isCreating, setIsCreating] = useState(false);
     const [localOrgs, setLocalOrgs] = useState(allOrganizations);
@@ -1029,6 +1030,7 @@ export const SystemOwnerScreen: React.FC<SystemOwnerScreenProps> = ({ allOrganiz
         { id: 'themes', label: 'Säsongsteman' },
         { id: 'bank', label: 'Övningsbank' },
         { id: 'gallery', label: 'Kundgalleri' },
+        { id: 'partners', label: 'Partners' },
         { id: 'leads', label: 'Leads' }
     ] as const;
 
@@ -1225,6 +1227,10 @@ export const SystemOwnerScreen: React.FC<SystemOwnerScreenProps> = ({ allOrganiz
 
                     {activeTab === 'gallery' && (
                         <GalleryManagementTab />
+                    )}
+
+                    {activeTab === 'partners' && (
+                        <PartnerManagementTab />
                     )}
 
                     {activeTab === 'leads' && (
