@@ -684,7 +684,14 @@ const OrgChallengeStatsRow: React.FC<{ org: Organization; challengeId: string }>
         };
     }, [org.id]);
 
-    const activeChallengeMembers = members.filter(m => m.joinedSummerChallenge && (m.joinedChallengeId === challengeId || m.joinedChallengeId === 'default' || !m.joinedChallengeId));
+    const dynamicChallengeId = org.globalConfig?.summerChallengeStartDate && org.globalConfig?.summerChallengeEndDate
+        ? `summer_${org.globalConfig.summerChallengeStartDate}_${org.globalConfig.summerChallengeEndDate}`
+        : (challengeId || 'default');
+
+    const activeChallengeMembers = members.filter(m => 
+        m.joinedSummerChallenge && 
+        (m.joinedChallengeId === dynamicChallengeId || m.joinedChallengeId === 'default' || !m.joinedChallengeId)
+    );
     const participantsCount = activeChallengeMembers.length;
 
     let grandTotalPoints = 0;
