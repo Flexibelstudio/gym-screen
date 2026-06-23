@@ -130,7 +130,7 @@ const SummerChallengeDiplomaCard: React.FC<SummerChallengeDiplomaCardProps> = ({
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-black/85 backdrop-blur-md overflow-y-auto">
             {/* Modal Glass Panel Container */}
-            <div className="relative w-full max-w-xl animate-fade-in py-2 flex flex-col items-center">
+            <div className="relative w-full max-w-xl animate-fade-in py-6 sm:py-8 flex flex-col items-center">
                 
                 {/* Close button above diploma */}
                 <button
@@ -143,22 +143,22 @@ const SummerChallengeDiplomaCard: React.FC<SummerChallengeDiplomaCardProps> = ({
                     </svg>
                 </button>
 
-                {/* The actual shareable certificate (designed to be more compact) */}
-                <div className="relative overflow-hidden bg-gradient-to-br from-amber-600 via-orange-500 to-amber-950 text-white rounded-[2rem] p-5 sm:p-8 border-4 sm:border-8 border-amber-300/40 border-double shadow-[0_20px_50px_rgba(249,115,22,0.35)] select-none text-center w-full">
+                {/* The actual shareable certificate (designed to be beautifully proportioned) */}
+                <div className="relative overflow-hidden bg-gradient-to-br from-amber-600 via-orange-500 to-amber-950 text-white rounded-[2.5rem] p-7 sm:p-10 border-4 sm:border-8 border-amber-300/40 border-double shadow-[0_20px_50px_rgba(249,115,22,0.35)] select-none text-center w-full">
                     {/* Vintage star bursts backdrop glow */}
                     <div className="absolute top-[-80px] left-[-80px] w-96 h-96 bg-white/10 rounded-full blur-[80px] pointer-events-none"></div>
                     <div className="absolute bottom-[-100px] right-[-100px] w-96 h-96 bg-amber-400/10 rounded-full blur-[80px] pointer-events-none"></div>
                     
                     {/* Double frame lines to feel authentic */}
-                    <div className="absolute inset-3 border border-white/10 rounded-[1.5rem] pointer-events-none"></div>
+                    <div className="absolute inset-3 border border-white/10 rounded-[2rem] pointer-events-none"></div>
                     
-                    <div className="relative z-10 space-y-4">
+                    <div className="relative z-10 space-y-5 sm:space-y-6">
                         {/* Header Seal */}
-                        <div className="flex flex-col items-center justify-center space-y-1">
-                            <div className="w-12 h-12 bg-white/10 border-2 border-amber-300 rounded-full flex items-center justify-center text-2xl shadow-md rotate-12">
+                        <div className="flex flex-col items-center justify-center space-y-2 pt-1">
+                            <div className="w-14 h-14 bg-white/10 border-2 border-amber-300 rounded-full flex items-center justify-center text-3xl shadow-md rotate-12">
                                 ☀️
                             </div>
-                            <span className="text-[9px] font-black tracking-[0.3em] uppercase text-amber-200/90 leading-none">Officiellt Hedersdiplom</span>
+                            <span className="text-[10px] font-black tracking-[0.3em] uppercase text-amber-200/90 leading-none pt-1">Officiellt Hedersdiplom</span>
                         </div>
                         
                         {/* Decorative separators */}
