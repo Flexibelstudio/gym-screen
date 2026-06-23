@@ -264,7 +264,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginClick, onRegist
                                             <img 
                                                 src={partner.logoUrl} 
                                                 alt={partner.name} 
-                                                className="max-w-[140px] max-h-full object-contain grayscale opacity-60 group-hover:grayscale-0 group-hover:opacity-100 transition-all duration-300"
+                                                className="max-w-[140px] max-h-full object-contain transition-all duration-300"
                                                 referrerPolicy="no-referrer"
                                             />
                                         </div>
