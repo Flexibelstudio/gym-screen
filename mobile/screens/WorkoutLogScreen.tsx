@@ -1085,9 +1085,51 @@ const OneRMCalculatorModal: React.FC<{
 export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, navigation, route, workouts: contextWorkouts = [] }: any) => {
   const { currentUser, userData } = useAuth();
   const { selectedOrganization, studioConfig } = useStudio();
-  const isSummerChallengeOn = useMemo(() => {
+  const isSummerThemeActive = useMemo(() => {
     return !!(studioConfig?.enableSummerChallenge || selectedOrganization?.globalConfig?.enableSummerChallenge);
   }, [studioConfig?.enableSummerChallenge, selectedOrganization?.globalConfig?.enableSummerChallenge]);
+
+  const [globalChallenge, setGlobalChallenge] = useState<any>(null);
+
+  useEffect(() => {
+    if (!isSummerThemeActive) return;
+    let unsubChallenge = () => {};
+    import('../../services/firebaseService').then(({ listenToGlobalSummerChallenge }) => {
+      unsubChallenge = listenToGlobalSummerChallenge((data) => {
+        setGlobalChallenge(data);
+      });
+    });
+    return () => unsubChallenge();
+  }, [isSummerThemeActive]);
+
+  const configToUse = useMemo(() => {
+    const base = !selectedOrganization ? (studioConfig || {}) : {
+        ...(selectedOrganization || {}),
+        ...(selectedOrganization.globalConfig || {}),
+        ...(studioConfig || {})
+    };
+    if (globalChallenge) {
+        return {
+            ...base,
+            summerChallengeStartDate: globalChallenge.startDate,
+            summerChallengeEndDate: globalChallenge.endDate,
+            id: globalChallenge.id || 'default'
+        } as any;
+    }
+    return base as any;
+  }, [studioConfig, selectedOrganization, globalChallenge]);
+
+  const activeChallengeId = useMemo(() => {
+    if (!configToUse) return 'default';
+    if (configToUse.summerChallengeStartDate && configToUse.summerChallengeEndDate) {
+        return `summer_${configToUse.summerChallengeStartDate}_${configToUse.summerChallengeEndDate}`;
+    }
+    return configToUse.id || 'default';
+  }, [configToUse]);
+
+  const isSummerChallengeOn = useMemo(() => {
+    return isSummerThemeActive && !!(userData?.joinedSummerChallenge && userData?.joinedChallengeId === activeChallengeId);
+  }, [isSummerThemeActive, userData?.joinedSummerChallenge, userData?.joinedChallengeId, activeChallengeId]);
   const userId = currentUser?.uid || "offline_member_uid"; 
   const passedWId = workoutId || route?.params?.workoutId;
   const isManualMode = passedWId === 'MANUAL_ENTRY';
