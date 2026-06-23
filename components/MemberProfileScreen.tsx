@@ -835,6 +835,7 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
     const [justSavedGoalMsg, setJustSavedGoalMsg] = useState('');
     const [isEditingNextGoal, setIsEditingNextGoal] = useState(false);
     const [globalChallenge, setGlobalChallenge] = useState<any>(null);
+    const [isChallengeLoaded, setIsChallengeLoaded] = useState(false);
     const [dismissedSummerChallenge, setDismissedSummerChallenge] = useState(false);
     const [isSummerDiplomaOpen, setIsSummerDiplomaOpen] = useState(false);
     const [showSummerStandings, setShowSummerStandings] = useState(false);
@@ -849,12 +850,16 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
 
     useEffect(() => {
         const activeTheme = !!(studioConfig?.enableSummerChallenge || selectedOrganization?.globalConfig?.enableSummerChallenge);
-        if (!activeTheme) return;
+        if (!activeTheme) {
+            setIsChallengeLoaded(true);
+            return;
+        }
         
         let unsubChallenge = () => {};
         import('../services/firebaseService').then(({ listenToGlobalSummerChallenge }) => {
             unsubChallenge = listenToGlobalSummerChallenge((data) => {
                 setGlobalChallenge(data);
+                setIsChallengeLoaded(true);
             });
         });
 
@@ -894,8 +899,12 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
     }, [configToUse]);
 
     const isUserJoined = useMemo(() => {
+        if (!isChallengeLoaded) {
+            // Safe prediction to prevent flashing/layout shift before Firestore snap
+            return !!userData?.joinedSummerChallenge;
+        }
         return !!(userData?.joinedSummerChallenge && userData?.joinedChallengeId === configToUse?.id);
-    }, [userData?.joinedSummerChallenge, userData?.joinedChallengeId, configToUse?.id]);
+    }, [userData?.joinedSummerChallenge, userData?.joinedChallengeId, configToUse?.id, isChallengeLoaded]);
 
     const [currentTimestamp, setCurrentTimestamp] = useState(Date.now());
     const [selectedSummerGoal, setSelectedSummerGoal] = useState(3);
@@ -1883,7 +1892,7 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                 <div className="space-y-3 sm:space-y-5 animate-fade-in">
                     
                     {/* Sommar-Sisu aktivering (Card 1) */}
-                    {isSummerThemeActive && !isUserJoined && !dismissedSummerChallenge && (
+                    {isSummerThemeActive && isChallengeLoaded && !isUserJoined && !dismissedSummerChallenge && (
                         <div className="relative overflow-hidden bg-gradient-to-br from-orange-500 via-amber-400 to-yellow-100 dark:from-orange-600 dark:via-amber-500 dark:to-yellow-200 text-amber-950 border-none rounded-[2rem] p-6 sm:p-8 shadow-[0_12px_40px_rgba(249,115,22,0.18)] text-left animate-fade-in">
                             {/* Spinning animated sun */}
                             <div className="absolute -right-8 -top-8 w-36 h-36 text-white/25 pointer-events-none select-none">
@@ -2656,7 +2665,7 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                     )}
 
                     {/* Compact, slim bottom-placed join card if user clicked "Kanske senare" */}
-                    {isSummerThemeActive && !isUserJoined && dismissedSummerChallenge && (
+                    {isSummerThemeActive && isChallengeLoaded && !isUserJoined && dismissedSummerChallenge && (
                         <div className="relative overflow-hidden bg-gradient-to-br from-orange-500 via-amber-400 to-yellow-100 dark:from-orange-600 dark:via-amber-500 dark:to-yellow-200 text-amber-950 border-none rounded-[2rem] p-5 shadow-[0_12px_40px_rgba(249,115,22,0.18)] text-left animate-fade-in mb-3.5">
                             {/* Sun rays backdrop */}
                             <div className="absolute top-[-40px] right-[-40px] w-64 h-64 bg-white/10 rounded-full blur-[50px] pointer-events-none"></div>
