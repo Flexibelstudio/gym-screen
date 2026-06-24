@@ -271,6 +271,114 @@
           color: #ffffff !important;
         }
       }
+
+      /* Default CSS Variables for feed and pb heights */
+      :root {
+        --feed-viewport-height: 288px;
+        --feed-item-height: 64px;
+        --pb-viewport-height: 288px;
+        --pb-item-height: 64px;
+      }
+
+      /* Tablet Portrait optimization (768px to 1024px) */
+      @media (min-width: 768px) and (max-width: 1024px) {
+        :root {
+          --feed-viewport-height: 180px;
+          --feed-item-height: 52px;
+          --pb-viewport-height: 180px;
+          --pb-item-height: 52px;
+        }
+
+        /* Prevent scrolling on the page on tablets */
+        .tablet-no-scroll {
+          overflow-y: hidden !important;
+        }
+
+        /* Compact Header padding and margins on tablets */
+        .tablet-compact-header {
+          margin-bottom: 0.75rem !important; /* mb-3 */
+          padding-top: 0.5rem !important; /* pt-2 */
+        }
+
+        /* Grid margin bottom adjustment on tablets */
+        .tablet-grid-container {
+          margin-bottom: 0.75rem !important; /* mb-3 */
+        }
+
+        /* Tablet bottom dashboard height constraints */
+        .tablet-bottom-dashboard {
+          height: 19vh !important;
+          min-height: 150px !important;
+          max-height: 230px !important;
+          margin-top: auto !important;
+          margin-bottom: 0.5rem !important;
+          gap: 1rem !important;
+        }
+
+        /* Tablet MenuCard overrides */
+        .menu-card-button {
+          padding: 0.75rem !important; /* p-3 */
+        }
+        /* Reduce gap inside button layout */
+        .menu-card-button .gap-2 {
+          gap: 0.25rem !important;
+        }
+        /* Icon container inside button */
+        .menu-card-button .bg-white\/15, .menu-card-button .w-fit {
+          padding: 0.375rem !important; /* p-1.5 */
+          margin-bottom: 0.25rem !important;
+        }
+        /* Icon sizes inside MenuCard buttons on tablet */
+        .menu-card-button svg {
+          width: 1.25rem !important; /* w-5 */
+          height: 1.25rem !important; /* h-5 */
+        }
+        /* Lock icon inside MenuCard buttons on tablet */
+        .menu-card-button .w-4.h-4 {
+          width: 0.875rem !important;
+          height: 0.875rem !important;
+        }
+        /* Emoji icon size inside MenuCard buttons on tablet */
+        .menu-card-button .text-2xl {
+          font-size: 1.25rem !important;
+        }
+
+        /* CommunityFeed & WeeklyPBList padding and header sizes on tablet */
+        .tablet-bottom-dashboard > div > div {
+          padding: 1rem !important; /* reduce padding inside widgets from p-6 to p-4 */
+          border-radius: 1.5rem !important; /* reduce border radius from 2.5rem to 1.5rem */
+        }
+        .tablet-bottom-dashboard h3.text-xl {
+          font-size: 1rem !important; /* text-base */
+        }
+        .tablet-bottom-dashboard .mb-4, .tablet-bottom-dashboard .mb-5 {
+          margin-bottom: 0.5rem !important; /* mb-2 */
+        }
+        /* List padding in widgets */
+        .tablet-bottom-dashboard .space-y-2 {
+          font-size: 0.875rem !important;
+        }
+        /* User image inside lists on tablet */
+        .tablet-bottom-dashboard .w-10.h-10 {
+          width: 2rem !important; /* w-8 */
+          height: 2rem !important; /* h-8 */
+          border-radius: 0.5rem !important;
+        }
+        /* User names/texts inside lists on tablet */
+        .tablet-bottom-dashboard .text-sm {
+          font-size: 0.75rem !important; /* text-xs */
+        }
+        .tablet-bottom-dashboard .text-xs {
+          font-size: 0.7rem !important;
+        }
+        .tablet-bottom-dashboard .text-\[10px\] {
+          font-size: 9px !important;
+        }
+        /* Date / time texts in feeds on tablet */
+        .tablet-bottom-dashboard .text-\[10px\].text-gray-400 {
+          font-size: 9px !important;
+        }
+      }
     </style>
             <script>
       tailwind.config = {
