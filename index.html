@@ -315,32 +315,92 @@
           gap: 1rem !important;
         }
 
-        /* Tablet MenuCard overrides */
-        .menu-card-button {
+        /* Tablet MenuCard overrides - 5 cols (both enabled: compact) */
+        .grid-cols-5 .menu-card-button {
           padding: 0.75rem !important; /* p-3 */
         }
         /* Reduce gap inside button layout */
-        .menu-card-button .gap-2 {
+        .grid-cols-5 .menu-card-button .gap-2 {
           gap: 0.25rem !important;
         }
         /* Icon container inside button */
-        .menu-card-button .bg-white\/15, .menu-card-button .w-fit {
+        .grid-cols-5 .menu-card-button .bg-white\/15, .grid-cols-5 .menu-card-button .w-fit {
           padding: 0.375rem !important; /* p-1.5 */
           margin-bottom: 0.25rem !important;
         }
         /* Icon sizes inside MenuCard buttons on tablet */
-        .menu-card-button svg {
+        .grid-cols-5 .menu-card-button svg {
           width: 1.25rem !important; /* w-5 */
           height: 1.25rem !important; /* h-5 */
         }
         /* Lock icon inside MenuCard buttons on tablet */
-        .menu-card-button .w-4.h-4 {
+        .grid-cols-5 .menu-card-button .w-4.h-4 {
           width: 0.875rem !important;
           height: 0.875rem !important;
         }
         /* Emoji icon size inside MenuCard buttons on tablet */
-        .menu-card-button .text-2xl {
+        .grid-cols-5 .menu-card-button .text-2xl {
           font-size: 1.25rem !important;
+        }
+        .grid-cols-5 .menu-card-button h3 {
+          font-size: 11px !important;
+          line-height: 1.1 !important;
+        }
+
+        /* Tablet MenuCard overrides - 4 cols (one enabled: slightly larger) */
+        .grid-cols-4 .menu-card-button {
+          padding: 1.25rem !important; /* p-5 */
+        }
+        .grid-cols-4 .menu-card-button .gap-2 {
+          gap: 0.5rem !important;
+        }
+        .grid-cols-4 .menu-card-button .bg-white\/15, .grid-cols-4 .menu-card-button .w-fit {
+          padding: 0.625rem !important; /* p-2.5 */
+          margin-bottom: 0.5rem !important;
+        }
+        .grid-cols-4 .menu-card-button svg {
+          width: 1.75rem !important; /* w-7 */
+          height: 1.75rem !important; /* h-7 */
+        }
+        .grid-cols-4 .menu-card-button .w-4.h-4 {
+          width: 1.125rem !important;
+          height: 1.125rem !important;
+        }
+        .grid-cols-4 .menu-card-button .text-2xl {
+          font-size: 1.75rem !important;
+        }
+        .grid-cols-4 .menu-card-button h3 {
+          font-size: 14px !important;
+          line-height: 1.2 !important;
+          font-weight: 900 !important;
+        }
+
+        /* InfoCarouselBanner Tablet Specific overrides (Compact to fit screen alongside gymflödet) */
+        .info-banner-container {
+          height: 24vh !important;
+          min-height: 180px !important;
+          max-height: 250px !important;
+        }
+        .info-carousel-wrapper {
+          padding: 1rem !important;
+        }
+        .info-carousel-inner {
+          gap: 1.5rem !important;
+        }
+        .info-carousel-image {
+          width: 160px !important;
+          height: 160px !important;
+        }
+        .info-carousel-headline {
+          font-size: 1.35rem !important;
+          margin-bottom: 0.25rem !important;
+          line-height: 1.2 !important;
+        }
+        .info-carousel-body {
+          font-size: 0.875rem !important;
+          line-height: 1.4 !important;
+          -webkit-line-clamp: 5 !important;
+          line-clamp: 5 !important;
         }
 
         /* CommunityFeed & WeeklyPBList padding and header sizes on tablet */
