@@ -165,6 +165,11 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ organizationId }) => {
             // 2 poäng i studion, 1 poäng utanför studion (minst 30 min)
             // ENDAST för de deltagare som har gått med aktivt i utmaningen
             if (member?.joinedSummerChallenge && member?.joinedChallengeId === activeChallengeId) {
+                const challengeStart = configToUse?.summerChallengeStartDate;
+                const challengeEnd = configToUse?.summerChallengeEndDate;
+                if (challengeStart && logTime < challengeStart) return;
+                if (challengeEnd && logTime > challengeEnd) return;
+
                 const joinedAt = member.joinedSummerChallengeAt || 0;
                 if (logTime >= joinedAt) {
                     let pts = 0;
