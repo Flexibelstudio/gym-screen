@@ -1004,6 +1004,10 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
             const logMember = membersList.find(m => m.uid === uid);
             if (!logMember || !(logMember.joinedSummerChallenge && logMember.joinedChallengeId === activeChallengeId)) return;
             const logTime = log.date || 0;
+            const challengeStart = configToUse?.summerChallengeStartDate;
+            const challengeEnd = configToUse?.summerChallengeEndDate;
+            if (challengeStart && logTime < challengeStart) return;
+            if (challengeEnd && logTime > challengeEnd) return;
             if (logTime < (logMember.joinedSummerChallengeAt || 0)) return;
 
             let pts = 0;
@@ -1157,6 +1161,11 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
 
             memberLogs.forEach(log => {
                 const logTime = new Date(log.date).getTime();
+                const challengeStart = configToUse?.summerChallengeStartDate;
+                const challengeEnd = configToUse?.summerChallengeEndDate;
+                if (challengeStart && logTime < challengeStart) return;
+                if (challengeEnd && logTime > challengeEnd) return;
+
                 if (logTime >= joinedAt) {
                     let pts = 0;
                     if (log.inStudio === true) {
@@ -1461,8 +1470,14 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
 
         if (isUserJoined) {
             const joinedAt = userData.joinedSummerChallengeAt || 0;
+            const challengeStart = configToUse?.summerChallengeStartDate;
+            const challengeEnd = configToUse?.summerChallengeEndDate;
+
             logs.forEach(log => {
                 const logTime = new Date(log.date).getTime();
+                if (challengeStart && logTime < challengeStart) return;
+                if (challengeEnd && logTime > challengeEnd) return;
+
                 if (logTime >= joinedAt) {
                     let pts = 0;
                     if (log.inStudio === true) {
@@ -1491,7 +1506,7 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
             summerTotalPoints, 
             summerWeekPoints 
         };
-    }, [logs, userData, isUserJoined]);
+    }, [logs, userData, isUserJoined, configToUse]);
 
     const daysLeft = useMemo(() => {
         if (!userData.goals?.targetDate) return null;
@@ -2025,7 +2040,7 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                     <WeeklyGoalRing 
                         current={stats.thisWeek} 
                         goal={userData.weeklyGoal || 3} 
-                        hasSummerSisu={isSummerThemeActive && isUserJoined && !isChallengeEnded}
+                        hasSummerSisu={isSummerThemeActive && isUserJoined && isChallengeStarted && !isChallengeEnded}
                         summerWeekPoints={stats.summerWeekPoints}
                         summerTotalPoints={stats.summerTotalPoints}
                     />

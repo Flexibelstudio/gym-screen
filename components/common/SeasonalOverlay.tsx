@@ -316,6 +316,10 @@ const GymThermometerMascot = ({ isStudioMode = false }: { isStudioMode?: boolean
             if (!logMember || !(logMember.joinedSummerChallenge && logMember.joinedChallengeId === activeChallengeId)) return;
             
             const logTime = new Date(log.date || 0).getTime();
+            const challengeStart = configToUse?.summerChallengeStartDate;
+            const challengeEnd = configToUse?.summerChallengeEndDate;
+            if (challengeStart && logTime < challengeStart) return;
+            if (challengeEnd && logTime > challengeEnd) return;
             if (logTime < (logMember.joinedSummerChallengeAt || 0)) return;
             
             let pts = 0;

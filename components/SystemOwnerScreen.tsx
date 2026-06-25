@@ -701,6 +701,10 @@ const OrgChallengeStatsRow: React.FC<{ org: Organization; challengeId: string }>
         const logMember = activeChallengeMembers.find(m => m.uid === uid);
         if (!logMember) return;
         const logTime = log.date || 0;
+        const challengeStart = org.globalConfig?.summerChallengeStartDate;
+        const challengeEnd = org.globalConfig?.summerChallengeEndDate;
+        if (challengeStart && logTime < challengeStart) return;
+        if (challengeEnd && logTime > challengeEnd) return;
         if (logTime < (logMember.joinedSummerChallengeAt || 0)) return;
 
         let pts = 0;
