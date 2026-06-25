@@ -1128,8 +1128,18 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
   }, [configToUse]);
 
   const isSummerChallengeOn = useMemo(() => {
-    return isSummerThemeActive && !!(userData?.joinedSummerChallenge && userData?.joinedChallengeId === activeChallengeId);
-  }, [isSummerThemeActive, userData?.joinedSummerChallenge, userData?.joinedChallengeId, activeChallengeId]);
+    if (!isSummerThemeActive) return false;
+    if (!userData?.joinedSummerChallenge || userData?.joinedChallengeId !== activeChallengeId) return false;
+    
+    // Kontrollera om utmaningen faktiskt är aktiv just nu baserat på datumen
+    const now = Date.now();
+    const startDate = configToUse?.summerChallengeStartDate;
+    const endDate = configToUse?.summerChallengeEndDate;
+    if (startDate && now < startDate) return false;
+    if (endDate && now > endDate) return false;
+    
+    return true;
+  }, [isSummerThemeActive, userData?.joinedSummerChallenge, userData?.joinedChallengeId, activeChallengeId, configToUse]);
   const userId = currentUser?.uid || "offline_member_uid"; 
   const passedWId = workoutId || route?.params?.workoutId;
   const isManualMode = passedWId === 'MANUAL_ENTRY';
