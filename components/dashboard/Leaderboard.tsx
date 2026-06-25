@@ -48,16 +48,32 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ organizationId }) => {
         return base;
     }, [selectedOrganization, studioConfig, globalChallenge]);
 
-    const isSummerActive = !!configToUse?.enableSummerChallenge;
-    const currentTimestamp = Date.now();
-    const sisuTabVisible = isSummerActive;
-
-    // Default to sisu tab if summer challenge is active
-    useEffect(() => {
-        if (isSummerActive) {
-            setActiveTab('sisu');
+    const activeChallengeId = useMemo(() => {
+        if (!configToUse) return 'default';
+        if (configToUse.summerChallengeStartDate && configToUse.summerChallengeEndDate) {
+            return `summer_${configToUse.summerChallengeStartDate}_${configToUse.summerChallengeEndDate}`;
         }
-    }, [isSummerActive]);
+        return configToUse.id || 'default';
+    }, [configToUse]);
+
+    const currentTimestamp = Date.now();
+
+    const isSummerChallengeOngoing = useMemo(() => {
+        if (!configToUse?.enableSummerChallenge) return false;
+        if (!configToUse?.summerChallengeStartDate || !configToUse?.summerChallengeEndDate) return false;
+        return currentTimestamp >= configToUse.summerChallengeStartDate && currentTimestamp <= configToUse.summerChallengeEndDate;
+    }, [configToUse, currentTimestamp]);
+
+    const sisuTabVisible = isSummerChallengeOngoing;
+
+    // Default to sisu tab if summer challenge is active and currently ongoing
+    useEffect(() => {
+        if (isSummerChallengeOngoing) {
+            setActiveTab('sisu');
+        } else {
+            setActiveTab('workouts');
+        }
+    }, [isSummerChallengeOngoing]);
 
     useEffect(() => {
         if (userData?.locationId) {
@@ -148,7 +164,7 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ organizationId }) => {
             // 2. Beräkna sisu-poäng för denna logg med den nya, förenklade regeln:
             // 2 poäng i studion, 1 poäng utanför studion (minst 30 min)
             // ENDAST för de deltagare som har gått med aktivt i utmaningen
-            if (member?.joinedSummerChallenge && member?.joinedChallengeId === configToUse?.id) {
+            if (member?.joinedSummerChallenge && member?.joinedChallengeId === activeChallengeId) {
                 const joinedAt = member.joinedSummerChallengeAt || 0;
                 if (logTime >= joinedAt) {
                     let pts = 0;

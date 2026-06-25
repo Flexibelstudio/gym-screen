@@ -122,7 +122,7 @@ export const CommunityFeed: React.FC<CommunityFeedProps> = ({ onExpand, isExpand
 
             <div 
                 className={`flex-grow overflow-y-auto pr-1 space-y-2 relative z-10 custom-scrollbar scroll-smooth`}
-                style={{ height: !isExpanded ? `${viewportHeight}px` : 'auto', maxHeight: isExpanded ? '70vh' : undefined }}
+                style={{ height: !isExpanded ? 'var(--feed-viewport-height, 288px)' : 'auto', maxHeight: isExpanded ? '70vh' : undefined }}
             >
                 <AnimatePresence initial={false} mode="popLayout">
                     {logs.length > 0 ? (
@@ -140,7 +140,7 @@ export const CommunityFeed: React.FC<CommunityFeedProps> = ({ onExpand, isExpand
                                     opacity: { duration: 0.2 }
                                 }}
                                 className="bg-gray-50 dark:bg-black/30 hover:bg-gray-100 dark:hover:bg-black/40 transition-colors rounded-2xl flex items-center gap-4 border border-gray-100 dark:border-white/5 group px-4 shadow-sm"
-                                style={{ height: `${itemHeight - 8}px` }}
+                                style={{ height: 'var(--feed-item-height, 64px)' }}
                             >
                                 <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-indigo-500 to-purple-500 flex items-center justify-center text-white font-black text-sm shadow-lg flex-shrink-0 overflow-hidden border border-white/10">
                                     {log.memberPhotoUrl ? (

@@ -898,13 +898,21 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
         return !!configToUse?.enableSummerChallenge;
     }, [configToUse]);
 
+    const activeChallengeId = useMemo(() => {
+        if (!configToUse) return 'default';
+        if (configToUse.summerChallengeStartDate && configToUse.summerChallengeEndDate) {
+            return `summer_${configToUse.summerChallengeStartDate}_${configToUse.summerChallengeEndDate}`;
+        }
+        return configToUse.id || 'default';
+    }, [configToUse]);
+
     const isUserJoined = useMemo(() => {
         if (!isChallengeLoaded) {
             // Safe prediction to prevent flashing/layout shift before Firestore snap
             return !!userData?.joinedSummerChallenge;
         }
-        return !!(userData?.joinedSummerChallenge && userData?.joinedChallengeId === configToUse?.id);
-    }, [userData?.joinedSummerChallenge, userData?.joinedChallengeId, configToUse?.id, isChallengeLoaded]);
+        return !!(userData?.joinedSummerChallenge && userData?.joinedChallengeId === activeChallengeId);
+    }, [userData?.joinedSummerChallenge, userData?.joinedChallengeId, activeChallengeId, isChallengeLoaded]);
 
     const [currentTimestamp, setCurrentTimestamp] = useState(Date.now());
     const [selectedSummerGoal, setSelectedSummerGoal] = useState(3);
@@ -994,7 +1002,7 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
             const uid = log.memberId;
             if (!uid) return;
             const logMember = membersList.find(m => m.uid === uid);
-            if (!logMember || !(logMember.joinedSummerChallenge && logMember.joinedChallengeId === configToUse?.id)) return;
+            if (!logMember || !(logMember.joinedSummerChallenge && logMember.joinedChallengeId === activeChallengeId)) return;
             const logTime = log.date || 0;
             if (logTime < (logMember.joinedSummerChallengeAt || 0)) return;
 
@@ -1020,7 +1028,7 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
         });
 
         const challengeParticipantsOnSunday = locationMembers.filter(m => {
-            if (!(m.joinedSummerChallenge && m.joinedChallengeId === configToUse?.id)) return false;
+            if (!(m.joinedSummerChallenge && m.joinedChallengeId === activeChallengeId)) return false;
             const joinedAt = m.joinedSummerChallengeAt || 0;
             const sundayEnd = monday.getTime() + 7 * 24 * 60 * 60 * 1000;
             if (joinedAt >= sundayEnd) return false;
@@ -1104,7 +1112,7 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
 
         const nextTarget = nextTargetPct > 0 ? Math.ceil((nextTargetPct / 100) * clubWeeklyTarget) : -1;
         const avgPoints = N > 0 ? Number((totalPoints / N).toFixed(1)) : 0;
-        const totalRegisteredCount = locationMembers.filter(m => m.joinedSummerChallenge && m.joinedChallengeId === configToUse?.id).length;
+        const totalRegisteredCount = locationMembers.filter(m => m.joinedSummerChallenge && m.joinedChallengeId === activeChallengeId).length;
 
         return {
             totalPoints,
@@ -1121,7 +1129,7 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
             nextTarget,
             totalRegisteredCount
         };
-    }, [filteredCommunityLogs, isSummerThemeActive, membersList, userData?.locationId, configToUse?.id]);
+    }, [filteredCommunityLogs, isSummerThemeActive, membersList, userData?.locationId, activeChallengeId]);
 
     const summerLeaderboardData = useMemo(() => {
         if (!isSummerThemeActive || !membersList.length) return [];
@@ -1136,7 +1144,7 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
 
         const challengeMembers = membersList.filter(m => {
             if (userData?.locationId && m.locationId !== userData.locationId) return false;
-            return !!(m.joinedSummerChallenge && m.joinedChallengeId === configToUse?.id);
+            return !!(m.joinedSummerChallenge && m.joinedChallengeId === activeChallengeId);
         });
 
         const ranking = challengeMembers.map(member => {
@@ -1177,7 +1185,7 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
         });
 
         return ranking;
-    }, [communityLogs, membersList, isSummerThemeActive, userData?.locationId, configToUse?.id]);
+    }, [communityLogs, membersList, isSummerThemeActive, userData?.locationId, activeChallengeId]);
 
     const sortedTotalPointsLeaderboard = useMemo(() => {
         return [...summerLeaderboardData].sort((a, b) => b.totalPoints - a.totalPoints);
@@ -1980,7 +1988,7 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                                                     try {
                                                         await updateUserProfile(userData.uid, { 
                                                             joinedSummerChallenge: true, 
-                                                            joinedChallengeId: configToUse?.id || 'default',
+                                                            joinedChallengeId: activeChallengeId,
                                                             joinedSummerChallengeAt: Date.now(),
                                                             summerChallengeGoals: {},
                                                             summerChallengeGoal: selectedSummerGoal
@@ -1998,7 +2006,7 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                                             </button>
                                             <button
                                                 onClick={() => {
-                                                    const challengeId = configToUse?.id || 'default';
+                                                    const challengeId = activeChallengeId;
                                                     localStorage.setItem(`dismissed-summer-challenge-${userData.uid}-${challengeId}`, 'true');
                                                     setDismissedSummerChallenge(true);
                                                 }}
@@ -2715,7 +2723,7 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                                         try {
                                             await updateUserProfile(userData.uid, { 
                                                 joinedSummerChallenge: true, 
-                                                joinedChallengeId: configToUse?.id || 'default',
+                                                joinedChallengeId: activeChallengeId,
                                                 joinedSummerChallengeAt: Date.now(),
                                                 summerChallengeGoals: {},
                                                 summerChallengeGoal: selectedSummerGoal

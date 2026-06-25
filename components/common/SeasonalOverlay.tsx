@@ -261,6 +261,14 @@ const GymThermometerMascot = ({ isStudioMode = false }: { isStudioMode?: boolean
         return base as any;
     }, [studioConfig, selectedOrganization, globalChallenge]);
 
+    const activeChallengeId = useMemo(() => {
+        if (!configToUse) return 'default';
+        if (configToUse.summerChallengeStartDate && configToUse.summerChallengeEndDate) {
+            return `summer_${configToUse.summerChallengeStartDate}_${configToUse.summerChallengeEndDate}`;
+        }
+        return configToUse.id || 'default';
+    }, [configToUse]);
+
     useEffect(() => {
         if (!selectedOrganization?.id) return;
         const unsubscribe = listenToMembers(selectedOrganization.id, (members) => {
@@ -305,7 +313,7 @@ const GymThermometerMascot = ({ isStudioMode = false }: { isStudioMode?: boolean
             if (!uid) return;
             
             const logMember = membersList.find(m => m.uid === uid);
-            if (!logMember || !(logMember.joinedSummerChallenge && logMember.joinedChallengeId === configToUse?.id)) return;
+            if (!logMember || !(logMember.joinedSummerChallenge && logMember.joinedChallengeId === activeChallengeId)) return;
             
             const logTime = new Date(log.date || 0).getTime();
             if (logTime < (logMember.joinedSummerChallengeAt || 0)) return;
@@ -332,7 +340,7 @@ const GymThermometerMascot = ({ isStudioMode = false }: { isStudioMode?: boolean
         });
 
         const challengeParticipantsOnSunday = locationMembers.filter(m => {
-            if (!(m.joinedSummerChallenge && m.joinedChallengeId === configToUse?.id)) return false;
+            if (!(m.joinedSummerChallenge && m.joinedChallengeId === activeChallengeId)) return false;
             const joinedAt = m.joinedSummerChallengeAt || 0;
             const sundayEnd = startOfWeek.getTime() + 7 * 24 * 60 * 60 * 1000;
             if (joinedAt >= sundayEnd) return false;

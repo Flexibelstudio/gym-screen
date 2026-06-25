@@ -209,8 +209,12 @@ const ChallengePromoWidget: React.FC<{ org: Organization }> = ({ org }) => {
     const startStr = challenge.startDate ? new Date(challenge.startDate).toLocaleDateString('sv-SE', { day: 'numeric', month: 'short' }) : '';
     const endStr = challenge.endDate ? new Date(challenge.endDate).toLocaleDateString('sv-SE', { day: 'numeric', month: 'short' }) : '';
 
+    const challengeId = challenge.startDate && challenge.endDate
+        ? `summer_${challenge.startDate}_${challenge.endDate}`
+        : (challenge.id || 'default');
+
     // Beräkna realtidssatstistik för detta gym
-    const activeChallengeMembers = members.filter(m => m.joinedSummerChallenge && m.joinedChallengeId === challenge.id);
+    const activeChallengeMembers = members.filter(m => m.joinedSummerChallenge && m.joinedChallengeId === challengeId);
     const participantsCount = activeChallengeMembers.length;
 
     const challengeLogs = logs.filter(l => {
@@ -437,7 +441,7 @@ const DashboardContent: React.FC<DashboardContentProps> = ({ organization, worko
     ];
 
     return (
-        <div className="space-y-0 animate-fade-in pb-12">
+        <div className="space-y-6 animate-fade-in pb-12">
             <WelcomeBanner name={organization.name} />
 
             <ChallengePromoWidget org={organization} />

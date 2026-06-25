@@ -85,7 +85,7 @@ export const WeeklyPBList: React.FC<WeeklyPBListProps> = ({ onExpand, isExpanded
             {/* List */}
             <div 
                 className={`flex-grow overflow-y-auto pr-1 space-y-2 relative z-10 custom-scrollbar scroll-smooth`}
-                style={{ height: !isExpanded ? `${viewportHeight}px` : 'auto', maxHeight: isExpanded ? '70vh' : undefined }}
+                style={{ height: !isExpanded ? 'var(--pb-viewport-height, 288px)' : 'auto', maxHeight: isExpanded ? '70vh' : undefined }}
             >
                 <AnimatePresence initial={false}>
                     {events.length > 0 ? (
@@ -101,7 +101,7 @@ export const WeeklyPBList: React.FC<WeeklyPBListProps> = ({ onExpand, isExpanded
                                     animate={{ opacity: 1, x: 0 }}
                                     transition={{ delay: index * 0.05 }}
                                     className="bg-gray-50 dark:bg-black/30 hover:bg-gray-100 dark:hover:bg-black/40 transition-colors rounded-2xl flex items-center gap-4 border border-gray-100 dark:border-white/5 group px-4 shadow-sm"
-                                    style={{ height: `${itemHeight - 8}px` }}
+                                    style={{ height: 'var(--pb-item-height, 64px)' }}
                                 >
                                     {/* Avatar */}
                                     <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-yellow-400 to-orange-600 flex items-center justify-center text-white font-black text-lg shadow-lg flex-shrink-0 overflow-hidden border border-yellow-400/50">

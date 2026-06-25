@@ -76,6 +76,7 @@ const MenuCard: React.FC<{
             variants={variants}
             onClick={onClick}
             className={`
+                menu-card-button
                 relative overflow-hidden rounded-2xl p-4 sm:p-5 text-left flex flex-col justify-between aspect-square w-full
                 bg-primary bg-gradient-to-br from-white/20 via-transparent to-black/30 text-white
                 shadow-xl border-t border-l border-white/20 transition-shadow duration-300
@@ -111,7 +112,7 @@ const MenuCard: React.FC<{
                     {!hideTitle && (
                         <>
                             <h3 
-                                className="text-xs sm:text-sm md:text-base lg:text-[1.125rem] xl:text-[1.25rem] font-black leading-[1.1] drop-shadow-md tracking-tight uppercase break-words line-clamp-3"
+                                className="text-xs sm:text-xs md:text-[11px] md:tracking-tighter lg:text-[1.125rem] xl:text-[1.25rem] font-black leading-[1.1] drop-shadow-md tracking-tight uppercase break-words line-clamp-3"
                             >
                                 {title}
                             </h3>
@@ -287,10 +288,10 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
     <>
         <AmbientBackground />
         
-        <div className="w-full max-w-[1800px] mx-auto px-6 sm:px-10 flex flex-col flex-1 min-h-0 overflow-y-auto custom-scrollbar">
+        <div className="w-full max-w-[1800px] mx-auto px-6 sm:px-10 flex flex-col flex-1 min-h-0 overflow-y-auto tablet-no-scroll custom-scrollbar">
             
             {/* Header Section */}
-            <div className="flex flex-shrink-0 justify-between items-start mb-4 md:mb-6 w-full pt-4">
+            <div className="flex flex-shrink-0 justify-between items-start mb-4 md:mb-6 tablet-compact-header w-full pt-4">
                 <div className="flex flex-col gap-3">
                     {renderBranding()}
                     <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
@@ -312,7 +313,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
             </div>
 
             {/* Meny-grid */}
-            <div className={`flex-shrink-0 ${!studioConfig.enableWorkoutLogging ? 'mb-4 md:mb-8 xl:mb-12' : 'mb-3 md:mb-6 xl:mb-8'}`}>
+            <div className={`flex-shrink-0 tablet-grid-container ${!studioConfig.enableWorkoutLogging ? 'mb-4 md:mb-8 xl:mb-12' : 'mb-3 md:mb-6 xl:mb-8'}`}>
                 <div className={`grid grid-cols-2 sm:grid-cols-3 ${show5Cols ? 'md:grid-cols-5 lg:grid-cols-5 xl:grid-cols-5' : 'md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-4'} gap-4 sm:gap-6`}>
                     {menuItems.map((item, index) => (
                         <MenuCard
@@ -334,7 +335,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
 
             {/* Botten-dashboard - Endast om loggning är på */}
             {studioConfig.enableWorkoutLogging && (
-                <div className="mt-auto flex-shrink-0 grid grid-cols-1 md:grid-cols-2 gap-6 h-[25vh] md:h-[28vh] xl:h-[400px] min-h-[180px] max-h-[400px] mb-4 xl:mb-6">
+                <div className="mt-auto flex-shrink-0 grid grid-cols-1 md:grid-cols-2 gap-6 h-[25vh] md:h-[28vh] xl:h-[400px] min-h-[180px] max-h-[400px] tablet-bottom-dashboard mb-4 xl:mb-6">
                     <motion.div 
                         initial={{ opacity: 0, y: 30 }} 
                         animate={{ opacity: 1, y: 0 }} 
