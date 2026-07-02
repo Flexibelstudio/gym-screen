@@ -742,6 +742,28 @@ export const deleteWorkoutLog = async (logId: string) => {
     } catch (e) { console.error("deleteWorkoutLog failed", e); }
 };
 
+export const toggleWorkoutLogLike = async (logId: string, memberId: string, memberName: string, currentlyLiked: boolean) => {
+    if (isOffline || !db || !logId || !memberId) return;
+    try {
+        const docRef = doc(db, 'workoutLogs', logId);
+        if (currentlyLiked) {
+            await updateDoc(docRef, {
+                [`likes.${memberId}`]: deleteField()
+            });
+        } else {
+            await updateDoc(docRef, {
+                [`likes.${memberId}`]: {
+                    uid: memberId,
+                    name: memberName,
+                    likedAt: Date.now()
+                }
+            });
+        }
+    } catch (e) {
+        console.error("toggleWorkoutLogLike failed", e);
+    }
+};
+
 const getLeaderboardDocId = (orgId: string, locationId: string | 'all') => {
     const d = new Date();
     const dISO = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));

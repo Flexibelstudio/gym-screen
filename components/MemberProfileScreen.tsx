@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { WorkoutLog, UserData, MemberGoals, Page, UserRole, SmartGoalDetail, WorkoutDiploma, StudioConfig, BenchmarkDefinition } from '../types';
-import { listenToMemberLogs, updateUserGoals, updateUserProfile, uploadImage, updateWorkoutLog, deleteWorkoutLog, requestPushNotificationPermission, auth, getPastRaces } from '../services/firebaseService';
+import { listenToMemberLogs, updateUserGoals, updateUserProfile, uploadImage, updateWorkoutLog, deleteWorkoutLog, requestPushNotificationPermission, auth, getPastRaces, toggleWorkoutLogLike } from '../services/firebaseService';
 import { ChartBarIcon, DumbbellIcon, PencilIcon, SparklesIcon, UserIcon, FireIcon, LightningIcon, TrashIcon, CloseIcon, TrophyIcon, ToggleSwitch, ClockIcon, HistoryIcon, FlagIcon, StarIcon, ChevronRightIcon, SunIcon } from './icons';
 import { Modal } from './ui/Modal';
 import { useConfirm } from './ConfirmContext';
@@ -840,6 +840,17 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
     const [isSummerDiplomaOpen, setIsSummerDiplomaOpen] = useState(false);
     const [showSummerStandings, setShowSummerStandings] = useState(false);
 
+    const loggedInMember = useMemo(() => {
+        return membersList.find(m => m.uid === auth?.currentUser?.uid);
+    }, [membersList]);
+
+    const loggedInMemberName = useMemo(() => {
+        if (loggedInMember) {
+            return `${loggedInMember.firstName || ''} ${loggedInMember.lastName || ''}`.trim() || 'Medlem';
+        }
+        return auth?.currentUser?.displayName || 'Medlem';
+    }, [loggedInMember]);
+
     useEffect(() => {
         if (userData?.uid) {
             const challengeId = globalChallenge?.id || 'default';
@@ -971,6 +982,15 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
         }
         return logs;
     }, [communityLogs, userData?.locationId, isSummerThemeActive, configToUse?.summerChallengeStartDate, configToUse?.summerChallengeEndDate, membersList]);
+
+    useEffect(() => {
+        if (selectedPhoto) {
+            const latest = filteredCommunityLogs.find(log => log.id === selectedPhoto.id);
+            if (latest) {
+                setSelectedPhoto(latest);
+            }
+        }
+    }, [filteredCommunityLogs, selectedPhoto?.id]);
 
     const [sisuDetailsExpanded, setSisuDetailsExpanded] = useState(false);
     const [justActivatedSummer, setJustActivatedSummer] = useState(false);
@@ -1830,6 +1850,48 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                         <div className="overflow-hidden rounded-2xl border border-gray-100 dark:border-gray-800 shadow-md">
                             <img src={selectedPhoto.imageUrl} alt="Sommarbild" className="w-full max-h-[450px] object-cover" />
                         </div>
+
+                        {/* Interaktiv gilla-rad */}
+                        {(() => {
+                            const isLiked = !!(selectedPhoto.likes && auth?.currentUser?.uid && selectedPhoto.likes[auth.currentUser.uid]);
+                            const likeCount = selectedPhoto.likes ? Object.keys(selectedPhoto.likes).length : 0;
+                            const likersList = selectedPhoto.likes ? Object.values(selectedPhoto.likes).map(l => l.name) : [];
+                            
+                            return (
+                                <div className="flex items-center justify-between bg-gray-50 dark:bg-gray-800/40 px-4 py-3 rounded-2xl border border-gray-100 dark:border-gray-800">
+                                    <div className="flex items-center gap-3 flex-wrap">
+                                        <button
+                                            type="button"
+                                            onClick={async (e) => {
+                                                e.preventDefault();
+                                                if (!auth?.currentUser?.uid) return;
+                                                await toggleWorkoutLogLike(
+                                                    selectedPhoto.id,
+                                                    auth.currentUser.uid,
+                                                    loggedInMemberName,
+                                                    isLiked
+                                                );
+                                            }}
+                                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all duration-150 active:scale-90 cursor-pointer ${
+                                                isLiked 
+                                                    ? 'bg-rose-500/10 text-rose-500 hover:bg-rose-500/15' 
+                                                    : 'bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 text-gray-500 dark:text-gray-400'
+                                            }`}
+                                        >
+                                            <span className="text-base leading-none">{isLiked ? '❤️' : '🤍'}</span>
+                                            <span>{likeCount}</span>
+                                        </button>
+                                        
+                                        {likeCount > 0 && (
+                                            <p className="text-[11px] text-gray-500 dark:text-gray-400 font-semibold leading-snug">
+                                                <span className="font-black text-rose-500">Hjärtat av:</span> {likersList.join(', ')}
+                                            </p>
+                                        )}
+                                    </div>
+                                </div>
+                            );
+                        })()}
+
                         <div className="space-y-3">
                             <div className="flex items-center gap-3">
                                 {selectedPhoto.memberPhotoUrl ? (
@@ -1899,6 +1961,11 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                                                 alt={log.workoutTitle || "Sommarbild"}
                                                 className="w-full h-full object-cover"
                                             />
+                                            {log.likes && Object.keys(log.likes).length > 0 && (
+                                                <div className="absolute bottom-1.5 right-1.5 bg-black/60 backdrop-blur-xs px-1.5 py-0.5 rounded-md text-[8px] font-black text-white flex items-center gap-0.5 select-none z-10">
+                                                    ❤️ {Object.keys(log.likes).length}
+                                                </div>
+                                            )}
                                         </div>
                                         <div className="px-1 pb-1 min-w-0">
                                             <span className="block text-[10px] font-black text-gray-800 dark:text-gray-200 truncate group-hover:text-primary transition-colors">
@@ -2678,6 +2745,11 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                                                             alt={log.workoutTitle || "Sommarbild"}
                                                             className="w-full h-full object-cover"
                                                         />
+                                                        {log.likes && Object.keys(log.likes).length > 0 && (
+                                                            <div className="absolute bottom-1 right-1 bg-black/60 backdrop-blur-xs px-1.5 py-0.5 rounded-md text-[8px] font-black text-white flex items-center gap-0.5 select-none z-10">
+                                                                ❤️ {Object.keys(log.likes).length}
+                                                            </div>
+                                                        )}
                                                     </div>
                                                     <span className="block text-[9px] font-black text-amber-950 truncate px-1">
                                                         {log.memberName || 'Medlem'}
