@@ -960,13 +960,17 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
     const filteredCommunityLogs = useMemo(() => {
         let logs = communityLogs;
         if (userData?.locationId) {
-            logs = logs.filter(log => log.locationId === userData.locationId);
+            logs = logs.filter(log => {
+                const logMember = membersList.find(m => m.uid === log.memberId);
+                const logLocationId = log.locationId || logMember?.locationId;
+                return logLocationId === userData.locationId;
+            });
         }
         if (isSummerThemeActive && configToUse?.summerChallengeStartDate && configToUse?.summerChallengeEndDate) {
             logs = logs.filter(log => (log.date || 0) >= configToUse.summerChallengeStartDate && (log.date || 0) <= configToUse.summerChallengeEndDate);
         }
         return logs;
-    }, [communityLogs, userData?.locationId, isSummerThemeActive, configToUse?.summerChallengeStartDate, configToUse?.summerChallengeEndDate]);
+    }, [communityLogs, userData?.locationId, isSummerThemeActive, configToUse?.summerChallengeStartDate, configToUse?.summerChallengeEndDate, membersList]);
 
     const [sisuDetailsExpanded, setSisuDetailsExpanded] = useState(false);
     const [justActivatedSummer, setJustActivatedSummer] = useState(false);

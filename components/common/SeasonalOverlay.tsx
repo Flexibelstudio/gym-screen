@@ -303,7 +303,11 @@ const GymThermometerMascot = ({ isStudioMode = false }: { isStudioMode?: boolean
         // Filtrera efter ort/studio om det finns på skärmen eller användaren
         const activeLocationId = isStudioMode ? selectedStudio?.locationId : userData?.locationId;
         if (activeLocationId) {
-            thisWeeksLogs = thisWeeksLogs.filter(log => log.locationId === activeLocationId);
+            thisWeeksLogs = thisWeeksLogs.filter(log => {
+                const logMember = membersList.find(m => m.uid === log.memberId);
+                const logLocationId = log.locationId || logMember?.locationId;
+                return logLocationId === activeLocationId;
+            });
         }
 
         let totalPoints = 0;
