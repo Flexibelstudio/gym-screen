@@ -564,6 +564,13 @@ export interface WorkoutLog {
     summerPoints?: number; // NYTT: Poäng i sommarutmaningen (1, 2 eller 3)
     reachedSummerGoal?: boolean; // NYTT: Om användaren uppnått veckans sommar mål med detta pass
     overDeliveredSummerGoal?: boolean; // NYTT: Om användaren passerat sitt veckomål
+    likes?: {
+        [uid: string]: {
+            uid: string;
+            name: string;
+            likedAt: number;
+        }
+    };
 }
 
 export interface CheckInEvent {
@@ -641,6 +648,14 @@ export interface GalleryImage {
     id: string;
     imageUrl: string;
     gymName?: string;
+    createdAt: number;
+}
+
+export interface Partner {
+    id: string;
+    name: string;
+    logoUrl: string;
+    websiteUrl?: string;
     createdAt: number;
 }
 
