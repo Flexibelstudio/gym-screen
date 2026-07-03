@@ -1918,14 +1918,7 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                                 )}
                             </div>
                         </div>
-                        <div className="flex justify-end">
-                            <button
-                                onClick={() => setSelectedPhoto(null)}
-                                className="px-6 py-2.5 bg-gray-900 dark:bg-white text-white dark:text-gray-900 text-xs font-black uppercase tracking-widest rounded-xl transition-all shadow hover:bg-primary hover:text-white duration-150 active:scale-95"
-                            >
-                                Stäng
-                            </button>
-                        </div>
+                        {/* Stäng-knappen borttagen eftersom kryss-knappen uppe till höger räcker */}
                     </div>
                 </Modal>
             )}
