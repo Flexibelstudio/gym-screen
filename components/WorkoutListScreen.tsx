@@ -272,7 +272,7 @@ export const WorkoutListScreen: React.FC<WorkoutListScreenProps> = ({ passkatego
                     <div className="flex flex-wrap gap-2 pb-1 pt-1 px-1">
                         <button
                             onClick={() => setSelectedCategory(null)}
-                            className={`px-4.5 py-3 rounded-2xl font-extrabold text-sm transition-all flex items-center gap-1.5 border active:scale-95 shadow-sm
+                            className={`px-6 py-3 rounded-2xl font-extrabold text-sm transition-all flex items-center gap-1.5 border active:scale-95 shadow-sm
                                 ${!selectedCategory 
                                     ? 'bg-primary text-white border-primary shadow-sm font-black' 
                                     : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700'}`}
@@ -290,7 +290,7 @@ export const WorkoutListScreen: React.FC<WorkoutListScreenProps> = ({ passkatego
                                         setSelectedCategory(cat.name);
                                     }
                                 }}
-                                className={`px-4.5 py-3 rounded-2xl font-extrabold text-sm transition-all flex items-center gap-1.5 border active:scale-95 shadow-sm
+                                className={`px-6 py-3 rounded-2xl font-extrabold text-sm transition-all flex items-center gap-1.5 border active:scale-95 shadow-sm
                                     ${selectedCategory === cat.name 
                                         ? 'bg-primary text-white border-primary shadow-sm font-black' 
                                         : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700'}`}

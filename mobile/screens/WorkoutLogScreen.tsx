@@ -213,7 +213,7 @@ const getFunComparison = (totalWeight: number) => {
     return { count: formattedCount, name: bestMatch.name, single: bestMatch.singular, weight: bestMatch.weight, emoji: bestMatch.emoji };
 };
 
-const KROPPSKANSLA_TAGS = ["Pigg", "Stark", "Seg", "Stel", "Ont", "Stressad", "Bra musik", "Bra pepp", "Grymt pass"];
+const KROPPSKANSLA_TAGS = ["Pigg", "Stark", "Svag", "Trött", "Seg", "Stel", "Ont", "Stressad", "Taggad", "Bra musik", "Bra pepp", "Grymt pass"];
 const RPE_LEVELS = [
     { range: '1-2', label: 'Mycket lätt', desc: 'Du kan sjunga eller prata helt obehindrat.', color: 'bg-emerald-500' },
     { range: '3-4', label: 'Lätt', desc: 'Du börjar bli varm men kan fortfarande prata enkelt.', color: 'bg-green-500' },
@@ -929,7 +929,7 @@ const PostWorkoutForm: React.FC<{ data: LogData; onUpdate: (updates: Partial<Log
                     </div>
                 </div>
                 <div className="mt-10"><h5 className="text-[11px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-4">Kroppskänla</h5><div className="flex flex-wrap gap-2">
-                    {KROPPSKANSLA_TAGS.map(tag => (<button key={tag} onClick={() => toggleTag(tag)} className={`px-4 py-2.5 rounded-xl text-xs font-bold border-2 transition-all active:scale-95 ${data.tags.includes(tag) ? 'bg-gray-900 dark:bg-white text-white dark:text-gray-900 border-gray-900 dark:border-white shadow-md' : 'bg-white dark:bg-gray-800 text-gray-400 dark:text-gray-500 border-gray-100 dark:border-gray-700'}`}>{tag}</button>))}
+                    {KROPPSKANSLA_TAGS.map(tag => (<button key={tag} onClick={() => toggleTag(tag)} className={`px-6 py-3 rounded-2xl text-xs font-bold border-2 transition-all active:scale-95 ${data.tags.includes(tag) ? 'bg-gray-900 dark:bg-white text-white dark:text-gray-900 border-gray-900 dark:border-white shadow-md' : 'bg-white dark:bg-gray-800 text-gray-400 dark:text-gray-500 border-gray-100 dark:border-gray-700'}`}>{tag}</button>))}
                 </div></div>
                 
                 {/* --- Sommarpepp Bild-uppladdning (visas endast under sommarutmaningen) --- */}

@@ -494,6 +494,13 @@ export const saveWorkoutLog = async (logData: any): Promise<{ log: any, newRecor
     
     const newLogRef = doc(collection(db, 'workoutLogs'));
     const newLog = { id: newLogRef.id, ...logData };
+    // Säkerställ att locationId sparas, annars sätt till default
+    if (!newLog.locationId) {
+        const org = await getOrganizationById(logData.organizationId);
+        if (org && org.locations && org.locations.length > 0) {
+            newLog.locationId = org.locations[0].id;
+        }
+    }
     const newRecords: { exerciseName: string; weight: number; diff: number; reps?: number; calculated1RM?: number }[] = [];
 
     if (logData.workoutId && logData.workoutId !== 'manual' && !logData.benchmarkId) {
@@ -832,6 +839,7 @@ export const listenToMemberLogs = (memberId: string, onUpdate: (logs: WorkoutLog
     }, (err) => console.error("listenToMemberLogs failed", err));
 };
 
+
 export const listenToCommunityLogs = (orgId: string, onUpdate: (logs: WorkoutLog[]) => void) => {
     if (isOffline || !db || !orgId) {
         onUpdate([]);
@@ -842,6 +850,48 @@ export const listenToCommunityLogs = (orgId: string, onUpdate: (logs: WorkoutLog
         const logs = snap.docs.map(d => d.data() as WorkoutLog).filter(log => log.showOnLeaderboard !== false && log.inStudio !== false);
         onUpdate(logs);
     }, (err) => console.error("listenToCommunityLogs failed", err));
+};
+
+export const listenToCommunityLogsByLocations = (orgId: string, locationIds: string[], onUpdate: (logs: WorkoutLog[]) => void) => {
+    if (isOffline || !db || !orgId || locationIds.length === 0) {
+        onUpdate([]);
+        return () => {};
+    }
+
+    const unsubscribes: (() => void)[] = [];
+    const logsPerLocation: Record<string, WorkoutLog[]> = {};
+
+    const emitMergedLogs = () => {
+        let merged: WorkoutLog[] = [];
+        for (const loc of locationIds) {
+            if (logsPerLocation[loc]) {
+                merged = [...merged, ...logsPerLocation[loc]];
+            }
+        }
+        // Sortera efter datum (nyast först)
+        merged.sort((a, b) => b.date - a.date);
+        onUpdate(merged);
+    };
+
+    locationIds.forEach(locId => {
+        const q = query(
+            collection(db, 'workoutLogs'),
+            where("organizationId", "==", orgId),
+            where("locationId", "==", locId),
+            orderBy("date", "desc"),
+            limit(20)
+        );
+        const unsub = onSnapshot(q, (snap) => {
+            const logs = snap.docs.map(d => d.data() as WorkoutLog).filter(log => log.showOnLeaderboard !== false && log.inStudio !== false);
+            logsPerLocation[locId] = logs;
+            emitMergedLogs();
+        }, (err) => console.error(`listenToCommunityLogsByLocations failed for loc ${locId}`, err));
+        unsubscribes.push(unsub);
+    });
+
+    return () => {
+        unsubscribes.forEach(unsub => unsub());
+    };
 };
 
 export const listenToLeaderboardLogs = (orgId: string, limitCount: number, onUpdate: (logs: WorkoutLog[]) => void) => {
@@ -941,7 +991,7 @@ export const listenForStudioEvents = (orgId: string, callback: (event: StudioEve
         collection(db, 'studio_events'), 
         where('organizationId', '==', orgId), 
         orderBy('timestamp', 'desc'), // Hämta nyaste först
-        limit(20)
+        limit(100)
     );
 
     return onSnapshot(q, (snapshot) => {
@@ -980,7 +1030,7 @@ export const listenToWeeklyPBs = (orgId: string, onUpdate: (events: StudioEvent[
         collection(db, 'studio_events'), 
         where('organizationId', '==', orgId), 
         orderBy('timestamp', 'desc'), 
-        limit(50)
+        limit(100)
     );
     return onSnapshot(q, (snap) => {
         const allEvents = snap.docs.map(d => d.data() as StudioEvent);

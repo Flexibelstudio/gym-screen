@@ -209,9 +209,9 @@ export interface StudioConfig {
 export interface Studio {
   id: string;
   name: string;
+  locationId?: string;
   createdAt?: number;
   configOverrides?: Partial<StudioConfig>;
-  locationId?: string; // NYTT: Vilken ort/Location denna skärm tillhör
   remoteState?: any; // To allow remote states
 }
 
@@ -457,6 +457,7 @@ export interface WorkoutResult {
   id: string;
   workoutId: string;
   workoutTitle: string;
+  locationId?: string;
   organizationId: string;
   participantName: string;
   finishTime: number;
@@ -537,6 +538,7 @@ export interface WorkoutLog {
     id: string;
     memberId: string;
     organizationId: string;
+    locationId?: string;
     workoutId: string;
     workoutTitle: string;
     date: number;
@@ -559,7 +561,6 @@ export interface WorkoutLog {
     showOnLeaderboard?: boolean; // NYTT: För att dölja i flöden och topplistor
     totalVolume?: number; // NYTT: Total vikt x reps under passet
     inStudio?: boolean; // NYTT: Indikerar om träningspasset genomfördes på plats på gymmet
-    locationId?: string; // NYTT: Ort/Studio där passet loggades eller användaren tillhör
     imageUrl?: string; // NYTT: Alternativ sommarfeedsbild bifogad till passet
     summerPoints?: number; // NYTT: Poäng i sommarutmaningen (1, 2 eller 3)
     reachedSummerGoal?: boolean; // NYTT: Om användaren uppnått veckans sommar mål med detta pass
@@ -587,7 +588,7 @@ export interface StudioEvent {
     id: string;
     type: 'pb' | 'pb_batch';
     organizationId: string;
-    locationId?: string; // NYTT: Skärmens eller användarens ort
+    locationId?: string;
     timestamp: number;
     data: {
         userName: string;
