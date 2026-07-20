@@ -67,7 +67,7 @@ export const listenToForegroundMessages = (callback: (payload: any) => void) => 
 
 import { firebaseConfig } from './firebaseConfig';
 import { 
-  Organization, UserData, Workout, InfoCarousel, 
+  Organization, UserData, Workout, InfoCarousel, Exercise,
   BankExercise, SuggestedExercise, WorkoutResult, CompanyDetails, 
   SmartScreenPricing, HyroxRace, SeasonalThemeSetting, MemberGoals, 
   WorkoutLog, CheckInEvent, Member, UserRole, PersonalBest, StudioEvent,
@@ -1462,7 +1462,8 @@ export const getMemberCustomExercises = async (userId: string): Promise<BankExer
             const data = d.data() as BankExercise;
             return {
                 ...data,
-                name: data.name // Keep original name
+                name: data.name, // Keep original name
+                category: data.category || 'Custom Egen'
             };
         });
     } catch (e) { 
@@ -1483,6 +1484,7 @@ export const addMemberCustomExercise = async (userId: string, exerciseName: stri
         name: exerciseName,
         tags: ['Custom Egen'],
         description: 'Egen skapad övning.',
+        category: 'Custom Egen',
     };
 
     await setDoc(newDocRef, newExercise);
@@ -1529,6 +1531,16 @@ export const resolveAndCreateExercises = async (orgId: string, workout: Workout,
     const bankMap = new Map(combinedBank.map(b => [b.id, b])); // Create Map for O(1) lookup
     const newlyCreatedCache: Record<string, BankExercise> = {};
 
+    const seenInstanceIds = new Set<string>();
+    const ensureInstanceId = (ex: Exercise): string => {
+        let id = ex.id;
+        if (!id || !id.startsWith('ex-') || seenInstanceIds.has(id)) {
+            id = `ex-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+        }
+        seenInstanceIds.add(id);
+        return id;
+    };
+
     // 2. Helper for matching
     const findMatch = (name: string) => {
         const nName = normalizeString(name);
@@ -1542,7 +1554,7 @@ export const resolveAndCreateExercises = async (orgId: string, workout: Workout,
         
         if (!match) {
              match = combinedBank.find(b => nName.includes(normalizeString(b.name)));
-        }
+         }
 
         return match;
     };
@@ -1552,13 +1564,16 @@ export const resolveAndCreateExercises = async (orgId: string, workout: Workout,
         const resolvedExercises = await Promise.all(block.exercises.map(async (ex) => {
             // Case 1: It claims to be from the bank
             if (ex.isFromBank) {
+                const bankExId = ex.originalBankId || ex.id;
                 // If it claims to be from bank, we MUST verify the ID exists.
                 // If it doesn't exist (deleted), we downgrade it to ad-hoc.
-                if (bankMap.has(ex.id)) {
+                if (bankMap.has(bankExId)) {
                     // Valid link. Optionally sync details? 
-                    const bankEx = bankMap.get(ex.id);
+                    const bankEx = bankMap.get(bankExId);
                     return {
                         ...ex,
+                        id: ensureInstanceId(ex),
+                        originalBankId: bankExId,
                         imageUrl: bankEx?.imageUrl || ex.imageUrl, // Sync image
                         description: bankEx?.description || ex.description, // Optional: Sync desc
                         // Keep the existing loggingEnabled state, or default to false if undefined
@@ -1568,6 +1583,8 @@ export const resolveAndCreateExercises = async (orgId: string, workout: Workout,
                     // INVALID LINK (Deleted from bank). Downgrade to Ad-hoc.
                     return {
                         ...ex,
+                        id: ensureInstanceId(ex),
+                        originalBankId: null,
                         isFromBank: false,
                         loggingEnabled: false,
                         // Keep existing name/reps/desc as they are in the workout
@@ -1581,8 +1598,8 @@ export const resolveAndCreateExercises = async (orgId: string, workout: Workout,
             if (match) {
                 return {
                     ...ex,
-                    id: match.id, // THE MAGIC: Link to Master ID
-                    originalBankId: match.id, // Helper for history tracking
+                    id: ensureInstanceId(ex),
+                    originalBankId: match.id, // THE MAGIC: Link to Master ID
                     description: ex.description || match.description, 
                     imageUrl: match.imageUrl || ex.imageUrl,
                     isFromBank: true,
@@ -1595,6 +1612,7 @@ export const resolveAndCreateExercises = async (orgId: string, workout: Workout,
             if (!createMissing) {
                 return {
                     ...ex,
+                    id: ensureInstanceId(ex),
                     isFromBank: false,
                     loggingEnabled: false
                 };
@@ -1606,7 +1624,7 @@ export const resolveAndCreateExercises = async (orgId: string, workout: Workout,
                 const cached = newlyCreatedCache[nName];
                 return { 
                     ...ex, 
-                    id: cached.id, 
+                    id: ensureInstanceId(ex),
                     originalBankId: cached.id,
                     isFromBank: true, 
                     loggingEnabled: ex.loggingEnabled !== undefined ? ex.loggingEnabled : false
@@ -1631,7 +1649,7 @@ export const resolveAndCreateExercises = async (orgId: string, workout: Workout,
             
             return {
                 ...ex,
-                id: newId,
+                id: ensureInstanceId(ex),
                 originalBankId: newId,
                 isFromBank: true,
                 loggingEnabled: ex.loggingEnabled !== undefined ? ex.loggingEnabled : false

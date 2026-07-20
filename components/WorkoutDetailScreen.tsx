@@ -10,6 +10,7 @@ import { WorkoutQRDisplay } from './WorkoutQRDisplay';
 import { useAuth } from '../context/AuthContext';
 import { useWorkout } from '../context/WorkoutContext';
 import { useConfirm } from './ConfirmContext';
+import { getSideLabel } from '../utils/workoutUtils';
 
 // Helper to format time for results (00:00)
 const formatResultTime = (timeInSeconds: number) => {
@@ -174,8 +175,13 @@ export const WorkoutPresentationModal: React.FC<{ workout: Workout; onClose: () 
                                         </div>
                                         <div className="flex-grow min-w-0">
                                             <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-2 sm:gap-4 lg:gap-6 xl:gap-12">
-                                                <h3 className="text-lg sm:text-2xl md:text-4xl lg:text-5xl xl:text-7xl font-black text-gray-900 dark:text-white leading-tight break-words">
-                                                    {ex.name || 'Okänd övning'}
+                                                <h3 className="text-lg sm:text-2xl md:text-4xl lg:text-5xl xl:text-7xl font-black text-gray-900 dark:text-white leading-tight break-words flex items-center gap-2 flex-wrap">
+                                                    <span>{ex.name || 'Okänd övning'}</span>
+                                                    {getSideLabel(ex.side) && (
+                                                        <span className="inline-flex items-center justify-center px-2 py-0.5 sm:px-3 sm:py-1 text-xs sm:text-base md:text-xl lg:text-2xl xl:text-3xl font-black rounded-lg bg-orange-100 text-orange-800 dark:bg-orange-950/40 dark:text-orange-400 border border-orange-200 dark:border-orange-800/50 uppercase tracking-wide">
+                                                            {getSideLabel(ex.side)}
+                                                        </span>
+                                                    )}
                                                 </h3>
                                                 {ex.reps && (
                                                     <div className="bg-primary/10 text-primary px-3 py-1.5 md:px-5 md:py-2.5 lg:px-8 lg:py-4 xl:px-12 xl:py-6 rounded-lg whitespace-nowrap self-start sm:self-auto">
@@ -325,7 +331,14 @@ const WorkoutBlockCard: React.FC<{
                     return (
                     <div key={ex.id || `ex-${index}`} className={`flex items-start gap-4 p-4 ${roundedClass} bg-gray-50 dark:bg-gray-900 ${borderClass} ${marginClass}`}>
                         <div className="flex-grow min-w-0">
-                            <h4 className="text-lg font-black text-gray-900 dark:text-white leading-tight break-words">{ex.name || 'Okänd övning'}</h4>
+                            <h4 className="text-lg font-black text-gray-900 dark:text-white leading-tight break-words flex items-center gap-1.5 flex-wrap">
+                                <span>{ex.name || 'Okänd övning'}</span>
+                                {getSideLabel(ex.side) && (
+                                    <span className="inline-flex items-center justify-center px-1.5 py-0.5 text-[10px] font-black rounded-md bg-orange-100 text-orange-800 dark:bg-orange-950/40 dark:text-orange-400 border border-orange-200 dark:border-orange-800/50 uppercase">
+                                        {getSideLabel(ex.side)}
+                                    </span>
+                                )}
+                            </h4>
                             {ex.description && <p className="text-sm text-gray-500 dark:text-gray-400 mt-1 leading-relaxed font-medium break-words whitespace-pre-wrap">{ex.description}</p>}
                         </div>
                         {ex.reps && (

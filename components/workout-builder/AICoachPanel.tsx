@@ -33,12 +33,23 @@ const DraggableSuggestedExercise: React.FC<{ exercise: { name: string; descripti
             ref={setNodeRef}
             {...listeners}
             {...attributes}
-            className={`w-full text-left bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 rounded-lg p-2 flex items-center justify-between cursor-grab active:cursor-grabbing ${isDragging ? 'opacity-50' : ''}`}
+            title="Dra in övningen i passet"
+            className={`w-full text-left bg-gray-50 dark:bg-gray-700/50 border border-dashed border-purple-300 dark:border-purple-700 rounded-lg p-2 flex items-center gap-2 cursor-grab active:cursor-grabbing transition-colors hover:border-purple-500 hover:bg-purple-50 dark:hover:bg-purple-900/20 group ${isDragging ? 'opacity-50 ring-2 ring-purple-400' : ''}`}
         >
-            <div>
+            {/* Grip-handtag som signalerar dragbarhet */}
+            <div className="flex-shrink-0 text-purple-400 group-hover:text-purple-600 transition-colors">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                    <circle cx="9" cy="5" r="1" /><circle cx="9" cy="12" r="1" /><circle cx="9" cy="19" r="1" />
+                    <circle cx="15" cy="5" r="1" /><circle cx="15" cy="12" r="1" /><circle cx="15" cy="19" r="1" />
+                </svg>
+            </div>
+            <div className="flex-grow min-w-0">
                 <p className="text-sm font-bold text-gray-900 dark:text-white">{exercise.name}</p>
                 <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-1">{exercise.description}</p>
             </div>
+            <span className="flex-shrink-0 text-[9px] font-black uppercase tracking-wider text-purple-500 dark:text-purple-400 bg-purple-100 dark:bg-purple-900/30 border border-purple-200 dark:border-purple-800 rounded px-1.5 py-0.5 whitespace-nowrap">
+                Dra in i passet
+            </span>
         </div>
     );
 };
@@ -180,7 +191,7 @@ export const AICoachSidebar: React.FC<{
                                         {/* Suggested Exercises Buttons */}
                                         {msg.suggestedExercises && msg.suggestedExercises.length > 0 && (
                                             <div className="mt-3 space-y-2">
-                                                <p className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Förslag:</p>
+                                                <p className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Förslag — dra in dem i passet:</p>
                                                 {msg.suggestedExercises.map((ex, i) => (
                                                     <DraggableSuggestedExercise key={i} exercise={ex} />
                                                 ))}

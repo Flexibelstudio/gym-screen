@@ -56,3 +56,14 @@ export const calculate1RM = (weight: number | string, reps: number | string): nu
     }
     return null;
 };
+
+export const getSideLabel = (side?: 'V' | 'H' | 'V/H' | 'ALT' | null): string | null => {
+    switch (side) {
+        case 'V': return 'VÄNSTER';
+        case 'H': return 'HÖGER';
+        case 'V/H': return 'PER SIDA';
+        case 'ALT': return 'ALT';
+        default: return null;
+    }
+};
+

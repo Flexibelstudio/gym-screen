@@ -1,6 +1,7 @@
 
 import React, { useState } from 'react';
 import { Workout } from '../../types';
+import { getSideLabel } from '../../utils/workoutUtils';
 
 interface WorkoutStructurePanelProps {
     workout: Workout;
@@ -73,7 +74,14 @@ export const WorkoutStructurePanel: React.FC<WorkoutStructurePanelProps> = ({ wo
                                                 onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
                                             >
                                                 <span className="text-gray-500 hover:text-gray-900 dark:hover:text-white mt-0.5">☰</span>
-                                                <p className="text-gray-700 dark:text-gray-300 flex-grow break-words leading-snug" onClick={() => onExerciseClick(ex.id)}>{ex.name || 'Namnlös övning'}</p>
+                                                <p className="text-gray-700 dark:text-gray-300 flex-grow break-words leading-snug flex items-center gap-1.5 flex-wrap" onClick={() => onExerciseClick(ex.id)}>
+                                                    <span>{ex.name || 'Namnlös övning'}</span>
+                                                    {getSideLabel(ex.side) && (
+                                                        <span className="text-[9px] font-black px-1 rounded bg-orange-100 text-orange-800 dark:bg-orange-950/40 dark:text-orange-400">
+                                                            {ex.side}
+                                                        </span>
+                                                    )}
+                                                </p>
                                             </div>
                                         ))}
                                         {block.exercises.length === 0 && <p className="text-xs text-gray-500 text-center py-2">Inga övningar</p>}
