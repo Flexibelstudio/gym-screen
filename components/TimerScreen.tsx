@@ -293,6 +293,11 @@ const FollowMeView: React.FC<{
                         >
                             {displayExercise.name}
                         </h3>
+                        {getSideLabel(displayExercise.side) && (
+                            <span className="inline-flex items-center justify-center px-6 py-2 mb-6 text-2xl md:text-4xl font-black rounded-2xl bg-orange-100 text-orange-800 dark:bg-orange-950/40 dark:text-orange-400 border-2 border-orange-200 dark:border-orange-800/50 uppercase tracking-wide">
+                                {getSideLabel(displayExercise.side)}
+                            </span>
+                        )}
                         {displayExercise.reps && (
                             <p 
                                 className="font-black text-primary mb-6 transition-all duration-300"

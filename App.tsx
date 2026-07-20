@@ -55,7 +55,7 @@ import { BirthDatePromptModal } from './components/modals/BirthDatePromptModal';
 import { LocationPromptModal } from './components/modals/LocationPromptModal';
 import { PWAInstallPrompt } from './components/PWAInstallPrompt';
 import { CoachWorkoutPreviewModal } from './components/CoachWorkoutPreviewModal';
-import { updateUserProfile } from './services/firebaseService';
+import { updateUserProfile, fetchCustomPrograms, saveCustomProgram } from './services/firebaseService';
 
 const THEME_STORAGE_KEY = 'flexibel-screen-theme';
 
@@ -94,6 +94,31 @@ const App: React.FC = () => {
   const [showLogin, setShowLogin] = useState(false);
   const [showRegisterGym, setShowRegisterGym] = useState(false); 
   const [minSplashTimeElapsed, setMinSplashTimeElapsed] = useState(false);
+  const [customPrograms, setCustomPrograms] = useState<Workout[]>([]);
+
+  useEffect(() => {
+    const loadCustomPrograms = async () => {
+      if (currentUser?.uid) {
+        try {
+          const programs = await fetchCustomPrograms(currentUser.uid);
+          setCustomPrograms(programs);
+        } catch (e) {
+          console.error("Failed to load custom programs in App.tsx", e);
+        }
+      } else {
+        setCustomPrograms([]);
+      }
+    };
+    loadCustomPrograms();
+    
+    const handleUpdateEvent = () => {
+      loadCustomPrograms();
+    };
+    window.addEventListener('customProgramsUpdated', handleUpdateEvent);
+    return () => {
+      window.removeEventListener('customProgramsUpdated', handleUpdateEvent);
+    };
+  }, [currentUser]);
   
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -648,6 +673,16 @@ const App: React.FC = () => {
 
   const handleSaveAndNavigate = async (workout: Workout, startFirstBlock?: boolean) => {
     const isMemberRole = sessionRole === 'member' || isStudioMode;
+    
+    if (sessionRole === 'member' && currentUser?.uid) {
+        await saveCustomProgram(currentUser.uid, workout);
+        window.dispatchEvent(new Event('customProgramsUpdated'));
+        setActiveWorkout(workout);
+        setIsEditingNewDraft(false);
+        handleBack();
+        return;
+    }
+
     const workoutToSave = { 
         ...workout, 
         isMemberDraft: workout.isMemberDraft ?? isMemberRole 
@@ -679,6 +714,11 @@ const App: React.FC = () => {
 
   const handleSaveOnly = async (workout: Workout) => {
       const isMemberRole = sessionRole === 'member' || isStudioMode;
+      if (sessionRole === 'member' && currentUser?.uid) {
+          await saveCustomProgram(currentUser.uid, workout);
+          window.dispatchEvent(new Event('customProgramsUpdated'));
+          return workout;
+      }
       return await saveWorkout({ 
           ...workout, 
           isMemberDraft: workout.isMemberDraft ?? isMemberRole 
@@ -1414,6 +1454,7 @@ const App: React.FC = () => {
                 theme={theme}
                 
                 workouts={workouts}
+                customPrograms={customPrograms}
                 activeWorkout={activeWorkout}
                 activeBlock={activeBlock}
                 

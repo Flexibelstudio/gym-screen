@@ -392,6 +392,7 @@ interface WorkoutDetailScreenProps {
   onLogWorkout?: (workoutId: string, orgId: string) => void;
   onClose?: () => void;
   onHeaderVisibilityChange?: (visible: boolean) => void;
+  isOwnProgram?: boolean;
 }
 
 const WorkoutDetailScreen: React.FC<WorkoutDetailScreenProps> = ({ 
@@ -402,7 +403,8 @@ const WorkoutDetailScreen: React.FC<WorkoutDetailScreenProps> = ({
     hasActiveCarousel = false,
     onLogWorkout,
     onClose,
-    onHeaderVisibilityChange
+    onHeaderVisibilityChange,
+    isOwnProgram = false
 }) => {
   const { selectedOrganization, selectedStudio } = useStudio();
   const { isStudioMode, role, userData, currentUser } = useAuth();
@@ -579,6 +581,16 @@ const WorkoutDetailScreen: React.FC<WorkoutDetailScreenProps> = ({
             >
                 <PencilIcon className="w-5 h-5" />
                 <span className="text-lg uppercase tracking-tight">Anpassa & Starta</span>
+            </button>
+          )}
+
+          {isOwnProgram && (
+            <button 
+                onClick={() => onEditWorkout(sessionWorkout)}
+                className="bg-primary hover:bg-primary/95 text-white font-black py-3 px-6 rounded-xl flex items-center justify-center gap-2 shadow-lg transition-all transform active:scale-95 w-full sm:w-auto flex-shrink-0 animate-fade-in"
+            >
+                <PencilIcon className="w-5 h-5" />
+                <span className="text-lg uppercase tracking-tight">Redigera pass</span>
             </button>
           )}
       </div>

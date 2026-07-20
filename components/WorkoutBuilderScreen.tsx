@@ -31,6 +31,7 @@ import {
 } from '@dnd-kit/core';
 import { snapCenterToCursor } from '@dnd-kit/modifiers';
 import { arrayMove, sortableKeyboardCoordinates } from '@dnd-kit/sortable';
+import { sanitizeWorkoutWithBank } from '../utils/workoutUtils';
 
 const createNewWorkout = (): Workout => ({
   id: `workout-${Date.now()}`,
@@ -147,65 +148,6 @@ const createNewBlock = (): WorkoutBlock => ({
   },
   exercises: [],
 });
-
-// Helper to sanitize workout: unique instance ids, bank links via originalBankId, self-healing of old workouts
-const sanitizeWorkoutWithBank = (currentWorkout: Workout, currentBank: BankExercise[]): Workout => {
-    const bankIds = new Set(currentBank.map(b => b.id));
-    const seenInstanceIds = new Set<string>();
-    let hasChanges = false;
-
-    const newInstanceId = () => `ex-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-
-    const newBlocks = currentWorkout.blocks.map(block => {
-        const newExercises = block.exercises.map(ex => {
-            const next: Exercise = { ...ex };
-            let changed = false;
-
-            // 1. MIGRERING: gamla pass har bank-ID direkt i ex.id
-            if (bankIds.has(next.id)) {
-                next.originalBankId = next.originalBankId || next.id;
-                next.id = newInstanceId();
-                next.isFromBank = true;
-                changed = true;
-            }
-
-            // 2. DUBBLETTSKYDD: varje rad måste ha unikt instans-ID
-            if (seenInstanceIds.has(next.id)) {
-                next.id = newInstanceId();
-                changed = true;
-            }
-            seenInstanceIds.add(next.id);
-
-            // 3. Validera bankkopplingen via originalBankId
-            if (next.originalBankId && bankIds.has(next.originalBankId)) {
-                if (!next.isFromBank) { next.isFromBank = true; changed = true; }
-            } else {
-                // Ingen giltig länk. Försök auto-matcha på namn.
-                const match = currentBank.find(b => b.name.toLowerCase().trim() === next.name.toLowerCase().trim());
-                if (match) {
-                    next.originalBankId = match.id;
-                    next.isFromBank = true;
-                    next.loggingEnabled = next.loggingEnabled !== undefined ? next.loggingEnabled : false;
-                    changed = true;
-                } else if (next.isFromBank || next.originalBankId) {
-                    // Död länk (borttagen ur banken) -> nedgradera till ad-hoc
-                    next.originalBankId = null;
-                    next.isFromBank = false;
-                    next.loggingEnabled = false;
-                    changed = true;
-                }
-            }
-
-            if (changed) hasChanges = true;
-            return next;
-        });
-        return { ...block, exercises: newExercises };
-    });
-
-    if (!hasChanges) return currentWorkout;
-    return { ...currentWorkout, blocks: newBlocks };
-};
-
 
 // Helper to check for unsaved changes
 const useUnsavedChanges = (isDirty: boolean) => {
@@ -555,6 +497,17 @@ export const WorkoutBuilderScreen: React.FC<WorkoutBuilderScreenProps> = ({ init
     };
     fetchBank();
   }, [selectedOrganization]);
+
+  // Keep workout sanitized with exercise bank when workout loads (via id) or bank loads/changes
+  useEffect(() => {
+    if (exerciseBank && exerciseBank.length > 0) {
+      setWorkout(prev => {
+        if (!prev) return prev;
+        const sanitized = sanitizeWorkoutWithBank(prev, exerciseBank);
+        return sanitized === prev ? prev : sanitized;
+      });
+    }
+  }, [workout?.id, exerciseBank]);
 
   const handleDeleteExerciseFromBank = useCallback(async (exercise: BankExercise) => {
       try {
