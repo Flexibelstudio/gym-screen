@@ -14,8 +14,16 @@ import { WelcomePaywall } from './components/WelcomePaywall';
 import PendingCoachScreen from './components/PendingCoachScreen';
 
 // --- Services ---
-import { createOrganization, updateGlobalConfig, updateStudioConfig, createStudio, updateOrganization, updateOrganizationPasswords, updateOrganizationLogos, updateOrganizationPrimaryColor, updateOrganizationCustomPages, updateStudio, deleteStudio, archiveOrganization as deleteOrganization, updateOrganizationInfoCarousel, updateOrganizationFavicon, updateOrganizationAppIcon, listenToOrganizationChanges, getWorkoutById, getFreshCategoryWorkouts, listenToForegroundMessages } from './services/firebaseService';
+import { createOrganization, updateGlobalConfig, updateStudioConfig, createStudio, updateOrganization, updateOrganizationPasswords, updateOrganizationLogos, updateOrganizationPrimaryColor, updateOrganizationCustomPages, updateStudio, deleteStudio, archiveOrganization as deleteOrganization, updateOrganizationInfoCarousel, updateOrganizationFavicon, updateOrganizationAppIcon, listenToOrganizationChanges, getWorkoutById, getFreshCategoryWorkouts } from './services/firebaseService';
 import { Toast } from './components/ui/ToastNotification';
+
+// --- Custom Hooks ---
+import { useMinSplashTime } from './hooks/app/useMinSplashTime';
+import { usePushToast } from './hooks/app/usePushToast';
+import { useOnlineStatus } from './hooks/app/useOnlineStatus';
+import { useTheme } from './hooks/app/useTheme';
+import { useInactivityTimer } from './hooks/app/useInactivityTimer';
+import { useNavigation } from './hooks/app/useNavigation';
 
 // --- Utils ---
 import { deepCopyAndPrepareAsNew } from './utils/workoutUtils';
@@ -57,8 +65,6 @@ import { PWAInstallPrompt } from './components/PWAInstallPrompt';
 import { CoachWorkoutPreviewModal } from './components/CoachWorkoutPreviewModal';
 import { updateUserProfile, fetchCustomPrograms, saveCustomProgram } from './services/firebaseService';
 
-const THEME_STORAGE_KEY = 'flexibel-screen-theme';
-
 const App: React.FC = () => {
   const { 
     selectedStudio, selectStudio, setAllStudios,
@@ -93,7 +99,7 @@ const App: React.FC = () => {
   const [sessionRole, setSessionRole] = useState<UserRole>(role);
   const [showLogin, setShowLogin] = useState(false);
   const [showRegisterGym, setShowRegisterGym] = useState(false); 
-  const [minSplashTimeElapsed, setMinSplashTimeElapsed] = useState(false);
+  const minSplashTimeElapsed = useMinSplashTime();
   const [customPrograms, setCustomPrograms] = useState<Workout[]>([]);
 
   useEffect(() => {
@@ -120,30 +126,38 @@ const App: React.FC = () => {
     };
   }, [currentUser]);
   
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setMinSplashTimeElapsed(true);
-    }, 2000);
-    return () => clearTimeout(timer);
-  }, []);
-  
-  const [history, setHistory] = useState<Page[]>(() => {
-      if (isStudioMode) return [Page.Home];
-      if (role === 'systemowner') return [Page.SystemOwner];
-      if (role === 'organizationadmin') return [Page.SuperAdmin];
-      if (role === 'coach') return [Page.Coach];
-      return [Page.MemberProfile];
+  const [activeBlock, setActiveBlock] = useState<WorkoutBlock | null>(null);
+  const [isPickingForLog, setIsPickingForLog] = useState(false);
+  const pageEntryTimestampRef = useRef<number>(Date.now());
+
+  const { 
+    history, 
+    setHistory, 
+    page, 
+    navigateTo, 
+    navigateReplace, 
+    handleBack, 
+    setCustomBackHandler, 
+    customBackHandlerState, 
+    lastLocalNavigationRef 
+  } = useNavigation({
+    role,
+    sessionRole,
+    setSessionRole,
+    activeWorkout,
+    setActiveWorkout,
+    activeBlock,
+    setActiveBlock,
+    isPickingForLog,
+    setIsPickingForLog,
+    isStudioMode,
+    selectedOrganization,
+    selectedStudio,
+    currentUser,
+    userData,
+    authLoading,
+    isImpersonating
   });
-
-  const page = history[history.length - 1];
-
-  // Scrolla alltid till toppen när vi byter sida
-  useEffect(() => {
-      const timer = setTimeout(() => {
-          window.scrollTo({ top: 0, left: 0, behavior: 'instant' as ScrollBehavior });
-      }, 10);
-      return () => clearTimeout(timer);
-  }, [page]);
 
   const showWelcomePaywall = useMemo(() => {
       if (!currentUser || role !== 'organizationadmin' || isStudioMode) return false;
@@ -178,74 +192,9 @@ const App: React.FC = () => {
       if (role === 'systemowner') return false;
       return userData.organizationId !== selectedOrganization.id;
   }, [userData?.organizationId, selectedOrganization?.id, currentUser, role]);
-  const [pushToast, setPushToast] = useState<{ message: string, isVisible: boolean }>({ message: '', isVisible: false });
 
-  // Push notification foreground listener
-  useEffect(() => {
-    if (isOffline) return;
-    const unsubscribe = listenToForegroundMessages((payload) => {
-      const title = payload.notification?.title || 'Ny notis';
-      const body = payload.notification?.body || '';
-      setPushToast({ message: `${title}: ${body}`, isVisible: true });
-    });
-    return () => unsubscribe();
-  }, []);
-
-  // --- FIXEN: Vi tillåter denna effekt att köras även i StudioMode! ---
-  useEffect(() => {
-    if (!authLoading && currentUser) {
-      const isAtInitialPage = history.length === 1;
-      const currentPage = history[history.length - 1];
-      
-      const actualRole = userData?.role || role;
-
-      if (isStudioMode && currentPage !== Page.Home && isAtInitialPage) {
-        setHistory([Page.Home]); // Tvinga in studiovyn
-      } else if (!isStudioMode) {
-        if (actualRole === 'systemowner' && currentPage !== Page.SystemOwner && isAtInitialPage) {
-          setHistory([Page.SystemOwner]);
-        } else if (actualRole === 'organizationadmin' && currentPage !== Page.SuperAdmin && isAtInitialPage) {
-          setHistory([Page.SuperAdmin]);
-        } else if (actualRole === 'coach' && currentPage !== Page.Coach && isAtInitialPage) {
-          setHistory([Page.Coach]);
-        } else if (actualRole === 'member' && currentPage !== Page.MemberProfile && isAtInitialPage) {
-          setHistory([Page.MemberProfile]);
-        }
-      }
-    }
-  }, [role, userData, authLoading, isStudioMode, history.length, currentUser]);
-
-  const [activeBlock, setActiveBlock] = useState<WorkoutBlock | null>(null);
-  const lastLocalNavigationRef = useRef<number>(0);
-  const pageEntryTimestampRef = useRef<number>(Date.now());
-
-  const navigateTo = useCallback((targetPage: Page, options?: { activeWorkoutId?: string | null, activeBlockId?: string | null }) => {
-    setHistory(prev => {
-        if (prev[prev.length - 1] === targetPage) return prev;
-        return [...prev, targetPage];
-    });
-  }, [isStudioMode, selectedOrganization, selectedStudio, activeWorkout, activeBlock]);
-
-  const navigateReplace = useCallback((page: Page) => {
-    lastLocalNavigationRef.current = Date.now();
-    setHistory(prev => {
-        const newHistory = prev.slice(0, -1);
-        if (newHistory.length > 0 && newHistory[newHistory.length - 1] === page) {
-            return newHistory;
-        }
-        newHistory.push(page);
-        return newHistory;
-    });
-  }, []);
-
-  const [customBackHandlerState, setCustomBackHandlerState] = useState<(() => void) | null>(null);
-  const customBackHandlerRef = useRef<(() => void) | null>(null);
-
-  const setCustomBackHandler = useCallback((handler: (() => void) | null) => {
-      customBackHandlerRef.current = handler;
-      setCustomBackHandlerState(handler ? () => handler : null);
-  }, []);
-  const [isOffline, setIsOffline] = useState(!navigator.onLine);
+  const isOffline = useOnlineStatus();
+  const { pushToast, setPushToast } = usePushToast(isOffline);
 
   const publicLiveRaceId = useMemo(() => {
     const path = window.location.pathname;
@@ -288,17 +237,6 @@ const App: React.FC = () => {
           checkStatus();
       }
   }, [userData?.organizationId]);
-
-  useEffect(() => {
-    const handleOnline = () => setIsOffline(false);
-    const handleOffline = () => setIsOffline(true);
-    window.addEventListener('online', handleOnline);
-    window.addEventListener('offline', handleOffline);
-    return () => {
-      window.removeEventListener('online', handleOnline);
-      window.removeEventListener('offline', handleOffline);
-    };
-  }, []);
 
   // --- SERVICE WORKER AUTO-UPDATE & FRESH PUSHES ---
   useEffect(() => {
@@ -360,7 +298,6 @@ const App: React.FC = () => {
   }, [page]);
 
   const [activePasskategori, setActivePasskategori] = useState<string | null>(null);
-  const [isPickingForLog, setIsPickingForLog] = useState(false);
   const [activeCustomPage, setActiveCustomPage] = useState<CustomPage | null>(null);
   const [racePrepState, setRacePrepState] = useState<{ groups: StartGroup[]; interval: number } | null>(null);
   const [activeRaceId, setActiveRaceId] = useState<string | null>(null);
@@ -422,19 +359,13 @@ const App: React.FC = () => {
       return () => { document.body.style.overflow = ''; };
   }, [mobileLogData, mobileViewData, isSearchWorkoutOpen, isCoachPreviewOpen, isScannerOpen, activeDiploma]);
 
-  const [theme, setTheme] = useState(() => {
-    const savedTheme = localStorage.getItem(THEME_STORAGE_KEY);
-    if (savedTheme === 'light' || savedTheme === 'dark') return savedTheme;
-    if (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) return 'light';
-    return 'dark';
-  });
+  const { theme, toggleTheme } = useTheme();
 
   const [isTimerHeaderVisible, setIsTimerHeaderVisible] = useState(true);
   const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
   const [isScreensaverActive, setIsScreensaverActive] = useState(false);
   const [isBackButtonHidden, setIsBackButtonHidden] = useState(false);
   const [followMeShowImage, setFollowMeShowImage] = useState(true);
-  const inactivityTimerRef = useRef<number | null>(null);
   const [profileEditTrigger, setProfileEditTrigger] = useState(0);
 
   useEffect(() => {
@@ -496,42 +427,13 @@ const App: React.FC = () => {
       }
   }, [userData?.uid]);
 
-  const pagesThatPreventScreensaver: Page[] = [
-      Page.Timer, 
-      Page.RepsOnly, 
-      Page.IdeaBoard, 
-      Page.MemberProfile, 
-      Page.MemberRegistry, 
-      Page.MobileLog
-  ];
-
-  const resetInactivityTimer = useCallback(() => {
-      if (inactivityTimerRef.current) clearTimeout(inactivityTimerRef.current);
-      if (isStudioMode && studioConfig.enableScreensaver && !pagesThatPreventScreensaver.includes(page)) {
-          const timeoutMinutes = studioConfig.screensaverTimeoutMinutes || 15;
-          inactivityTimerRef.current = window.setTimeout(() => {
-              setIsScreensaverActive(true);
-          }, timeoutMinutes * 60 * 1000);
-      } else {
-          if (isScreensaverActive) setIsScreensaverActive(false);
-      }
-  }, [isStudioMode, studioConfig.enableScreensaver, studioConfig.screensaverTimeoutMinutes, page, isScreensaverActive]);
-
-  const handleUserActivity = useCallback(() => {
-      if (isScreensaverActive) setIsScreensaverActive(false);
-      resetInactivityTimer();
-  }, [isScreensaverActive, resetInactivityTimer]);
-
-  useEffect(() => {
-      resetInactivityTimer();
-      return () => { if (inactivityTimerRef.current) clearTimeout(inactivityTimerRef.current); };
-  }, [resetInactivityTimer, page]);
-
-  useEffect(() => {
-      const events: (keyof WindowEventMap)[] = ['mousemove', 'mousedown', 'touchstart', 'keydown', 'scroll'];
-      events.forEach(event => window.addEventListener(event, handleUserActivity));
-      return () => { events.forEach(event => window.removeEventListener(event, handleUserActivity)); };
-  }, [handleUserActivity]);
+  useInactivityTimer({
+    isStudioMode,
+    studioConfig,
+    page,
+    isScreensaverActive,
+    setIsScreensaverActive,
+  });
 
   const activeInfoMessages = useMemo((): InfoMessage[] => {
     const infoCarousel = selectedOrganization?.infoCarousel;
@@ -553,17 +455,6 @@ const App: React.FC = () => {
   useEffect(() => {
     setSessionRole(role);
   }, [role]);
-
-  const toggleTheme = () => {
-    const newTheme = theme === 'dark' ? 'light' : 'dark';
-    setTheme(newTheme);
-  };
-  
-  useEffect(() => {
-    localStorage.setItem(THEME_STORAGE_KEY, theme);
-    document.documentElement.classList.remove('light', 'dark');
-    document.documentElement.classList.add(theme);
-  }, [theme]);
   
   useEffect(() => {
     const root = document.documentElement;
@@ -574,40 +465,7 @@ const App: React.FC = () => {
 
 
 
-  const handleBack = useCallback(() => {
-    if (customBackHandlerRef.current) {
-      customBackHandlerRef.current();
-      return;
-    }
 
-    if (history.length <= 1) return;
-
-    const currentPage = history[history.length - 1];
-    const newHistory = history.slice(0, -1);
-    const targetPage = newHistory[newHistory.length - 1];
-    
-    if (currentPage === Page.Coach && role === 'member') {
-        setSessionRole('member');
-    }
-    
-    if (currentPage === Page.IdeaBoard) setActiveWorkout(null);
-
-    if (currentPage === Page.WorkoutList && isPickingForLog) {
-        setIsPickingForLog(false);
-    }
-    
-    // Clear active block if we are leaving the timer
-    let nextActiveBlockId = activeBlock?.id || null;
-    if (targetPage === Page.WorkoutDetail || targetPage === Page.Home || targetPage === Page.Coach || targetPage === Page.SuperAdmin) {
-        setActiveBlock(null);
-        nextActiveBlockId = null;
-    }
-        if (targetPage === Page.Home || targetPage === Page.Coach || targetPage === Page.SuperAdmin) {
-         setActiveWorkout(null);
-    }
-    
-    setHistory(newHistory);
-  }, [history, role, isImpersonating, setActiveWorkout, isPickingForLog, isStudioMode, selectedOrganization, selectedStudio, activeWorkout, activeBlock]);;
 
   const handleMemberProfileRequest = () => {
       if (isStudioMode) {
