@@ -31,6 +31,7 @@ import {
 } from '@dnd-kit/core';
 import { snapCenterToCursor } from '@dnd-kit/modifiers';
 import { arrayMove, sortableKeyboardCoordinates } from '@dnd-kit/sortable';
+import { sanitizeWorkoutWithBank } from '../utils/workoutUtils';
 
 const createNewWorkout = (): Workout => ({
   id: `workout-${Date.now()}`,
@@ -147,47 +148,6 @@ const createNewBlock = (): WorkoutBlock => ({
   },
   exercises: [],
 });
-
-// Helper to sanitize workout (remove deleted bank links)
-const sanitizeWorkoutWithBank = (currentWorkout: Workout, currentBank: BankExercise[]): Workout => {
-    const bankIds = new Set(currentBank.map(b => b.id));
-    let hasChanges = false;
-    
-    const newBlocks = currentWorkout.blocks.map(block => {
-        const newExercises = block.exercises.map(ex => {
-            if (!bankIds.has(ex.id)) {
-                // Try to auto-match by name first
-                const match = currentBank.find(b => b.name.toLowerCase().trim() === ex.name.toLowerCase().trim());
-                if (match) {
-                    hasChanges = true;
-                    return {
-                        ...ex,
-                        id: match.id,
-                        isFromBank: true,
-                        // Retain existing logging enabled status or default to false
-                        loggingEnabled: ex.loggingEnabled !== undefined ? ex.loggingEnabled : false
-                    };
-                } else if (ex.isFromBank) {
-                    hasChanges = true;
-                    // Downgrade to Ad-hoc: Generate new ID to break links to deleted bank items
-                    return { 
-                        ...ex, 
-                        id: `ex-orphaned-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
-                        isFromBank: false, 
-                        loggingEnabled: false 
-                    };
-                }
-            }
-            return ex;
-        });
-        
-        return { ...block, exercises: newExercises };
-    });
-
-    if (!hasChanges) return currentWorkout;
-    return { ...currentWorkout, blocks: newBlocks };
-};
-
 
 // Helper to check for unsaved changes
 const useUnsavedChanges = (isDirty: boolean) => {
@@ -390,7 +350,8 @@ export const WorkoutBuilderScreen: React.FC<WorkoutBuilderScreenProps> = ({ init
                 name: activeData.exercise.name,
                 description: activeData.exercise.description || '',
                 reps: '',
-                isFromBank: activeData.exercise.isFromBank,
+                isFromBank: activeData.exercise.isFromBank || activeData.type === 'bank-exercise',
+                originalBankId: activeData.exercise.isFromBank || activeData.type === 'bank-exercise' ? activeData.exercise.id : undefined,
                 loggingEnabled: activeData.exercise.loggingEnabled,
                 imageUrl: activeData.exercise.imageUrl
             };
@@ -536,6 +497,17 @@ export const WorkoutBuilderScreen: React.FC<WorkoutBuilderScreenProps> = ({ init
     };
     fetchBank();
   }, [selectedOrganization]);
+
+  // Keep workout sanitized with exercise bank when workout loads (via id) or bank loads/changes
+  useEffect(() => {
+    if (exerciseBank && exerciseBank.length > 0) {
+      setWorkout(prev => {
+        if (!prev) return prev;
+        const sanitized = sanitizeWorkoutWithBank(prev, exerciseBank);
+        return sanitized === prev ? prev : sanitized;
+      });
+    }
+  }, [workout?.id, exerciseBank]);
 
   const handleDeleteExerciseFromBank = useCallback(async (exercise: BankExercise) => {
       try {
@@ -774,7 +746,7 @@ export const WorkoutBuilderScreen: React.FC<WorkoutBuilderScreenProps> = ({ init
   };
   
   const handleAddExerciseFromBank = (bankExercise: BankExercise) => {
-    const targetBlock = isSingleBlockMode 
+    const targetBlock = isSingleBlockMode
         ? workout.blocks.find(b => b.id === initialFocusedBlockId)
         : workout.blocks[workout.blocks.length - 1];
 
@@ -784,28 +756,29 @@ export const WorkoutBuilderScreen: React.FC<WorkoutBuilderScreenProps> = ({ init
     }
 
     const newExercise: Exercise = {
-        id: bankExercise.id,
+        id: `ex-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`, // Alltid unikt instans-ID
+        originalBankId: bankExercise.id, // Bankkopplingen ligger ENDAST här
         name: bankExercise.name,
         description: bankExercise.description || '',
         imageUrl: bankExercise.imageUrl || '',
-        reps: '', 
+        reps: '',
         isFromBank: true,
-        loggingEnabled: false // Default false för bankövningar
+        loggingEnabled: false
     };
 
     setWorkout(prev => ({
         ...prev,
-        blocks: prev.blocks.map(b => 
+        blocks: prev.blocks.map(b =>
             b.id === targetBlock.id
             ? { ...b, exercises: [...b.exercises, newExercise] }
             : b
         )
     }));
-    
+
     setTimeout(() => {
         editorRefs.current[`exercise-${newExercise.id}`]?.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }, 100);
-  };
+};
 
   return (
     <DndContext 

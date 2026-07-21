@@ -112,9 +112,10 @@ export interface Exercise {
   isFromAI?: boolean;
   loggingEnabled?: boolean;
   trackingFields?: TrackingField[];
-  originalBankId?: string; // NYTT: Referens till Master ID för historik
+  originalBankId?: string | null; // Referens till Master ID i banken. null = medvetet bortkopplad.
   groupId?: string; // For grouping exercises (supersets/circuits)
   groupColor?: string; // Color class for the group
+  side?: 'V' | 'H' | 'V/H' | 'ALT' | null; // Sida: vänster, höger, per sida, alternerande
 }
 
 export interface WorkoutBlock {

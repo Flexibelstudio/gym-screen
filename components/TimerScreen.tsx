@@ -12,6 +12,7 @@ import { ParticipantFinishList } from './timer/ParticipantFinishList';
 import { DumbbellIcon, InformationCircleIcon, LightningIcon, SparklesIcon, ChevronRightIcon, ClockIcon, PlayIcon, SettingsIcon, RefreshIcon } from './icons'; // Added SettingsIcon if available, else standard icons
 import { useStudio } from '../context/StudioContext';
 import { useAuth } from '../context/AuthContext';
+import { getSideLabel } from '../utils/workoutUtils';
 
 // --- Constants ---
 const HYROX_RIGHT_PANEL_WIDTH = '450px';
@@ -292,6 +293,11 @@ const FollowMeView: React.FC<{
                         >
                             {displayExercise.name}
                         </h3>
+                        {getSideLabel(displayExercise.side) && (
+                            <span className="inline-flex items-center justify-center px-6 py-2 mb-6 text-2xl md:text-4xl font-black rounded-2xl bg-orange-100 text-orange-800 dark:bg-orange-950/40 dark:text-orange-400 border-2 border-orange-200 dark:border-orange-800/50 uppercase tracking-wide">
+                                {getSideLabel(displayExercise.side)}
+                            </span>
+                        )}
                         {displayExercise.reps && (
                             <p 
                                 className="font-black text-primary mb-6 transition-all duration-300"
@@ -401,10 +407,15 @@ const StandardListView: React.FC<{
                                 </div>
                             )}
                             <h4 
-                                className={`font-black text-gray-900 dark:text-white leading-[0.9] tracking-tight overflow-visible whitespace-normal transition-all duration-300`}
+                                className={`font-black text-gray-900 dark:text-white leading-[0.9] tracking-tight overflow-visible whitespace-normal transition-all duration-300 flex items-center gap-2 flex-wrap`}
                                 style={{ fontSize: calculatedTitleSize }}
                             >
-                                {ex.name}
+                                <span>{ex.name}</span>
+                                {getSideLabel(ex.side) && (
+                                    <span className="inline-flex items-center justify-center px-2 py-1 text-xs font-black rounded-lg bg-orange-100 text-orange-800 dark:bg-orange-950/40 dark:text-orange-400 border border-orange-200 dark:border-orange-800/50 uppercase">
+                                        {getSideLabel(ex.side)}
+                                    </span>
+                                )}
                             </h4>
                         </div>
 

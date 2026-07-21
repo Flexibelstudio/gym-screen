@@ -43,6 +43,7 @@ interface AppRouterProps {
     theme: string;
     
     workouts: Workout[];
+    customPrograms?: Workout[];
     activeWorkout: Workout | null;
     activeBlock: WorkoutBlock | null;
     
@@ -134,7 +135,7 @@ interface AppRouterProps {
 export const AppRouter: React.FC<AppRouterProps> = (props) => {
     const { 
         page, navigateTo, handleBack, role, userData, studioConfig, selectedOrganization, allOrganizations, isStudioMode, isImpersonating, theme,
-        workouts, activeWorkout, activeBlock,
+        workouts, customPrograms = [], activeWorkout, activeBlock,
         passkategoriFilter, activeCustomPage, customPageToEdit, activeRaceId, racePrepState, followMeShowImage, mobileLogData,
         preferredAdminTab, profileEditTrigger, isAutoTransition, remoteCommand, selectedStudio,
         onSelectWorkout, onSelectPasskategori, onCreateNewWorkout, onStartBlock, onEditWorkout, onDeleteWorkout, onSaveWorkout, onSaveWorkoutNoNav,
@@ -195,6 +196,7 @@ export const AppRouter: React.FC<AppRouterProps> = (props) => {
             if (activeWorkout.id.startsWith('freestanding-workout-') || activeWorkout.id.startsWith('fs-workout-')) {
                 return <div className="flex items-center justify-center h-screen bg-black text-white">Laddar timer...</div>;
             }
+            const isOwnProgram = customPrograms.some(cp => cp.id === activeWorkout.id);
             return <WorkoutDetailScreen 
                 workout={activeWorkout} 
                 onStartBlock={(block, workout) => onStartBlock(block, workout)} 
@@ -216,6 +218,7 @@ export const AppRouter: React.FC<AppRouterProps> = (props) => {
                 onLogWorkout={functions.handleLogWorkoutRequest}
                 onClose={handleBack}
                 onHeaderVisibilityChange={functions.setTimerHeaderVisible}
+                isOwnProgram={isOwnProgram}
             />;
 
         case Page.Timer:

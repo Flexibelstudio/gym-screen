@@ -101,14 +101,13 @@ const ExerciseItem: React.FC<ExerciseItemProps> = ({ exercise, onUpdate, onRemov
     const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const newName = e.target.value;
         setSearchQuery(newName);
-        // När man skriver manuellt blir det en Ad-hoc övning (isFromBank = false)
-        // Vi sätter också loggingEnabled till false som default för ad-hoc
-        onUpdate(exercise.id, { name: newName, isFromBank: false, loggingEnabled: false });
+        // Manuell skrivning kopplar loss raden helt: ad-hoc, ingen banklänk, ingen loggning
+        onUpdate(exercise.id, { name: newName, isFromBank: false, loggingEnabled: false, originalBankId: null });
     };
 
     const handleSelectExercise = (bankExercise: BankExercise) => {
         onUpdate(exercise.id, {
-            id: bankExercise.id, // Koppla ID
+            originalBankId: bankExercise.id, // Koppla till Master ID
             name: bankExercise.name,
             description: bankExercise.description,
             imageUrl: bankExercise.imageUrl,
@@ -153,17 +152,18 @@ const ExerciseItem: React.FC<ExerciseItemProps> = ({ exercise, onUpdate, onRemov
             await saveExerciseToBank(newBankExercise);
 
             // 3. VIKTIGT: Uppdatera listan i sidomenyn INNAN vi uppdaterar själva övningen
-            // Detta förhindrar att komponenten avmonteras (pga ID-byte) innan callbacken hinner köras.
             if (onExerciseSavedToBank) {
                 onExerciseSavedToBank(newBankExercise);
             }
 
             // 4. Uppdatera UI för själva övningskortet
             onUpdate(exercise.id, { 
-                id: newId, 
+                originalBankId: newId, 
                 isFromBank: true, 
                 loggingEnabled: false
             });
+
+            onShowToast("Övningen sparades som en egen övning!");
 
         } catch (e) {
             console.error("Failed to save custom exercise", e);
@@ -173,6 +173,7 @@ const ExerciseItem: React.FC<ExerciseItemProps> = ({ exercise, onUpdate, onRemov
 
     // STRICT CHECK: Only trust the flag. ID pattern check removed to allow "unlinking".
     const isBanked = !!exercise.isFromBank;
+    const isGlobal = isBanked && !((exercise.originalBankId || exercise.id || '').startsWith('custom_'));
     
     // Lock State Logic
     const isLogButtonLocked = !enableWorkoutLogging;
@@ -239,17 +240,77 @@ const ExerciseItem: React.FC<ExerciseItemProps> = ({ exercise, onUpdate, onRemov
                         placeholder="Antal"
                         className={`appearance-none !bg-white dark:!bg-gray-700 !text-gray-900 dark:!text-white border border-gray-300 dark:border-gray-600 rounded-lg p-2 focus:ring-2 focus:ring-primary focus:outline-none transition-all font-semibold placeholder-gray-400 dark:placeholder-gray-500 w-20 sm:w-24`}
                     />
+                    
+                    {/* Side Field (V/H Badge Selector) */}
+                    <div className="flex items-center border border-gray-300 dark:border-gray-600 rounded-lg p-0.5 bg-gray-50 dark:bg-gray-800 gap-0.5 h-[42px] shrink-0">
+                        <button
+                            type="button"
+                            onClick={() => onUpdate(exercise.id, { side: exercise.side === 'V' ? null : 'V' })}
+                            className={`px-2 py-1 text-[10px] font-black rounded-md transition-all h-full flex items-center justify-center ${
+                                exercise.side === 'V'
+                                ? 'bg-orange-500 text-white shadow-sm'
+                                : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-150 dark:hover:bg-gray-700'
+                            }`}
+                            title="Vänster"
+                        >
+                            V
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => onUpdate(exercise.id, { side: exercise.side === 'H' ? null : 'H' })}
+                            className={`px-2 py-1 text-[10px] font-black rounded-md transition-all h-full flex items-center justify-center ${
+                                exercise.side === 'H'
+                                ? 'bg-orange-500 text-white shadow-sm'
+                                : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-150 dark:hover:bg-gray-700'
+                            }`}
+                            title="Höger"
+                        >
+                            H
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => onUpdate(exercise.id, { side: exercise.side === 'V/H' ? null : 'V/H' })}
+                            className={`px-1.5 py-1 text-[9px] font-black rounded-md transition-all h-full flex items-center justify-center ${
+                                exercise.side === 'V/H'
+                                ? 'bg-orange-500 text-white shadow-sm'
+                                : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-150 dark:hover:bg-gray-700'
+                            }`}
+                            title="Per sida (alla reps på ena sidan, sedan andra)"
+                        >
+                            V/H
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => onUpdate(exercise.id, { side: exercise.side === 'ALT' ? null : 'ALT' })}
+                            className={`px-1.5 py-1 text-[9px] font-black rounded-md transition-all h-full flex items-center justify-center ${
+                                exercise.side === 'ALT'
+                                ? 'bg-orange-500 text-white shadow-sm'
+                                : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-150 dark:hover:bg-gray-700'
+                            }`}
+                            title="Alternerande (växla sida varje rep)"
+                        >
+                            Alt
+                        </button>
+                    </div>
+
                     <div className="relative flex-grow min-w-[150px]">
                         <input
                             type="text"
                             value={exercise.name}
                             onChange={handleNameChange}
                             onFocus={() => {
-                                setIsSearchVisible(true);
-                                setSearchQuery(exercise.name);
+                                if (!isGlobal) {
+                                    setIsSearchVisible(true);
+                                    setSearchQuery(exercise.name);
+                                }
                             }}
-                            placeholder="Sök eller skriv övningsnamn"
-                            className={`appearance-none w-full !bg-white dark:!bg-gray-700 !text-gray-900 dark:!text-white border border-gray-300 dark:border-gray-600 rounded-lg p-2 focus:ring-2 focus:ring-primary focus:outline-none transition-all font-semibold placeholder-gray-400 dark:placeholder-gray-500 pr-8`}
+                            readOnly={isGlobal}
+                            placeholder={isGlobal ? exercise.name : "Sök eller skriv övningsnamn"}
+                            className={`appearance-none w-full border border-gray-300 dark:border-gray-600 rounded-lg p-2 focus:ring-2 focus:ring-primary focus:outline-none transition-all font-semibold placeholder-gray-400 dark:placeholder-gray-500 pr-8 ${
+                                isGlobal 
+                                ? 'bg-gray-150 dark:bg-gray-800/80 cursor-not-allowed text-gray-500 dark:text-gray-400 select-none' 
+                                : '!bg-white dark:!bg-gray-700 !text-gray-900 dark:!text-white'
+                            }`}
                         />
                          {/* Visual Indicator inside input */}
                          <div className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none">
@@ -281,19 +342,25 @@ const ExerciseItem: React.FC<ExerciseItemProps> = ({ exercise, onUpdate, onRemov
                         {/* Status Badge & Save Button */}
                         <div className="flex items-center gap-1">
                             {isBanked ? (
-                                <div 
-                                    className="px-2 py-1.5 rounded-lg border text-[9px] font-black uppercase tracking-wider select-none bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-800"
-                                    title="Kopplad till övningsbanken (Statistik sparas)"
-                                >
-                                    Bank
+                                <div className="flex items-center gap-1.5 flex-wrap">
+                                    <div 
+                                        className={`px-2 py-1.5 rounded-lg border text-[9px] font-black uppercase tracking-wider select-none ${
+                                            isGlobal 
+                                            ? 'bg-purple-100 text-purple-700 border-purple-200 dark:bg-purple-900/30 dark:text-purple-300 dark:border-purple-800'
+                                            : 'bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-800'
+                                        }`}
+                                        title={isGlobal ? "Global övning (Skrivskyddad)" : "Sparad i er övningsbank (statistik kan loggas)"}
+                                    >
+                                        {isGlobal ? 'Global' : 'SPARAD'}
+                                    </div>
                                 </div>
                             ) : (
                                 <>
                                     <div 
                                         className="px-2 py-1.5 rounded-lg border text-[9px] font-black uppercase tracking-wider select-none bg-gray-100 text-gray-500 border-gray-200 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-700"
-                                        title="Fristående text (Ingen statistik sparas)"
+                                        title="Egen övning (ej sparad — spara för att kunna logga statistik)"
                                     >
-                                        Ad-hoc
+                                        EGEN
                                     </div>
                                     <button
                                         onClick={handleSaveToBank}
