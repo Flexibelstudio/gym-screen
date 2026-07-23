@@ -13,6 +13,7 @@ import { listenToCoachNotes } from '../services/firebaseService';
 
 import { Modal } from './ui/Modal';
 import { WorkoutCompleteModal } from './WorkoutCompleteModal';
+import { AILoadingOverlay } from './AILoadingOverlay';
 import { motion, AnimatePresence } from 'framer-motion';
 import rough from 'roughjs';
 import { CoachNote } from '../types';
@@ -1946,25 +1947,12 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
                 </div>
             </div>
 
-            {isInterpretingWorkout && (
-                <div className="fixed inset-0 bg-gray-900/80 backdrop-blur-md flex flex-col items-center justify-center z-50 p-8 text-center animate-fade-in"><BoilingCauldron className="w-48 h-48" /><p className="text-5xl text-white mt-4 font-logo">Kokar ihop ditt pass</p></div>
-            )}
-            
-            {isBeautifying && (
-                <div className="fixed inset-0 bg-gray-900/80 backdrop-blur-md flex flex-col items-center justify-center z-50 p-8 text-center animate-fade-in">
-                    <div className="w-16 h-16 border-4 border-emerald-500/20 border-t-emerald-500 rounded-full animate-spin mb-4"></div>
-                    <p className="text-5xl text-white mt-4 font-logo">Snyggar till...</p>
-                </div>
-            )}
-            
-            {/* RESOLVING OVERLAY (När vi matchar mot banken) */}
-            {isResolving && (
-                <div className="fixed inset-0 bg-gray-900/80 backdrop-blur-md flex flex-col items-center justify-center z-50 p-8 text-center animate-fade-in">
-                    <div className="w-16 h-16 border-4 border-white/20 border-t-white rounded-full animate-spin mb-4"></div>
-                    <p className="text-3xl font-bold text-white mb-2">Matchar övningar...</p>
-                    <p className="text-gray-400">Kollar din övningsbank (skapar inget nytt).</p>
-                </div>
-            )}
+            {/* AI LOADING OVERLAY */}
+            <AILoadingOverlay 
+                isInterpreting={isInterpretingWorkout} 
+                isResolving={isResolving} 
+                isBeautifying={isBeautifying} 
+            />
 
             {/* ERROR MODAL */}
             {parseError && (

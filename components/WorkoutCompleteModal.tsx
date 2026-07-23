@@ -1,6 +1,6 @@
-
 import React, { useEffect, useState, useMemo } from 'react';
 import { createPortal } from 'react-dom';
+import { motion, AnimatePresence } from 'framer-motion';
 import { celebrationMessages } from '../data/celebrationMessages';
 import { Workout, WorkoutResult } from '../types';
 import { saveWorkoutResult } from '../services/firebaseService';
@@ -21,9 +21,9 @@ export const Confetti = React.memo(() => {
         id: i,
         style: {
             left: `${Math.random() * 100}%`,
-            animationDelay: `${Math.random() * 5}s`,
-            animationDuration: `${8 + Math.random() * 7}s`,
-            backgroundColor: ['#f94144', '#f3722c', '#f8961e', '#f9c74f', '#90be6d', '#43aa8b', '#577590'][Math.floor(Math.random() * 7)],
+            animationDelay: `${Math.random() * 4}s`,
+            animationDuration: `${6 + Math.random() * 6}s`,
+            backgroundColor: ['#10b981', '#059669', '#34d399', '#f59e0b', '#fbbf24', '#6366f1', '#8b5cf6', '#ec4899'][Math.floor(Math.random() * 8)],
             transform: `rotate(${Math.random() * 360}deg)`
         }
     })), []);
@@ -68,7 +68,16 @@ const formatTime = (timeInSeconds: number) => {
 
 const LOCAL_STORAGE_NAME_KEY = 'hyrox-participant-name';
 
-export const WorkoutCompleteModal: React.FC<WorkoutCompleteModalProps> = ({ isOpen, onClose, workout, isFinalBlock, blockTag, finishTime, organizationId, isRegistration = false }) => {
+export const WorkoutCompleteModal: React.FC<WorkoutCompleteModalProps> = ({
+  isOpen,
+  onClose,
+  workout,
+  isFinalBlock,
+  blockTag,
+  finishTime,
+  organizationId,
+  isRegistration = false
+}) => {
   const [message, setMessage] = useState(celebrationMessages[0]);
   const [participantName, setParticipantName] = useState(() => localStorage.getItem(LOCAL_STORAGE_NAME_KEY) || '');
   const [isSaving, setIsSaving] = useState(false);
@@ -77,7 +86,7 @@ export const WorkoutCompleteModal: React.FC<WorkoutCompleteModalProps> = ({ isOp
 
   useEffect(() => {
     if (isOpen) {
-      if(isFinalBlock) {
+      if (isFinalBlock) {
         const randomIndex = Math.floor(Math.random() * celebrationMessages.length);
         setMessage(celebrationMessages[randomIndex]);
       }
@@ -89,10 +98,11 @@ export const WorkoutCompleteModal: React.FC<WorkoutCompleteModalProps> = ({ isOp
   }, [isOpen, isFinalBlock]);
 
   if (!isOpen) return null;
-  
+
   const isHyroxRace = workout.id.startsWith('hyrox-full-race') && isFinalBlock && finishTime !== undefined;
   const isRegistrationView = isHyroxRace || isRegistration;
   const isWarmup = blockTag === 'Uppvärmning';
+  const showCelebrationEffects = isFinalBlock || isRegistrationView;
 
   const handleSaveResult = async (e: React.FormEvent) => {
       e.preventDefault();
@@ -136,99 +146,168 @@ export const WorkoutCompleteModal: React.FC<WorkoutCompleteModalProps> = ({ isOp
       onClose();
   };
 
-  const hyroxResultContent = (
-    <div 
-        className="relative bg-white dark:bg-gray-900 rounded-[2.5rem] p-8 sm:p-10 w-full max-w-md text-gray-900 dark:text-white text-center shadow-2xl border-4 border-primary/30 animate-zoom-fade-in z-[11001]"
-        onClick={e => e.stopPropagation()}
-      >
-        <div className="text-6xl mb-6">🏆</div>
-        
-        <h2 id="workout-complete-title" className="text-4xl font-black tracking-tight uppercase mb-4 leading-tight">
-            {isRegistration ? 'Registrera Tid' : 'Loppet Klart!'}
-        </h2>
-        
-        <div className="bg-gray-50 dark:bg-black/40 rounded-3xl p-6 mb-8 border border-gray-100 dark:border-gray-800">
-            <p className="text-[10px] font-black uppercase tracking-[0.3em] text-gray-400 mb-2">Officiell Tid</p>
-            <p className="font-mono text-7xl font-black text-primary drop-shadow-sm">{formatTime(finishTime || 0)}</p>
-        </div>
-        
-        {!resultSaved ? (
-            <form onSubmit={handleSaveResult} className="space-y-4">
-                <div className="relative">
-                    <input
-                        type="text"
-                        value={participantName}
-                        onChange={(e) => setParticipantName(e.target.value)}
-                        placeholder="Ditt namn..."
-                        className="w-full bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-center p-5 rounded-2xl border-2 border-gray-200 dark:border-gray-700 focus:border-primary focus:ring-4 focus:ring-primary/20 focus:outline-none transition-all font-black text-xl placeholder-gray-300 dark:placeholder-gray-600"
-                        required
-                        disabled={isSaving}
-                        autoFocus
-                    />
-                </div>
-                 <button 
-                    type="submit"
-                    disabled={isSaving || !participantName.trim()}
-                    className="w-full bg-primary hover:brightness-110 text-white font-black py-5 rounded-2xl transition-all shadow-xl shadow-primary/20 disabled:bg-gray-200 dark:disabled:bg-gray-800 disabled:text-gray-400 text-lg uppercase tracking-widest active:scale-95"
-                >
-                  {isSaving ? 'Sparar...' : 'Spara på topplistan'}
-                </button>
-            </form>
-        ) : (
-            <div className="py-6 text-center animate-fade-in">
-                <div className="w-16 h-16 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <span className="text-3xl text-green-600">✓</span>
-                </div>
-                <p className="text-2xl font-black text-green-600 dark:text-green-400 uppercase tracking-tight">Snyggt {lastSavedName}!</p>
-                <p className="text-gray-500 dark:text-gray-400 font-medium mt-1">Ditt resultat är sparat.</p>
-            </div>
-        )}
-        
-        <button 
-            onClick={handleClose} 
-            className="mt-8 text-xs font-black uppercase tracking-widest text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors"
-        >
-          Stäng fönstret
-        </button>
-      </div>
-  );
-
-  let contentToRender;
-  if (isFinalBlock) {
-      contentToRender = (
-        <div 
-          className="relative bg-primary bg-gradient-to-br from-white/20 via-transparent to-black/30 rounded-[3rem] p-10 w-full max-w-xl text-white text-center shadow-2xl border-4 border-white/20 animate-fade-in z-[11001]"
+  const renderModalContent = () => {
+    if (isRegistrationView) {
+      return (
+        <motion.div 
+          initial={{ opacity: 0, scale: 0.92, y: 16 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          transition={{ type: 'spring', duration: 0.5, bounce: 0.12 }}
+          className="relative bg-white dark:bg-gray-900 rounded-[2.5rem] p-8 sm:p-10 w-full max-w-lg text-gray-900 dark:text-white text-center shadow-2xl border-2 border-primary/30 z-[11001]"
           onClick={e => e.stopPropagation()}
         >
-          <div className="text-7xl mb-6 animate-bounce">🏆</div>
-          <h2 id="workout-complete-title" className="text-6xl font-black tracking-wider uppercase drop-shadow-lg mb-4">{message.title}</h2>
-          <p className="text-2xl text-white/95 font-semibold leading-relaxed">{message.subtitle}</p>
-          <button onClick={handleClose} className="mt-10 bg-white text-primary hover:bg-gray-100 font-extrabold py-4 px-10 rounded-full text-xl shadow-lg transition-all transform hover:scale-105 uppercase tracking-widest">Klar</button>
-        </div>
+          <div className="text-6xl mb-4 drop-shadow">🏆</div>
+          
+          <h2 id="workout-complete-title" className="text-3xl sm:text-4xl font-black tracking-tight uppercase mb-4 text-gray-900 dark:text-white">
+              {isRegistration ? 'Registrera Tid' : 'Loppet Klart!'}
+          </h2>
+          
+          <div className="bg-gray-50 dark:bg-gray-950/80 rounded-3xl p-6 mb-8 border border-gray-200 dark:border-gray-800">
+              <p className="text-xs font-black uppercase tracking-[0.25em] text-gray-400 mb-1">Officiell Tid</p>
+              <p className="font-mono text-6xl sm:text-7xl font-black text-primary drop-shadow-sm">{formatTime(finishTime || 0)}</p>
+          </div>
+          
+          {!resultSaved ? (
+              <form onSubmit={handleSaveResult} className="space-y-4">
+                  <div className="relative">
+                      <input
+                          type="text"
+                          value={participantName}
+                          onChange={(e) => setParticipantName(e.target.value)}
+                          placeholder="Ditt namn..."
+                          className="w-full bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-center p-4 sm:p-5 rounded-2xl border-2 border-gray-200 dark:border-gray-700 focus:border-primary focus:ring-4 focus:ring-primary/20 focus:outline-none transition-all font-black text-xl placeholder-gray-400 dark:placeholder-gray-500"
+                          required
+                          disabled={isSaving}
+                          autoFocus
+                      />
+                  </div>
+                   <button 
+                      type="submit"
+                      disabled={isSaving || !participantName.trim()}
+                      className="w-full bg-primary hover:brightness-110 text-white font-black py-4 sm:py-5 rounded-2xl transition-all shadow-lg shadow-primary/20 disabled:opacity-50 text-lg uppercase tracking-wider cursor-pointer active:scale-98"
+                  >
+                    {isSaving ? 'Sparar...' : 'Spara på topplistan'}
+                  </button>
+              </form>
+          ) : (
+              <div className="py-6 text-center animate-fade-in">
+                  <div className="w-16 h-16 bg-green-100 dark:bg-green-900/40 rounded-full flex items-center justify-center mx-auto mb-4">
+                      <span className="text-3xl text-green-600 dark:text-green-400 font-bold">✓</span>
+                  </div>
+                  <p className="text-2xl font-black text-green-600 dark:text-green-400 uppercase tracking-tight">Snyggt {lastSavedName}!</p>
+                  <p className="text-gray-500 dark:text-gray-400 font-medium mt-1 text-sm">Ditt resultat är sparat.</p>
+              </div>
+          )}
+          
+          <button 
+              onClick={handleClose} 
+              className="mt-6 w-full text-xs font-black uppercase tracking-widest text-gray-400 hover:text-gray-900 dark:hover:text-white py-2 transition-colors cursor-pointer"
+          >
+            Stäng fönstret
+          </button>
+        </motion.div>
       );
-  } else if (isWarmup) {
-      contentToRender = (
-        <div className="relative bg-gradient-to-br from-orange-500 to-red-500 rounded-[2.5rem] p-8 w-full max-w-md text-white text-center shadow-2xl animate-fade-in z-[11001]" onClick={e => e.stopPropagation()}>
-          <div className="text-5xl mb-4">🔥</div>
-          <h2 className="text-4xl font-black tracking-tight uppercase mb-2">Redo!</h2>
-          <p className="text-xl text-orange-100 font-medium">Uppvärmningen klar. Nu kör vi!</p>
-          <button onClick={handleClose} className="mt-8 w-full bg-white text-orange-700 hover:bg-blue-50 font-black py-4 rounded-2xl text-lg shadow-md transition-colors uppercase tracking-widest">Starta passet</button>
-        </div>
+    }
+
+    if (isFinalBlock) {
+      return (
+        <motion.div 
+          initial={{ opacity: 0, scale: 0.92, y: 16 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          transition={{ type: 'spring', duration: 0.5, bounce: 0.12 }}
+          className="relative bg-white dark:bg-gray-900 rounded-[2.5rem] p-8 sm:p-12 w-full max-w-lg text-gray-900 dark:text-white text-center shadow-2xl border-2 border-amber-500/30 overflow-hidden z-[11001]"
+          onClick={e => e.stopPropagation()}
+        >
+          {/* Subtle warm ambient background glow */}
+          <div className="absolute -top-24 left-1/2 -translate-x-1/2 w-72 h-72 bg-amber-500/15 rounded-full blur-3xl pointer-events-none" />
+
+          <div className="relative z-10">
+            <div className="text-6xl sm:text-7xl mb-4 animate-bounce">🏆</div>
+            <h2 id="workout-complete-title" className="text-3xl sm:text-5xl font-black tracking-tight uppercase mb-3 text-gray-900 dark:text-white drop-shadow-sm">
+              {message.title}
+            </h2>
+            <p className="text-base sm:text-xl text-gray-600 dark:text-gray-300 font-semibold leading-relaxed mb-6 max-w-md mx-auto">
+              {message.subtitle}
+            </p>
+
+            {finishTime !== undefined && finishTime > 0 && (
+              <div className="bg-gray-50 dark:bg-gray-950/80 rounded-2xl p-4 mb-8 border border-gray-200 dark:border-gray-800 inline-block px-8 shadow-inner">
+                <p className="text-[10px] font-black uppercase tracking-[0.25em] text-gray-400 mb-0.5">Total Tid</p>
+                <p className="font-mono text-4xl sm:text-5xl font-black text-primary">{formatTime(finishTime)}</p>
+              </div>
+            )}
+
+            <button 
+              onClick={handleClose} 
+              className="w-full bg-primary hover:brightness-110 text-white font-black py-5 px-8 rounded-2xl text-xl shadow-xl shadow-primary/25 transition-all transform hover:scale-[1.02] active:scale-98 uppercase tracking-wider cursor-pointer"
+            >
+              Klar
+            </button>
+          </div>
+        </motion.div>
       );
-  } else {
-      contentToRender = (
-        <div className="relative bg-gradient-to-br from-blue-600 to-cyan-600 rounded-[2.5rem] p-8 w-full max-w-md text-white text-center shadow-2xl animate-fade-in z-[11001]" onClick={e => e.stopPropagation()}>
-          <div className="text-5xl mb-4">👍</div>
-          <h2 className="text-4xl font-black tracking-tight uppercase mb-2">Snyggt!</h2>
-          <p className="text-xl text-blue-100 font-medium">Blocket avklarat. Hämta andan!</p>
-          <button onClick={handleClose} className="mt-8 w-full bg-white text-blue-700 hover:bg-blue-50 font-black py-4 rounded-2xl text-lg shadow-md transition-colors uppercase tracking-widest">Nästa Block</button>
-        </div>
+    }
+
+    if (isWarmup) {
+      return (
+        <motion.div 
+          initial={{ opacity: 0, scale: 0.92, y: 16 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          transition={{ type: 'spring', duration: 0.5, bounce: 0.12 }}
+          className="relative bg-white dark:bg-gray-900 rounded-[2.5rem] p-8 sm:p-10 w-full max-w-md text-gray-900 dark:text-white text-center shadow-2xl border-2 border-orange-500/30 z-[11001]" 
+          onClick={e => e.stopPropagation()}
+        >
+          <div className="text-5xl mb-3">🔥</div>
+          <h2 id="workout-complete-title" className="text-3xl sm:text-4xl font-black tracking-tight uppercase mb-2 text-gray-900 dark:text-white">
+            Redo!
+          </h2>
+          <p className="text-base sm:text-lg text-gray-600 dark:text-gray-300 font-medium mb-8">
+            Uppvärmningen klar. Nu kör vi!
+          </p>
+          <button 
+            onClick={handleClose} 
+            className="w-full bg-orange-500 hover:bg-orange-600 text-white font-black py-4 sm:py-5 rounded-2xl text-lg shadow-lg shadow-orange-500/20 transition-all uppercase tracking-wider cursor-pointer active:scale-98"
+          >
+            Starta passet
+          </button>
+        </motion.div>
       );
-  }
- 
+    }
+
+    // Default: Block complete (non-final block)
+    return (
+      <motion.div 
+        initial={{ opacity: 0, scale: 0.92, y: 16 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        transition={{ type: 'spring', duration: 0.5, bounce: 0.12 }}
+        className="relative bg-white dark:bg-gray-900 rounded-[2.5rem] p-8 sm:p-10 w-full max-w-md text-gray-900 dark:text-white text-center shadow-2xl border-2 border-primary/20 z-[11001]" 
+        onClick={e => e.stopPropagation()}
+      >
+        {blockTag && (
+          <span className="inline-block px-3.5 py-1 rounded-full text-xs font-black uppercase tracking-wider bg-primary/10 text-primary mb-3">
+            {blockTag}
+          </span>
+        )}
+        <div className="text-5xl mb-3">⚡</div>
+        <h2 id="workout-complete-title" className="text-3xl sm:text-4xl font-black tracking-tight uppercase mb-2 text-gray-900 dark:text-white">
+          Snyggt!
+        </h2>
+        <p className="text-base sm:text-lg text-gray-600 dark:text-gray-300 font-medium mb-8">
+          Blocket avklarat. Hämta andan!
+        </p>
+        <button 
+          onClick={handleClose} 
+          className="w-full bg-primary hover:brightness-110 text-white font-black py-4 sm:py-5 rounded-2xl text-lg shadow-lg shadow-primary/20 transition-all uppercase tracking-wider cursor-pointer active:scale-98"
+        >
+          Nästa Block
+        </button>
+      </motion.div>
+    );
+  };
+
   return (
     <div 
-        className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center z-50 p-4" 
+        className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center z-50 p-4 select-none" 
         onClick={(e) => {
             if (e.target === e.currentTarget) {
                 handleClose(e);
@@ -238,9 +317,13 @@ export const WorkoutCompleteModal: React.FC<WorkoutCompleteModalProps> = ({ isOp
         aria-modal="true"
         aria-labelledby="workout-complete-title"
     >
-      <Confetti />
-      <Hearts />
-      {isRegistrationView ? hyroxResultContent : contentToRender}
+      {showCelebrationEffects && (
+        <>
+          <Confetti />
+          <Hearts />
+        </>
+      )}
+      {renderModalContent()}
     </div>
   );
 };
