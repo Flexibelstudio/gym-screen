@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
-import { Page, Workout, WorkoutBlock, TimerMode, Exercise, TimerSettings, Passkategori, Studio, StudioConfig, Organization, CustomPage, UserRole, InfoMessage, StartGroup, InfoCarousel, WorkoutDiploma, TimerStatus } from './types';
+import { Page, Workout, WorkoutBlock, Studio, Organization, CustomPage, UserRole, InfoMessage, StartGroup, InfoCarousel, WorkoutDiploma } from './types';
 
 import { useStudio } from './context/StudioContext';
 import { useAuth } from './context/AuthContext';
@@ -14,7 +14,7 @@ import { WelcomePaywall } from './components/WelcomePaywall';
 import PendingCoachScreen from './components/PendingCoachScreen';
 
 // --- Services ---
-import { createOrganization, updateGlobalConfig, updateStudioConfig, createStudio, updateOrganization, updateOrganizationPasswords, updateOrganizationLogos, updateOrganizationPrimaryColor, updateOrganizationCustomPages, updateStudio, deleteStudio, archiveOrganization as deleteOrganization, updateOrganizationInfoCarousel, updateOrganizationFavicon, updateOrganizationAppIcon, listenToOrganizationChanges, getWorkoutById, getFreshCategoryWorkouts } from './services/firebaseService';
+import { createOrganization, updateOrganization, updateOrganizationPasswords, updateOrganizationLogos, updateOrganizationPrimaryColor, updateOrganizationCustomPages, archiveOrganization as deleteOrganization, updateOrganizationInfoCarousel, updateOrganizationFavicon, updateOrganizationAppIcon } from './services/firebaseService';
 import { Toast } from './components/ui/ToastNotification';
 
 // --- Custom Hooks ---
@@ -26,12 +26,12 @@ import { useInactivityTimer } from './hooks/app/useInactivityTimer';
 import { useNavigation } from './hooks/app/useNavigation';
 import { useWorkoutActions } from './hooks/app/useWorkoutActions';
 import { useTimerFlow } from './hooks/app/useTimerFlow';
+import { useStudioAdmin } from './hooks/app/useStudioAdmin';
 
 // --- Components ---
 import { WorkoutCompleteModal } from './components/WorkoutCompleteModal';
 import { PasswordModal } from './components/PasswordModal';
 import { ReAuthModal } from './components/ReAuthModal';
-import { StudioSelectionScreen } from './components/StudioSelectionScreen';
 import { StudioConfigModal } from './components/AdminConfigScreen';
 import { LoginScreen } from './components/LoginScreen';
 import { RegisterGymScreen } from './components/RegisterGymScreen'; 
@@ -53,8 +53,7 @@ import { WorkoutLogScreen } from './mobile/screens/WorkoutLogScreen';
 import { WorkoutListScreen } from './components/WorkoutListScreen';
 import { WebQRScanner } from './components/WebQRScanner';
 import { motion, AnimatePresence } from 'framer-motion';
-import WorkoutDetailScreen, { WorkoutPresentationModal } from './components/WorkoutDetailScreen';
-import { CloseIcon, PencilIcon } from './components/icons';
+import { WorkoutPresentationModal } from './components/WorkoutDetailScreen';
 import { WorkoutDiplomaView } from './components/WorkoutDiplomaView';
 
 // --- Modals ---
@@ -600,80 +599,22 @@ const App: React.FC = () => {
     setIsPasswordModalOpen(false);
   }
 
-  const handleSaveStudioConfig = async (organizationId: string, studioId: string, newConfigOverrides: Partial<StudioConfig>) => {
-    try {
-      const updatedStudio = await updateStudioConfig(organizationId, studioId, newConfigOverrides);
-      selectStudio(updatedStudio); 
-      setAllStudios(prev => prev.map(s => s.id === studioId ? updatedStudio : s));
-      setStudioToEditConfig(null);
-    } catch (error) {
-      console.error("Failed to save studio config:", error);
-      alert("Kunde inte spara konfigurationen.");
-    }
-  };
-
-  const handleEditStudioConfig = (studio: Studio) => setStudioToEditConfig(studio);
-
-  const handleSaveGlobalConfig = async (organizationId: string, newConfig: StudioConfig) => {
-      try {
-          await updateGlobalConfig(organizationId, newConfig);
-          const updatedOrg = { ...selectedOrganization!, globalConfig: newConfig };
-          selectOrganization(updatedOrg);
-          setAllOrganizations(prev => prev.map(o => o.id === organizationId ? updatedOrg : o));
-      } catch (error) {
-           console.error("Failed to save global config:", error);
-           alert("Kunde inte spara global konfiguration.");
-      }
-  };
-
-  const handleCreateStudio = async (organizationId: string, name: string, locationId?: string) => {
-      try {
-          const newStudio = await createStudio(organizationId, name, locationId);
-          const newOrgs = allOrganizations.length > 0 ? allOrganizations.map(o => o.id === organizationId ? { ...o, studios: [...o.studios, newStudio] } : o) : [];
-          setAllOrganizations(newOrgs);
-          const updatedOrg = newOrgs.find(o => o.id === organizationId);
-          if (updatedOrg) selectOrganization(updatedOrg);
-      } catch (error) {
-          console.error("Failed to create studio:", error);
-          alert("Kunde inte skapa studio.");
-      }
-  };
-
-    const handleUpdateStudio = async (organizationId: string, studioId: string, name: string, locationId?: string) => {
-        try {
-            await updateStudio(organizationId, studioId, name, locationId);
-            const newOrgs = allOrganizations.map(o => {
-                if (o.id === organizationId) {
-                    return { ...o, studios: o.studios.map(s => s.id === studioId ? { ...s, name, locationId: locationId !== undefined ? locationId : s.locationId } : s) };
-                }
-                return o;
-            });
-            setAllOrganizations(newOrgs);
-            const updatedOrg = newOrgs.find(o => o.id === organizationId);
-            if (updatedOrg) selectOrganization(updatedOrg);
-        } catch (error) {
-            console.error("Failed to update studio:", error);
-            alert("Kunde inte uppdatera studion.");
-        }
-    };
-
-    const handleDeleteStudio = async (organizationId: string, studioId: string) => {
-        try {
-            await deleteStudio(organizationId, studioId);
-            const newOrgs = allOrganizations.map(o => {
-                if (o.id === organizationId) {
-                    return { ...o, studios: o.studios.filter(s => s.id !== studioId) };
-                }
-                return o;
-            });
-            setAllOrganizations(newOrgs);
-            const updatedOrg = newOrgs.find(o => o.id === organizationId);
-            if (updatedOrg) selectOrganization(updatedOrg);
-        } catch (error) {
-            console.error("Failed to delete studio:", error);
-            alert("Kunde inte ta bort studion.");
-        }
-    };
+  const {
+    handleSaveStudioConfig,
+    handleEditStudioConfig,
+    handleSaveGlobalConfig,
+    handleCreateStudio,
+    handleUpdateStudio,
+    handleDeleteStudio,
+  } = useStudioAdmin({
+    selectedOrganization,
+    allOrganizations,
+    selectOrganization,
+    setAllOrganizations,
+    selectStudio,
+    setAllStudios,
+    setStudioToEditConfig,
+  });
 
   const handleCreateOrganization = async (name: string, subdomain: string) => {
     try {

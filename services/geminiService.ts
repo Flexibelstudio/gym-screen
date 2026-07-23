@@ -377,7 +377,7 @@ export async function remixWorkout(originalWorkout: Workout): Promise<Workout> {
 
 export async function analyzeCurrentWorkout(currentWorkout: Workout): Promise<Workout> {
     const data = await _callGeminiJSON<any>(TEXT_MODEL, Prompts.WORKOUT_ANALYSIS_PROMPT(JSON.stringify(currentWorkout)), workoutSchema);
-    const merged: any = { ...currentWorkout, ...data };
+    const merged = { ...currentWorkout, ...data };
     merged.blocks = restoreCustomBlockSettings(currentWorkout.blocks, merged.blocks);
     return transformWorkout(merged, currentWorkout.organizationId);
 }
@@ -425,7 +425,7 @@ export async function chatWithAICoach(
 
     let updatedWorkout: Workout | undefined = undefined;
     if (data.didModifyWorkout && data.updatedWorkout) {
-        const merged: any = { ...currentWorkout, ...data.updatedWorkout };
+        const merged = { ...currentWorkout, ...data.updatedWorkout };
         merged.blocks = restoreCustomBlockSettings(currentWorkout.blocks, merged.blocks);
         updatedWorkout = transformWorkout(merged, currentWorkout.organizationId);
     }
