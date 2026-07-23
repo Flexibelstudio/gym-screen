@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { Workout, WorkoutBlock, TimerMode, TimerSettings, Exercise, StudioConfig, WorkoutResult, WorkoutLog, BankExercise } from '../types';
+import { Workout, WorkoutBlock, TimerMode, TimerSettings, Exercise, StudioConfig, WorkoutResult, WorkoutLog, BankExercise, TrackingField } from '../types';
 import { TimerSetupModal } from './TimerSetupModal';
 import { StarIcon, PencilIcon, TrashIcon, DumbbellIcon, ToggleSwitch, SparklesIcon, CloseIcon, ClockIcon, UsersIcon, ChartBarIcon, TrophyIcon, EyeIcon, PlusIcon } from './icons';
 import { getWorkoutResults, getMemberLogs, saveCustomProgram, getOrganizationExerciseBank, getMemberCustomExercises, addMemberCustomExercise } from '../services/firebaseService';
@@ -75,6 +75,7 @@ export function useCustomWorkoutExerciseEditor() {
     const { selectedOrganization } = useStudio();
     const [exerciseToRename, setExerciseToRename] = useState<{ blockId: string; exerciseIndex: number; exercise: Exercise } | null>(null);
     const [renameInput, setRenameInput] = useState<string>('');
+    const [trackingFieldsInput, setTrackingFieldsInput] = useState<TrackingField[]>(['reps', 'weight']);
 
     // Add exercise state
     const [addModalBlockId, setAddModalBlockId] = useState<string | null>(null);
@@ -85,6 +86,7 @@ export function useCustomWorkoutExerciseEditor() {
     const handleOpenRename = (blockId: string, exerciseIndex: number, exercise: Exercise) => {
         setExerciseToRename({ blockId, exerciseIndex, exercise });
         setRenameInput(exercise.name || '');
+        setTrackingFieldsInput(exercise.trackingFields && exercise.trackingFields.length > 0 ? exercise.trackingFields : ['reps', 'weight']);
     };
 
     const handleSaveRename = async (
@@ -100,12 +102,13 @@ export function useCustomWorkoutExerciseEditor() {
         const targetBlock = updatedWorkout.blocks?.find(b => b.id === exerciseToRename.blockId);
         if (targetBlock && targetBlock.exercises && targetBlock.exercises[exerciseToRename.exerciseIndex]) {
             targetBlock.exercises[exerciseToRename.exerciseIndex].name = newName;
+            targetBlock.exercises[exerciseToRename.exerciseIndex].trackingFields = trackingFieldsInput.length > 0 ? trackingFieldsInput : ['reps', 'weight'];
             setWorkout(updatedWorkout);
             if (userId) {
                 try {
                     await saveCustomProgram(userId, updatedWorkout);
                 } catch (err) {
-                    console.error("Fel vid sparande av namnändring:", err);
+                    console.error("Fel vid sparande av övningsändring:", err);
                 }
             }
         }
@@ -248,11 +251,31 @@ export function useCustomWorkoutExerciseEditor() {
         userId?: string
     ) => {
         if (!exerciseToRename) return null;
+
+        const toggleFieldInModal = (field: TrackingField) => {
+            setTrackingFieldsInput(prev => {
+                if (prev.includes(field)) {
+                    if (prev.length <= 1) return prev; // At least one field required
+                    return prev.filter(f => f !== field);
+                } else {
+                    return [...prev, field];
+                }
+            });
+        };
+
+        const fieldLabels: { id: TrackingField; label: string }[] = [
+            { id: 'time', label: 'Tid' },
+            { id: 'distance', label: 'Distans' },
+            { id: 'kcal', label: 'Kcal' },
+            { id: 'reps', label: 'Reps' },
+            { id: 'weight', label: 'Vikt' }
+        ];
+
         return (
             <Modal 
                 isOpen={!!exerciseToRename} 
                 onClose={() => setExerciseToRename(null)} 
-                title="Byt namn på övning" 
+                title="Redigera övning" 
                 size="sm"
                 footer={
                     <div className="flex gap-2 justify-end w-full">
@@ -273,18 +296,48 @@ export function useCustomWorkoutExerciseEditor() {
                     </div>
                 }
             >
-                <div className="p-2">
-                    <input 
-                        type="text" 
-                        value={renameInput}
-                        onChange={(e) => setRenameInput(e.target.value)}
-                        placeholder="Övningens namn"
-                        autoFocus
-                        onKeyDown={(e) => {
-                            if (e.key === 'Enter') handleSaveRename(workout, setWorkout, userId);
-                        }}
-                        className="w-full bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 text-gray-900 dark:text-gray-100"
-                    />
+                <div className="p-2 space-y-4">
+                    <div>
+                        <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">Övningens namn</label>
+                        <input 
+                            type="text" 
+                            value={renameInput}
+                            onChange={(e) => setRenameInput(e.target.value)}
+                            placeholder="Övningens namn"
+                            autoFocus
+                            onKeyDown={(e) => {
+                                if (e.key === 'Enter') handleSaveRename(workout, setWorkout, userId);
+                            }}
+                            className="w-full bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 text-gray-900 dark:text-gray-100 font-medium"
+                        />
+                    </div>
+
+                    <div className="pt-3 border-t border-gray-100 dark:border-gray-800">
+                        <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Logga fält:</label>
+                        <div className="flex flex-wrap gap-2">
+                            {fieldLabels.map(f => {
+                                const isChecked = trackingFieldsInput.includes(f.id);
+                                return (
+                                    <label 
+                                        key={f.id} 
+                                        className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer select-none transition-all ${
+                                            isChecked 
+                                                ? 'bg-primary text-white shadow-sm' 
+                                                : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
+                                        }`}
+                                    >
+                                        <input 
+                                            type="checkbox" 
+                                            checked={isChecked}
+                                            onChange={() => toggleFieldInModal(f.id)}
+                                            className="sr-only"
+                                        />
+                                        {f.label}
+                                    </label>
+                                );
+                            })}
+                        </div>
+                    </div>
                 </div>
             </Modal>
         );
@@ -541,6 +594,19 @@ export const WorkoutPresentationModal: React.FC<{
                                                         {ex.description}
                                                     </p>
                                                 )}
+                                                {ex.loggingEnabled !== false && (
+                                                    <div className="flex items-center gap-2 flex-wrap mt-2 sm:mt-3">
+                                                        <span className="text-xs sm:text-sm md:text-lg font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">Logga:</span>
+                                                        {(ex.trackingFields && ex.trackingFields.length > 0 ? ex.trackingFields : ['reps', 'weight']).map(field => {
+                                                            const label = field === 'time' ? 'Tid' : field === 'distance' ? 'Distans' : field === 'kcal' ? 'Kcal' : field === 'reps' ? 'Reps' : 'Vikt';
+                                                            return (
+                                                                <span key={field} className="text-xs sm:text-sm md:text-base font-bold bg-gray-200/80 dark:bg-gray-800 text-gray-700 dark:text-gray-300 px-2.5 py-0.5 rounded-md">
+                                                                    {label}
+                                                                </span>
+                                                            );
+                                                        })}
+                                                    </div>
+                                                )}
                                             </div>
                                             {isOwnProgram && (
                                                 <div className="flex items-center gap-1 sm:gap-2 ml-2 sm:ml-4 flex-shrink-0">
@@ -548,7 +614,7 @@ export const WorkoutPresentationModal: React.FC<{
                                                         type="button"
                                                         onClick={() => editor.handleOpenRename(block.id, index, ex)}
                                                         className="p-2 text-gray-400 hover:text-primary transition-colors rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800"
-                                                        title="Byt namn på övning"
+                                                        title="Redigera övning"
                                                     >
                                                         <PencilIcon className="w-5 h-5 md:w-6 md:h-6" />
                                                     </button>
@@ -727,6 +793,19 @@ const WorkoutBlockCard: React.FC<{
                                     )}
                                 </h4>
                                 {ex.description && <p className="text-sm text-gray-500 dark:text-gray-400 mt-1 leading-relaxed font-medium break-words whitespace-pre-wrap">{ex.description}</p>}
+                                {ex.loggingEnabled !== false && (
+                                    <div className="flex items-center gap-1.5 flex-wrap mt-1.5">
+                                        <span className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">Logga:</span>
+                                        {(ex.trackingFields && ex.trackingFields.length > 0 ? ex.trackingFields : ['reps', 'weight']).map(field => {
+                                            const label = field === 'time' ? 'Tid' : field === 'distance' ? 'Distans' : field === 'kcal' ? 'Kcal' : field === 'reps' ? 'Reps' : 'Vikt';
+                                            return (
+                                                <span key={field} className="text-[10px] font-bold bg-gray-200/70 dark:bg-gray-800 text-gray-600 dark:text-gray-300 px-2 py-0.5 rounded">
+                                                    {label}
+                                                </span>
+                                            );
+                                        })}
+                                    </div>
+                                )}
                             </div>
                             {ex.reps && (
                                 <div className="bg-white dark:bg-gray-800 px-3 py-1.5 rounded-lg shadow-sm border border-gray-100 dark:border-gray-700 font-mono font-black text-primary text-sm flex-shrink-0 whitespace-nowrap">
@@ -739,7 +818,7 @@ const WorkoutBlockCard: React.FC<{
                                         type="button"
                                         onClick={() => onRenameExercise?.(block.id, index, ex)}
                                         className="p-2 text-gray-400 hover:text-primary transition-colors rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800"
-                                        title="Byt namn på övning"
+                                        title="Redigera övning"
                                     >
                                         <PencilIcon className="w-4 h-4" />
                                     </button>

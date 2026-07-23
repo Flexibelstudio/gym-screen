@@ -472,6 +472,7 @@ const ExerciseLogCard: React.FC<{
         const current = [...trackingFields];
         const has = current.includes(field);
         if (has) {
+            if (current.length <= 1) return; // Block unchecking the last field
             onUpdate({ trackingFields: current.filter(f => f !== field) });
         } else {
             onUpdate({ trackingFields: [...current, field] });
@@ -928,7 +929,7 @@ const PostWorkoutForm: React.FC<{ data: LogData; onUpdate: (updates: Partial<Log
                         ))}
                     </div>
                 </div>
-                <div className="mt-10"><h5 className="text-[11px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-4">Kroppskänla</h5><div className="flex flex-wrap gap-2">
+                <div className="mt-10"><h5 className="text-[11px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-4">Kroppskänsla</h5><div className="flex flex-wrap gap-2">
                     {KROPPSKANSLA_TAGS.map(tag => (<button key={tag} onClick={() => toggleTag(tag)} className={`px-6 py-3 rounded-2xl text-xs font-bold border-2 transition-all active:scale-95 ${data.tags.includes(tag) ? 'bg-gray-900 dark:bg-white text-white dark:text-gray-900 border-gray-900 dark:border-white shadow-md' : 'bg-white dark:bg-gray-800 text-gray-400 dark:text-gray-500 border-gray-100 dark:border-gray-700'}`}>{tag}</button>))}
                 </div></div>
                 
@@ -1754,6 +1755,36 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
         next[index] = { ...next[index], ...updates };
         return next;
     });
+
+    if (updates.trackingFields) {
+        const isCustomWorkout = (wId && typeof wId === 'string' && wId.startsWith('custom-')) || 
+                                (workout?.id && typeof workout.id === 'string' && workout.id.startsWith('custom-'));
+        if (isCustomWorkout && userId && workout) {
+            const exId = exerciseResults[index]?.exerciseId;
+            if (exId) {
+                const updatedWorkout = JSON.parse(JSON.stringify(workout)) as WorkoutData;
+                let foundEx = false;
+                if (updatedWorkout.blocks) {
+                    for (const block of updatedWorkout.blocks) {
+                        if (block.exercises) {
+                            const ex = block.exercises.find(e => e.id === exId);
+                            if (ex) {
+                                (ex as any).trackingFields = updates.trackingFields;
+                                foundEx = true;
+                                break;
+                            }
+                        }
+                    }
+                }
+                if (foundEx) {
+                    setWorkout(updatedWorkout);
+                    saveCustomProgram(userId, updatedWorkout as any).catch(err => {
+                        console.error("Fel vid sparande av trackingFields till eget pass:", err);
+                    });
+                }
+            }
+        }
+    }
   };
 
   const handleAddGroupSet = (groupId: string) => {
