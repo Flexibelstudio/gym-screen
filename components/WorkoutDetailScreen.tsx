@@ -69,11 +69,151 @@ const getSettingsText = (block: WorkoutBlock) => {
     }
 };
 
+// --- HOOK FOR CUSTOM WORKOUT EXERCISE EDITING ---
+export function useCustomWorkoutExerciseEditor() {
+    const confirm = useConfirm();
+    const [exerciseToRename, setExerciseToRename] = useState<{ blockId: string; exerciseIndex: number; exercise: Exercise } | null>(null);
+    const [renameInput, setRenameInput] = useState<string>('');
+
+    const handleOpenRename = (blockId: string, exerciseIndex: number, exercise: Exercise) => {
+        setExerciseToRename({ blockId, exerciseIndex, exercise });
+        setRenameInput(exercise.name || '');
+    };
+
+    const handleSaveRename = async (
+        workout: Workout, 
+        setWorkout: (w: Workout) => void, 
+        userId?: string
+    ) => {
+        if (!exerciseToRename) return;
+        const newName = renameInput.trim();
+        if (!newName) return;
+
+        const updatedWorkout = JSON.parse(JSON.stringify(workout)) as Workout;
+        const targetBlock = updatedWorkout.blocks?.find(b => b.id === exerciseToRename.blockId);
+        if (targetBlock && targetBlock.exercises && targetBlock.exercises[exerciseToRename.exerciseIndex]) {
+            targetBlock.exercises[exerciseToRename.exerciseIndex].name = newName;
+            setWorkout(updatedWorkout);
+            if (userId) {
+                try {
+                    await saveCustomProgram(userId, updatedWorkout);
+                } catch (err) {
+                    console.error("Fel vid sparande av namnändring:", err);
+                }
+            }
+        }
+        setExerciseToRename(null);
+    };
+
+    const handleDeleteExercise = async (
+        blockId: string, 
+        exerciseIndex: number, 
+        exercise: Exercise, 
+        workout: Workout, 
+        setWorkout: (w: Workout) => void, 
+        userId?: string
+    ) => {
+        const exerciseName = exercise.name || 'Övning';
+        const isConfirmed = await confirm({
+            title: "Ta bort övning?",
+            message: `Ta bort '${exerciseName}' från passet?`,
+            confirmText: "Ta bort",
+            confirmColor: "red"
+        });
+
+        if (!isConfirmed) return;
+
+        const updatedWorkout = JSON.parse(JSON.stringify(workout)) as Workout;
+        const targetBlock = updatedWorkout.blocks?.find(b => b.id === blockId);
+        if (targetBlock && targetBlock.exercises) {
+            targetBlock.exercises.splice(exerciseIndex, 1);
+            setWorkout(updatedWorkout);
+            if (userId) {
+                try {
+                    await saveCustomProgram(userId, updatedWorkout);
+                } catch (err) {
+                    console.error("Fel vid borttagning av övning:", err);
+                }
+            }
+        }
+    };
+
+    const renderRenameModal = (
+        workout: Workout, 
+        setWorkout: (w: Workout) => void, 
+        userId?: string
+    ) => {
+        if (!exerciseToRename) return null;
+        return (
+            <Modal 
+                isOpen={!!exerciseToRename} 
+                onClose={() => setExerciseToRename(null)} 
+                title="Byt namn på övning" 
+                size="sm"
+                footer={
+                    <div className="flex gap-2 justify-end w-full">
+                        <button 
+                            type="button"
+                            onClick={() => setExerciseToRename(null)} 
+                            className="px-4 py-2 text-sm font-semibold text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800 rounded-lg transition-colors"
+                        >
+                            Avbryt
+                        </button>
+                        <button 
+                            type="button"
+                            onClick={() => handleSaveRename(workout, setWorkout, userId)} 
+                            className="px-4 py-2 text-sm font-semibold bg-primary text-white rounded-lg hover:brightness-110 transition-colors"
+                        >
+                            Spara
+                        </button>
+                    </div>
+                }
+            >
+                <div className="p-2">
+                    <input 
+                        type="text" 
+                        value={renameInput}
+                        onChange={(e) => setRenameInput(e.target.value)}
+                        placeholder="Övningens namn"
+                        autoFocus
+                        onKeyDown={(e) => {
+                            if (e.key === 'Enter') handleSaveRename(workout, setWorkout, userId);
+                        }}
+                        className="w-full bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 text-gray-900 dark:text-gray-100"
+                    />
+                </div>
+            </Modal>
+        );
+    };
+
+    return {
+        exerciseToRename,
+        handleOpenRename,
+        handleSaveRename,
+        handleDeleteExercise,
+        renderRenameModal
+    };
+}
+
 // --- COMPONENTS ---
 
-export const WorkoutPresentationModal: React.FC<{ workout: Workout; onClose: () => void; blockId?: string; onHeaderVisibilityChange?: (visible: boolean) => void }> = ({ workout, onClose, blockId, onHeaderVisibilityChange }) => {
+export const WorkoutPresentationModal: React.FC<{ 
+    workout: Workout; 
+    onClose: () => void; 
+    blockId?: string; 
+    onHeaderVisibilityChange?: (visible: boolean) => void;
+    isOwnProgram?: boolean;
+    userId?: string;
+}> = ({ workout, onClose, blockId, onHeaderVisibilityChange, isOwnProgram, userId }) => {
     const scrollRef = useRef<HTMLDivElement>(null);
-    
+    const [currentWorkout, setCurrentWorkout] = useState<Workout>(workout);
+
+    useEffect(() => {
+        setCurrentWorkout(workout);
+    }, [workout]);
+
+    const editor = useCustomWorkoutExerciseEditor();
+
     useEffect(() => {
         if (onHeaderVisibilityChange) {
             onHeaderVisibilityChange(false);
@@ -99,8 +239,8 @@ export const WorkoutPresentationModal: React.FC<{ workout: Workout; onClose: () 
     }, [onHeaderVisibilityChange, blockId]);
 
     const blocksToShow = blockId 
-        ? workout.blocks?.filter(b => b.id === blockId) 
-        : workout.blocks;
+        ? currentWorkout.blocks?.filter(b => b.id === blockId) 
+        : currentWorkout.blocks;
 
     const modalContent = (
         <motion.div 
@@ -112,7 +252,7 @@ export const WorkoutPresentationModal: React.FC<{ workout: Workout; onClose: () 
             <div className="flex justify-between items-center p-4 sm:p-6 lg:p-8 xl:p-12 border-b border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-900/50 flex-shrink-0">
                 <div className="flex items-center gap-3 sm:gap-4 md:gap-6 lg:gap-8 xl:gap-8 flex-wrap min-w-0">
                     <h1 className={`font-black text-gray-900 dark:text-white uppercase tracking-tight leading-tight break-words ${blockId ? 'text-lg sm:text-xl md:text-2xl lg:text-3xl xl:text-4xl text-gray-400' : 'text-2xl sm:text-3xl md:text-4xl lg:text-5xl xl:text-7xl'}`}>
-                        {workout.title}
+                        {currentWorkout.title}
                     </h1>
                 </div>
                 <button 
@@ -155,60 +295,82 @@ export const WorkoutPresentationModal: React.FC<{ workout: Workout; onClose: () 
                             )}
 
                             <div className="flex flex-col">
-                                {block.exercises?.map((ex, index) => {
-                                    if (!ex) return null;
-                                    const nextEx = block.exercises?.[index + 1];
-                                    const prevEx = block.exercises?.[index - 1];
-                                    const isGroupedWithNext = nextEx && ex.groupId && ex.groupId === nextEx.groupId;
-                                    const isGroupedWithPrev = prevEx && ex.groupId && ex.groupId === prevEx.groupId;
-                                    
-                                    const roundedClass = isGroupedWithNext && !isGroupedWithPrev ? 'rounded-t-2xl rounded-b-sm' :
-                                                         isGroupedWithPrev && !isGroupedWithNext ? 'rounded-b-2xl rounded-t-sm' :
-                                                         isGroupedWithPrev && isGroupedWithNext ? 'rounded-sm' : 'rounded-2xl';
-                                                         
-                                    const borderClass = ex.groupColor ? `border border-r-gray-100 border-y-gray-100 dark:border-r-gray-800 dark:border-y-gray-800 border-l-[4px] xl:border-l-[12px] ${ex.groupColor.replace('bg-', 'border-l-')}` : 'border border-gray-100 dark:border-gray-800';
-                                    const marginClass = isGroupedWithNext ? 'mb-1 xl:mb-3' : 'mb-3 lg:mb-4 xl:mb-10';
+                                {block.exercises && block.exercises.length > 0 ? (
+                                    block.exercises.map((ex, index) => {
+                                        if (!ex) return null;
+                                        const nextEx = block.exercises?.[index + 1];
+                                        const prevEx = block.exercises?.[index - 1];
+                                        const isGroupedWithNext = nextEx && ex.groupId && ex.groupId === nextEx.groupId;
+                                        const isGroupedWithPrev = prevEx && ex.groupId && ex.groupId === prevEx.groupId;
+                                        
+                                        const roundedClass = isGroupedWithNext && !isGroupedWithPrev ? 'rounded-t-2xl rounded-b-sm' :
+                                                             isGroupedWithPrev && !isGroupedWithNext ? 'rounded-b-2xl rounded-t-sm' :
+                                                             isGroupedWithPrev && isGroupedWithNext ? 'rounded-sm' : 'rounded-2xl';
+                                                             
+                                        const borderClass = ex.groupColor ? `border border-r-gray-100 border-y-gray-100 dark:border-r-gray-800 dark:border-y-gray-800 border-l-[4px] xl:border-l-[12px] ${ex.groupColor.replace('bg-', 'border-l-')}` : 'border border-gray-100 dark:border-gray-800';
+                                        const marginClass = isGroupedWithNext ? 'mb-1 xl:mb-3' : 'mb-3 lg:mb-4 xl:mb-10';
 
-                                    return (
-                                    <div key={ex.id || `ex-${index}`} className={`flex items-start gap-4 md:gap-6 lg:gap-10 xl:gap-16 p-4 sm:p-6 md:p-8 lg:p-12 xl:p-16 ${roundedClass} bg-gray-50 dark:bg-gray-900 ${borderClass} ${marginClass}`}>
-                                         <div className="flex-shrink-0 w-8 h-8 sm:w-12 sm:h-12 md:w-16 md:h-16 lg:w-20 lg:h-20 xl:w-28 xl:h-28 rounded-full bg-gray-200 dark:bg-gray-800 flex items-center justify-center text-sm sm:text-lg md:text-2xl lg:text-3xl xl:text-5xl font-black text-gray-500">
-                                            {index + 1}
-                                        </div>
-                                        <div className="flex-grow min-w-0">
-                                            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-2 sm:gap-4 lg:gap-6 xl:gap-12">
-                                                <h3 className="text-lg sm:text-2xl md:text-4xl lg:text-5xl xl:text-7xl font-black text-gray-900 dark:text-white leading-tight break-words flex items-center gap-2 flex-wrap">
-                                                    <span>{ex.name || 'Okänd övning'}</span>
-                                                    {getSideLabel(ex.side) && (
-                                                        <span className="inline-flex items-center justify-center px-2 py-0.5 sm:px-3 sm:py-1 text-xs sm:text-base md:text-xl lg:text-2xl xl:text-3xl font-black rounded-lg bg-orange-100 text-orange-800 dark:bg-orange-950/40 dark:text-orange-400 border border-orange-200 dark:border-orange-800/50 uppercase tracking-wide">
-                                                            {getSideLabel(ex.side)}
-                                                        </span>
+                                        return (
+                                        <div key={ex.id || `ex-${index}`} className={`flex items-start gap-4 md:gap-6 lg:gap-10 xl:gap-16 p-4 sm:p-6 md:p-8 lg:p-12 xl:p-16 ${roundedClass} bg-gray-50 dark:bg-gray-900 ${borderClass} ${marginClass}`}>
+                                             <div className="flex-shrink-0 w-8 h-8 sm:w-12 sm:h-12 md:w-16 md:h-16 lg:w-20 lg:h-20 xl:w-28 xl:h-28 rounded-full bg-gray-200 dark:bg-gray-800 flex items-center justify-center text-sm sm:text-lg md:text-2xl lg:text-3xl xl:text-5xl font-black text-gray-500">
+                                                {index + 1}
+                                            </div>
+                                            <div className="flex-grow min-w-0">
+                                                <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-2 sm:gap-4 lg:gap-6 xl:gap-12">
+                                                    <h3 className="text-lg sm:text-2xl md:text-4xl lg:text-5xl xl:text-7xl font-black text-gray-900 dark:text-white leading-tight break-words flex items-center gap-2 flex-wrap">
+                                                        <span>{ex.name || 'Okänd övning'}</span>
+                                                        {getSideLabel(ex.side) && (
+                                                            <span className="inline-flex items-center justify-center px-2 py-0.5 sm:px-3 sm:py-1 text-xs sm:text-base md:text-xl lg:text-2xl xl:text-3xl font-black rounded-lg bg-orange-100 text-orange-800 dark:bg-orange-950/40 dark:text-orange-400 border border-orange-200 dark:border-orange-800/50 uppercase tracking-wide">
+                                                                {getSideLabel(ex.side)}
+                                                            </span>
+                                                        )}
+                                                    </h3>
+                                                    {ex.reps && (
+                                                        <div className="bg-primary/10 text-primary px-3 py-1.5 md:px-5 md:py-2.5 lg:px-8 lg:py-4 xl:px-12 xl:py-6 rounded-lg whitespace-nowrap self-start sm:self-auto">
+                                                            <span className="text-sm sm:text-lg md:text-2xl lg:text-4xl xl:text-5xl font-mono font-black">{formatReps(ex.reps)}</span>
+                                                        </div>
                                                     )}
-                                                </h3>
-                                                {ex.reps && (
-                                                    <div className="bg-primary/10 text-primary px-3 py-1.5 md:px-5 md:py-2.5 lg:px-8 lg:py-4 xl:px-12 xl:py-6 rounded-lg whitespace-nowrap self-start sm:self-auto">
-                                                        <span className="text-sm sm:text-lg md:text-2xl lg:text-4xl xl:text-5xl font-mono font-black">{formatReps(ex.reps)}</span>
-                                                    </div>
+                                                </div>
+                                                {ex.description && (
+                                                    <p className="text-sm sm:text-base md:text-xl lg:text-2xl xl:text-3xl text-gray-500 dark:text-gray-400 mt-1.5 lg:mt-3 xl:mt-8 leading-relaxed font-medium break-words whitespace-pre-wrap">
+                                                        {ex.description}
+                                                    </p>
                                                 )}
                                             </div>
-                                            {ex.description && (
-                                                <p className="text-sm sm:text-base md:text-xl lg:text-2xl xl:text-3xl text-gray-500 dark:text-gray-400 mt-1.5 lg:mt-3 xl:mt-8 leading-relaxed font-medium break-words whitespace-pre-wrap">
-                                                    {ex.description}
-                                                </p>
+                                            {isOwnProgram && (
+                                                <div className="flex items-center gap-1 sm:gap-2 ml-2 sm:ml-4 flex-shrink-0">
+                                                    <button 
+                                                        type="button"
+                                                        onClick={() => editor.handleOpenRename(block.id, index, ex)}
+                                                        className="p-2 text-gray-400 hover:text-primary transition-colors rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800"
+                                                        title="Byt namn på övning"
+                                                    >
+                                                        <PencilIcon className="w-5 h-5 md:w-6 md:h-6" />
+                                                    </button>
+                                                    <button 
+                                                        type="button"
+                                                        onClick={() => editor.handleDeleteExercise(block.id, index, ex, currentWorkout, setCurrentWorkout, userId)}
+                                                        className="p-2 text-gray-400 hover:text-red-600 transition-colors rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800"
+                                                        title="Ta bort övning"
+                                                    >
+                                                        <TrashIcon className="w-5 h-5 md:w-6 md:h-6" />
+                                                    </button>
+                                                </div>
                                             )}
                                         </div>
-                                    </div>
-                                )})}
-                                {block.exercises?.length === 0 && (
-                                    <p className="text-sm lg:text-lg xl:text-2xl text-gray-400 italic pl-4 lg:pl-6 xl:pl-10">Inga övningar.</p>
+                                    )})
+                                ) : (
+                                    <p className="text-sm lg:text-lg xl:text-2xl text-gray-400 italic pl-4 lg:pl-6 xl:pl-10">Passet har inga övningar</p>
                                 )}
                             </div>
                         </div>
                     )})}
                 </div>
             </div>
+            {editor.renderRenameModal(currentWorkout, setCurrentWorkout, userId)}
         </motion.div>
     );
-    
+
     return createPortal(modalContent, document.body);
 };
 
@@ -449,67 +611,19 @@ const WorkoutDetailScreen: React.FC<WorkoutDetailScreenProps> = ({
   const [resultsLoading, setResultsLoading] = useState(false);
   const [visualizingFullWorkout, setVisualizingFullWorkout] = useState(false); 
   const [visualizingBlockId, setVisualizingBlockId] = useState<string | null>(null);
-  const [exerciseToRename, setExerciseToRename] = useState<{ blockId: string; exerciseIndex: number; exercise: Exercise } | null>(null);
-  const [renameInput, setRenameInput] = useState<string>('');
-  
+  const editor = useCustomWorkoutExerciseEditor();
+
   const blockRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const personalBestName = useMemo(() => localStorage.getItem('hyrox-participant-name'), []);
   const isHyroxRace = useMemo(() => workout.id.startsWith('hyrox-full-race') || workout.id.includes('custom-race'), [workout.id]);
 
   const handleOpenRename = (blockId: string, exerciseIndex: number, exercise: Exercise) => {
-    setExerciseToRename({ blockId, exerciseIndex, exercise });
-    setRenameInput(exercise.name || '');
+    editor.handleOpenRename(blockId, exerciseIndex, exercise);
   };
 
-  const handleSaveRename = async () => {
-    if (!exerciseToRename) return;
-    const newName = renameInput.trim();
-    if (!newName) return;
-
-    const updatedWorkout = JSON.parse(JSON.stringify(sessionWorkout)) as Workout;
-    const targetBlock = updatedWorkout.blocks?.find(b => b.id === exerciseToRename.blockId);
-    if (targetBlock && targetBlock.exercises && targetBlock.exercises[exerciseToRename.exerciseIndex]) {
-        targetBlock.exercises[exerciseToRename.exerciseIndex].name = newName;
-        
-        setSessionWorkout(updatedWorkout);
-        const userId = currentUser?.uid || userData?.uid;
-        if (userId) {
-            try {
-                await saveCustomProgram(userId, updatedWorkout);
-            } catch (err) {
-                console.error("Fel vid sparande av namnändring:", err);
-            }
-        }
-    }
-    setExerciseToRename(null);
-  };
-
-  const handleDeleteExercise = async (blockId: string, exerciseIndex: number, exercise: Exercise) => {
-    const exerciseName = exercise.name || 'Övning';
-    const isConfirmed = await confirm({
-        title: "Ta bort övning?",
-        message: `Ta bort '${exerciseName}' från passet?`,
-        confirmText: "Ta bort",
-        confirmColor: "red"
-    });
-
-    if (!isConfirmed) return;
-
-    const updatedWorkout = JSON.parse(JSON.stringify(sessionWorkout)) as Workout;
-    const targetBlock = updatedWorkout.blocks?.find(b => b.id === blockId);
-    if (targetBlock && targetBlock.exercises) {
-        targetBlock.exercises.splice(exerciseIndex, 1);
-        
-        setSessionWorkout(updatedWorkout);
-        const userId = currentUser?.uid || userData?.uid;
-        if (userId) {
-            try {
-                await saveCustomProgram(userId, updatedWorkout);
-            } catch (err) {
-                console.error("Fel vid borttagning av övning:", err);
-            }
-        }
-    }
+  const handleDeleteExercise = (blockId: string, exerciseIndex: number, exercise: Exercise) => {
+    const userId = currentUser?.uid || userData?.uid;
+    editor.handleDeleteExercise(blockId, exerciseIndex, exercise, sessionWorkout, setSessionWorkout, userId);
   };
 
   // Scroll to top on mount
@@ -797,50 +911,13 @@ const WorkoutDetailScreen: React.FC<WorkoutDetailScreenProps> = ({
                   }}
                   blockId={visualizingBlockId || undefined}
                   onHeaderVisibilityChange={onHeaderVisibilityChange}
+                  isOwnProgram={isOwnProgram}
+                  userId={currentUser?.uid || userData?.uid}
               />
           )}
       </AnimatePresence>
 
-      {exerciseToRename && (
-          <Modal 
-              isOpen={!!exerciseToRename} 
-              onClose={() => setExerciseToRename(null)} 
-              title="Byt namn på övning" 
-              size="sm"
-              footer={
-                  <div className="flex gap-2 justify-end w-full">
-                      <button 
-                          type="button"
-                          onClick={() => setExerciseToRename(null)} 
-                          className="px-4 py-2 text-sm font-semibold text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800 rounded-lg transition-colors"
-                      >
-                          Avbryt
-                      </button>
-                      <button 
-                          type="button"
-                          onClick={handleSaveRename} 
-                          className="px-4 py-2 text-sm font-semibold bg-primary text-white rounded-lg hover:brightness-110 transition-colors"
-                      >
-                          Spara
-                      </button>
-                  </div>
-              }
-          >
-              <div className="p-2">
-                  <input 
-                      type="text" 
-                      value={renameInput}
-                      onChange={(e) => setRenameInput(e.target.value)}
-                      placeholder="Övningens namn"
-                      autoFocus
-                      onKeyDown={(e) => {
-                          if (e.key === 'Enter') handleSaveRename();
-                      }}
-                      className="w-full bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 text-gray-900 dark:text-gray-100"
-                  />
-              </div>
-          </Modal>
-      )}
+      {editor.renderRenameModal(sessionWorkout, setSessionWorkout, currentUser?.uid || userData?.uid)}
     </div>
   );
 };

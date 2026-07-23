@@ -6,7 +6,7 @@ import { listenForStudioEvents } from "../services/firebaseService";
 import { StudioEvent, TimerStatus } from "../types";
 import { Confetti } from "./WorkoutCompleteModal";
 
-const DISPLAY_DURATION = 5000;
+const DISPLAY_DURATION = 7000;
 // TTL (Time To Live) för events om man t.ex. tappar nätet och återansluter.
 // Vi visar inte events som är äldre än 10 minuter i en "live"-kö.
 const EVENT_TTL = 10 * 60 * 1000;
