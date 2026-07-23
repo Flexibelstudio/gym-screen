@@ -14,13 +14,6 @@ export const saveWorkoutLog = async (logData: any): Promise<{ log: any, newRecor
     
     const newLogRef = doc(collection(db, 'workoutLogs'));
     const newLog = { id: newLogRef.id, ...logData };
-    // Säkerställ att locationId sparas, annars sätt till default
-    if (!newLog.locationId) {
-        const org = await getOrganizationById(logData.organizationId);
-        if (org && org.locations && org.locations.length > 0) {
-            newLog.locationId = org.locations[0].id;
-        }
-    }
     const newRecords: { exerciseName: string; weight: number; diff: number; reps?: number; calculated1RM?: number }[] = [];
 
     if (logData.workoutId && logData.workoutId !== 'manual' && !logData.benchmarkId) {
@@ -45,12 +38,13 @@ export const saveWorkoutLog = async (logData: any): Promise<{ log: any, newRecor
     }
 
     let showOnLeaderboard = true;
+    let userData: any = null;
 
     if (logData.memberId) {
         try {
             const userSnap = await getDoc(doc(db, 'users', logData.memberId));
             if (userSnap.exists()) {
-                const userData = userSnap.data();
+                userData = userSnap.data();
                 newLog.memberName = `${userData.firstName || 'Medlem'} ${userData.lastName ? userData.lastName[0] + '.' : ''}`.trim();
                 newLog.memberPhotoUrl = userData.photoUrl || null;
                 showOnLeaderboard = userData.showOnLeaderboard !== false;
@@ -236,7 +230,7 @@ export const saveWorkoutLog = async (logData: any): Promise<{ log: any, newRecor
                     id: eventRef.id,
                     type: 'pb',
                     organizationId: logData.organizationId,
-                    locationId: newLog.locationId || logData.locationId || null, 
+                    locationId: logData.locationId || userData?.locationId || null, 
                     timestamp: Date.now(),
                     data: { 
                         userName: newLog.memberName || 'En medlem', 
@@ -247,6 +241,13 @@ export const saveWorkoutLog = async (logData: any): Promise<{ log: any, newRecor
                 batch.set(eventRef, eventData);
             }
         } catch (e) { console.error("PB calculation failed", e); }
+    }
+
+    if (!newLog.locationId) {
+        const org = await getOrganizationById(logData.organizationId);
+        if (org && org.locations && org.locations.length > 0) {
+            newLog.locationId = org.locations[0].id;
+        }
     }
 
     batch.set(newLogRef, newLog);

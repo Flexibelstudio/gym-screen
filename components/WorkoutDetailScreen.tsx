@@ -2,8 +2,8 @@ import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { Workout, WorkoutBlock, TimerMode, TimerSettings, Exercise, StudioConfig, WorkoutResult, WorkoutLog } from '../types';
 import { TimerSetupModal } from './TimerSetupModal';
-import { StarIcon, PencilIcon, DumbbellIcon, ToggleSwitch, SparklesIcon, CloseIcon, ClockIcon, UsersIcon, ChartBarIcon, TrophyIcon, EyeIcon } from './icons';
-import { getWorkoutResults, getMemberLogs } from '../services/firebaseService';
+import { StarIcon, PencilIcon, TrashIcon, DumbbellIcon, ToggleSwitch, SparklesIcon, CloseIcon, ClockIcon, UsersIcon, ChartBarIcon, TrophyIcon, EyeIcon } from './icons';
+import { getWorkoutResults, getMemberLogs, saveCustomProgram } from '../services/firebaseService';
 import { useStudio } from '../context/StudioContext';
 import { AnimatePresence, motion } from 'framer-motion';
 import { WorkoutQRDisplay } from './WorkoutQRDisplay';
@@ -11,6 +11,7 @@ import { useAuth } from '../context/AuthContext';
 import { useWorkout } from '../context/WorkoutContext';
 import { useConfirm } from './ConfirmContext';
 import { getSideLabel } from '../utils/workoutUtils';
+import { Modal } from './ui/Modal';
 
 // Helper to format time for results (00:00)
 const formatResultTime = (timeInSeconds: number) => {
@@ -219,7 +220,10 @@ const WorkoutBlockCard: React.FC<{
     isCoachView: boolean;
     organizationId: string;
     onPresent?: () => void;
-}> = ({ block, onStart, onEditSettings, onUpdateBlock, isCoachView, organizationId, onPresent }) => {
+    isOwnProgram?: boolean;
+    onRenameExercise?: (blockId: string, index: number, exercise: Exercise) => void;
+    onDeleteExercise?: (blockId: string, index: number, exercise: Exercise) => void;
+}> = ({ block, onStart, onEditSettings, onUpdateBlock, isCoachView, organizationId, onPresent, isOwnProgram, onRenameExercise, onDeleteExercise }) => {
     
     const [exercisesVisible, setExercisesVisible] = useState(true);
 
@@ -314,40 +318,66 @@ const WorkoutBlockCard: React.FC<{
           <AnimatePresence initial={false}>
             {exercisesVisible && (
                 <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="flex flex-col overflow-hidden">
-                {block.exercises?.map((ex, index) => {
-                    if (!ex) return null;
-                    const nextEx = block.exercises?.[index + 1];
-                    const prevEx = block.exercises?.[index - 1];
-                    const isGroupedWithNext = nextEx && ex.groupId && ex.groupId === nextEx.groupId;
-                    const isGroupedWithPrev = prevEx && ex.groupId && ex.groupId === prevEx.groupId;
-                    
-                    const roundedClass = isGroupedWithNext && !isGroupedWithPrev ? 'rounded-t-2xl rounded-b-sm' :
-                                         isGroupedWithPrev && !isGroupedWithNext ? 'rounded-b-2xl rounded-t-sm' :
-                                         isGroupedWithPrev && isGroupedWithNext ? 'rounded-sm' : 'rounded-2xl';
-                                         
-                    const borderClass = ex.groupColor ? `border border-r-gray-100 border-y-gray-100 dark:border-r-gray-800 dark:border-y-gray-800 border-l-[4px] ${ex.groupColor.replace('bg-', 'border-l-')}` : 'border border-gray-100 dark:border-gray-800';
-                    const marginClass = isGroupedWithNext ? 'mb-1' : 'mb-3';
+                {block.exercises && block.exercises.length > 0 ? (
+                    block.exercises.map((ex, index) => {
+                        if (!ex) return null;
+                        const nextEx = block.exercises?.[index + 1];
+                        const prevEx = block.exercises?.[index - 1];
+                        const isGroupedWithNext = nextEx && ex.groupId && ex.groupId === nextEx.groupId;
+                        const isGroupedWithPrev = prevEx && ex.groupId && ex.groupId === prevEx.groupId;
+                        
+                        const roundedClass = isGroupedWithNext && !isGroupedWithPrev ? 'rounded-t-2xl rounded-b-sm' :
+                                             isGroupedWithPrev && !isGroupedWithNext ? 'rounded-b-2xl rounded-t-sm' :
+                                             isGroupedWithPrev && isGroupedWithNext ? 'rounded-sm' : 'rounded-2xl';
+                                             
+                        const borderClass = ex.groupColor ? `border border-r-gray-100 border-y-gray-100 dark:border-r-gray-800 dark:border-y-gray-800 border-l-[4px] ${ex.groupColor.replace('bg-', 'border-l-')}` : 'border border-gray-100 dark:border-gray-800';
+                        const marginClass = isGroupedWithNext ? 'mb-1' : 'mb-3';
 
-                    return (
-                    <div key={ex.id || `ex-${index}`} className={`flex items-start gap-4 p-4 ${roundedClass} bg-gray-50 dark:bg-gray-900 ${borderClass} ${marginClass}`}>
-                        <div className="flex-grow min-w-0">
-                            <h4 className="text-lg font-black text-gray-900 dark:text-white leading-tight break-words flex items-center gap-1.5 flex-wrap">
-                                <span>{ex.name || 'Okänd övning'}</span>
-                                {getSideLabel(ex.side) && (
-                                    <span className="inline-flex items-center justify-center px-1.5 py-0.5 text-[10px] font-black rounded-md bg-orange-100 text-orange-800 dark:bg-orange-950/40 dark:text-orange-400 border border-orange-200 dark:border-orange-800/50 uppercase">
-                                        {getSideLabel(ex.side)}
-                                    </span>
-                                )}
-                            </h4>
-                            {ex.description && <p className="text-sm text-gray-500 dark:text-gray-400 mt-1 leading-relaxed font-medium break-words whitespace-pre-wrap">{ex.description}</p>}
-                        </div>
-                        {ex.reps && (
-                            <div className="bg-white dark:bg-gray-800 px-3 py-1.5 rounded-lg shadow-sm border border-gray-100 dark:border-gray-700 font-mono font-black text-primary text-sm flex-shrink-0 whitespace-nowrap">
-                                {formatReps(ex.reps)}
+                        return (
+                        <div key={ex.id || `ex-${index}`} className={`flex items-start gap-4 p-4 ${roundedClass} bg-gray-50 dark:bg-gray-900 ${borderClass} ${marginClass}`}>
+                            <div className="flex-grow min-w-0">
+                                <h4 className="text-lg font-black text-gray-900 dark:text-white leading-tight break-words flex items-center gap-1.5 flex-wrap">
+                                    <span>{ex.name || 'Okänd övning'}</span>
+                                    {getSideLabel(ex.side) && (
+                                        <span className="inline-flex items-center justify-center px-1.5 py-0.5 text-[10px] font-black rounded-md bg-orange-100 text-orange-800 dark:bg-orange-950/40 dark:text-orange-400 border border-orange-200 dark:border-orange-800/50 uppercase">
+                                            {getSideLabel(ex.side)}
+                                        </span>
+                                    )}
+                                </h4>
+                                {ex.description && <p className="text-sm text-gray-500 dark:text-gray-400 mt-1 leading-relaxed font-medium break-words whitespace-pre-wrap">{ex.description}</p>}
                             </div>
-                        )}
+                            {ex.reps && (
+                                <div className="bg-white dark:bg-gray-800 px-3 py-1.5 rounded-lg shadow-sm border border-gray-100 dark:border-gray-700 font-mono font-black text-primary text-sm flex-shrink-0 whitespace-nowrap">
+                                    {formatReps(ex.reps)}
+                                </div>
+                            )}
+                            {isOwnProgram && (
+                                <div className="flex items-center gap-1 ml-2 flex-shrink-0">
+                                    <button 
+                                        type="button"
+                                        onClick={() => onRenameExercise?.(block.id, index, ex)}
+                                        className="p-2 text-gray-400 hover:text-primary transition-colors rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800"
+                                        title="Byt namn på övning"
+                                    >
+                                        <PencilIcon className="w-4 h-4" />
+                                    </button>
+                                    <button 
+                                        type="button"
+                                        onClick={() => onDeleteExercise?.(block.id, index, ex)}
+                                        className="p-2 text-gray-400 hover:text-red-600 transition-colors rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800"
+                                        title="Ta bort övning"
+                                    >
+                                        <TrashIcon className="w-4 h-4" />
+                                    </button>
+                                </div>
+                            )}
+                        </div>
+                    )})
+                ) : (
+                    <div className="py-8 text-center text-gray-400 dark:text-gray-500 font-medium italic">
+                        Passet har inga övningar
                     </div>
-                )})}
+                )}
                 </motion.div>
             )}
           </AnimatePresence>
@@ -419,10 +449,68 @@ const WorkoutDetailScreen: React.FC<WorkoutDetailScreenProps> = ({
   const [resultsLoading, setResultsLoading] = useState(false);
   const [visualizingFullWorkout, setVisualizingFullWorkout] = useState(false); 
   const [visualizingBlockId, setVisualizingBlockId] = useState<string | null>(null);
+  const [exerciseToRename, setExerciseToRename] = useState<{ blockId: string; exerciseIndex: number; exercise: Exercise } | null>(null);
+  const [renameInput, setRenameInput] = useState<string>('');
   
   const blockRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const personalBestName = useMemo(() => localStorage.getItem('hyrox-participant-name'), []);
   const isHyroxRace = useMemo(() => workout.id.startsWith('hyrox-full-race') || workout.id.includes('custom-race'), [workout.id]);
+
+  const handleOpenRename = (blockId: string, exerciseIndex: number, exercise: Exercise) => {
+    setExerciseToRename({ blockId, exerciseIndex, exercise });
+    setRenameInput(exercise.name || '');
+  };
+
+  const handleSaveRename = async () => {
+    if (!exerciseToRename) return;
+    const newName = renameInput.trim();
+    if (!newName) return;
+
+    const updatedWorkout = JSON.parse(JSON.stringify(sessionWorkout)) as Workout;
+    const targetBlock = updatedWorkout.blocks?.find(b => b.id === exerciseToRename.blockId);
+    if (targetBlock && targetBlock.exercises && targetBlock.exercises[exerciseToRename.exerciseIndex]) {
+        targetBlock.exercises[exerciseToRename.exerciseIndex].name = newName;
+        
+        setSessionWorkout(updatedWorkout);
+        const userId = currentUser?.uid || userData?.uid;
+        if (userId) {
+            try {
+                await saveCustomProgram(userId, updatedWorkout);
+            } catch (err) {
+                console.error("Fel vid sparande av namnändring:", err);
+            }
+        }
+    }
+    setExerciseToRename(null);
+  };
+
+  const handleDeleteExercise = async (blockId: string, exerciseIndex: number, exercise: Exercise) => {
+    const exerciseName = exercise.name || 'Övning';
+    const isConfirmed = await confirm({
+        title: "Ta bort övning?",
+        message: `Ta bort '${exerciseName}' från passet?`,
+        confirmText: "Ta bort",
+        confirmColor: "red"
+    });
+
+    if (!isConfirmed) return;
+
+    const updatedWorkout = JSON.parse(JSON.stringify(sessionWorkout)) as Workout;
+    const targetBlock = updatedWorkout.blocks?.find(b => b.id === blockId);
+    if (targetBlock && targetBlock.exercises) {
+        targetBlock.exercises.splice(exerciseIndex, 1);
+        
+        setSessionWorkout(updatedWorkout);
+        const userId = currentUser?.uid || userData?.uid;
+        if (userId) {
+            try {
+                await saveCustomProgram(userId, updatedWorkout);
+            } catch (err) {
+                console.error("Fel vid borttagning av övning:", err);
+            }
+        }
+    }
+  };
 
   // Scroll to top on mount
   useEffect(() => {
@@ -641,6 +729,9 @@ const WorkoutDetailScreen: React.FC<WorkoutDetailScreenProps> = ({
                             isCoachView={isCoachView}
                             organizationId={selectedOrganization?.id || ''}
                             onPresent={() => setVisualizingBlockId(block.id)}
+                            isOwnProgram={isOwnProgram}
+                            onRenameExercise={handleOpenRename}
+                            onDeleteExercise={handleDeleteExercise}
                         />
                     </div>
                 )})}
@@ -709,6 +800,47 @@ const WorkoutDetailScreen: React.FC<WorkoutDetailScreenProps> = ({
               />
           )}
       </AnimatePresence>
+
+      {exerciseToRename && (
+          <Modal 
+              isOpen={!!exerciseToRename} 
+              onClose={() => setExerciseToRename(null)} 
+              title="Byt namn på övning" 
+              size="sm"
+              footer={
+                  <div className="flex gap-2 justify-end w-full">
+                      <button 
+                          type="button"
+                          onClick={() => setExerciseToRename(null)} 
+                          className="px-4 py-2 text-sm font-semibold text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800 rounded-lg transition-colors"
+                      >
+                          Avbryt
+                      </button>
+                      <button 
+                          type="button"
+                          onClick={handleSaveRename} 
+                          className="px-4 py-2 text-sm font-semibold bg-primary text-white rounded-lg hover:brightness-110 transition-colors"
+                      >
+                          Spara
+                      </button>
+                  </div>
+              }
+          >
+              <div className="p-2">
+                  <input 
+                      type="text" 
+                      value={renameInput}
+                      onChange={(e) => setRenameInput(e.target.value)}
+                      placeholder="Övningens namn"
+                      autoFocus
+                      onKeyDown={(e) => {
+                          if (e.key === 'Enter') handleSaveRename();
+                      }}
+                      className="w-full bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 text-gray-900 dark:text-gray-100"
+                  />
+              </div>
+          </Modal>
+      )}
     </div>
   );
 };
