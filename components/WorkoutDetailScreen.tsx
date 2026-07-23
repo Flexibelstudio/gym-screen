@@ -1,9 +1,9 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { Workout, WorkoutBlock, TimerMode, TimerSettings, Exercise, StudioConfig, WorkoutResult, WorkoutLog } from '../types';
+import { Workout, WorkoutBlock, TimerMode, TimerSettings, Exercise, StudioConfig, WorkoutResult, WorkoutLog, BankExercise } from '../types';
 import { TimerSetupModal } from './TimerSetupModal';
-import { StarIcon, PencilIcon, TrashIcon, DumbbellIcon, ToggleSwitch, SparklesIcon, CloseIcon, ClockIcon, UsersIcon, ChartBarIcon, TrophyIcon, EyeIcon } from './icons';
-import { getWorkoutResults, getMemberLogs, saveCustomProgram } from '../services/firebaseService';
+import { StarIcon, PencilIcon, TrashIcon, DumbbellIcon, ToggleSwitch, SparklesIcon, CloseIcon, ClockIcon, UsersIcon, ChartBarIcon, TrophyIcon, EyeIcon, PlusIcon } from './icons';
+import { getWorkoutResults, getMemberLogs, saveCustomProgram, getOrganizationExerciseBank, getMemberCustomExercises, addMemberCustomExercise } from '../services/firebaseService';
 import { useStudio } from '../context/StudioContext';
 import { AnimatePresence, motion } from 'framer-motion';
 import { WorkoutQRDisplay } from './WorkoutQRDisplay';
@@ -65,15 +65,22 @@ const getSettingsText = (block: WorkoutBlock) => {
         case TimerMode.NoTimer:
             return 'Egen takt';
         default:
-            return `${rounds || 0}x (${workTime || 0}s / ${restTime || 0}s)`;
+            return `${rounds || 0}x (${formatTime(workTime || 0)}s / ${restTime || 0}s)`;
     }
 };
 
 // --- HOOK FOR CUSTOM WORKOUT EXERCISE EDITING ---
 export function useCustomWorkoutExerciseEditor() {
     const confirm = useConfirm();
+    const { selectedOrganization } = useStudio();
     const [exerciseToRename, setExerciseToRename] = useState<{ blockId: string; exerciseIndex: number; exercise: Exercise } | null>(null);
     const [renameInput, setRenameInput] = useState<string>('');
+
+    // Add exercise state
+    const [addModalBlockId, setAddModalBlockId] = useState<string | null>(null);
+    const [exerciseSearchTerm, setExerciseSearchTerm] = useState<string>('');
+    const [exerciseBank, setExerciseBank] = useState<BankExercise[]>([]);
+    const [loadingBank, setLoadingBank] = useState<boolean>(false);
 
     const handleOpenRename = (blockId: string, exerciseIndex: number, exercise: Exercise) => {
         setExerciseToRename({ blockId, exerciseIndex, exercise });
@@ -138,6 +145,103 @@ export function useCustomWorkoutExerciseEditor() {
         }
     };
 
+    const handleOpenAddExercise = async (blockId: string, orgId?: string, userId?: string) => {
+        setAddModalBlockId(blockId);
+        setExerciseSearchTerm('');
+        setLoadingBank(true);
+        try {
+            const orgIdToUse = orgId || selectedOrganization?.id || '';
+            const [bank, userCustom] = await Promise.all([
+                getOrganizationExerciseBank(orgIdToUse),
+                userId ? getMemberCustomExercises(userId) : Promise.resolve([])
+            ]);
+            const combined = [...bank, ...userCustom].sort((a, b) => (a.name || '').localeCompare(b.name || '', 'sv'));
+            setExerciseBank(combined);
+        } catch (e) {
+            console.error("Failed to load exercise bank", e);
+        } finally {
+            setLoadingBank(false);
+        }
+    };
+
+    const handleAddExerciseToBlock = async (
+        blockId: string,
+        bankEx: BankExercise,
+        workout: Workout,
+        setWorkout: (w: Workout) => void,
+        userId?: string
+    ) => {
+        const updatedWorkout = JSON.parse(JSON.stringify(workout)) as Workout;
+        let targetBlock = updatedWorkout.blocks?.find(b => b.id === blockId);
+        if (!targetBlock) {
+            if (!updatedWorkout.blocks) updatedWorkout.blocks = [];
+            if (updatedWorkout.blocks.length === 0) {
+                targetBlock = {
+                    id: `block-${Date.now()}`,
+                    title: 'Block 1',
+                    tag: 'Styrka',
+                    followMe: false,
+                    settings: { mode: TimerMode.NoTimer, workTime: 0, restTime: 0, rounds: 1, prepareTime: 0 },
+                    exercises: []
+                };
+                updatedWorkout.blocks.push(targetBlock);
+            } else {
+                targetBlock = updatedWorkout.blocks[0];
+            }
+        }
+
+        if (!targetBlock.exercises) {
+            targetBlock.exercises = [];
+        }
+
+        const newExercise: Exercise = {
+            id: `ex-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+            originalBankId: bankEx.id || null,
+            name: bankEx.name,
+            description: bankEx.description || '',
+            imageUrl: bankEx.imageUrl || '',
+            loggingEnabled: true
+        };
+
+        targetBlock.exercises.push(newExercise);
+        setWorkout(updatedWorkout);
+
+        if (userId) {
+            try {
+                await saveCustomProgram(userId, updatedWorkout);
+            } catch (err) {
+                console.error("Fel vid sparande av tillagd övning:", err);
+            }
+        }
+
+        setAddModalBlockId(null);
+    };
+
+    const handleCreateAndAddCustomExercise = async (
+        blockId: string,
+        exerciseName: string,
+        workout: Workout,
+        setWorkout: (w: Workout) => void,
+        userId?: string
+    ) => {
+        const trimmed = exerciseName.trim();
+        if (!trimmed) return;
+
+        let bankEx: BankExercise;
+        if (userId) {
+            try {
+                bankEx = await addMemberCustomExercise(userId, trimmed);
+            } catch (e) {
+                console.error("Failed to add custom exercise to bank", e);
+                bankEx = { id: `custom-${Date.now()}`, name: trimmed };
+            }
+        } else {
+            bankEx = { id: `custom-${Date.now()}`, name: trimmed };
+        }
+
+        await handleAddExerciseToBlock(blockId, bankEx, workout, setWorkout, userId);
+    };
+
     const renderRenameModal = (
         workout: Workout, 
         setWorkout: (w: Workout) => void, 
@@ -186,12 +290,112 @@ export function useCustomWorkoutExerciseEditor() {
         );
     };
 
+    const renderAddExerciseModal = (
+        workout: Workout,
+        setWorkout: (w: Workout) => void,
+        userId?: string
+    ) => {
+        if (!addModalBlockId) return null;
+
+        const filteredBank = exerciseBank.filter(ex => 
+            (ex.name || '').toLowerCase().includes(exerciseSearchTerm.toLowerCase())
+        );
+        const showCreateCustom = exerciseSearchTerm.trim().length > 0 && 
+            !filteredBank.some(ex => (ex.name || '').toLowerCase() === exerciseSearchTerm.trim().toLowerCase());
+
+        return (
+            <Modal 
+                isOpen={!!addModalBlockId} 
+                onClose={() => setAddModalBlockId(null)} 
+                size="lg"
+            >
+                <div className="flex flex-col items-center w-full max-h-[85vh]">
+                    <div className="w-full flex items-center justify-between mb-4 pb-2 border-b border-gray-100 dark:border-gray-800">
+                        <h2 className="text-xl font-black uppercase tracking-widest text-gray-900 dark:text-white">Lägg till övning</h2>
+                        <button 
+                            type="button"
+                            onClick={() => setAddModalBlockId(null)}
+                            className="w-10 h-10 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center hover:bg-gray-200 dark:hover:bg-gray-700 transition"
+                        >
+                            <CloseIcon className="w-5 h-5 text-gray-500" />
+                        </button>
+                    </div>
+                    
+                    <div className="w-full relative mb-4">
+                        <input 
+                            type="text" 
+                            placeholder="Sök i övningsbanken eller skriv egen..." 
+                            value={exerciseSearchTerm}
+                            onChange={(e) => setExerciseSearchTerm(e.target.value)}
+                            autoFocus
+                            className="w-full bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 rounded-2xl py-3 px-5 font-bold focus:outline-none focus:ring-2 focus:ring-primary border border-gray-200 dark:border-gray-800 text-sm"
+                        />
+                    </div>
+
+                    <div className="w-full flex-1 overflow-y-auto space-y-2 pr-1 pb-4 max-h-[55vh]">
+                        {loadingBank ? (
+                            <div className="text-center py-8 text-gray-400 font-medium text-sm">Laddar övningar...</div>
+                        ) : (
+                            <>
+                                {showCreateCustom && (
+                                    <div 
+                                        onClick={() => handleCreateAndAddCustomExercise(addModalBlockId, exerciseSearchTerm, workout, setWorkout, userId)}
+                                        className="p-4 rounded-2xl border-2 border-dashed border-primary hover:bg-primary/5 transition flex items-center gap-3 cursor-pointer mb-2"
+                                    >
+                                        <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary shrink-0">
+                                            <PlusIcon className="w-5 h-5" />
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                            <div className="text-xs font-black text-gray-900 dark:text-white uppercase tracking-wider">Skapa Egen:</div>
+                                            <div className="font-medium text-sm text-gray-600 dark:text-gray-300 truncate">"{exerciseSearchTerm.trim()}"</div>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {filteredBank.map(ex => (
+                                    <div 
+                                        key={ex.id}
+                                        onClick={() => handleAddExerciseToBlock(addModalBlockId, ex, workout, setWorkout, userId)}
+                                        className="p-3 bg-gray-50 dark:bg-gray-900 rounded-xl border border-gray-100 dark:border-gray-800 shadow-sm hover:border-primary/50 transition flex items-center gap-3 cursor-pointer"
+                                    >
+                                        <div className="w-10 h-10 rounded-lg bg-gray-200 dark:bg-gray-800 flex items-center justify-center text-gray-600 dark:text-gray-300 font-black text-base shrink-0">
+                                            {ex.name ? ex.name.charAt(0) : '?'}
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                            <h4 className="font-bold text-sm text-gray-900 dark:text-white truncate">{ex.name}</h4>
+                                            {ex.category && (
+                                                <span className="text-[10px] font-black uppercase tracking-widest text-primary">
+                                                    {ex.category === 'Custom Egen' ? 'Egen' : ex.category}
+                                                </span>
+                                            )}
+                                        </div>
+                                        <PlusIcon className="w-5 h-5 text-gray-400 shrink-0" />
+                                    </div>
+                                ))}
+
+                                {filteredBank.length === 0 && !showCreateCustom && (
+                                    <div className="text-center py-8">
+                                        <p className="text-gray-400 font-medium text-sm">Sök för att hitta övningar.</p>
+                                    </div>
+                                )}
+                            </>
+                        )}
+                    </div>
+                </div>
+            </Modal>
+        );
+    };
+
     return {
         exerciseToRename,
         handleOpenRename,
         handleSaveRename,
         handleDeleteExercise,
-        renderRenameModal
+        handleOpenAddExercise,
+        handleAddExerciseToBlock,
+        handleCreateAndAddCustomExercise,
+        renderRenameModal,
+        renderAddExerciseModal
     };
 }
 
@@ -207,6 +411,7 @@ export const WorkoutPresentationModal: React.FC<{
 }> = ({ workout, onClose, blockId, onHeaderVisibilityChange, isOwnProgram, userId }) => {
     const scrollRef = useRef<HTMLDivElement>(null);
     const [currentWorkout, setCurrentWorkout] = useState<Workout>(workout);
+    const { selectedOrganization } = useStudio();
 
     useEffect(() => {
         setCurrentWorkout(workout);
@@ -362,12 +567,26 @@ export const WorkoutPresentationModal: React.FC<{
                                 ) : (
                                     <p className="text-sm lg:text-lg xl:text-2xl text-gray-400 italic pl-4 lg:pl-6 xl:pl-10">Passet har inga övningar</p>
                                 )}
+
+                                {isOwnProgram && (
+                                    <div className="mt-4 sm:mt-6 flex justify-start">
+                                        <button
+                                            type="button"
+                                            onClick={() => editor.handleOpenAddExercise(block.id, selectedOrganization?.id, userId)}
+                                            className="flex items-center gap-2 sm:gap-3 px-4 py-2.5 sm:px-6 sm:py-3 md:px-8 md:py-4 bg-primary/10 hover:bg-primary/20 text-primary font-bold rounded-2xl transition-all text-sm sm:text-base md:text-xl border border-primary/20 shadow-sm active:scale-95 cursor-pointer"
+                                        >
+                                            <PlusIcon className="w-5 h-5 md:w-7 md:h-7" />
+                                            <span>Lägg till övning</span>
+                                        </button>
+                                    </div>
+                                )}
                             </div>
                         </div>
                     )})}
                 </div>
             </div>
             {editor.renderRenameModal(currentWorkout, setCurrentWorkout, userId)}
+            {editor.renderAddExerciseModal(currentWorkout, setCurrentWorkout, userId)}
         </motion.div>
     );
 
@@ -385,7 +604,8 @@ const WorkoutBlockCard: React.FC<{
     isOwnProgram?: boolean;
     onRenameExercise?: (blockId: string, index: number, exercise: Exercise) => void;
     onDeleteExercise?: (blockId: string, index: number, exercise: Exercise) => void;
-}> = ({ block, onStart, onEditSettings, onUpdateBlock, isCoachView, organizationId, onPresent, isOwnProgram, onRenameExercise, onDeleteExercise }) => {
+    onAddExercise?: (blockId: string) => void;
+}> = ({ block, onStart, onEditSettings, onUpdateBlock, isCoachView, organizationId, onPresent, isOwnProgram, onRenameExercise, onDeleteExercise, onAddExercise }) => {
     
     const [exercisesVisible, setExercisesVisible] = useState(true);
 
@@ -414,7 +634,7 @@ const WorkoutBlockCard: React.FC<{
             case TimerMode.NoTimer:
                 return 'Egen takt';
             default:
-                return `${mode}: ${rounds || 0}x (${workTime || 0}s / ${restTime || 0}s)`;
+                return `${mode}: ${rounds || 0}x (${formatTime(workTime || 0)}s / ${restTime || 0}s)`;
         }
     }, [block.settings]);
   
@@ -538,6 +758,19 @@ const WorkoutBlockCard: React.FC<{
                 ) : (
                     <div className="py-8 text-center text-gray-400 dark:text-gray-500 font-medium italic">
                         Passet har inga övningar
+                    </div>
+                )}
+
+                {isOwnProgram && (
+                    <div className="mt-3 flex justify-start">
+                        <button
+                            type="button"
+                            onClick={() => onAddExercise?.(block.id)}
+                            className="flex items-center gap-2 px-4 py-2.5 bg-primary/10 hover:bg-primary/20 text-primary font-bold rounded-xl transition-all text-xs sm:text-sm border border-primary/20 shadow-sm active:scale-95 cursor-pointer"
+                        >
+                            <PlusIcon className="w-4 h-4" />
+                            <span>Lägg till övning</span>
+                        </button>
                     </div>
                 )}
                 </motion.div>
@@ -846,6 +1079,7 @@ const WorkoutDetailScreen: React.FC<WorkoutDetailScreenProps> = ({
                             isOwnProgram={isOwnProgram}
                             onRenameExercise={handleOpenRename}
                             onDeleteExercise={handleDeleteExercise}
+                            onAddExercise={(blockId) => editor.handleOpenAddExercise(blockId, selectedOrganization?.id, currentUser?.uid || userData?.uid)}
                         />
                     </div>
                 )})}
@@ -918,6 +1152,7 @@ const WorkoutDetailScreen: React.FC<WorkoutDetailScreenProps> = ({
       </AnimatePresence>
 
       {editor.renderRenameModal(sessionWorkout, setSessionWorkout, currentUser?.uid || userData?.uid)}
+      {editor.renderAddExerciseModal(sessionWorkout, setSessionWorkout, currentUser?.uid || userData?.uid)}
     </div>
   );
 };
