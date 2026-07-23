@@ -61,8 +61,8 @@ export const getSideLabel = (side?: 'V' | 'H' | 'V/H' | 'ALT' | null): string | 
     switch (side) {
         case 'V': return 'VÄNSTER';
         case 'H': return 'HÖGER';
-        case 'V/H': return 'PER SIDA';
-        case 'ALT': return 'ALT';
+        case 'V/H': return 'VÄNSTER/HÖGER';
+        case 'ALT': return 'ALTERNERANDE';
         default: return null;
     }
 };

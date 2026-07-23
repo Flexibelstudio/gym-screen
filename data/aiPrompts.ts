@@ -26,6 +26,11 @@ INSTRUKTIONER FÖR STRUKTUR:
 5. Om ett antal övningar nämns i instruktionen, skapa exakt så många unika övningar.
 6. Skriv pedagogiska beskrivningar för varje övning.
 
+TIMERINSTÄLLNINGAR PER FORMAT: mode MÅSTE vara ett av exakt: Interval, Tabata, AMRAP, EMOM, TimeCap, Stopwatch, NoTimer. Ber användaren om en Tabata → mode 'Tabata' med workTime 20, restTime 10, rounds 8 (om inget annat anges). EMOM → mode 'EMOM' med workTime 60 och rounds = antal minuter. AMRAP/TimeCap → mode 'AMRAP'/'TimeCap' med workTime = total tid i sekunder. Använd ALDRIG andra mode-värden.
+
+SIDOMARKERING: För unilaterala övningar (en arm/ett ben i taget) SKA du sätta 'side': 'V/H' om alla reps görs på ena sidan först och sedan andra (t.ex. 'byt arm efter halva tiden'), 'ALT' om sidorna växlas varje repetition, 'V' eller 'H' endast om övningen uttryckligen gäller EN specifik sida. Bilaterala övningar (knäböj, armhävningar, plankan) ska INTE ha side.
+ÖVNINGSNAMN SKA VARA KANONISKA: Namnet får ALDRIG innehålla sidoinformation eller ord som 'Alternerande', 'Vänster', 'Höger', 'per sida', 'enarms', 'enbens' om övningen finns i övningsbanken under sitt grundnamn — använd grundnamnet och uttryck sidan ENBART via side-fältet. Exempel: skriv name 'Utfall (Lunges)' med side 'ALT' — INTE name 'Alternerande Utfall'. Finns en lista med tillgängliga övningar i denna prompt: välj namnet EXAKT därifrån när övningen finns i listan.
+
 VIKTIGA REGLER FÖR TIMER (INTERVALL):
 - Om du väljer 'Interval' (arbete/vila), så är 'rounds' = TOTALT ANTAL INTERVALLER.
 - Formel: rounds = (Antal övningar) * (Antal varv).
@@ -108,6 +113,11 @@ STRIKTA REGLER FÖR STRUKTUR:
 3. STEGAR: Förklara ladders/stegar tydligt i 'setupDescription'.
 4. ANTAL BLOCK OCH FORMAT: Om användaren ber om en specifik träningstyp eller ett enskilt format (t.ex. "en Tabata", "en AMRAP", "en EMOM", "ett cirkelpass"), SKA du generera exakt ETT (1) block för detta format. Skapa ALDRIG fler än ett block om användaren inte uttryckligen har bett om flera block.
 
+TIMERINSTÄLLNINGAR PER FORMAT: mode MÅSTE vara ett av exakt: Interval, Tabata, AMRAP, EMOM, TimeCap, Stopwatch, NoTimer. Ber användaren om en Tabata → mode 'Tabata' med workTime 20, restTime 10, rounds 8 (om inget annat anges). EMOM → mode 'EMOM' med workTime 60 och rounds = antal minuter. AMRAP/TimeCap → mode 'AMRAP'/'TimeCap' med workTime = total tid i sekunder. Använd ALDRIG andra mode-värden.
+
+SIDOMARKERING: För unilaterala övningar (en arm/ett ben i taget) SKA du sätta 'side': 'V/H' om alla reps görs på ena sidan först och sedan andra (t.ex. 'byt arm efter halva tiden'), 'ALT' om sidorna växlas varje repetition, 'V' eller 'H' endast om övningen uttryckligen gäller EN specifik sida. Bilaterala övningar (knäböj, armhävningar, plankan) ska INTE ha side.
+ÖVNINGSNAMN SKA VARA KANONISKA: Namnet får ALDRIG innehålla sidoinformation eller ord som 'Alternerande', 'Vänster', 'Höger', 'per sida', 'enarms', 'enbens' om övningen finns i övningsbanken under sitt grundnamn — använd grundnamnet och uttryck sidan ENBART via side-fältet. Exempel: skriv name 'Utfall (Lunges)' med side 'ALT' — INTE name 'Alternerande Utfall'. Finns en lista med tillgängliga övningar i denna prompt: välj namnet EXAKT därifrån när övningen finns i listan.
+
 ${availableExercises.length > 0 ? `
 CRITIKAL: ÖVNINGSVAL OCH NAMNGIVNING (CONTEXT INJECTION):
 Här följer en lista på övningar som redan finns i gymmets databas. 
@@ -137,6 +147,11 @@ STRIKTA LOGIKREGLER:
 4. ANTAL BLOCK OCH FORMAT: Om användaren ber om en specifik träningstyp eller ett enskilt format (t.ex. "en Tabata", "en AMRAP", "en EMOM", "ett cirkelpass"), SKA du generera exakt ETT (1) block för detta format. Skapa ALDRIG fler än ett block om användaren inte uttryckligen har bett om flera block.
 
 Var kreativ om det behövs (vid korta instruktioner), men exakt om det finns en tydlig lista.
+
+TIMERINSTÄLLNINGAR PER FORMAT: mode MÅSTE vara ett av exakt: Interval, Tabata, AMRAP, EMOM, TimeCap, Stopwatch, NoTimer. Ber användaren om en Tabata → mode 'Tabata' med workTime 20, restTime 10, rounds 8 (om inget annat anges). EMOM → mode 'EMOM' med workTime 60 och rounds = antal minuter. AMRAP/TimeCap → mode 'AMRAP'/'TimeCap' med workTime = total tid i sekunder. Använd ALDRIG andra mode-värden.
+
+SIDOMARKERING: För unilaterala övningar (en arm/ett ben i taget) SKA du sätta 'side': 'V/H' om alla reps görs på ena sidan först och sedan andra (t.ex. 'byt arm efter halva tiden'), 'ALT' om sidorna växlas varje repetition, 'V' eller 'H' endast om övningen uttryckligen gäller EN specifik sida. Bilaterala övningar (knäböj, armhävningar, plankan) ska INTE ha side.
+ÖVNINGSNAMN SKA VARA KANONISKA: Namnet får ALDRIG innehålla sidoinformation eller ord som 'Alternerande', 'Vänster', 'Höger', 'per sida', 'enarms', 'enbens' om övningen finns i övningsbanken under sitt grundnamn — använd grundnamnet och uttryck sidan ENBART via side-fältet. Exempel: skriv name 'Utfall (Lunges)' med side 'ALT' — INTE name 'Alternerande Utfall'. Finns en lista med tillgängliga övningar i denna prompt: välj namnet EXAKT därifrån när övningen finns i listan.
 
 ${availableExercises.length > 0 ? `
 CRITIKAL: ÖVNINGSVAL OCH NAMNGIVNING (CONTEXT INJECTION):

@@ -105,6 +105,9 @@ const compressImage = async (base64Str: string, maxDim = 1024): Promise<string> 
 
 // --- SCHEMAS ---
 
+const ALLOWED_MODES = ["Interval", "Tabata", "AMRAP", "EMOM", "TimeCap", "Stopwatch", "NoTimer"];
+const VALID_SIDES = ["V", "H", "V/H", "ALT"];
+
 const workoutSchema = {
     type: Type.OBJECT,
     required: ['title', 'coachTips', 'blocks'],
@@ -128,7 +131,10 @@ const workoutSchema = {
                         type: Type.OBJECT,
                         required: ['mode', 'workTime', 'restTime', 'rounds'],
                         properties: {
-                            mode: { type: Type.STRING }, 
+                            mode: { 
+                                type: Type.STRING,
+                                enum: ["Interval", "Tabata", "AMRAP", "EMOM", "TimeCap", "Stopwatch", "NoTimer"]
+                            }, 
                             workTime: { type: Type.NUMBER },
                             restTime: { type: Type.NUMBER },
                             rounds: { type: Type.NUMBER },
@@ -142,7 +148,11 @@ const workoutSchema = {
                             properties: {
                                 name: { type: Type.STRING },
                                 reps: { type: Type.STRING },
-                                description: { type: Type.STRING }
+                                description: { type: Type.STRING },
+                                side: {
+                                    type: Type.STRING,
+                                    enum: ["V", "H", "V/H", "ALT"]
+                                }
                             }
                         }
                     }
@@ -286,6 +296,11 @@ const transformWorkout = (data: any, orgId: string, isDraft: boolean = false): W
         const exerciseCount = b.exercises?.length || 0;
         let settings = { ...b.settings };
         
+        if (!ALLOWED_MODES.includes(settings.mode)) {
+            console.warn(`Okänt mode "${settings.mode}" mottaget från AI — faller tillbaka till "Interval".`);
+            settings.mode = 'Interval';
+        }
+
         if (settings.mode === 'Interval' && exerciseCount > 0 && settings.rounds > 0 && settings.rounds < exerciseCount) {
              settings.rounds = settings.rounds * exerciseCount;
         }
@@ -302,12 +317,20 @@ const transformWorkout = (data: any, orgId: string, isDraft: boolean = false): W
                      cleanReps = cleanReps.replace(/^[,.\s]+|[,.\s]+$/g, '');
                 }
 
-                return {
+                const cleanExercise: any = {
                     ...ex,
                     id: ex.id || `ex-${Date.now()}-${i}-${j}`,
                     reps: cleanReps,
                     isFromAI: true
                 };
+
+                if (VALID_SIDES.includes(ex.side)) {
+                    cleanExercise.side = ex.side;
+                } else {
+                    delete cleanExercise.side;
+                }
+
+                return cleanExercise;
             })
         };
     })
@@ -508,16 +531,17 @@ export async function parseWorkoutFromImage(base64Image: string, additionalText?
           "aiCoachNotes": "Noteringar till coachen",
           "aiMagicPenSuggestions": [],
           "settings": {
-            "mode": "Standard",
-            "workTime": 0,
-            "restTime": 0,
+            "mode": "Interval",
+            "workTime": 40,
+            "restTime": 20,
             "rounds": 1
           },
           "exercises": [
             {
               "name": "Övningsnamn",
               "reps": "10",
-              "description": "Kort beskrivning eller tekniktips"
+              "description": "Kort beskrivning eller tekniktips",
+              "side": "V/H"
             }
           ]
         }
