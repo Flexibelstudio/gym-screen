@@ -105,7 +105,7 @@ const compressImage = async (base64Str: string, maxDim = 1024): Promise<string> 
 
 // --- SCHEMAS ---
 
-const ALLOWED_MODES = ["Interval", "Tabata", "AMRAP", "EMOM", "TimeCap", "Stopwatch", "NoTimer"];
+const ALLOWED_MODES = ["Interval", "Tabata", "AMRAP", "EMOM", "TimeCap", "Stopwatch", "NoTimer", "Custom"];
 const VALID_SIDES = ["V", "H", "V/H", "ALT"];
 
 const workoutSchema = {
@@ -133,7 +133,7 @@ const workoutSchema = {
                         properties: {
                             mode: { 
                                 type: Type.STRING,
-                                enum: ["Interval", "Tabata", "AMRAP", "EMOM", "TimeCap", "Stopwatch", "NoTimer"]
+                                enum: ["Interval", "Tabata", "AMRAP", "EMOM", "TimeCap", "Stopwatch", "NoTimer", "Custom"]
                             }, 
                             workTime: { type: Type.NUMBER },
                             restTime: { type: Type.NUMBER },
@@ -301,6 +301,15 @@ const transformWorkout = (data: any, orgId: string, isDraft: boolean = false): W
             settings.mode = 'Interval';
         }
 
+        // 'Custom' (sekvenstimer) är bara giltigt med en medföljande sequence.
+        // AI-schemat kan inte returnera sequence, så ett Custom-block utan sequence
+        // vore trasigt — falla tillbaka till Interval. (Riktiga Custom-block räddas av
+        // restoreCustomBlockSettings i analyze/chat/remix-flödena FÖRE transformen.)
+        if (settings.mode === 'Custom' && !Array.isArray(settings.sequence)) {
+            console.warn(`Custom-block utan sequence mottaget från AI — faller tillbaka till "Interval".`);
+            settings.mode = 'Interval';
+        }
+
         if (settings.mode === 'Interval' && exerciseCount > 0 && settings.rounds > 0 && settings.rounds < exerciseCount) {
              settings.rounds = settings.rounds * exerciseCount;
         }
@@ -336,6 +345,23 @@ const transformWorkout = (data: any, orgId: string, isDraft: boolean = false): W
     })
 });
 
+// Återställ settings (inkl. sequence) för sekvenstimerblock ('Custom') från
+// originalpasset. AI-schemat kan inte returnera sequence, så utan detta tappas
+// den när AI:n skickar tillbaka ett modifierat pass. Matchar i första hand på
+// block-id, annars på position. Återställer BARA när både originalblocket och
+// AI:ns block har mode 'Custom' — har användaren uttryckligen bett AI:n göra om
+// blocket till ett annat format skrivs det alltså inte över.
+const restoreCustomBlockSettings = (originalBlocks: any[] | undefined, aiBlocks: any[] | undefined): any[] | undefined => {
+    if (!originalBlocks?.length || !aiBlocks?.length) return aiBlocks;
+    return aiBlocks.map((block: any, i: number) => {
+        const original = originalBlocks.find((ob: any) => ob.id && ob.id === block.id) || originalBlocks[i];
+        if (original?.settings?.mode === 'Custom' && block?.settings?.mode === 'Custom') {
+            return { ...block, settings: { ...original.settings } };
+        }
+        return block;
+    });
+};
+
 // --- EXPORTED FUNCTIONS (TEXT VIA PROXY) ---
 
 export async function generateWorkout(prompt: string, availableExercises: string[] = [], contextWorkouts?: Workout[]): Promise<Workout> {
@@ -345,12 +371,15 @@ export async function generateWorkout(prompt: string, availableExercises: string
 
 export async function remixWorkout(originalWorkout: Workout): Promise<Workout> {
     const data = await _callGeminiJSON<any>(TEXT_MODEL, Prompts.WORKOUT_REMIX_PROMPT(JSON.stringify(originalWorkout)), workoutSchema);
+    data.blocks = restoreCustomBlockSettings(originalWorkout.blocks, data.blocks);
     return transformWorkout(data, originalWorkout.organizationId);
 }
 
 export async function analyzeCurrentWorkout(currentWorkout: Workout): Promise<Workout> {
     const data = await _callGeminiJSON<any>(TEXT_MODEL, Prompts.WORKOUT_ANALYSIS_PROMPT(JSON.stringify(currentWorkout)), workoutSchema);
-    return transformWorkout({ ...currentWorkout, ...data }, currentWorkout.organizationId);
+    const merged: any = { ...currentWorkout, ...data };
+    merged.blocks = restoreCustomBlockSettings(currentWorkout.blocks, merged.blocks);
+    return transformWorkout(merged, currentWorkout.organizationId);
 }
 
 export interface AICoachChatResponse {
@@ -394,9 +423,16 @@ export async function chatWithAICoach(
         aiCoachChatSchema
     );
 
+    let updatedWorkout: Workout | undefined = undefined;
+    if (data.didModifyWorkout && data.updatedWorkout) {
+        const merged: any = { ...currentWorkout, ...data.updatedWorkout };
+        merged.blocks = restoreCustomBlockSettings(currentWorkout.blocks, merged.blocks);
+        updatedWorkout = transformWorkout(merged, currentWorkout.organizationId);
+    }
+
     return {
         replyText: data.replyText,
-        updatedWorkout: data.didModifyWorkout && data.updatedWorkout ? transformWorkout({ ...currentWorkout, ...data.updatedWorkout }, currentWorkout.organizationId) : undefined,
+        updatedWorkout,
         suggestedExercises: data.suggestedExercises
     };
 }
