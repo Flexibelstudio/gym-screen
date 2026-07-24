@@ -71,7 +71,7 @@ export const CoachNotesScreen: React.FC<CoachNotesScreenProps> = ({ onBack }) =>
         setNewImage(null);
         setNewImagePreview(null);
         setNewText(text);
-        setNewTitle('AI Förslag ' + new Date().toLocaleDateString('sv-SE'));
+        setNewTitle('AI-Genererad Anteckning');
         setIsCreateModalOpen(true);
     };
 
@@ -131,7 +131,7 @@ export const CoachNotesScreen: React.FC<CoachNotesScreenProps> = ({ onBack }) =>
                 let finalImageUrl = imageUrl || (newImagePreview && !newImagePreview.startsWith('data:image') ? newImagePreview : '');
                 
                 await updateCoachNote(editingNoteId, {
-                    title: newTitle.trim() || `Anteckning ${new Date().toLocaleDateString('sv-SE')}`,
+                    title: newTitle.trim() || 'Coachanteckning',
                     text: newText.trim(),
                     imageUrl: finalImageUrl || null // Allow nulling out existing image
                 });
@@ -141,7 +141,7 @@ export const CoachNotesScreen: React.FC<CoachNotesScreenProps> = ({ onBack }) =>
                     createdBy: userData.uid,
                     creatorName: `${userData.firstName || ''} ${userData.lastName || ''}`.trim() || 'Coach',
                     creatorPhotoUrl: userData.photoUrl,
-                    title: newTitle.trim() || `Anteckning ${new Date().toLocaleDateString('sv-SE')}`,
+                    title: newTitle.trim() || 'Coachanteckning',
                     text: newText.trim(),
                     imageUrl: imageUrl || undefined,
                     isFavorite: false
@@ -329,7 +329,7 @@ export const CoachNotesScreen: React.FC<CoachNotesScreenProps> = ({ onBack }) =>
                             type="text" 
                             value={newTitle}
                             onChange={e => setNewTitle(e.target.value)}
-                            placeholder={`Anteckning ${new Date().toLocaleDateString('sv-SE')}`}
+                            placeholder="t.ex. HYROX Ben & Core"
                             className="w-full bg-gray-50 dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-xl p-4 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary outline-none"
                         />
                     </div>

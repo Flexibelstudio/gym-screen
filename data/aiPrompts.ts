@@ -141,10 +141,11 @@ INTENT RECOGNITION:
 - Tolka visuella ledtrådar: Cirklar indikerar cirkelträning, pilar indikerar flöden.
 
 STRIKTA LOGIKREGLER:
-1. SMARTA BLOCK: Slå ihop nivåer (Rx/Int/Beg) till ett block.
-2. FULLSTÄNDIGHET: Lämna aldrig en array tom om användaren bett om ett pass.
-3. KVALITET: Övningarna ska vara funktionella och säkra. Ta ALDRIG med uppvärmning eller nedvarvning i genererade pass om de inte uttryckligen skissats eller betts om.
-4. ANTAL BLOCK OCH FORMAT: Om användaren ber om en specifik träningstyp eller ett enskilt format (t.ex. "en Tabata", "en AMRAP", "en EMOM", "ett cirkelpass"), SKA du generera exakt ETT (1) block för detta format. Skapa ALDRIG fler än ett block om användaren inte uttryckligen har bett om flera block.
+1. PASSTITEL: Skapa alltid en säljande, kraftfull, fängslande och beskrivande passtitel på svenska baserad på övningsinnehållet och känslan i passet (t.ex. 'Puls & Power Explosion', 'Ben & Core Utmaning', 'Cirkelamrap: Svett & Styrka', 'HYROX Power Circuit'). Titeln ska inspirera medlemmarna. Inkludera ALDRIG datum i titeln!
+2. SMARTA BLOCK: Slå ihop nivåer (Rx/Int/Beg) till ett block.
+3. FULLSTÄNDIGHET: Lämna aldrig en array tom om användaren bett om ett pass.
+4. KVALITET: Övningarna ska vara funktionella och säkra. Ta ALDRIG med uppvärmning eller nedvarvning i genererade pass om de inte uttryckligen skissats eller betts om.
+5. ANTAL BLOCK OCH FORMAT: Om användaren ber om en specifik träningstyp eller ett enskilt format (t.ex. "en Tabata", "en AMRAP", "en EMOM", "ett cirkelpass"), SKA du generera exakt ETT (1) block för detta format. Skapa ALDRIG fler än ett block om användaren inte uttryckligen har bett om flera block.
 
 Var kreativ om det behövs (vid korta instruktioner), men exakt om det finns en tydlig lista.
 
