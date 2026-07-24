@@ -67,7 +67,7 @@ const ResumeWorkoutBanner: React.FC<{
                 </div>
                 <div className="min-w-0 flex-1">
                     <h4 className="text-[10px] font-black uppercase tracking-[0.25em] text-orange-900/60 mb-0.5">Du har ett pågående pass</h4>
-                    <p className="text-xl font-black leading-tight line-clamp-2 break-words text-orange-950 drop-shadow-sm">{workoutTitle}</p>
+                    <p className="text-xl font-black leading-[1.2] pt-[0.1em] line-clamp-2 break-words text-orange-950 drop-shadow-sm">{workoutTitle}</p>
                 </div>
             </div>
             

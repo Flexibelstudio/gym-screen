@@ -65,7 +65,7 @@ const SavedWorkoutsScreen: React.FC<SavedWorkoutsScreenProps> = ({ workouts, onS
                                             <PencilIcon className="w-3 h-3" /> Justering
                                         </span>
                                     )}
-                                    <h2 className="text-xl font-bold text-gray-900 dark:text-white line-clamp-2 leading-tight group-hover:text-primary transition-colors">
+                                    <h2 className="text-xl font-bold text-gray-900 dark:text-white line-clamp-2 leading-[1.2] pt-[0.1em] group-hover:text-primary transition-colors">
                                         {workout.title}
                                     </h2>
                                 </div>

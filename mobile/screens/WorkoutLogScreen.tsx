@@ -2176,7 +2176,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
       <div className="bg-white dark:bg-gray-900 p-6 px-8 flex-shrink-0 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between shadow-sm z-10">
         <div className="flex-1 min-w-0 pr-4">
             <div className="flex items-center gap-3 mb-1">
-                <h1 className="text-2xl font-black text-gray-900 dark:text-white leading-tight truncate">
+                <h1 className="text-2xl font-black text-gray-900 dark:text-white leading-[1.2] pt-[0.1em] truncate">
                     {isManualMode ? 'Logga Aktivitet' : workout?.title}
                 </h1>
             </div>

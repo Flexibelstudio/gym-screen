@@ -2015,7 +2015,7 @@ export const EventsContent: React.FC<EventsContentProps> = ({ organization }) =>
                                         }`}>
                                             {shareEvent.status === 'completed' ? 'Genomfört' : 'Kommande Live-tavla'}
                                         </span>
-                                        <h3 className="text-lg font-black text-gray-950 dark:text-white leading-tight mt-1 truncate">
+                                        <h3 className="text-lg font-black text-gray-950 dark:text-white leading-[1.2] pt-[0.1em] mt-1 truncate">
                                             {shareEvent.raceName}
                                         </h3>
                                     </div>

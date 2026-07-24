@@ -214,7 +214,7 @@ const NextStartIndicator: React.FC<{
                     </div>
                     <div className="min-w-0">
                         <span className="block text-[8px] font-black text-gray-400 dark:text-white/30 uppercase tracking-widest mb-0.5">NÄSTA START</span>
-                        <h4 className="text-xl font-black text-gray-900 dark:text-white uppercase tracking-tight truncate max-w-[250px] sm:max-w-md leading-none">
+                        <h4 className="text-xl font-black text-gray-900 dark:text-white uppercase tracking-tight truncate max-w-[250px] sm:max-w-md leading-[1.2] pt-[0.1em]">
                             {groupName}
                         </h4>
                         <p className="text-[8px] font-black text-gray-400 dark:text-white/20 uppercase tracking-[0.2em] mt-1">
