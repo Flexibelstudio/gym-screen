@@ -293,17 +293,17 @@ export const CoachNotesScreen: React.FC<CoachNotesScreenProps> = ({ onBack, onWo
                 <div className="flex items-center">
                     <h1 className="text-3xl font-black text-gray-900 dark:text-white tracking-tight">Anteckningar</h1>
                 </div>
-                <div className="flex items-center gap-3 w-full md:w-auto">
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:flex md:items-center gap-2 sm:gap-3 w-full md:w-auto">
                     <button 
                         onClick={() => setIsChatOpen(true)}
-                        className="flex-1 md:flex-none justify-center bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white px-4 py-4 md:py-3 rounded-xl font-bold flex items-center gap-2 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors shadow-sm border border-gray-200 dark:border-gray-700 text-sm sm:text-base whitespace-nowrap"
+                        className="col-span-1 justify-center bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white px-3 py-3.5 md:py-3 rounded-xl font-bold flex items-center gap-1.5 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors shadow-sm border border-gray-200 dark:border-gray-700 text-xs sm:text-sm whitespace-nowrap md:w-auto"
                     >
                         💬 Chatta med AI
                     </button>
                     <button 
                         onClick={() => headerCameraInputRef.current?.click()}
                         disabled={isQuickCapturing}
-                        className="flex-1 md:flex-none justify-center bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white px-4 py-4 md:py-3 rounded-xl font-bold flex items-center gap-2 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors shadow-sm border border-gray-200 dark:border-gray-700 text-sm sm:text-base whitespace-nowrap disabled:opacity-50"
+                        className="col-span-1 justify-center bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white px-3 py-3.5 md:py-3 rounded-xl font-bold flex items-center gap-1.5 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors shadow-sm border border-gray-200 dark:border-gray-700 text-xs sm:text-sm whitespace-nowrap md:w-auto disabled:opacity-50"
                     >
                         📷 {isQuickCapturing ? 'Sparar...' : 'Fota'}
                     </button>
@@ -324,7 +324,7 @@ export const CoachNotesScreen: React.FC<CoachNotesScreenProps> = ({ onBack, onWo
                             setNewImagePreview(null);
                             setIsCreateModalOpen(true);
                         }}
-                        className="flex-1 md:flex-none justify-center bg-primary text-white px-4 py-4 md:py-3 rounded-xl font-bold flex items-center gap-2 hover:bg-primary/90 transition-colors shadow-lg text-sm sm:text-base whitespace-nowrap"
+                        className="col-span-2 sm:col-span-1 justify-center bg-primary text-white px-4 py-3.5 md:py-3 rounded-xl font-bold flex items-center gap-2 hover:bg-primary/90 transition-colors shadow-lg text-xs sm:text-sm whitespace-nowrap md:w-auto"
                     >
                         <PlusIcon className="w-5 h-5 shrink-0" /> Ny Anteckning
                     </button>
