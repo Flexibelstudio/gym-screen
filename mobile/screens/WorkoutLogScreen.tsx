@@ -128,12 +128,12 @@ const TimeInput: React.FC<{
     };
 
     return (
-        <div className={`flex items-center ${compact ? '' : 'bg-gray-5 dark:bg-gray-800/50 rounded-2xl border px-2'} ${
+        <div className={`flex items-center justify-center ${compact ? 'px-2 py-1 bg-gray-50 dark:bg-gray-800/50 rounded-xl border' : 'bg-primary/5 dark:bg-primary/10 rounded-2xl border-2 p-3 shadow-xs'} ${
             error 
                 ? 'border-red-500 ring-2 ring-red-500/20' 
-                : 'border-gray-100 dark:border-gray-700'
+                : compact ? 'border-gray-200 dark:border-gray-700' : 'border-primary/30'
         } focus-within:ring-2 focus-within:ring-primary focus-within:border-primary transition-all ${className}`}>
-             <div className="flex-1 flex flex-col justify-center">
+             <div className="flex-1 flex flex-col justify-center items-center">
                 <input
                     type="text"
                     inputMode="numeric"
@@ -141,11 +141,12 @@ const TimeInput: React.FC<{
                     value={min}
                     onChange={(e) => update(e.target.value, sec)}
                     placeholder={placeholder || "0"}
-                    className={`w-full bg-transparent font-black text-lg text-gray-900 dark:text-white focus:outline-none text-center appearance-none ${compact ? 'py-0' : 'p-4'}`}
+                    className={`w-full bg-transparent font-black tabular-nums text-gray-900 dark:text-white focus:outline-none text-center appearance-none ${compact ? 'text-base py-0' : 'text-3xl sm:text-4xl py-2'}`}
                 />
+                {!compact && <span className="text-[10px] font-black uppercase tracking-wider text-gray-400 dark:text-gray-500 leading-[1.2] pt-[0.1em]">Minuter</span>}
              </div>
-             <span className={`text-gray-300 dark:text-gray-600 font-black ${compact ? 'text-lg pb-0' : 'text-2xl pb-1'}`}>:</span>
-             <div className="flex-1 flex flex-col justify-center">
+             <span className={`text-primary font-black ${compact ? 'text-base' : 'text-3xl pb-3'}`}>:</span>
+             <div className="flex-1 flex flex-col justify-center items-center">
                 <input
                     type="text"
                     inputMode="numeric"
@@ -153,8 +154,9 @@ const TimeInput: React.FC<{
                     value={sec}
                     onChange={(e) => update(min, e.target.value)}
                     placeholder="00"
-                    className={`w-full bg-transparent font-black text-lg text-gray-900 dark:text-white focus:outline-none text-center appearance-none ${compact ? 'py-0' : 'p-4'}`}
+                    className={`w-full bg-transparent font-black tabular-nums text-gray-900 dark:text-white focus:outline-none text-center appearance-none ${compact ? 'text-base py-0' : 'text-3xl sm:text-4xl py-2'}`}
                 />
+                {!compact && <span className="text-[10px] font-black uppercase tracking-wider text-gray-400 dark:text-gray-500 leading-[1.2] pt-[0.1em]">Sekunder</span>}
              </div>
         </div>
     );
@@ -254,14 +256,14 @@ const MissionHeader: React.FC<{ strategy: string; feeling: 'good' | 'neutral' | 
         <motion.div 
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
-            className={`relative overflow-hidden rounded-2xl bg-gradient-to-r ${gradient} p-5 text-white shadow-lg mb-6`}
+            className={`relative overflow-hidden rounded-2xl bg-gradient-to-r ${gradient} p-5 text-white shadow-md mb-6`}
         >
             <div className="relative z-10 flex items-start gap-4">
-                <div className="text-3xl bg-white/20 rounded-xl p-2 h-12 w-12 flex items-center justify-center backdrop-blur-sm">
+                <div className="text-3xl bg-white/20 rounded-xl p-2 h-12 w-12 flex items-center justify-center backdrop-blur-xs shrink-0">
                     {icon}
                 </div>
                 <div>
-                    <h3 className="font-black uppercase tracking-wider text-sm text-white/80 mb-1">{title}</h3>
+                    <h3 className="font-black uppercase tracking-wider text-xs text-white/90 mb-1 leading-[1.2] pt-[0.1em]">{title}</h3>
                     <p className="font-bold text-lg leading-tight text-white">{strategy}</p>
                 </div>
             </div>
@@ -302,53 +304,53 @@ const PreGameView: React.FC<{
             {/* Scrollable Content Area */}
             <div className="relative z-10 flex-1 overflow-y-auto p-6 scrollbar-hide">
                 <div className="flex justify-between items-start mb-6">
-                    <button onClick={onCancel} className="text-gray-400 dark:text-white/50 hover:text-gray-900 dark:hover:text-white font-bold text-sm uppercase tracking-widest px-2 py-1 transition-colors">Avbryt</button>
+                    <button onClick={onCancel} className="min-h-[44px] min-w-[44px] flex items-center justify-center text-gray-400 dark:text-white/50 hover:text-gray-900 dark:hover:text-white font-bold text-xs uppercase tracking-widest px-3 py-1 transition-all active:scale-95 leading-[1.2] pt-[0.1em]">Avbryt</button>
                 </div>
                 
                 <div className="text-center mb-8">
-                    <span className="inline-block py-1 px-3 rounded-full bg-primary/10 dark:bg-white/10 border border-primary/20 dark:border-white/20 text-xs font-bold uppercase tracking-widest text-primary mb-4">Pre-Game Strategy</span>
-                    <h1 className="text-3xl font-black leading-tight mb-2 text-gray-900 dark:text-white">{workoutTitle}</h1>
-                    <p className="text-gray-500 dark:text-gray-400 text-sm">Din personliga plan för dagens pass</p>
+                    <span className="inline-block py-1.5 px-3.5 rounded-full bg-primary/10 dark:bg-white/10 border border-primary/20 dark:border-white/20 text-xs font-black uppercase tracking-wider text-primary mb-4 leading-[1.2] pt-[0.1em]">Pre-Game Strategy</span>
+                    <h1 className="text-3xl font-black leading-[1.2] pt-[0.1em] mb-2 text-gray-900 dark:text-white uppercase tracking-tight">{workoutTitle}</h1>
+                    <p className="text-gray-500 dark:text-gray-400 text-sm font-medium">Din personliga plan för dagens pass</p>
                 </div>
                 
                 <div className="mb-8">
-                    <p className="text-center text-xs font-bold uppercase text-gray-400 dark:text-gray-500 mb-3 tracking-wider">Hur känns kroppen?</p>
+                    <p className="text-center text-xs font-black uppercase text-gray-400 dark:text-gray-500 mb-3 tracking-wider leading-[1.2] pt-[0.1em]">Hur känns kroppen?</p>
                     <div className="flex gap-3 justify-center">
                         {['good', 'neutral', 'bad'].map((f) => (
                             <button 
                                 key={f} 
                                 onClick={() => onFeelingChange(f as any)} 
                                 disabled={isGenerating}
-                                className={`p-4 rounded-2xl border-2 transition-all ${currentFeeling === f ? 'bg-white dark:bg-gray-800 border-primary scale-110 shadow-lg z-10' : 'bg-white/50 dark:bg-gray-800/50 border-gray-200 dark:border-gray-700 hover:bg-white dark:hover:bg-gray-800'} ${isGenerating ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                className={`min-h-[52px] min-w-[52px] p-4 rounded-2xl border-2 transition-all active:scale-95 focus:outline-none focus:ring-2 focus:ring-primary ${currentFeeling === f ? 'bg-white dark:bg-gray-800 border-primary scale-105 shadow-md z-10' : 'bg-white/50 dark:bg-gray-800/50 border-gray-200 dark:border-gray-700 hover:bg-white dark:hover:bg-gray-800'} ${isGenerating ? 'opacity-50 cursor-not-allowed' : ''}`}
                             >
                                 <span className="text-2xl block">{f === 'good' ? '🔥' : f === 'bad' ? '🤕' : '🙂'}</span>
                             </button>
                         ))}
                     </div>
                     {!currentFeeling && !isGenerating && (
-                        <p className="text-center text-sm text-gray-400 dark:text-gray-500 mt-4 animate-pulse">Klicka på en emoji för att få din strategi</p>
+                        <p className="text-center text-sm text-gray-400 dark:text-gray-500 mt-4 animate-pulse font-medium">Klicka på en emoji för att få din strategi</p>
                     )}
                     {isGenerating && (
-                        <p className="text-center text-sm text-primary mt-4 animate-pulse">Genererar din personliga strategi...</p>
+                        <p className="text-center text-sm text-primary mt-4 animate-pulse font-bold">Genererar din personliga strategi...</p>
                     )}
                 </div>
 
                 {currentFeeling && insight && !isGenerating && (
-                    <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm border border-gray-100 dark:border-gray-700 rounded-3xl p-6 shadow-xl mb-6 transition-all animate-fade-in">
+                    <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-xs border border-gray-100 dark:border-gray-700 rounded-2xl p-6 shadow-lg mb-6 transition-all animate-fade-in">
                         <div className="flex items-start gap-4 mb-6">
-                            <div className={`w-12 h-12 rounded-xl bg-gradient-to-br flex items-center justify-center flex-shrink-0 shadow-lg ${currentFeeling === 'good' ? 'from-orange-500 to-red-600' : currentFeeling === 'bad' ? 'from-green-500 to-blue-600' : 'from-indigo-500 to-purple-600'}`}>
+                            <div className={`w-12 h-12 rounded-xl bg-gradient-to-br flex items-center justify-center flex-shrink-0 shadow-md ${currentFeeling === 'good' ? 'from-orange-500 to-red-600' : currentFeeling === 'bad' ? 'from-green-500 to-blue-600' : 'from-indigo-500 to-purple-600'}`}>
                                 <SparklesIcon className="w-6 h-6 text-white" />
                             </div>
                             <div>
-                                <h3 className="font-bold text-lg text-gray-900 dark:text-white mb-1">Dagens Fokus</h3>
+                                <h3 className="font-black text-lg text-gray-900 dark:text-white mb-1 uppercase tracking-tight leading-[1.2] pt-[0.1em]">Dagens Fokus</h3>
                                 <p className="text-sm text-gray-600 dark:text-gray-300 leading-relaxed font-medium italic">"{displayStrategy}"</p>
                             </div>
                         </div>
                         
                         <div className="space-y-4">
                             {insight?.suggestions && Object.keys(insight.suggestions).length > 0 && (
-                                <div className={`p-4 rounded-2xl border ${currentFeeling === 'good' ? 'bg-orange-50 dark:bg-orange-900/10 border-orange-200 dark:border-orange-800/30' : 'bg-gray-50 dark:bg-gray-900/30 border-gray-100 dark:border-gray-700'}`}>
-                                    <h4 className={`text-xs font-bold uppercase tracking-wider mb-3 flex items-center gap-2 ${currentFeeling === 'good' ? 'text-orange-600 dark:text-orange-400' : 'text-gray-400 dark:text-gray-500'}`}>
+                                <div className={`p-4 rounded-xl border ${currentFeeling === 'good' ? 'bg-orange-50 dark:bg-orange-900/10 border-orange-200 dark:border-orange-800/30' : 'bg-gray-50 dark:bg-gray-900/30 border-gray-100 dark:border-gray-700'}`}>
+                                    <h4 className={`text-xs font-black uppercase tracking-wider mb-3 flex items-center gap-2 leading-[1.2] pt-[0.1em] ${currentFeeling === 'good' ? 'text-orange-600 dark:text-orange-400' : 'text-gray-400 dark:text-gray-500'}`}>
                                         {currentFeeling === 'good' && <FireIcon className="w-4 h-4" />}
                                         Smart Load (Dina resultatmål)
                                     </h4>
@@ -356,7 +358,7 @@ const PreGameView: React.FC<{
                                         {Object.entries(insight.suggestions).slice(0, 3).map(([exercise, suggestion]) => (
                                             <div key={exercise} className="flex justify-between items-center bg-white dark:bg-black/20 p-2.5 rounded-lg border border-gray-100 dark:border-white/5">
                                                 <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">{exercise}</span>
-                                                <span className={`text-sm font-bold ${currentFeeling === 'good' ? 'text-orange-600 dark:text-orange-400' : 'text-primary'}`}>{String(suggestion)}</span>
+                                                <span className={`text-sm font-black tabular-nums ${currentFeeling === 'good' ? 'text-orange-600 dark:text-orange-400' : 'text-primary'}`}>{String(suggestion)}</span>
                                             </div>
                                         ))}
                                     </div>
@@ -365,7 +367,7 @@ const PreGameView: React.FC<{
                             
                             {insight?.scaling && Object.keys(insight.scaling).length > 0 && (
                                 <div className="mt-4">
-                                    <h4 className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-2 flex items-center gap-1">
+                                    <h4 className="text-xs font-black text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-2 flex items-center gap-1 leading-[1.2] pt-[0.1em]">
                                         <LightningIcon className="w-3 h-3" /> Alternativ / Skalning
                                     </h4>
                                     <div className="space-y-2">
@@ -384,8 +386,8 @@ const PreGameView: React.FC<{
 
                 {/* --- START BUTTON IN SCROLL FLOW --- */}
                 <div className="mt-8 pb-12">
-                    <button onClick={onStart} className="w-full bg-primary hover:brightness-110 text-white font-black text-lg py-5 rounded-2xl shadow-lg shadow-primary/20 transition-all transform active:scale-95 flex items-center justify-center gap-2">
-                        <span className="tracking-tight uppercase">Starta passet</span>
+                    <button onClick={onStart} className="w-full min-h-[52px] bg-primary hover:brightness-110 text-white font-black text-lg py-4 rounded-xl shadow-lg shadow-primary/20 transition-all transform active:scale-95 flex items-center justify-center gap-2 focus:ring-2 focus:ring-primary uppercase tracking-tight">
+                        <span className="leading-[1.2] pt-[0.1em]">Starta passet</span>
                         <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
                             <path fillRule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clipRule="evenodd" />
                         </svg>
@@ -495,15 +497,16 @@ const ExerciseLogCard: React.FC<{
             <div className="flex flex-col gap-2 mb-4">
                 <div className="flex justify-between items-center">
                     <div className="flex-1 min-w-0">
-                        <h4 className="font-black text-gray-900 dark:text-white text-xl truncate">{name}</h4>
+                        <h4 className="font-black text-gray-900 dark:text-white text-xl truncate leading-[1.2] pt-[0.1em]">{name}</h4>
                         {lastPerformance ? (
-                            <p className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest mt-1">
-                                Senast: <span className="text-gray-600 dark:text-gray-300 font-extrabold">
-                                    {lastPerformance.weight > 0 ? `${lastPerformance.reps} x ${lastPerformance.weight}kg` : `${lastPerformance.reps} reps`}
+                            <div className="inline-flex items-center gap-1.5 bg-gray-100/80 dark:bg-gray-800/80 border border-gray-200/60 dark:border-gray-700/60 px-2.5 py-1 rounded-lg mt-1.5 text-xs font-medium text-gray-500 dark:text-gray-400">
+                                <span className="text-[10px] font-black uppercase tracking-wider text-gray-400 dark:text-gray-500 leading-[1.2] pt-[0.1em]">Senast:</span>
+                                <span className="text-gray-900 dark:text-white font-black tabular-nums">
+                                    {lastPerformance.weight > 0 ? `${lastPerformance.reps} × ${lastPerformance.weight} kg` : `${lastPerformance.reps} reps`}
                                 </span>
-                            </p>
+                            </div>
                         ) : (
-                            <p className="text-xs text-gray-400 uppercase font-extrabold tracking-wider mt-1">
+                            <p className="text-[11px] text-gray-400 dark:text-gray-500 uppercase font-black tracking-wider mt-1.5 leading-[1.2] pt-[0.1em]">
                                Ingen historik
                             </p>
                         )}
@@ -974,39 +977,61 @@ const PostWorkoutForm: React.FC<{ data: LogData; onUpdate: (updates: Partial<Log
     return (
         <div className="mt-8 space-y-8 animate-fade-in">
             <div>
-                <h4 className="text-2xl font-black text-gray-900 dark:text-white tracking-tight mb-6">Hur kändes passet?</h4>
+                <h4 className="text-2xl font-black text-gray-900 dark:text-white uppercase tracking-tight mb-6 leading-[1.2] pt-[0.1em]">Hur kändes passet?</h4>
                 <div className="space-y-4">
-                    <div className="flex items-center gap-2"><h5 className="text-[11px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.15em]">Ansträngning (RPE 1-10)</h5><button onClick={() => setShowRpeInfo(true)} className="p-1 -m-1 text-gray-300 hover:text-primary transition-colors"><InformationCircleIcon className="w-4 h-4" /></button></div>
+                    <div className="flex items-center gap-2">
+                        <h5 className="text-[11px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-wider leading-[1.2] pt-[0.1em]">Ansträngning (RPE 1-10)</h5>
+                        <button onClick={() => setShowRpeInfo(true)} className="p-1.5 -m-1.5 text-gray-400 hover:text-primary transition-colors focus:ring-2 focus:ring-primary rounded-lg">
+                            <InformationCircleIcon className="w-4 h-4" />
+                        </button>
+                    </div>
                     <div className="flex justify-between gap-1 sm:gap-2">
                         {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(num => (
-                            <button key={num} onClick={() => onUpdate({ rpe: num })} className={`flex-1 h-12 rounded-xl flex items-center justify-center font-black text-sm transition-all ${data.rpe === num ? 'bg-primary text-white scale-110 shadow-lg shadow-primary/30 z-10' : `${getRpeColor(num)} opacity-60 hover:opacity-100`}`}>{num}</button>
+                            <button 
+                                key={num} 
+                                onClick={() => onUpdate({ rpe: num })} 
+                                className={`flex-1 min-h-[44px] rounded-xl flex items-center justify-center font-black text-sm tabular-nums transition-all active:scale-95 focus:outline-none focus:ring-2 focus:ring-primary ${data.rpe === num ? 'bg-primary text-white scale-105 shadow-md shadow-primary/30 z-10' : `${getRpeColor(num)} opacity-70 hover:opacity-100`}`}
+                            >
+                                {num}
+                            </button>
                         ))}
                     </div>
                 </div>
-                <div className="mt-10"><h5 className="text-[11px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-4">Kroppskänsla</h5><div className="flex flex-wrap gap-2">
-                    {KROPPSKANSLA_TAGS.map(tag => (<button key={tag} onClick={() => toggleTag(tag)} className={`px-6 py-3 rounded-2xl text-xs font-bold border-2 transition-all active:scale-95 ${data.tags.includes(tag) ? 'bg-gray-900 dark:bg-white text-white dark:text-gray-900 border-gray-900 dark:border-white shadow-md' : 'bg-white dark:bg-gray-800 text-gray-400 dark:text-gray-500 border-gray-100 dark:border-gray-700'}`}>{tag}</button>))}
-                </div></div>
+                <div className="mt-10">
+                    <h5 className="text-[11px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-4 leading-[1.2] pt-[0.1em]">Kroppskänsla</h5>
+                    <div className="flex flex-wrap gap-2">
+                        {KROPPSKANSLA_TAGS.map(tag => (
+                            <button 
+                                key={tag} 
+                                onClick={() => toggleTag(tag)} 
+                                className={`min-h-[44px] px-5 py-2.5 rounded-xl text-xs font-bold border transition-all active:scale-95 focus:outline-none focus:ring-2 focus:ring-primary ${data.tags.includes(tag) ? 'bg-gray-900 dark:bg-white text-white dark:text-gray-900 border-gray-900 dark:border-white shadow-sm' : 'bg-white dark:bg-gray-800 text-gray-500 dark:text-gray-400 border-gray-200 dark:border-gray-700'}`}
+                            >
+                                {tag}
+                            </button>
+                        ))}
+                    </div>
+                </div>
                 
                 {/* --- Sommarpepp Bild-uppladdning (visas endast under sommarutmaningen) --- */}
                 {isSummerChallengeOn && (
-                    <div className="mt-10 border-2 border-dashed border-gray-100 dark:border-gray-800 rounded-[2rem] p-6 text-center bg-gray-50/50 dark:bg-gray-900/10 hover:border-primary/50 transition-colors animate-fade-in">
-                        <h5 className="text-[11px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-2">📸 Dela en sommarbild</h5>
-                        <p className="text-xs text-gray-500 dark:text-gray-400 mb-4 max-w-sm mx-auto">Bifoga en bild till ditt pass så visas den i Sommarfeeden på Smart Skärmen och Topplistan! ☀️</p>
+                    <div className="mt-10 border-2 border-dashed border-gray-200 dark:border-gray-800 rounded-2xl p-6 text-center bg-gray-50/50 dark:bg-gray-900/10 hover:border-primary/50 transition-colors animate-fade-in">
+                        <h5 className="text-[11px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-2 leading-[1.2] pt-[0.1em]">📸 Dela en sommarbild</h5>
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mb-4 max-w-sm mx-auto font-medium">Bifoga en bild till ditt pass så visas den i Sommarfeeden på Smart Skärmen och Topplistan! ☀️</p>
                         {data.imageUrl ? (
                             <div className="relative inline-block mt-2">
                                 <img src={data.imageUrl} alt="Bifogad sommarbild" className="w-32 h-32 object-cover rounded-2xl shadow-md border-2 border-primary" />
                                 <button 
                                     onClick={(e) => { e.preventDefault(); onUpdate({ imageUrl: '' }); }}
-                                    className="absolute -top-2 -right-2 bg-red-500 hover:bg-red-600 text-white p-1.5 rounded-full shadow-lg transition-transform hover:scale-110 active:scale-95"
+                                    className="absolute -top-2 -right-2 bg-red-500 hover:bg-red-600 text-white p-2 rounded-full shadow-lg transition-transform hover:scale-110 active:scale-95 min-h-[44px] min-w-[44px] flex items-center justify-center"
                                 >
-                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="2.5" stroke="currentColor" className="w-3 h-3">
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="2.5" stroke="currentColor" className="w-4 h-4">
                                         <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
                                     </svg>
                                 </button>
                             </div>
                         ) : (
                             <div className="flex justify-center">
-                                <label className={`cursor-pointer px-6 py-2.5 bg-gray-900 dark:bg-white text-white dark:text-gray-900 text-xs font-black uppercase tracking-widest rounded-xl transition-all shadow hover:bg-primary dark:hover:bg-primary dark:hover:text-white hover:text-white active:scale-95 flex items-center gap-2 ${isUploading ? 'opacity-50 pointer-events-none' : ''}`}>
+                                <label className={`cursor-pointer min-h-[44px] px-6 py-2.5 bg-gray-900 dark:bg-white text-white dark:text-gray-900 text-xs font-black uppercase tracking-wider rounded-xl transition-all shadow hover:bg-primary dark:hover:bg-primary dark:hover:text-white hover:text-white active:scale-95 flex items-center gap-2 focus:ring-2 focus:ring-primary ${isUploading ? 'opacity-50 pointer-events-none' : ''}`}>
                                     {isUploading ? (
                                         <>
                                             <div className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin"></div>
@@ -1024,11 +1049,28 @@ const PostWorkoutForm: React.FC<{ data: LogData; onUpdate: (updates: Partial<Log
                     </div>
                 )}
 
-                <div className="mt-10"><h5 className="text-[11px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-3 ml-1">Kommentar</h5><textarea value={data.comment} onChange={(e) => onUpdate({ comment: e.target.value })} placeholder="Anteckningar..." rows={4} className="w-full bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-800 rounded-[1.5rem] p-5 text-gray-900 dark:text-white text-base focus:ring-2 focus:ring-primary outline-none transition-all shadow-inner" /></div>
+                <div className="mt-10">
+                    <h5 className="text-[11px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-3 ml-1 leading-[1.2] pt-[0.1em]">Kommentar</h5>
+                    <textarea value={data.comment} onChange={(e) => onUpdate({ comment: e.target.value })} placeholder="Anteckningar..." rows={4} className="w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl p-4 text-gray-900 dark:text-white text-base focus:ring-2 focus:ring-primary outline-none transition-all shadow-inner font-medium" />
+                </div>
             </div>
-            <Modal isOpen={showRpeInfo} onClose={() => setShowRpeInfo(false)} title="Vad är RPE?" size="sm"><div className="space-y-6"><p className="text-sm text-gray-600 dark:text-gray-300 leading-relaxed">RPE (Rate of Perceived Exertion) är en skala mellan 1-10 som hjälper dig att skatta din ansträngning.</p><div className="space-y-2">
-                {RPE_LEVELS.map(level => (<div key={level.range} className="flex gap-4 p-3 rounded-2xl bg-gray-50 dark:bg-gray-900/50 border border-gray-100 dark:border-gray-800"><div className={`w-12 h-12 rounded-xl ${level.color} flex items-center justify-center text-white font-black flex-shrink-0 shadow-sm`}>{level.range}</div><div><h6 className="font-bold text-gray-900 dark:text-white text-sm">{level.label}</h6><p className="text-xs text-gray-500 dark:text-gray-400">{level.desc}</p></div></div>))}
-            </div><button onClick={() => setShowRpeInfo(false)} className="w-full bg-gray-900 dark:bg-white text-white dark:text-gray-900 font-bold py-4 rounded-xl mt-4">Jag förstår</button></div></Modal>
+            <Modal isOpen={showRpeInfo} onClose={() => setShowRpeInfo(false)} title="Vad är RPE?" size="sm">
+                <div className="space-y-6">
+                    <p className="text-sm text-gray-600 dark:text-gray-300 leading-relaxed font-medium">RPE (Rate of Perceived Exertion) är en skala mellan 1-10 som hjälper dig att skatta din ansträngning.</p>
+                    <div className="space-y-2">
+                        {RPE_LEVELS.map(level => (
+                            <div key={level.range} className="flex gap-4 p-3 rounded-xl bg-gray-50 dark:bg-gray-900/50 border border-gray-100 dark:border-gray-800">
+                                <div className={`w-12 h-12 rounded-xl ${level.color} flex items-center justify-center text-white font-black tabular-nums flex-shrink-0 shadow-xs`}>{level.range}</div>
+                                <div>
+                                    <h6 className="font-bold text-gray-900 dark:text-white text-sm">{level.label}</h6>
+                                    <p className="text-xs text-gray-500 dark:text-gray-400">{level.desc}</p>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                    <button onClick={() => setShowRpeInfo(false)} className="w-full min-h-[44px] bg-gray-900 dark:bg-white text-white dark:text-gray-900 font-black py-3.5 rounded-xl uppercase tracking-wider text-xs active:scale-95 transition-all">Jag förstår</button>
+                </div>
+            </Modal>
         </div>
     );
 };
