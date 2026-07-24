@@ -1219,6 +1219,8 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
   const [dailyFeeling, setDailyFeeling] = useState<'good' | 'neutral' | 'bad' | null>(null);
   const [customActivity, setCustomActivity] = useState({ name: '', duration: '', distance: '', calories: '' });
   const [sessionStats, setSessionStats] = useState({ distance: '', calories: '', time: '', rounds: '' });
+  const [activeSummaryFields, setActiveSummaryFields] = useState<string[]>([]);
+  const [showSummaryMoreFields, setShowSummaryMoreFields] = useState(false);
   const [showExerciseSearch, setShowExerciseSearch] = useState(false);
   const [exerciseSearchTerm, setExerciseSearchTerm] = useState('');
   const [saveAsProgram, setSaveAsProgram] = useState(false);
@@ -1501,20 +1503,22 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
                     });
                 });
                 
+                const defaultDuration = foundWorkout.durationMinutes ? String(foundWorkout.durationMinutes) : ((foundWorkout as any).duration ? String((foundWorkout as any).duration) : '');
+                
                 setExerciseResults(exercises);
                 if (loadedLogData) setLogData(loadedLogData);
                 if (loadedSessionStats) {
                     setSessionStats({
                         distance: loadedSessionStats.distance || '',
                         calories: loadedSessionStats.calories || '',
-                        time: loadedSessionStats.time || '',
+                        time: (loadedSessionStats.time && loadedSessionStats.time.trim() !== '' && loadedSessionStats.time !== '0') ? loadedSessionStats.time : defaultDuration,
                         rounds: loadedSessionStats.rounds || ''
                     });
-                } else if (foundWorkout.durationMinutes) {
+                } else {
                     setSessionStats({
                         distance: '',
                         calories: '',
-                        time: String(foundWorkout.durationMinutes),
+                        time: defaultDuration,
                         rounds: ''
                     });
                 }
@@ -2782,70 +2786,139 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
               ) : (
                   <div className="space-y-6 animate-fade-in">
                       {/* STEP 2: SUMMARY */}
-                      {!isManualMode && (
-                          <div className="p-5 bg-white dark:bg-gray-900 rounded-[2rem] border border-gray-100 dark:border-gray-800 shadow-sm">
-                              <div className="grid grid-cols-2 gap-4">
-                                  <div>
-                                      <label className={`block text-[10px] font-black uppercase tracking-widest mb-2 flex justify-between ${benchmarkDefinition?.type === 'time' ? 'text-yellow-600 dark:text-yellow-500' : 'text-gray-400 dark:text-gray-500'}`}>
-                                          Tid (min:sek)
-                                          {benchmarkDefinition?.type === 'time' && prevBenchmarkBest && (
-                                              <span className="text-[9px] bg-yellow-105 dark:bg-yellow-900/30 px-1.5 py-0.5 rounded">PB: {formatPrev(prevBenchmarkBest, 'time')}</span>
+                      {!isManualMode && (() => {
+                          const showRounds = activeSummaryFields.includes('rounds') || (sessionStats.rounds !== undefined && String(sessionStats.rounds).trim() !== '') || benchmarkDefinition?.type === 'reps';
+                          const showCalories = activeSummaryFields.includes('calories') || (sessionStats.calories !== undefined && String(sessionStats.calories).trim() !== '');
+                          const showDistance = activeSummaryFields.includes('distance') || (sessionStats.distance !== undefined && String(sessionStats.distance).trim() !== '');
+
+                          const inactiveSummaryFields = [
+                              { id: 'rounds', label: 'Varv / Reps', show: showRounds },
+                              { id: 'calories', label: 'kcal', show: showCalories },
+                              { id: 'distance', label: 'km', show: showDistance }
+                          ].filter(f => !f.show);
+
+                          return (
+                              <div className="p-5 bg-white dark:bg-gray-900 rounded-[2rem] border border-gray-100 dark:border-gray-800 shadow-sm">
+                                  <div className="grid grid-cols-2 gap-4">
+                                      {/* TID (MIN:SEK) - ALWAYS VISIBLE */}
+                                      <div>
+                                          <label className={`block text-[10px] font-black uppercase tracking-widest mb-2 flex justify-between ${benchmarkDefinition?.type === 'time' ? 'text-yellow-600 dark:text-yellow-500' : 'text-gray-400 dark:text-gray-500'}`}>
+                                              Tid (min:sek)
+                                              {benchmarkDefinition?.type === 'time' && prevBenchmarkBest && (
+                                                  <span className="text-[9px] bg-yellow-100 dark:bg-yellow-900/30 px-1.5 py-0.5 rounded">PB: {formatPrev(prevBenchmarkBest, 'time')}</span>
+                                              )}
+                                          </label>
+                                          <div className={`bg-gray-50 dark:bg-gray-800 rounded-xl p-2 border transition-colors ${benchmarkDefinition?.type === 'time' ? 'border-yellow-400 dark:border-yellow-600 ring-2 ring-yellow-400/20' : 'border-gray-100 dark:border-gray-700'}`}>
+                                              <TimeInput
+                                                  value={sessionStats.time}
+                                                  onChange={(val) => setSessionStats(prev => ({ ...prev, time: val }))}
+                                                  placeholder={benchmarkDefinition?.type === 'time' ? "45" : "-"}
+                                                  className="w-full bg-transparent text-gray-900 dark:text-white font-black text-lg focus:outline-none text-center"
+                                                  compact={true}
+                                              />
+                                          </div>
+                                      </div>
+
+                                      {/* VARV / REPS */}
+                                      {showRounds && (
+                                          <div>
+                                              <label className={`block text-[10px] font-black uppercase tracking-widest mb-2 flex justify-between ${benchmarkDefinition?.type === 'reps' ? 'text-yellow-600 dark:text-yellow-500' : 'text-gray-400 dark:text-gray-500'}`}>
+                                                  Varv / Reps
+                                                  {benchmarkDefinition?.type === 'reps' && prevBenchmarkBest && (
+                                                      <span className="text-[9px] bg-yellow-100 dark:bg-yellow-900/30 px-1.5 py-0.5 rounded">PB: {formatPrev(prevBenchmarkBest, 'reps')}</span>
+                                                  )}
+                                              </label>
+                                              <div className={`bg-gray-50 dark:bg-gray-800 rounded-xl p-2 border transition-colors ${benchmarkDefinition?.type === 'reps' ? 'border-yellow-400 dark:border-yellow-600 ring-2 ring-yellow-400/20' : 'border-gray-100 dark:border-gray-700'}`}>
+                                                  <input 
+                                                      type="number"
+                                                      value={sessionStats.rounds}
+                                                      onChange={(e) => setSessionStats(prev => ({ ...prev, rounds: e.target.value }))}
+                                                      placeholder={benchmarkDefinition?.type === 'reps' ? "T.ex. 5" : "-"}
+                                                      className="w-full bg-transparent text-gray-900 dark:text-white font-black text-lg focus:outline-none text-center"
+                                                  />
+                                              </div>
+                                          </div>
+                                      )}
+
+                                      {/* KCAL */}
+                                      {showCalories && (
+                                          <div>
+                                              <label className="block text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-2">kcal</label>
+                                              <div className="bg-gray-50 dark:bg-gray-800 rounded-xl p-2 border border-gray-100 dark:border-gray-700">
+                                                  <input 
+                                                      type="number"
+                                                      value={sessionStats.calories}
+                                                      onChange={(e) => setSessionStats(prev => ({ ...prev, calories: e.target.value }))}
+                                                      placeholder="T.ex. 350"
+                                                      className="w-full bg-transparent text-gray-900 dark:text-white font-black text-lg focus:outline-none text-center"
+                                                  />
+                                              </div>
+                                          </div>
+                                      )}
+
+                                      {/* KM */}
+                                      {showDistance && (
+                                          <div>
+                                              <label className="block text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-2">km</label>
+                                              <div className="bg-gray-50 dark:bg-gray-800 rounded-xl p-2 border border-gray-100 dark:border-gray-700">
+                                                  <input 
+                                                      type="number"
+                                                      value={sessionStats.distance}
+                                                      onChange={(e) => setSessionStats(prev => ({ ...prev, distance: e.target.value }))}
+                                                      placeholder="T.ex. 3.5"
+                                                      className="w-full bg-transparent text-gray-900 dark:text-white font-black text-lg focus:outline-none text-center"
+                                                  />
+                                              </div>
+                                          </div>
+                                      )}
+                                  </div>
+
+                                  {/* "+ fler fält" chip for summary */}
+                                  {inactiveSummaryFields.length > 0 && (
+                                      <div className="mt-3">
+                                          {!showSummaryMoreFields ? (
+                                              <button
+                                                  type="button"
+                                                  onClick={() => setShowSummaryMoreFields(true)}
+                                                  className="inline-flex items-center gap-1 text-[11px] font-extrabold text-gray-400 dark:text-gray-500 hover:text-primary dark:hover:text-primary-light bg-gray-50/80 dark:bg-gray-800/80 hover:bg-primary/10 px-2.5 py-1 rounded-full transition-all border border-gray-150 dark:border-gray-700/60 active:scale-95"
+                                              >
+                                                  <PlusIcon className="w-3 h-3" />
+                                                  <span>+ fler fält</span>
+                                              </button>
+                                          ) : (
+                                              <div className="flex items-center gap-1.5 flex-wrap p-2 bg-gray-50 dark:bg-gray-800/60 rounded-xl border border-gray-150 dark:border-gray-700/80 animate-fade-in">
+                                                  <span className="text-[10px] font-extrabold uppercase tracking-widest text-gray-400 mr-1">Lägg till:</span>
+                                                  {inactiveSummaryFields.map(f => (
+                                                      <button
+                                                          key={f.id}
+                                                          type="button"
+                                                          onClick={() => {
+                                                              setActiveSummaryFields(prev => [...prev, f.id]);
+                                                              if (inactiveSummaryFields.length <= 1) {
+                                                                  setShowSummaryMoreFields(false);
+                                                              }
+                                                          }}
+                                                          className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 text-primary dark:text-primary-light hover:bg-primary hover:text-white transition-all shadow-2xs active:scale-95"
+                                                      >
+                                                          <PlusIcon className="w-3 h-3" />
+                                                          {f.label}
+                                                      </button>
+                                                  ))}
+                                                  <button
+                                                      type="button"
+                                                      onClick={() => setShowSummaryMoreFields(false)}
+                                                      className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 ml-1 rounded-lg"
+                                                      title="Dölj"
+                                                  >
+                                                      <CloseIcon className="w-3.5 h-3.5" />
+                                                  </button>
+                                              </div>
                                           )}
-                                      </label>
-                                      <div className={`bg-gray-50 dark:bg-gray-800 rounded-xl p-2 border transition-colors ${benchmarkDefinition?.type === 'time' ? 'border-yellow-400 dark:border-yellow-600 ring-2 ring-yellow-400/20' : 'border-gray-100 dark:border-gray-700'}`}>
-                                          <TimeInput
-                                              value={sessionStats.time}
-                                              onChange={(val) => setSessionStats(prev => ({ ...prev, time: val }))}
-                                              placeholder={benchmarkDefinition?.type === 'time' ? "45" : "-"}
-                                              className="w-full bg-transparent text-gray-900 dark:text-white font-black text-lg focus:outline-none text-center"
-                                              compact={true}
-                                          />
                                       </div>
-                                  </div>
-                                  <div>
-                                      <label className={`block text-[10px] font-black uppercase tracking-widest mb-2 flex justify-between ${benchmarkDefinition?.type === 'reps' ? 'text-yellow-600 dark:text-yellow-500' : 'text-gray-400 dark:text-gray-500'}`}>
-                                          Varv / Reps
-                                          {benchmarkDefinition?.type === 'reps' && prevBenchmarkBest && (
-                                              <span className="text-[9px] bg-yellow-101 dark:bg-yellow-900/30 px-1.5 py-0.5 rounded">PB: {formatPrev(prevBenchmarkBest, 'reps')}</span>
-                                          )}
-                                      </label>
-                                      <div className={`bg-gray-50 dark:bg-gray-800 rounded-xl p-2 border transition-colors ${benchmarkDefinition?.type === 'reps' ? 'border-yellow-400 dark:border-yellow-600 ring-2 ring-yellow-400/20' : 'border-gray-100 dark:border-gray-700'}`}>
-                                          <input 
-                                              type="number"
-                                              value={sessionStats.rounds}
-                                              onChange={(e) => setSessionStats(prev => ({ ...prev, rounds: e.target.value }))}
-                                              placeholder={benchmarkDefinition?.type === 'reps' ? "T.ex. 5" : "-"}
-                                              className="w-full bg-transparent text-gray-900 dark:text-white font-black text-lg focus:outline-none text-center"
-                                          />
-                                      </div>
-                                  </div>
-                                  <div>
-                                      <label className="block text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-2">kcal</label>
-                                      <div className="bg-gray-50 dark:bg-gray-800 rounded-xl p-2 border border-gray-100 dark:border-gray-700">
-                                          <input 
-                                              type="number"
-                                              value={sessionStats.calories}
-                                              onChange={(e) => setSessionStats(prev => ({ ...prev, calories: e.target.value }))}
-                                              placeholder="T.ex. 350"
-                                              className="w-full bg-transparent text-gray-900 dark:text-white font-black text-lg focus:outline-none text-center"
-                                          />
-                                      </div>
-                                  </div>
-                                  <div>
-                                      <label className="block text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-2">km</label>
-                                      <div className="bg-gray-50 dark:bg-gray-800 rounded-xl p-2 border border-gray-100 dark:border-gray-700">
-                                          <input 
-                                              type="number"
-                                              value={sessionStats.distance}
-                                              onChange={(e) => setSessionStats(prev => ({ ...prev, distance: e.target.value }))}
-                                              placeholder="T.ex. 3.5"
-                                              className="w-full bg-transparent text-gray-900 dark:text-white font-black text-lg focus:outline-none text-center"
-                                          />
-                                      </div>
-                                  </div>
+                                  )}
                               </div>
-                          </div>
-                      )}
+                          );
+                      })()}
 
                       <PostWorkoutForm 
                           data={logData} 

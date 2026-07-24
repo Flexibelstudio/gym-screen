@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { WorkoutLog, UserData, MemberGoals, Page, UserRole, SmartGoalDetail, WorkoutDiploma, StudioConfig, BenchmarkDefinition } from '../types';
-import { listenToMemberLogs, updateUserGoals, updateUserProfile, uploadImage, updateWorkoutLog, deleteWorkoutLog, requestPushNotificationPermission, auth, getPastRaces, toggleWorkoutLogLike } from '../services/firebaseService';
+import { WorkoutLog, UserData, MemberGoals, Page, UserRole, SmartGoalDetail, WorkoutDiploma, StudioConfig, BenchmarkDefinition, PersonalBest } from '../types';
+import { listenToMemberLogs, listenToPersonalBests, updateUserGoals, updateUserProfile, uploadImage, updateWorkoutLog, deleteWorkoutLog, requestPushNotificationPermission, auth, getPastRaces, toggleWorkoutLogLike } from '../services/firebaseService';
+import { calculateMonthlyStats, MonthlyWrappedModal } from './MonthlyWrapped';
 import { ChartBarIcon, DumbbellIcon, PencilIcon, SparklesIcon, UserIcon, FireIcon, LightningIcon, TrashIcon, CloseIcon, TrophyIcon, ToggleSwitch, ClockIcon, HistoryIcon, FlagIcon, StarIcon, ChevronRightIcon, SunIcon } from './icons';
 import { Modal } from './ui/Modal';
 import { useConfirm } from './ConfirmContext';
@@ -83,6 +84,49 @@ const ResumeWorkoutBanner: React.FC<{
                     className="flex-[2] sm:flex-none px-8 py-3 rounded-xl text-xs font-black bg-white text-orange-600 shadow-xl hover:scale-105 transition-all uppercase tracking-widest active:scale-95 ring-2 ring-orange-950/5"
                 >
                     Fortsätt logga
+                </button>
+            </div>
+        </div>
+    </motion.div>
+);
+
+const MonthlyWrappedBanner: React.FC<{ 
+    monthNameCap: string, 
+    onOpen: () => void, 
+    onDismiss: () => void 
+}> = ({ monthNameCap, onOpen, onDismiss }) => (
+    <motion.div 
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="mb-8 relative overflow-hidden bg-gradient-to-r from-purple-900 via-indigo-900 to-slate-900 rounded-[2rem] p-6 text-white shadow-xl shadow-purple-950/20 border border-purple-500/30"
+    >
+        <div className="absolute top-0 right-0 w-40 h-40 bg-purple-500/10 rounded-full blur-3xl -mr-20 -mt-20"></div>
+        <div className="relative z-10 flex flex-wrap sm:flex-nowrap items-center justify-between gap-4">
+            <div className="flex items-center gap-4 text-left flex-1 min-w-[220px]">
+                <div className="w-12 h-12 bg-purple-500/20 rounded-2xl flex items-center justify-center shrink-0 border border-purple-400/30 text-purple-300">
+                    <SparklesIcon className="w-6 h-6 animate-pulse" />
+                </div>
+                <div className="min-w-0 flex-1">
+                    <h4 className="text-[10px] font-black uppercase tracking-[0.25em] text-purple-300/80 mb-0.5">Månadssummering</h4>
+                    <p className="text-lg font-black leading-tight text-white drop-shadow-sm">
+                        Din {monthNameCap} är klar 🎉 — se din summering
+                    </p>
+                </div>
+            </div>
+            
+            <div className="flex items-center gap-2.5 w-full sm:w-auto shrink-0 justify-end">
+                <button
+                    onClick={onDismiss}
+                    className="px-3 py-2.5 rounded-xl text-xs font-bold text-gray-300 hover:text-white bg-white/10 hover:bg-white/20 transition-colors"
+                    title="Avfärda"
+                >
+                    <CloseIcon className="w-4 h-4" />
+                </button>
+                <button
+                    onClick={onOpen}
+                    className="px-6 py-2.5 rounded-xl text-xs font-black bg-primary hover:bg-primary-dark text-white shadow-lg transition-all uppercase tracking-wider active:scale-95"
+                >
+                    Se summering
                 </button>
             </div>
         </div>
@@ -840,6 +884,11 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
     const [isSummerDiplomaOpen, setIsSummerDiplomaOpen] = useState(false);
     const [showSummerStandings, setShowSummerStandings] = useState(false);
 
+    // Monthly Wrapped states
+    const [personalBests, setPersonalBests] = useState<PersonalBest[]>([]);
+    const [isMonthlyWrappedOpen, setIsMonthlyWrappedOpen] = useState(false);
+    const [dismissedMonthlyWrapped, setDismissedMonthlyWrapped] = useState(false);
+
     const loggedInMember = useMemo(() => {
         return membersList.find(m => m.uid === auth?.currentUser?.uid);
     }, [membersList]);
@@ -1336,6 +1385,39 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
         return () => unsubscribe();
     }, [userData.uid]);
 
+    // Real-time personal bests listening
+    useEffect(() => {
+        if (!userData.uid) return;
+        const unsubscribe = listenToPersonalBests(userData.uid, (data) => {
+            setPersonalBests(data);
+        });
+        return () => unsubscribe();
+    }, [userData.uid]);
+
+    // Monthly Wrapped calculation
+    const monthlyStats = useMemo(() => {
+        return calculateMonthlyStats(logs, personalBests);
+    }, [logs, personalBests]);
+
+    useEffect(() => {
+        if (userData?.uid && monthlyStats) {
+            const key = `monthly_wrapped_dismissed_${userData.uid}_${monthlyStats.year}_${monthlyStats.monthName}`;
+            const dismissed = localStorage.getItem(key) === 'true';
+            setDismissedMonthlyWrapped(dismissed);
+        }
+    }, [userData?.uid, monthlyStats]);
+
+    const handleDismissMonthlyBanner = () => {
+        if (userData?.uid && monthlyStats) {
+            const key = `monthly_wrapped_dismissed_${userData.uid}_${monthlyStats.year}_${monthlyStats.monthName}`;
+            localStorage.setItem(key, 'true');
+            setDismissedMonthlyWrapped(true);
+        }
+    };
+
+    const isDay1To7 = new Date().getDate() <= 7;
+    const showMonthlyBanner = isDay1To7 && monthlyStats.workoutCount > 0 && !dismissedMonthlyWrapped;
+
     useEffect(() => {
         const orgId = userData.organizationId || selectedOrganization?.id;
         if (!orgId || !userData.email) return;
@@ -1785,6 +1867,15 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                 />
             )}
 
+            {/* 2. Monthly Wrapped Banner (Days 1-7 of new month) */}
+            {showMonthlyBanner && (
+                <MonthlyWrappedBanner 
+                    monthNameCap={monthlyStats.monthNameCap}
+                    onOpen={() => setIsMonthlyWrappedOpen(true)}
+                    onDismiss={handleDismissMonthlyBanner}
+                />
+            )}
+
             {/* --- FLIKAR I HEADER --- */}
             {document.getElementById('member-header-tabs') && createPortal(
                 <div className="flex gap-2 sm:gap-4 transition-all" style={{ filter: userData.backgroundImageUrl ? 'drop-shadow(0px 2px 4px rgba(0,0,0,0.4))' : 'none' }}>
@@ -2108,6 +2199,26 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                         summerWeekPoints={stats.summerWeekPoints}
                         summerTotalPoints={stats.summerTotalPoints}
                     />
+
+                    {/* Min Månad Permanent Entry Card */}
+                    <div className="flex items-center justify-between bg-gradient-to-r from-purple-950 via-indigo-950 to-slate-900 p-4 rounded-2xl border border-purple-500/30 shadow-md">
+                        <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 bg-purple-500/20 text-purple-300 rounded-xl flex items-center justify-center border border-purple-400/30">
+                                <SparklesIcon className="w-5 h-5 animate-pulse" />
+                            </div>
+                            <div className="text-left">
+                                <span className="text-[10px] font-black uppercase tracking-widest text-purple-300">Månadssummering</span>
+                                <h4 className="text-sm font-black text-white">Min Månad ({monthlyStats.monthNameCap})</h4>
+                            </div>
+                        </div>
+                        <button
+                            onClick={() => setIsMonthlyWrappedOpen(true)}
+                            className="px-4 py-2 bg-primary hover:bg-primary-dark text-white text-xs font-black rounded-xl transition-all shadow-sm active:scale-95 flex items-center gap-1 shrink-0"
+                        >
+                            <span>Se story</span>
+                            <ChevronRightIcon className="w-4 h-4" />
+                        </button>
+                    </div>
 
                     {/* Stats grid */}
                     <div className="grid grid-cols-3 gap-2 sm:gap-4">
@@ -3290,6 +3401,15 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                 isOpen={showMigrateModal}
                 onClose={() => setShowMigrateModal(false)}
                 userData={userData}
+            />
+
+            <MonthlyWrappedModal
+                isOpen={isMonthlyWrappedOpen}
+                onClose={() => setIsMonthlyWrappedOpen(false)}
+                logs={logs}
+                personalBests={personalBests}
+                userName={loggedInMemberName}
+                gymName={selectedOrganization?.name || 'Mitt gym'}
             />
         </div>
     );
