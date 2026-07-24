@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { WorkoutLog, PersonalBest } from '../types';
 import { motion, AnimatePresence } from 'framer-motion';
 import { TrophyIcon, SparklesIcon, CloseIcon, ChevronRightIcon, FireIcon, ClockIcon, DumbbellIcon } from './icons';
@@ -61,11 +62,12 @@ export function calculateMonthlyStats(
 
     const workoutCount = monthLogs.length;
 
-    // Total minutes
+    // Total minutes rounded to whole integer (no decimal minutes)
     const totalMinutes = monthLogs.reduce((acc, log) => acc + (log.durationMinutes || 0), 0);
-    const hours = Math.floor(totalMinutes / 60);
-    const mins = totalMinutes % 60;
-    let formattedTime = `${totalMinutes} min`;
+    const roundedMinutes = Math.round(totalMinutes);
+    const hours = Math.floor(roundedMinutes / 60);
+    const mins = roundedMinutes % 60;
+    let formattedTime = `${roundedMinutes} min`;
     if (hours > 0) {
         formattedTime = mins > 0 ? `${hours} tim ${mins} min` : `${hours} timmar`;
     }
@@ -141,7 +143,7 @@ export function calculateMonthlyStats(
         monthNameCap,
         year: targetYear,
         workoutCount,
-        totalMinutes,
+        totalMinutes: roundedMinutes,
         formattedTime,
         topWorkout,
         monthPBs,
@@ -273,7 +275,7 @@ export const generateWrappedCanvasImage = async (
     // Stat 4: PBs
     ctx.textAlign = 'left';
     drawRoundedRect(130, 1025, 820, 240, 28, 'rgba(255, 255, 255, 0.04)', 'rgba(255, 255, 255, 0.08)');
-    ctx.fillStyle = '#eab308';
+    ctx.fillStyle = '#f59e0b';
     ctx.font = '700 22px sans-serif';
     ctx.fillText('MÅNADENS REKORD (PB:S)', 170, 1075);
     if (stats.monthPBs.length > 0) {
@@ -350,6 +352,34 @@ export const MonthlyWrappedModal: React.FC<MonthlyWrappedProps> = ({
     const [isSharing, setIsSharing] = useState(false);
     const [isPaused, setIsPaused] = useState(false);
 
+    // Pre-generated share image state (Fix for iOS Safari gesture loss)
+    const [cachedShareFile, setCachedShareFile] = useState<File | null>(null);
+    const [cachedShareUrl, setCachedShareUrl] = useState<string | null>(null);
+    const [shareStatusMessage, setShareStatusMessage] = useState<string | null>(null);
+
+    // Pre-generate image in background when modal opens
+    useEffect(() => {
+        if (!isOpen || !stats.hasData) return;
+
+        let isMounted = true;
+        generateWrappedCanvasImage(stats, gymName, userName)
+            .then(blob => {
+                if (!isMounted) return;
+                const fileName = `min-manad-${stats.monthName}-${stats.year}.png`;
+                const file = new File([blob], fileName, { type: 'image/png' });
+                const url = URL.createObjectURL(blob);
+                setCachedShareFile(file);
+                setCachedShareUrl(url);
+            })
+            .catch(err => {
+                console.error("Failed to pre-generate wrapped image:", err);
+            });
+
+        return () => {
+            isMounted = false;
+        };
+    }, [isOpen, stats, gymName, userName]);
+
     // Check if user prefers reduced motion
     const prefersReducedMotion = typeof window !== 'undefined'
         ? window.matchMedia('(prefers-reduced-motion: reduce)').matches
@@ -364,7 +394,6 @@ export const MonthlyWrappedModal: React.FC<MonthlyWrappedProps> = ({
             { id: 'favorite', type: 'favorite' },
         ];
 
-        // Conditional card: PB:s only if there are any
         if (stats.monthPBs.length > 0) {
             list.push({ id: 'pbs', type: 'pbs' });
         }
@@ -404,26 +433,66 @@ export const MonthlyWrappedModal: React.FC<MonthlyWrappedProps> = ({
     const handleShare = async () => {
         try {
             setIsSharing(true);
-            const blob = await generateWrappedCanvasImage(stats, gymName, userName);
-            const fileName = `min-manad-${stats.monthName}-${stats.year}.png`;
-            const file = new File([blob], fileName, { type: 'image/png' });
+            setShareStatusMessage(null);
 
-            if (navigator.canShare && navigator.canShare({ files: [file] })) {
+            let file = cachedShareFile;
+            let blobUrl = cachedShareUrl;
+
+            // Fallback generation if pre-gen wasn't ready
+            if (!file) {
+                const blob = await generateWrappedCanvasImage(stats, gymName, userName);
+                const fileName = `min-manad-${stats.monthName}-${stats.year}.png`;
+                file = new File([blob], fileName, { type: 'image/png' });
+                blobUrl = URL.createObjectURL(blob);
+                setCachedShareFile(file);
+                setCachedShareUrl(blobUrl);
+            }
+
+            const shareTitle = `Min träningsmånad - ${stats.monthNameCap} ${stats.year}`;
+            const shareText = `Kolla in min träningsmånad för ${stats.monthNameCap}! 💪`;
+
+            // 1. Primary: Web Share API with image file
+            if (navigator.canShare && file && navigator.canShare({ files: [file] })) {
                 await navigator.share({
-                    title: `Min träningsmånad - ${stats.monthNameCap} ${stats.year}`,
-                    text: `Kolla in min träningsmånad för ${stats.monthNameCap}! 💪`,
+                    title: shareTitle,
+                    text: shareText,
                     files: [file]
                 });
-            } else {
-                const url = URL.createObjectURL(blob);
+                setShareStatusMessage('Delad!');
+                return;
+            }
+
+            // 2. Secondary: Web Share API text only
+            if (navigator.share) {
+                try {
+                    await navigator.share({
+                        title: shareTitle,
+                        text: shareText,
+                    });
+                    setShareStatusMessage('Delad!');
+                    return;
+                } catch (shareErr) {
+                    if ((shareErr as Error)?.name === 'AbortError') {
+                        return;
+                    }
+                }
+            }
+
+            // 3. Fallback: Download image directly
+            if (blobUrl) {
                 const a = document.createElement('a');
-                a.href = url;
-                a.download = fileName;
+                a.href = blobUrl;
+                a.download = file ? file.name : `min-manad-${stats.monthName}-${stats.year}.png`;
+                document.body.appendChild(a);
                 a.click();
-                URL.revokeObjectURL(url);
+                document.body.removeChild(a);
+                setShareStatusMessage('Bilden sparad!');
             }
         } catch (err) {
-            console.error("Failed to share image", err);
+            if ((err as Error)?.name !== 'AbortError') {
+                console.error("Failed to share or save image:", err);
+                setShareStatusMessage('Kunde inte dela. Försök igen.');
+            }
         } finally {
             setIsSharing(false);
         }
@@ -431,8 +500,8 @@ export const MonthlyWrappedModal: React.FC<MonthlyWrappedProps> = ({
 
     // --- Empty State ---
     if (!stats.hasData) {
-        return (
-            <div className="fixed inset-0 z-[9999] bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
+        return createPortal(
+            <div className="fixed inset-0 z-[10000] bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
                 <motion.div 
                     initial={{ opacity: 0, scale: 0.9 }}
                     animate={{ opacity: 1, scale: 1 }}
@@ -458,27 +527,28 @@ export const MonthlyWrappedModal: React.FC<MonthlyWrappedProps> = ({
 
                     <button
                         onClick={onClose}
-                        className="w-full py-3.5 bg-primary hover:bg-primary-dark text-white font-black rounded-xl shadow-lg transition-all active:scale-95 text-sm uppercase tracking-wider"
+                        className="w-full py-3.5 bg-primary hover:brightness-110 text-white font-black rounded-xl shadow-lg transition-all active:scale-95 text-sm uppercase tracking-wider"
                     >
                         Stäng
                     </button>
                 </motion.div>
-            </div>
+            </div>,
+            document.body
         );
     }
 
     const currentCard = cards[currentStep];
 
-    return (
+    return createPortal(
         <div 
-            className="fixed inset-0 z-[9999] bg-gray-950 text-white flex flex-col justify-between select-none overflow-hidden"
+            className="fixed inset-0 z-[10000] bg-gray-950 text-white flex flex-col justify-between select-none overflow-hidden"
             onMouseDown={() => setIsPaused(true)}
             onMouseUp={() => setIsPaused(false)}
             onTouchStart={() => setIsPaused(true)}
             onTouchEnd={() => setIsPaused(false)}
         >
             {/* Header / Progress Bar & Close */}
-            <div className="relative z-30 p-4 pt-6 max-w-md w-full mx-auto">
+            <div className="relative z-30 p-4 pt-6 max-w-md w-full mx-auto pointer-events-auto">
                 <div className="flex gap-1.5 mb-4">
                     {cards.map((card, idx) => (
                         <div 
@@ -496,7 +566,7 @@ export const MonthlyWrappedModal: React.FC<MonthlyWrappedProps> = ({
 
                 <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                        <span className="text-xs font-black uppercase tracking-widest text-primary px-2.5 py-1 bg-primary/20 rounded-full border border-primary/30">
+                        <span className="text-xs font-black uppercase tracking-widest text-work px-2.5 py-1 bg-work/20 rounded-full border border-work/30">
                             Min Månad
                         </span>
                         <span className="text-xs font-bold text-gray-400">
@@ -514,8 +584,8 @@ export const MonthlyWrappedModal: React.FC<MonthlyWrappedProps> = ({
                 </div>
             </div>
 
-            {/* Tap Navigation Overlays (Left/Right) */}
-            <div className="absolute inset-0 z-20 flex pointer-events-auto">
+            {/* Tap Navigation Overlays (Left 33% / Right 67%) */}
+            <div className="absolute inset-0 z-10 flex pointer-events-auto">
                 <div 
                     onClick={handlePrev}
                     className="w-1/3 h-full cursor-pointer"
@@ -529,7 +599,7 @@ export const MonthlyWrappedModal: React.FC<MonthlyWrappedProps> = ({
             </div>
 
             {/* Main Story Content Card */}
-            <div className="relative z-10 flex-1 flex items-center justify-center p-6 max-w-md w-full mx-auto">
+            <div className="relative z-20 flex-1 flex items-center justify-center p-4 sm:p-6 max-w-md w-full mx-auto pointer-events-none">
                 <AnimatePresence mode="wait">
                     <motion.div
                         key={currentCard.id}
@@ -537,187 +607,215 @@ export const MonthlyWrappedModal: React.FC<MonthlyWrappedProps> = ({
                         animate={{ opacity: 1, scale: 1, y: 0 }}
                         exit={prefersReducedMotion ? { opacity: 0 } : { opacity: 0, scale: 1.05, y: -10 }}
                         transition={{ duration: 0.35, ease: "easeOut" }}
-                        className="w-full text-center"
+                        className="w-full pointer-events-auto"
                     >
                         {/* 1. INTRO CARD */}
                         {currentCard.type === 'intro' && (
-                            <div className="space-y-6">
-                                <motion.div 
-                                    initial={{ scale: 0 }}
-                                    animate={{ scale: 1 }}
-                                    transition={{ type: "spring", stiffness: 200, delay: 0.1 }}
-                                    className="w-24 h-24 bg-gradient-to-tr from-primary via-orange-500 to-amber-400 rounded-3xl mx-auto flex items-center justify-center shadow-2xl shadow-primary/40 ring-4 ring-white/10"
-                                >
-                                    <SparklesIcon className="w-12 h-12 text-white" />
-                                </motion.div>
+                            <div className="bg-white/5 border border-white/10 rounded-3xl p-6 sm:p-8 flex flex-col items-center justify-center text-center shadow-2xl backdrop-blur-sm min-h-[420px] relative overflow-hidden">
+                                <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-work/20 via-transparent to-transparent pointer-events-none motion-reduce:hidden" />
+                                
+                                <div className="relative z-10 space-y-6 flex flex-col items-center justify-center my-auto">
+                                    <motion.div 
+                                        initial={{ scale: 0 }}
+                                        animate={{ scale: 1 }}
+                                        transition={{ type: "spring", stiffness: 200, delay: 0.1 }}
+                                        className="w-20 h-20 bg-gradient-to-tr from-work via-amber-500 to-record rounded-3xl flex items-center justify-center shadow-2xl ring-4 ring-white/10"
+                                    >
+                                        <SparklesIcon className="w-10 h-10 text-white" />
+                                    </motion.div>
 
-                                <div className="space-y-2">
-                                    <h2 className="text-sm font-black uppercase tracking-[0.2em] text-orange-400">
-                                        Träningssummering
-                                    </h2>
-                                    <h1 className="text-4xl sm:text-5xl font-black text-white tracking-tight leading-tight">
-                                        Din {stats.monthNameCap} <br />
-                                        <span className="text-transparent bg-clip-text bg-gradient-to-r from-orange-400 via-amber-300 to-yellow-400">
-                                            {stats.year}
-                                        </span>
-                                    </h1>
-                                </div>
+                                    <div className="space-y-2">
+                                        <h2 className="text-xs font-black uppercase tracking-[0.25em] text-work leading-[1.2] pt-[0.1em]">
+                                            Träningssummering
+                                        </h2>
+                                        <h1 className="text-4xl sm:text-5xl font-black text-white tracking-tight leading-[1.2] pt-[0.1em] uppercase">
+                                            Din {stats.monthNameCap} <br />
+                                            <span className="text-work">
+                                                {stats.year}
+                                            </span>
+                                        </h1>
+                                    </div>
 
-                                <p className="text-gray-300 font-medium text-base">
-                                    Hej {userName}! Dags att fira dina träningsframgångar under månaden.
-                                </p>
+                                    <p className="text-gray-300 font-medium text-base max-w-xs leading-relaxed">
+                                        Hej {userName}! Dags att fira dina träningsframgångar under månaden.
+                                    </p>
 
-                                <div className="pt-4 inline-flex items-center gap-2 text-xs font-black uppercase tracking-wider text-gray-400 animate-bounce">
-                                    <span>Tryck för att fortsätta</span>
-                                    <ChevronRightIcon className="w-4 h-4" />
+                                    <div className="pt-2 inline-flex items-center gap-2 text-xs font-black uppercase tracking-wider text-gray-400 animate-bounce motion-reduce:animate-none">
+                                        <span>Tryck för att fortsätta</span>
+                                        <ChevronRightIcon className="w-4 h-4" />
+                                    </div>
                                 </div>
                             </div>
                         )}
 
                         {/* 2. WORKOUT COUNT CARD */}
                         {currentCard.type === 'count' && (
-                            <div className="space-y-6">
-                                <div className="w-16 h-16 bg-blue-500/20 text-blue-400 rounded-2xl mx-auto flex items-center justify-center border border-blue-500/30">
-                                    <DumbbellIcon className="w-8 h-8" />
+                            <div className="bg-white/5 border border-white/10 rounded-3xl p-6 sm:p-8 flex flex-col items-center justify-center text-center shadow-2xl backdrop-blur-sm min-h-[420px] relative overflow-hidden">
+                                <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-work/25 via-transparent to-transparent pointer-events-none motion-reduce:hidden" />
+
+                                <div className="relative z-10 space-y-5 flex flex-col items-center justify-center my-auto w-full">
+                                    <div className="w-16 h-16 bg-work/20 text-work rounded-2xl flex items-center justify-center border border-work/30">
+                                        <DumbbellIcon className="w-8 h-8" />
+                                    </div>
+
+                                    <h3 className="text-xs font-black uppercase tracking-[0.25em] text-work leading-[1.2] pt-[0.1em]">
+                                        Antal Loggade Pass
+                                    </h3>
+
+                                    <motion.div 
+                                        initial={{ scale: 0.5 }}
+                                        animate={{ scale: 1 }}
+                                        className="text-8xl sm:text-9xl font-black text-white font-mono tracking-tight tabular-nums leading-none"
+                                    >
+                                        {stats.workoutCount}
+                                    </motion.div>
+
+                                    <p className="text-2xl font-black text-gray-100 tracking-tight leading-[1.2] pt-[0.1em]">
+                                        pass i {stats.monthName}! 🎉
+                                    </p>
+
+                                    <p className="text-sm text-gray-300 max-w-xs font-medium leading-relaxed">
+                                        Varje pass bygger din hälsa. Riktigt starkt jobbat!
+                                    </p>
                                 </div>
-
-                                <h3 className="text-xs font-black uppercase tracking-[0.25em] text-blue-400">
-                                    Antal Loggade Pass
-                                </h3>
-
-                                <motion.div 
-                                    initial={{ scale: 0.5 }}
-                                    animate={{ scale: 1 }}
-                                    className="text-7xl sm:text-8xl font-black text-white font-mono tracking-tight"
-                                >
-                                    {stats.workoutCount}
-                                </motion.div>
-
-                                <p className="text-xl font-bold text-gray-200">
-                                    pass genomförda i {stats.monthName}! 🎉
-                                </p>
-
-                                <p className="text-sm text-gray-400 max-w-xs mx-auto">
-                                    Varje enskilt pass för dig närmare dina mål. Grymt jobbat!
-                                </p>
                             </div>
                         )}
 
                         {/* 3. TOTAL TIME CARD */}
                         {currentCard.type === 'time' && (
-                            <div className="space-y-6">
-                                <div className="w-16 h-16 bg-cyan-500/20 text-cyan-400 rounded-2xl mx-auto flex items-center justify-center border border-cyan-500/30">
-                                    <ClockIcon className="w-8 h-8" />
+                            <div className="bg-white/5 border border-white/10 rounded-3xl p-6 sm:p-8 flex flex-col items-center justify-center text-center shadow-2xl backdrop-blur-sm min-h-[420px] relative overflow-hidden">
+                                <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-rest/25 via-transparent to-transparent pointer-events-none motion-reduce:hidden" />
+
+                                <div className="relative z-10 space-y-5 flex flex-col items-center justify-center my-auto w-full">
+                                    <div className="w-16 h-16 bg-rest/20 text-rest rounded-2xl flex items-center justify-center border border-rest/30">
+                                        <ClockIcon className="w-8 h-8" />
+                                    </div>
+
+                                    <h3 className="text-xs font-black uppercase tracking-[0.25em] text-rest leading-[1.2] pt-[0.1em]">
+                                        Total Träningstid
+                                    </h3>
+
+                                    <div className="text-5xl sm:text-6xl font-black text-white tracking-tight tabular-nums my-2 leading-[1.2] pt-[0.1em]">
+                                        {stats.formattedTime}
+                                    </div>
+
+                                    <p className="text-base font-bold text-gray-200 max-w-xs leading-relaxed">
+                                        Nedlagd tid i gymmet under {stats.monthName}.
+                                    </p>
+
+                                    <p className="text-xs text-gray-400 font-medium">
+                                        Konsistent träning som ger resultat.
+                                    </p>
                                 </div>
-
-                                <h3 className="text-xs font-black uppercase tracking-[0.25em] text-cyan-400">
-                                    Total Träningstid
-                                </h3>
-
-                                <div className="text-4xl sm:text-5xl font-black text-white tracking-tight">
-                                    {stats.formattedTime}
-                                </div>
-
-                                <p className="text-base font-medium text-gray-300 max-w-xs mx-auto">
-                                    Nedlagda minuter av ren dedikation under {stats.monthName}.
-                                </p>
                             </div>
                         )}
 
                         {/* 4. FAVORITE WORKOUT CARD */}
                         {currentCard.type === 'favorite' && (
-                            <div className="space-y-6">
-                                <div className="w-16 h-16 bg-orange-500/20 text-orange-400 rounded-2xl mx-auto flex items-center justify-center border border-orange-500/30">
-                                    <FireIcon className="w-8 h-8" />
-                                </div>
+                            <div className="bg-white/5 border border-white/10 rounded-3xl p-6 sm:p-8 flex flex-col items-center justify-center text-center shadow-2xl backdrop-blur-sm min-h-[420px] relative overflow-hidden">
+                                <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-work/20 via-transparent to-transparent pointer-events-none motion-reduce:hidden" />
 
-                                <h3 className="text-xs font-black uppercase tracking-[0.25em] text-orange-400">
-                                    Mest Körda Pass
-                                </h3>
-
-                                <div className="p-6 bg-white/5 border border-white/10 rounded-3xl">
-                                    <div className="text-2xl sm:text-3xl font-black text-white mb-2">
-                                        {stats.topWorkout?.title || 'Blandade Pass'}
+                                <div className="relative z-10 space-y-5 flex flex-col items-center justify-center my-auto w-full">
+                                    <div className="w-16 h-16 bg-work/20 text-work rounded-2xl flex items-center justify-center border border-work/30">
+                                        <FireIcon className="w-8 h-8" />
                                     </div>
-                                    {stats.topWorkout && (
-                                        <div className="inline-block px-3 py-1 bg-orange-500/20 text-orange-300 rounded-full text-xs font-bold border border-orange-500/30">
-                                            Kört {stats.topWorkout.count} gånger
-                                        </div>
-                                    )}
-                                </div>
 
-                                <p className="text-sm text-gray-400">
-                                    Din absoluta favorit under månaden!
-                                </p>
+                                    <h3 className="text-xs font-black uppercase tracking-[0.25em] text-work leading-[1.2] pt-[0.1em]">
+                                        Mest Körda Pass
+                                    </h3>
+
+                                    <div className="p-6 bg-white/5 border border-white/10 rounded-3xl w-full max-w-xs">
+                                        <div className="text-2xl sm:text-3xl font-black text-white mb-3 leading-[1.2] pt-[0.1em]">
+                                            {stats.topWorkout?.title || 'Blandade Pass'}
+                                        </div>
+                                        {stats.topWorkout && (
+                                            <div className="inline-block px-3 py-1.5 bg-work/20 text-work rounded-full text-xs font-black border border-work/30 uppercase tracking-wider tabular-nums">
+                                                Kört {stats.topWorkout.count} gånger
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    <p className="text-sm text-gray-300 font-medium">
+                                        Din go-to favorit under månaden!
+                                    </p>
+                                </div>
                             </div>
                         )}
 
                         {/* 5. PBS CARD */}
                         {currentCard.type === 'pbs' && (
-                            <div className="space-y-6">
-                                <div className="w-16 h-16 bg-yellow-500/20 text-yellow-400 rounded-2xl mx-auto flex items-center justify-center border border-yellow-500/30">
-                                    <TrophyIcon className="w-8 h-8" />
+                            <div className="bg-white/5 border border-white/10 rounded-3xl p-6 sm:p-8 flex flex-col items-center justify-center text-center shadow-2xl backdrop-blur-sm min-h-[420px] relative overflow-hidden">
+                                <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-record/25 via-transparent to-transparent pointer-events-none motion-reduce:hidden" />
+
+                                <div className="relative z-10 space-y-5 flex flex-col items-center justify-center my-auto w-full">
+                                    <div className="w-16 h-16 bg-record/20 text-record rounded-2xl flex items-center justify-center border border-record/30">
+                                        <TrophyIcon className="w-8 h-8" />
+                                    </div>
+
+                                    <h3 className="text-xs font-black uppercase tracking-[0.25em] text-record leading-[1.2] pt-[0.1em]">
+                                        Månadens Rekord
+                                    </h3>
+
+                                    <div className="space-y-2.5 max-h-56 overflow-y-auto w-full max-w-xs pr-1">
+                                        {stats.monthPBs.map((pb, idx) => (
+                                            <div 
+                                                key={idx}
+                                                className="flex items-center justify-between p-3.5 bg-record/10 border border-record/20 rounded-2xl text-left"
+                                            >
+                                                <span className="font-black text-white text-sm truncate pr-2">
+                                                    {pb.exerciseName}
+                                                </span>
+                                                <span className="font-mono font-black text-record text-base shrink-0 tabular-nums">
+                                                    {pb.weight} kg {pb.reps ? `× ${pb.reps}` : ''}
+                                                </span>
+                                            </div>
+                                        ))}
+                                    </div>
+
+                                    <p className="text-xs text-record font-bold uppercase tracking-wider">
+                                        🏆 Nya milstolpar i hamn!
+                                    </p>
                                 </div>
-
-                                <h3 className="text-xs font-black uppercase tracking-[0.25em] text-yellow-400">
-                                    Månadens Personliga Rekord
-                                </h3>
-
-                                <div className="space-y-3 max-h-60 overflow-y-auto pr-1">
-                                    {stats.monthPBs.map((pb, idx) => (
-                                        <div 
-                                            key={idx}
-                                            className="flex items-center justify-between p-4 bg-yellow-500/10 border border-yellow-500/20 rounded-2xl text-left"
-                                        >
-                                            <span className="font-bold text-white text-sm">
-                                                {pb.exerciseName}
-                                            </span>
-                                            <span className="font-mono font-black text-yellow-400 text-base">
-                                                {pb.weight} kg {pb.reps ? `× ${pb.reps}` : ''}
-                                            </span>
-                                        </div>
-                                    ))}
-                                </div>
-
-                                <p className="text-xs text-yellow-200/70 font-semibold">
-                                    🏆 Ny milstolpe nådd!
-                                </p>
                             </div>
                         )}
 
                         {/* 6. COMPARISON & STREAK CARD */}
                         {currentCard.type === 'comparison' && (
-                            <div className="space-y-6">
-                                <div className="w-16 h-16 bg-purple-500/20 text-purple-400 rounded-2xl mx-auto flex items-center justify-center border border-purple-500/30">
-                                    <SparklesIcon className="w-8 h-8" />
-                                </div>
+                            <div className="bg-white/5 border border-white/10 rounded-3xl p-6 sm:p-8 flex flex-col items-center justify-center text-center shadow-2xl backdrop-blur-sm min-h-[420px] relative overflow-hidden">
+                                <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-purple-500/20 via-transparent to-transparent pointer-events-none motion-reduce:hidden" />
 
-                                <h3 className="text-xs font-black uppercase tracking-[0.25em] text-purple-400">
-                                    Månadsjämförelse & Svit
-                                </h3>
-
-                                <div className="grid grid-cols-1 gap-4 text-left">
-                                    <div className="p-5 bg-white/5 border border-white/10 rounded-2xl">
-                                        <div className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">
-                                            Vs. {stats.prevMonthName}
-                                        </div>
-                                        <div className="text-2xl font-black text-white">
-                                            {stats.comparisonDiff > 0 ? (
-                                                <span className="text-green-400">+{stats.comparisonDiff} pass fler 📈</span>
-                                            ) : stats.comparisonDiff < 0 ? (
-                                                <span className="text-orange-400">{stats.comparisonDiff} pass</span>
-                                            ) : (
-                                                <span className="text-blue-400">Samma antal pass 🤝</span>
-                                            )}
-                                        </div>
+                                <div className="relative z-10 space-y-5 flex flex-col items-center justify-center my-auto w-full">
+                                    <div className="w-16 h-16 bg-purple-500/20 text-purple-400 rounded-2xl flex items-center justify-center border border-purple-500/30">
+                                        <SparklesIcon className="w-8 h-8" />
                                     </div>
 
-                                    <div className="p-5 bg-white/5 border border-white/10 rounded-2xl">
-                                        <div className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">
-                                            Längsta Träningssvit
+                                    <h3 className="text-xs font-black uppercase tracking-[0.25em] text-purple-400 leading-[1.2] pt-[0.1em]">
+                                        Jämförelse & Svit
+                                    </h3>
+
+                                    <div className="grid grid-cols-1 gap-3 text-left w-full max-w-xs">
+                                        <div className="p-4 bg-white/5 border border-white/10 rounded-2xl">
+                                            <div className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">
+                                                Vs. {stats.prevMonthName}
+                                            </div>
+                                            <div className="text-xl font-black text-white leading-[1.2] pt-[0.1em] tabular-nums">
+                                                {stats.comparisonDiff > 0 ? (
+                                                    <span className="text-green-400">+{stats.comparisonDiff} pass fler 📈</span>
+                                                ) : stats.comparisonDiff < 0 ? (
+                                                    <span className="text-work">{stats.comparisonDiff} pass</span>
+                                                ) : (
+                                                    <span className="text-rest">Samma antal pass 🤝</span>
+                                                )}
+                                            </div>
                                         </div>
-                                        <div className="text-2xl font-black text-white">
-                                            {stats.streakDays > 1 ? `${stats.streakDays} dagar i rad 🔥` : `1 aktiv månad 💪`}
+
+                                        <div className="p-4 bg-white/5 border border-white/10 rounded-2xl">
+                                            <div className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">
+                                                Aktivitetssvit
+                                            </div>
+                                            <div className="text-xl font-black text-white leading-[1.2] pt-[0.1em] tabular-nums">
+                                                {stats.streakDays > 1 ? `${stats.streakDays} dagar i rad 🔥` : `1 aktiv månad 💪`}
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
@@ -726,19 +824,19 @@ export const MonthlyWrappedModal: React.FC<MonthlyWrappedProps> = ({
 
                         {/* 7. SUMMARY / SHARE CARD */}
                         {currentCard.type === 'summary' && (
-                            <div className="space-y-5">
+                            <div className="space-y-4 w-full">
                                 <div className="p-5 bg-gradient-to-b from-gray-900 to-gray-950 border border-white/15 rounded-3xl shadow-2xl text-left relative overflow-hidden">
                                     <div className="flex items-center justify-between mb-4">
                                         <div>
-                                            <span className="text-[10px] font-black uppercase tracking-[0.2em] text-primary">
+                                            <span className="text-[10px] font-black uppercase tracking-[0.2em] text-work">
                                                 Min Månad
                                             </span>
-                                            <h4 className="text-xl font-black text-white leading-tight">
+                                            <h4 className="text-xl font-black text-white leading-[1.2] pt-[0.1em] uppercase">
                                                 {stats.monthNameCap} {stats.year}
                                             </h4>
                                         </div>
                                         <div className="text-right">
-                                            <span className="text-xs font-bold text-gray-400 block">
+                                            <span className="text-xs font-bold text-gray-300 block">
                                                 {userName}
                                             </span>
                                             <span className="text-[10px] text-gray-500">
@@ -750,12 +848,12 @@ export const MonthlyWrappedModal: React.FC<MonthlyWrappedProps> = ({
                                     <div className="grid grid-cols-2 gap-3 mb-3">
                                         <div className="p-3 bg-white/5 rounded-xl border border-white/5">
                                             <span className="text-[10px] font-bold text-gray-400 uppercase block">Pass</span>
-                                            <span className="text-2xl font-black text-primary font-mono">{stats.workoutCount}</span>
+                                            <span className="text-2xl font-black text-work font-mono tabular-nums">{stats.workoutCount}</span>
                                         </div>
 
                                         <div className="p-3 bg-white/5 rounded-xl border border-white/5">
                                             <span className="text-[10px] font-bold text-gray-400 uppercase block">Tid</span>
-                                            <span className="text-base font-black text-cyan-400">{stats.formattedTime}</span>
+                                            <span className="text-base font-black text-rest tabular-nums">{stats.formattedTime}</span>
                                         </div>
                                     </div>
 
@@ -767,9 +865,9 @@ export const MonthlyWrappedModal: React.FC<MonthlyWrappedProps> = ({
                                     </div>
 
                                     {stats.monthPBs.length > 0 && (
-                                        <div className="p-3 bg-yellow-500/10 rounded-xl border border-yellow-500/20 mb-3">
-                                            <span className="text-[10px] font-bold text-yellow-400 uppercase block">Månadens Rekord</span>
-                                            <span className="text-xs font-bold text-white truncate block">
+                                        <div className="p-3 bg-record/10 rounded-xl border border-record/20 mb-3">
+                                            <span className="text-[10px] font-bold text-record uppercase block">Månadens Rekord</span>
+                                            <span className="text-xs font-bold text-white truncate block tabular-nums">
                                                 {stats.monthPBs[0].exerciseName}: {stats.monthPBs[0].weight} kg
                                                 {stats.monthPBs.length > 1 ? ` (+${stats.monthPBs.length - 1} till)` : ''}
                                             </span>
@@ -781,11 +879,17 @@ export const MonthlyWrappedModal: React.FC<MonthlyWrappedProps> = ({
                                     </div>
                                 </div>
 
-                                <div className="space-y-3 pointer-events-auto">
+                                {shareStatusMessage && (
+                                    <div className="text-center text-xs font-bold text-record animate-fade-in">
+                                        {shareStatusMessage}
+                                    </div>
+                                )}
+
+                                <div className="space-y-2.5">
                                     <button
                                         onClick={handleShare}
                                         disabled={isSharing}
-                                        className="w-full py-4 bg-gradient-to-r from-primary to-orange-500 hover:from-primary-dark hover:to-orange-600 text-white font-black rounded-2xl shadow-xl shadow-primary/30 flex items-center justify-center gap-2 transition-all active:scale-95 text-sm uppercase tracking-wider"
+                                        className="w-full py-4 bg-gradient-to-r from-work via-amber-500 to-record hover:brightness-110 text-white font-black rounded-2xl shadow-xl shadow-work/20 flex items-center justify-center gap-2 transition-all active:scale-95 text-sm uppercase tracking-wider min-h-[48px]"
                                     >
                                         <SparklesIcon className="w-5 h-5" />
                                         {isSharing ? 'Genererar bild...' : 'Dela din månad'}
@@ -793,7 +897,7 @@ export const MonthlyWrappedModal: React.FC<MonthlyWrappedProps> = ({
 
                                     <button
                                         onClick={onClose}
-                                        className="w-full py-3 bg-white/10 hover:bg-white/20 text-gray-300 font-bold rounded-2xl transition-colors text-xs uppercase tracking-wider"
+                                        className="w-full py-3 bg-white/10 hover:bg-white/20 text-gray-300 font-bold rounded-2xl transition-colors text-xs uppercase tracking-wider min-h-[44px]"
                                     >
                                         Stäng
                                     </button>
@@ -805,7 +909,7 @@ export const MonthlyWrappedModal: React.FC<MonthlyWrappedProps> = ({
             </div>
 
             {/* Bottom Controls (Previous / Next Buttons) */}
-            <div className="relative z-30 p-6 max-w-md w-full mx-auto flex items-center justify-between text-xs text-gray-400 font-bold">
+            <div className="relative z-30 p-6 max-w-md w-full mx-auto flex items-center justify-between text-xs text-gray-400 font-bold pointer-events-auto">
                 <button
                     onClick={handlePrev}
                     disabled={currentStep === 0}
@@ -814,7 +918,7 @@ export const MonthlyWrappedModal: React.FC<MonthlyWrappedProps> = ({
                     ← Bakåt
                 </button>
 
-                <span>
+                <span className="tabular-nums">
                     {currentStep + 1} / {totalSteps}
                 </span>
 
@@ -826,6 +930,8 @@ export const MonthlyWrappedModal: React.FC<MonthlyWrappedProps> = ({
                     Nästa →
                 </button>
             </div>
-        </div>
+        </div>,
+        document.body
     );
 };
+
