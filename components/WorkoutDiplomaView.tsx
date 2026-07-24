@@ -164,8 +164,8 @@ export const WorkoutDiplomaView: React.FC<WorkoutDiplomaViewProps> = ({ diploma,
                     </div>
                 </div>
 
-                {/* FOOTER INFO & KNAPPAR */}
-                <div className="px-6 pb-6 flex-shrink-0 flex flex-col gap-3 bg-white dark:bg-gray-950 border-t border-gray-100 dark:border-gray-900 pt-4 relative z-10">
+                {/* FOOTER INFO */}
+                <div className="px-6 pb-6 flex-shrink-0 bg-white dark:bg-gray-950 border-t border-gray-100 dark:border-gray-900 pt-4 relative z-10">
                     <div className="flex justify-between items-center">
                         <div className="text-left">
                             <p className="text-[10px] font-bold text-gray-900 dark:text-white tabular-nums">{new Date().toLocaleDateString('sv-SE')}</p>
@@ -183,13 +183,6 @@ export const WorkoutDiplomaView: React.FC<WorkoutDiplomaViewProps> = ({ diploma,
                             )}
                         </div>
                     </div>
-
-                    <button 
-                        onClick={onClose}
-                        className="w-full min-h-[44px] bg-primary hover:brightness-110 text-white font-black py-3 px-4 rounded-xl transition-all active:scale-95 text-xs uppercase tracking-wider flex items-center justify-center shadow-lg shadow-primary/20"
-                    >
-                        <span>Stäng</span>
-                    </button>
                 </div>
             </motion.div>
         </motion.div>

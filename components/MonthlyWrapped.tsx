@@ -607,15 +607,6 @@ export const MonthlyWrappedModal: React.FC<MonthlyWrappedProps> = ({
                                         Loggat i SmartSkärm • {gymName}
                                     </div>
                                 </div>
-
-                                <div className="space-y-2.5">
-                                    <button
-                                        onClick={onClose}
-                                        className="w-full py-3.5 bg-gradient-to-r from-work via-amber-500 to-record hover:brightness-110 text-white font-black rounded-2xl shadow-xl shadow-work/20 flex items-center justify-center transition-all active:scale-95 text-xs uppercase tracking-wider min-h-[44px]"
-                                    >
-                                        Stäng
-                                    </button>
-                                </div>
                             </div>
                         )}
                     </motion.div>
