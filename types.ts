@@ -157,6 +157,7 @@ export interface Workout {
   usePreGame?: boolean; // Tända/Släcka pre-game vy i appen
   aiProgressionPrompt?: string; // NYTT: Prompt för AI-progression
   openAsOfficial?: boolean; // NYTT: Öppna direkt i funktionärsläge
+  durationMinutes?: number; // NYTT: Planerad passlängd i minuter
 }
 
 export type Passkategori = string;
@@ -167,6 +168,7 @@ export interface CustomCategoryWithPrompt {
   prompt: string;
   icon?: string;
   isLocked?: boolean;
+  durationMinutes?: number; // NYTT: Standard passlängd i minuter
 }
 
 // NYTT: Definition av ett Benchmark

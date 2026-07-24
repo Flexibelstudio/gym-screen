@@ -465,8 +465,19 @@ const ExerciseLogCard: React.FC<{
     const [showTip, setShowTip] = useState(true);
     const [showScaling, setShowScaling] = useState(false);
     const [isEditingFields, setIsEditingFields] = useState(false);
+    const [showMoreFields, setShowMoreFields] = useState(false);
     const [isNoteActive, setIsNoteActive] = useState(true);
     const [isNoteExpanded, setIsNoteExpanded] = useState(false);
+
+    const ALL_TRACKING_FIELDS = [
+        { id: 'reps', label: 'Reps' },
+        { id: 'weight', label: 'Vikt' },
+        { id: 'time', label: 'Tid' },
+        { id: 'distance', label: 'Distans' },
+        { id: 'kcal', label: 'Kcal' },
+    ] as const;
+
+    const inactiveFields = ALL_TRACKING_FIELDS.filter(f => !trackingFields.includes(f.id));
 
     const toggleField = (field: 'reps' | 'weight' | 'time' | 'distance' | 'kcal') => {
         const current = [...trackingFields];
@@ -543,6 +554,49 @@ const ExerciseLogCard: React.FC<{
                         )}
                     </div>
                 </div>
+
+                {inactiveFields.length > 0 && !isEditingFields && (
+                    <div className="mt-1">
+                        {!showMoreFields ? (
+                            <button
+                                type="button"
+                                onClick={() => setShowMoreFields(true)}
+                                className="inline-flex items-center gap-1 text-[11px] font-extrabold text-gray-400 dark:text-gray-500 hover:text-primary dark:hover:text-primary-light bg-gray-50/80 dark:bg-gray-800/80 hover:bg-primary/10 px-2.5 py-1 rounded-full transition-all border border-gray-150 dark:border-gray-700/60 active:scale-95"
+                            >
+                                <PlusIcon className="w-3 h-3" />
+                                <span>+ fler fält</span>
+                            </button>
+                        ) : (
+                            <div className="flex items-center gap-1.5 flex-wrap p-2 bg-gray-50 dark:bg-gray-800/60 rounded-xl border border-gray-150 dark:border-gray-700/80 animate-fade-in">
+                                <span className="text-[10px] font-extrabold uppercase tracking-widest text-gray-400 mr-1">Lägg till:</span>
+                                {inactiveFields.map(f => (
+                                    <button
+                                        key={f.id}
+                                        type="button"
+                                        onClick={() => {
+                                            toggleField(f.id as any);
+                                            if (inactiveFields.length <= 1) {
+                                                setShowMoreFields(false);
+                                            }
+                                        }}
+                                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 text-primary dark:text-primary-light hover:bg-primary hover:text-white transition-all shadow-2xs active:scale-95"
+                                    >
+                                        <PlusIcon className="w-3 h-3" />
+                                        {f.label}
+                                    </button>
+                                ))}
+                                <button
+                                    type="button"
+                                    onClick={() => setShowMoreFields(false)}
+                                    className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 ml-1 rounded-lg"
+                                    title="Dölj"
+                                >
+                                    <CloseIcon className="w-3.5 h-3.5" />
+                                </button>
+                            </div>
+                        )}
+                    </div>
+                )}
 
                 {isEditingFields && (
                     <div className="flex flex-wrap gap-2 mt-2 p-3 bg-gray-50 dark:bg-gray-800/50 rounded-xl border border-gray-100 dark:border-gray-800">
@@ -1455,6 +1509,13 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
                         calories: loadedSessionStats.calories || '',
                         time: loadedSessionStats.time || '',
                         rounds: loadedSessionStats.rounds || ''
+                    });
+                } else if (foundWorkout.durationMinutes) {
+                    setSessionStats({
+                        distance: '',
+                        calories: '',
+                        time: String(foundWorkout.durationMinutes),
+                        rounds: ''
                     });
                 }
                 if (loadedCustomActivity) setCustomActivity(loadedCustomActivity);
