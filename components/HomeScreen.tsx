@@ -112,7 +112,7 @@ const MenuCard: React.FC<{
                     {!hideTitle && (
                         <>
                             <h3 
-                                className="text-xs sm:text-xs md:text-[11px] md:tracking-tighter lg:text-[1.125rem] xl:text-[1.25rem] font-black leading-[1.1] drop-shadow-md tracking-tight uppercase break-words line-clamp-3"
+                                className="text-xs sm:text-xs md:text-[11px] md:tracking-tighter lg:text-[1.125rem] xl:text-[1.25rem] font-black leading-[1.2] pt-[0.1em] drop-shadow-md tracking-tight uppercase break-words line-clamp-3"
                             >
                                 {title}
                             </h3>
