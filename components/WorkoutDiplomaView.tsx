@@ -64,8 +64,6 @@ export const WorkoutDiplomaView: React.FC<WorkoutDiplomaViewProps> = ({ diploma,
             ? "text-7xl sm:text-8xl mb-3" 
             : "text-[9rem] sm:text-[10rem] mb-4";
 
-    const canShare = typeof navigator !== 'undefined' && Boolean(navigator.share);
-
     const modalContent = (
         <motion.div 
             initial={{ opacity: 0 }}
@@ -186,30 +184,12 @@ export const WorkoutDiplomaView: React.FC<WorkoutDiplomaViewProps> = ({ diploma,
                         </div>
                     </div>
 
-                    <div className="flex gap-2.5">
-                        {canShare && (
-                            <button 
-                                onClick={() => {
-                                    navigator.share({
-                                        title: displayTitle,
-                                        text: `${displayTitle} - ${achievement}`,
-                                    }).catch(() => {});
-                                }}
-                                className="flex-1 min-h-[44px] bg-primary hover:brightness-110 text-white font-black py-3 px-4 rounded-xl transition-all active:scale-95 text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg shadow-primary/20"
-                            >
-                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="2.5" stroke="currentColor" className="w-4 h-4">
-                                    <path strokeLinecap="round" strokeLinejoin="round" d="M7.217 10.907a2.25 2.25 0 1 0 0 2.186m0-2.186c.18.324.283.696.283 1.093s-.103.77-.283 1.093m0-2.186 9.566-5.314m-9.566 7.5 9.566 5.314m0 0a2.25 2.25 0 1 0 3.935 2.186 2.25 2.25 0 0 0-3.935-2.186Zm0-12.814a2.25 2.25 0 1 0 3.933-2.185 2.25 2.25 0 0 0-3.933 2.185Z" />
-                                </svg>
-                                <span>Dela</span>
-                            </button>
-                        )}
-                        <button 
-                            onClick={onClose}
-                            className={`${canShare ? 'flex-1' : 'w-full'} min-h-[44px] bg-gray-100 hover:bg-gray-200 dark:bg-white/10 dark:hover:bg-white/20 text-gray-900 dark:text-white font-black py-3 px-4 rounded-xl transition-all active:scale-95 text-xs uppercase tracking-wider flex items-center justify-center`}
-                        >
-                            <span>Stäng</span>
-                        </button>
-                    </div>
+                    <button 
+                        onClick={onClose}
+                        className="w-full min-h-[44px] bg-primary hover:brightness-110 text-white font-black py-3 px-4 rounded-xl transition-all active:scale-95 text-xs uppercase tracking-wider flex items-center justify-center shadow-lg shadow-primary/20"
+                    >
+                        <span>Stäng</span>
+                    </button>
                 </div>
             </motion.div>
         </motion.div>

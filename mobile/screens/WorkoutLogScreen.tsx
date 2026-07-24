@@ -173,7 +173,7 @@ const getRandomDiplomaTitle = () => DIPLOMA_TITLES[Math.floor(Math.random() * DI
 
 const WEIGHT_COMPARISONS = [
     { name: "Hamstrar", singular: "en Hamster", weight: 0.15, emoji: "🐹" },
-    { name: "Fotbollar", singular: "en Fortboll", weight: 0.45, emoji: "⚽" },
+    { name: "Fotbollar", singular: "en Fotboll", weight: 0.45, emoji: "⚽" },
     { name: "Ananasar", singular: "en Ananas", weight: 1, emoji: "🍍" },
     { name: "Chihuahuas", singular: "en Chihuahua", weight: 2, emoji: "🐕" },
     { name: "Katter", singular: "en Katt", weight: 5, emoji: "🐈" },
@@ -190,7 +190,7 @@ const WEIGHT_COMPARISONS = [
     { name: "Hästar", singular: "en Häst", weight: 500, emoji: "🐎" },
     { name: "Giraffer", singular: "en Giraff", weight: 800, emoji: "🦒" },
     { name: "Personbilar", singular: "en Personbil", weight: 1500, emoji: "🚘" },
-    { name: "Noshörningar", singular: "en Noshörning", weight: 2000, emoji: "🛏️" },
+    { name: "Noshörningar", singular: "en Noshörning", weight: 2000, emoji: "🦏" },
     { name: "Elefanter", singular: "en Elefant", weight: 5000, emoji: "🐘" },
     { name: "T-Rex", singular: "en T-Rex", weight: 8000, emoji: "🦖" },
     { name: "Skolbussar", singular: "en Skolbuss", weight: 12000, emoji: "🚌" },
@@ -2101,7 +2101,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
                               title: getRandomDiplomaTitle(),
                               subtitle: `BENCHMARK: ${benchmarkDefinition.title}`,
                               achievement: `Du lyfte totalt ${finalLogRaw.benchmarkValue.toLocaleString()} kg! Det motsvarar ca ${comparison.count} st ${comparison.name}`,
-                              footer: `En ${comparison.single} väger ca ${comparison.weight} kg`,
+                              footer: `${comparison.single.charAt(0).toUpperCase() + comparison.single.slice(1)} väger ca ${comparison.weight.toLocaleString('sv-SE')} kg`,
                               imagePrompt: comparison.emoji,
                               newPBs: newRecords.length > 0 ? newRecords : undefined
                           };
@@ -2137,7 +2137,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
                           title: getRandomDiplomaTitle(),
                           subtitle: `Du lyfte totalt ${totalVolume.toLocaleString()} kg`,
                           achievement: `Det motsvarar ca ${comparison.count} st ${comparison.name}`,
-                          footer: `En ${comparison.single} väger ca ${comparison.weight} kg`,
+                          footer: `${comparison.single.charAt(0).toUpperCase() + comparison.single.slice(1)} väger ca ${comparison.weight.toLocaleString('sv-SE')} kg`,
                           imagePrompt: comparison.emoji, 
                           newPBs: newRecords.length > 0 ? newRecords : undefined
                       };

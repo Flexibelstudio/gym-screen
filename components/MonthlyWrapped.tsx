@@ -154,180 +154,6 @@ export function calculateMonthlyStats(
     };
 }
 
-/**
- * Generates a 1080x1920 Story Canvas image for sharing.
- */
-export const generateWrappedCanvasImage = async (
-    stats: MonthlyWrappedStats,
-    gymName: string,
-    userName: string
-): Promise<Blob> => {
-    const canvas = document.createElement('canvas');
-    canvas.width = 1080;
-    canvas.height = 1920;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) throw new Error("Could not get canvas context");
-
-    // Background gradient
-    const grad = ctx.createLinearGradient(0, 0, 1080, 1920);
-    grad.addColorStop(0, '#0f172a');
-    grad.addColorStop(0.5, '#1e1b4b');
-    grad.addColorStop(1, '#020617');
-    ctx.fillStyle = grad;
-    ctx.fillRect(0, 0, 1080, 1920);
-
-    // Glowing subtle accents
-    const glow1 = ctx.createRadialGradient(250, 350, 20, 250, 350, 500);
-    glow1.addColorStop(0, 'rgba(249, 115, 22, 0.25)');
-    glow1.addColorStop(1, 'rgba(249, 115, 22, 0)');
-    ctx.fillStyle = glow1;
-    ctx.fillRect(0, 0, 1080, 1920);
-
-    const glow2 = ctx.createRadialGradient(850, 1350, 20, 850, 1350, 600);
-    glow2.addColorStop(0, 'rgba(168, 85, 247, 0.22)');
-    glow2.addColorStop(1, 'rgba(168, 85, 247, 0)');
-    ctx.fillStyle = glow2;
-    ctx.fillRect(0, 0, 1080, 1920);
-
-    const drawRoundedRect = (x: number, y: number, w: number, h: number, r: number, fill: string, stroke?: string) => {
-        ctx.beginPath();
-        ctx.moveTo(x + r, y);
-        ctx.arcTo(x + w, y, x + w, y + h, r);
-        ctx.arcTo(x + w, y + h, x, y + h, r);
-        ctx.arcTo(x, y + h, x, y, r);
-        ctx.arcTo(x, y, x + w, y, r);
-        ctx.closePath();
-        ctx.fillStyle = fill;
-        ctx.fill();
-        if (stroke) {
-            ctx.strokeStyle = stroke;
-            ctx.lineWidth = 2;
-            ctx.stroke();
-        }
-    };
-
-    // Header badge
-    ctx.fillStyle = '#f97316';
-    ctx.font = '900 28px sans-serif';
-    ctx.textAlign = 'center';
-    ctx.fillText('MIN TRÄNINGSMÅNAD', 540, 170);
-
-    // Month Title
-    ctx.fillStyle = '#ffffff';
-    ctx.font = '900 76px sans-serif';
-    ctx.fillText(`${stats.monthNameCap.toUpperCase()} ${stats.year}`, 540, 260);
-
-    // Gym Subtitle
-    ctx.fillStyle = '#9ca3af';
-    ctx.font = '700 32px sans-serif';
-    ctx.fillText(gymName || 'SmartSkärm Träning', 540, 315);
-
-    // Main Card Frame
-    drawRoundedRect(80, 370, 920, 1360, 48, 'rgba(255, 255, 255, 0.05)', 'rgba(255, 255, 255, 0.12)');
-
-    // User Name
-    ctx.fillStyle = '#ffffff';
-    ctx.font = '900 48px sans-serif';
-    ctx.fillText(userName || 'Medlem', 540, 465);
-
-    // Divider line
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.moveTo(140, 505);
-    ctx.lineTo(940, 505);
-    ctx.stroke();
-
-    // Stat 1: Workout Count
-    drawRoundedRect(130, 545, 400, 240, 28, 'rgba(255, 255, 255, 0.04)', 'rgba(255, 255, 255, 0.08)');
-    ctx.fillStyle = '#f97316';
-    ctx.font = '900 84px sans-serif';
-    ctx.fillText(String(stats.workoutCount), 330, 655);
-    ctx.fillStyle = '#9ca3af';
-    ctx.font = '700 22px sans-serif';
-    ctx.fillText('TRÄNINGSPASS', 330, 720);
-
-    // Stat 2: Total Time
-    drawRoundedRect(550, 545, 400, 240, 28, 'rgba(255, 255, 255, 0.04)', 'rgba(255, 255, 255, 0.08)');
-    ctx.fillStyle = '#38bdf8';
-    ctx.font = '900 42px sans-serif';
-    ctx.fillText(stats.formattedTime, 750, 650);
-    ctx.fillStyle = '#9ca3af';
-    ctx.font = '700 22px sans-serif';
-    ctx.fillText('TOTAL TID', 750, 720);
-
-    // Stat 3: Top Workout
-    drawRoundedRect(130, 815, 820, 180, 28, 'rgba(255, 255, 255, 0.04)', 'rgba(255, 255, 255, 0.08)');
-    ctx.fillStyle = '#9ca3af';
-    ctx.font = '700 22px sans-serif';
-    ctx.textAlign = 'left';
-    ctx.fillText('MEST KÖRDA PASS', 170, 865);
-    ctx.fillStyle = '#ffffff';
-    ctx.font = '900 36px sans-serif';
-    ctx.fillText(stats.topWorkout?.title || 'Blandad träning', 170, 925);
-    if (stats.topWorkout?.count) {
-        ctx.fillStyle = '#f97316';
-        ctx.font = '800 28px sans-serif';
-        ctx.textAlign = 'right';
-        ctx.fillText(`${stats.topWorkout.count} st`, 910, 925);
-    }
-
-    // Stat 4: PBs
-    ctx.textAlign = 'left';
-    drawRoundedRect(130, 1025, 820, 240, 28, 'rgba(255, 255, 255, 0.04)', 'rgba(255, 255, 255, 0.08)');
-    ctx.fillStyle = '#f59e0b';
-    ctx.font = '700 22px sans-serif';
-    ctx.fillText('MÅNADENS REKORD (PB:S)', 170, 1075);
-    if (stats.monthPBs.length > 0) {
-        const pbText = stats.monthPBs.slice(0, 2).map(p => `${p.exerciseName}: ${p.weight} kg`).join('  •  ');
-        ctx.fillStyle = '#ffffff';
-        ctx.font = '900 32px sans-serif';
-        ctx.fillText(pbText, 170, 1135);
-        if (stats.monthPBs.length > 2) {
-            ctx.fillStyle = '#9ca3af';
-            ctx.font = '600 24px sans-serif';
-            ctx.fillText(`+ ${stats.monthPBs.length - 2} till rekord`, 170, 1190);
-        }
-    } else {
-        ctx.fillStyle = '#ffffff';
-        ctx.font = '900 32px sans-serif';
-        ctx.fillText('Inga nya PB:s den här månaden', 170, 1135);
-        ctx.fillStyle = '#9ca3af';
-        ctx.font = '600 24px sans-serif';
-        ctx.fillText('Redo för nya rekord nästa månad!', 170, 1190);
-    }
-
-    // Stat 5: Streak & Comparison
-    drawRoundedRect(130, 1295, 820, 180, 28, 'rgba(255, 255, 255, 0.04)', 'rgba(255, 255, 255, 0.08)');
-    ctx.fillStyle = '#a855f7';
-    ctx.font = '700 22px sans-serif';
-    ctx.fillText('SVIT & UTVECKLING', 170, 1345);
-
-    const compStr = stats.comparisonDiff > 0
-        ? `+${stats.comparisonDiff} pass vs ${stats.prevMonthName}`
-        : stats.comparisonDiff < 0
-        ? `${stats.comparisonDiff} pass vs ${stats.prevMonthName}`
-        : `Lika många pass som i ${stats.prevMonthName}`;
-    const streakStr = stats.streakDays > 1 ? `${stats.streakDays} dagar i rad 🔥` : `Aktiv månad 💪`;
-
-    ctx.fillStyle = '#ffffff';
-    ctx.font = '900 30px sans-serif';
-    ctx.fillText(`${streakStr}  •  ${compStr}`, 170, 1405);
-
-    // Footer
-    ctx.fillStyle = '#6b7280';
-    ctx.font = '700 24px sans-serif';
-    ctx.textAlign = 'center';
-    ctx.fillText(`Loggat med SmartSkärm • ${gymName || 'Träning'}`, 540, 1785);
-
-    return new Promise((resolve, reject) => {
-        canvas.toBlob((blob) => {
-            if (blob) resolve(blob);
-            else reject(new Error("Canvas toBlob failed"));
-        }, 'image/png');
-    });
-};
-
 interface MonthlyWrappedProps {
     isOpen: boolean;
     onClose: () => void;
@@ -349,36 +175,7 @@ export const MonthlyWrappedModal: React.FC<MonthlyWrappedProps> = ({
 
     const stats = useMemo(() => calculateMonthlyStats(logs, personalBests), [logs, personalBests]);
     const [currentStep, setCurrentStep] = useState(0);
-    const [isSharing, setIsSharing] = useState(false);
     const [isPaused, setIsPaused] = useState(false);
-
-    // Pre-generated share image state (Fix for iOS Safari gesture loss)
-    const [cachedShareFile, setCachedShareFile] = useState<File | null>(null);
-    const [cachedShareUrl, setCachedShareUrl] = useState<string | null>(null);
-    const [shareStatusMessage, setShareStatusMessage] = useState<string | null>(null);
-
-    // Pre-generate image in background when modal opens
-    useEffect(() => {
-        if (!isOpen || !stats.hasData) return;
-
-        let isMounted = true;
-        generateWrappedCanvasImage(stats, gymName, userName)
-            .then(blob => {
-                if (!isMounted) return;
-                const fileName = `min-manad-${stats.monthName}-${stats.year}.png`;
-                const file = new File([blob], fileName, { type: 'image/png' });
-                const url = URL.createObjectURL(blob);
-                setCachedShareFile(file);
-                setCachedShareUrl(url);
-            })
-            .catch(err => {
-                console.error("Failed to pre-generate wrapped image:", err);
-            });
-
-        return () => {
-            isMounted = false;
-        };
-    }, [isOpen, stats, gymName, userName]);
 
     // Check if user prefers reduced motion
     const prefersReducedMotion = typeof window !== 'undefined'
@@ -427,74 +224,6 @@ export const MonthlyWrappedModal: React.FC<MonthlyWrappedProps> = ({
     const handlePrev = () => {
         if (currentStep > 0) {
             setCurrentStep(prev => prev - 1);
-        }
-    };
-
-    const handleShare = async () => {
-        try {
-            setIsSharing(true);
-            setShareStatusMessage(null);
-
-            let file = cachedShareFile;
-            let blobUrl = cachedShareUrl;
-
-            // Fallback generation if pre-gen wasn't ready
-            if (!file) {
-                const blob = await generateWrappedCanvasImage(stats, gymName, userName);
-                const fileName = `min-manad-${stats.monthName}-${stats.year}.png`;
-                file = new File([blob], fileName, { type: 'image/png' });
-                blobUrl = URL.createObjectURL(blob);
-                setCachedShareFile(file);
-                setCachedShareUrl(blobUrl);
-            }
-
-            const shareTitle = `Min träningsmånad - ${stats.monthNameCap} ${stats.year}`;
-            const shareText = `Kolla in min träningsmånad för ${stats.monthNameCap}! 💪`;
-
-            // 1. Primary: Web Share API with image file
-            if (navigator.canShare && file && navigator.canShare({ files: [file] })) {
-                await navigator.share({
-                    title: shareTitle,
-                    text: shareText,
-                    files: [file]
-                });
-                setShareStatusMessage('Delad!');
-                return;
-            }
-
-            // 2. Secondary: Web Share API text only
-            if (navigator.share) {
-                try {
-                    await navigator.share({
-                        title: shareTitle,
-                        text: shareText,
-                    });
-                    setShareStatusMessage('Delad!');
-                    return;
-                } catch (shareErr) {
-                    if ((shareErr as Error)?.name === 'AbortError') {
-                        return;
-                    }
-                }
-            }
-
-            // 3. Fallback: Download image directly
-            if (blobUrl) {
-                const a = document.createElement('a');
-                a.href = blobUrl;
-                a.download = file ? file.name : `min-manad-${stats.monthName}-${stats.year}.png`;
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-                setShareStatusMessage('Bilden sparad!');
-            }
-        } catch (err) {
-            if ((err as Error)?.name !== 'AbortError') {
-                console.error("Failed to share or save image:", err);
-                setShareStatusMessage('Kunde inte dela. Försök igen.');
-            }
-        } finally {
-            setIsSharing(false);
         }
     };
 
@@ -879,25 +608,10 @@ export const MonthlyWrappedModal: React.FC<MonthlyWrappedProps> = ({
                                     </div>
                                 </div>
 
-                                {shareStatusMessage && (
-                                    <div className="text-center text-xs font-bold text-record animate-fade-in">
-                                        {shareStatusMessage}
-                                    </div>
-                                )}
-
                                 <div className="space-y-2.5">
                                     <button
-                                        onClick={handleShare}
-                                        disabled={isSharing}
-                                        className="w-full py-4 bg-gradient-to-r from-work via-amber-500 to-record hover:brightness-110 text-white font-black rounded-2xl shadow-xl shadow-work/20 flex items-center justify-center gap-2 transition-all active:scale-95 text-sm uppercase tracking-wider min-h-[48px]"
-                                    >
-                                        <SparklesIcon className="w-5 h-5" />
-                                        {isSharing ? 'Genererar bild...' : 'Dela din månad'}
-                                    </button>
-
-                                    <button
                                         onClick={onClose}
-                                        className="w-full py-3 bg-white/10 hover:bg-white/20 text-gray-300 font-bold rounded-2xl transition-colors text-xs uppercase tracking-wider min-h-[44px]"
+                                        className="w-full py-3.5 bg-gradient-to-r from-work via-amber-500 to-record hover:brightness-110 text-white font-black rounded-2xl shadow-xl shadow-work/20 flex items-center justify-center transition-all active:scale-95 text-xs uppercase tracking-wider min-h-[44px]"
                                     >
                                         Stäng
                                     </button>
