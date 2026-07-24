@@ -22,8 +22,14 @@ INSTRUKTIONER FÖR STRUKTUR:
 1. Skapa 1-3 block beroende på passets längd och typ. Ta ALDRIG med uppvärmning eller nedvarvning om användaren inte specifikt bett om det.
 2. Använd logiska timerinställningar (t.ex. AMRAP för flås, Intervall för styrka).
 3. Ge blocken tydliga namn som "Pulsfest" eller "Styrka: Pressar".
-4. Om ett antal övningar nämns i instruktionen, skapa exakt så många unika övningar.
-5. Skriv pedagogiska beskrivningar för varje övning.
+4. ANTAL BLOCK OCH FORMAT: Om användaren ber om en specifik träningstyp eller ett enskilt format (t.ex. "en Tabata", "en AMRAP", "en EMOM", "ett cirkelpass"), SKA du generera exakt ETT (1) block för detta format. Skapa ALDRIG fler än ett block om användaren inte uttryckligen har bett om flera block.
+5. Om ett antal övningar nämns i instruktionen, skapa exakt så många unika övningar.
+6. Skriv pedagogiska beskrivningar för varje övning.
+
+TIMERINSTÄLLNINGAR PER FORMAT: mode MÅSTE vara ett av exakt: Interval, Tabata, AMRAP, EMOM, TimeCap, Stopwatch, NoTimer. Ber användaren om en Tabata → mode 'Tabata' med workTime 20, restTime 10, rounds 8 (om inget annat anges). EMOM → mode 'EMOM' med workTime 60 och rounds = antal minuter. AMRAP/TimeCap → mode 'AMRAP'/'TimeCap' med workTime = total tid i sekunder. Använd ALDRIG andra mode-värden. Undantag: 'Custom' (sekvenstimer) får ALDRIG genereras för nya block — och om ett BEFINTLIGT block har mode 'Custom' ska du lämna det blockets settings (inklusive sequence) helt oförändrade.
+
+SIDOMARKERING: För unilaterala övningar (en arm/ett ben i taget) SKA du sätta 'side': 'V/H' om alla reps görs på ena sidan först och sedan andra (t.ex. 'byt arm efter halva tiden'), 'ALT' om sidorna växlas varje repetition, 'V' eller 'H' endast om övningen uttryckligen gäller EN specifik sida. Bilaterala övningar (knäböj, armhävningar, plankan) ska INTE ha side.
+ÖVNINGSNAMN SKA VARA KANONISKA: Namnet får ALDRIG innehålla sidoinformation eller ord som 'Alternerande', 'Vänster', 'Höger', 'per sida', 'enarms', 'enbens' om övningen finns i övningsbanken under sitt grundnamn — använd grundnamnet och uttryck sidan ENBART via side-fältet. Exempel: skriv name 'Utfall (Lunges)' med side 'ALT' — INTE name 'Alternerande Utfall'. Finns en lista med tillgängliga övningar i denna prompt: välj namnet EXAKT därifrån när övningen finns i listan.
 
 VIKTIGA REGLER FÖR TIMER (INTERVALL):
 - Om du väljer 'Interval' (arbete/vila), så är 'rounds' = TOTALT ANTAL INTERVALLER.
@@ -105,6 +111,12 @@ STRIKTA REGLER FÖR STRUKTUR:
 1. SMARTA BLOCK: Identifiera varianter (Rx/Int/Beg) och slå ihop till ett block med instruktioner i 'setupDescription'.
 2. COACH TIPS: All kringtext om strategi läggs i 'coachTips'. Ta ALDRIG med uppvärmning eller nedvarvning.
 3. STEGAR: Förklara ladders/stegar tydligt i 'setupDescription'.
+4. ANTAL BLOCK OCH FORMAT: Om användaren ber om en specifik träningstyp eller ett enskilt format (t.ex. "en Tabata", "en AMRAP", "en EMOM", "ett cirkelpass"), SKA du generera exakt ETT (1) block för detta format. Skapa ALDRIG fler än ett block om användaren inte uttryckligen har bett om flera block.
+
+TIMERINSTÄLLNINGAR PER FORMAT: mode MÅSTE vara ett av exakt: Interval, Tabata, AMRAP, EMOM, TimeCap, Stopwatch, NoTimer. Ber användaren om en Tabata → mode 'Tabata' med workTime 20, restTime 10, rounds 8 (om inget annat anges). EMOM → mode 'EMOM' med workTime 60 och rounds = antal minuter. AMRAP/TimeCap → mode 'AMRAP'/'TimeCap' med workTime = total tid i sekunder. Använd ALDRIG andra mode-värden. Undantag: 'Custom' (sekvenstimer) får ALDRIG genereras för nya block — och om ett BEFINTLIGT block har mode 'Custom' ska du lämna det blockets settings (inklusive sequence) helt oförändrade.
+
+SIDOMARKERING: För unilaterala övningar (en arm/ett ben i taget) SKA du sätta 'side': 'V/H' om alla reps görs på ena sidan först och sedan andra (t.ex. 'byt arm efter halva tiden'), 'ALT' om sidorna växlas varje repetition, 'V' eller 'H' endast om övningen uttryckligen gäller EN specifik sida. Bilaterala övningar (knäböj, armhävningar, plankan) ska INTE ha side.
+ÖVNINGSNAMN SKA VARA KANONISKA: Namnet får ALDRIG innehålla sidoinformation eller ord som 'Alternerande', 'Vänster', 'Höger', 'per sida', 'enarms', 'enbens' om övningen finns i övningsbanken under sitt grundnamn — använd grundnamnet och uttryck sidan ENBART via side-fältet. Exempel: skriv name 'Utfall (Lunges)' med side 'ALT' — INTE name 'Alternerande Utfall'. Finns en lista med tillgängliga övningar i denna prompt: välj namnet EXAKT därifrån när övningen finns i listan.
 
 ${availableExercises.length > 0 ? `
 CRITIKAL: ÖVNINGSVAL OCH NAMNGIVNING (CONTEXT INJECTION):
@@ -129,11 +141,18 @@ INTENT RECOGNITION:
 - Tolka visuella ledtrådar: Cirklar indikerar cirkelträning, pilar indikerar flöden.
 
 STRIKTA LOGIKREGLER:
-1. SMARTA BLOCK: Slå ihop nivåer (Rx/Int/Beg) till ett block.
-2. FULLSTÄNDIGHET: Lämna aldrig en array tom om användaren bett om ett pass.
-3. KVALITET: Övningarna ska vara funktionella och säkra. Ta ALDRIG med uppvärmning eller nedvarvning i genererade pass om de inte uttryckligen skissats eller betts om.
+1. PASSTITEL: Skapa alltid en säljande, kraftfull, fängslande och beskrivande passtitel på svenska baserad på övningsinnehållet och känslan i passet (t.ex. 'Puls & Power Explosion', 'Ben & Core Utmaning', 'Cirkelamrap: Svett & Styrka', 'HYROX Power Circuit'). Titeln ska inspirera medlemmarna. Inkludera ALDRIG datum i titeln!
+2. SMARTA BLOCK: Slå ihop nivåer (Rx/Int/Beg) till ett block.
+3. FULLSTÄNDIGHET: Lämna aldrig en array tom om användaren bett om ett pass.
+4. KVALITET: Övningarna ska vara funktionella och säkra. Ta ALDRIG med uppvärmning eller nedvarvning i genererade pass om de inte uttryckligen skissats eller betts om.
+5. ANTAL BLOCK OCH FORMAT: Om användaren ber om en specifik träningstyp eller ett enskilt format (t.ex. "en Tabata", "en AMRAP", "en EMOM", "ett cirkelpass"), SKA du generera exakt ETT (1) block för detta format. Skapa ALDRIG fler än ett block om användaren inte uttryckligen har bett om flera block.
 
 Var kreativ om det behövs (vid korta instruktioner), men exakt om det finns en tydlig lista.
+
+TIMERINSTÄLLNINGAR PER FORMAT: mode MÅSTE vara ett av exakt: Interval, Tabata, AMRAP, EMOM, TimeCap, Stopwatch, NoTimer. Ber användaren om en Tabata → mode 'Tabata' med workTime 20, restTime 10, rounds 8 (om inget annat anges). EMOM → mode 'EMOM' med workTime 60 och rounds = antal minuter. AMRAP/TimeCap → mode 'AMRAP'/'TimeCap' med workTime = total tid i sekunder. Använd ALDRIG andra mode-värden. Undantag: 'Custom' (sekvenstimer) får ALDRIG genereras för nya block — och om ett BEFINTLIGT block har mode 'Custom' ska du lämna det blockets settings (inklusive sequence) helt oförändrade.
+
+SIDOMARKERING: För unilaterala övningar (en arm/ett ben i taget) SKA du sätta 'side': 'V/H' om alla reps görs på ena sidan först och sedan andra (t.ex. 'byt arm efter halva tiden'), 'ALT' om sidorna växlas varje repetition, 'V' eller 'H' endast om övningen uttryckligen gäller EN specifik sida. Bilaterala övningar (knäböj, armhävningar, plankan) ska INTE ha side.
+ÖVNINGSNAMN SKA VARA KANONISKA: Namnet får ALDRIG innehålla sidoinformation eller ord som 'Alternerande', 'Vänster', 'Höger', 'per sida', 'enarms', 'enbens' om övningen finns i övningsbanken under sitt grundnamn — använd grundnamnet och uttryck sidan ENBART via side-fältet. Exempel: skriv name 'Utfall (Lunges)' med side 'ALT' — INTE name 'Alternerande Utfall'. Finns en lista med tillgängliga övningar i denna prompt: välj namnet EXAKT därifrån när övningen finns i listan.
 
 ${availableExercises.length > 0 ? `
 CRITIKAL: ÖVNINGSVAL OCH NAMNGIVNING (CONTEXT INJECTION):

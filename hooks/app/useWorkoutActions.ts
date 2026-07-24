@@ -1,0 +1,265 @@
+import { Page, Workout, WorkoutBlock, Passkategori, UserRole, Organization } from '../../types';
+import { deepCopyAndPrepareAsNew } from '../../utils/workoutUtils';
+import { saveCustomProgram } from '../../services/firebaseService';
+
+export interface UseWorkoutActionsDeps {
+  sessionRole: UserRole;
+  isStudioMode: boolean;
+  currentUser: { uid: string } | null;
+  selectedOrganization: Organization | null;
+  workouts: Workout[];
+  activeWorkout: Workout | null;
+  page: Page;
+  isEditingNewDraft: boolean;
+  returnToAdminOnSave: boolean;
+  isSearchWorkoutOpen: boolean;
+  isPickingForLog: boolean;
+
+  setActiveWorkout: (workout: Workout | null) => void;
+  setFocusedBlockId: (id: string | null) => void;
+  setIsEditingNewDraft: (isEditing: boolean) => void;
+  setReturnToAdminOnSave: (returnToAdmin: boolean) => void;
+  setPreferredAdminTab: (tab: string) => void;
+  setMobileViewData: (workout: Workout | null) => void;
+  setIsPickingForLog: (isPicking: boolean) => void;
+  setActivePasskategori: (category: Passkategori) => void;
+
+  navigateTo: (page: Page, params?: any) => void;
+  navigateReplace: (page: Page, params?: any) => void;
+  handleBack: () => void;
+  saveWorkout: (workout: Workout) => Promise<Workout>;
+  deleteWorkout: (workoutId: string) => Promise<void>;
+  handleStartBlock: (block: WorkoutBlock, workout: Workout) => void;
+  handleLogWorkoutRequest: (workoutId: string, organizationId: string) => void;
+}
+
+export function useWorkoutActions(deps: UseWorkoutActionsDeps) {
+  const {
+    sessionRole,
+    isStudioMode,
+    currentUser,
+    selectedOrganization,
+    workouts,
+    activeWorkout,
+    page,
+    isEditingNewDraft,
+    returnToAdminOnSave,
+    isSearchWorkoutOpen,
+    isPickingForLog,
+    setActiveWorkout,
+    setFocusedBlockId,
+    setIsEditingNewDraft,
+    setReturnToAdminOnSave,
+    setPreferredAdminTab,
+    setMobileViewData,
+    setIsPickingForLog,
+    setActivePasskategori,
+    navigateTo,
+    navigateReplace,
+    handleBack,
+    saveWorkout,
+    deleteWorkout,
+    handleStartBlock,
+    handleLogWorkoutRequest,
+  } = deps;
+
+  const handleCreateNewWorkout = () => {
+    setActiveWorkout(null);
+    setFocusedBlockId(null);
+    setIsEditingNewDraft(true);
+    if (sessionRole === 'member') navigateTo(Page.SimpleWorkoutBuilder);
+    else navigateTo(Page.WorkoutBuilder);
+  };
+
+  const handleEditWorkout = (workout: Workout, blockId?: string) => {
+    setActiveWorkout(workout);
+    setFocusedBlockId(blockId || null);
+    setIsEditingNewDraft(false);
+    if (sessionRole === 'member') navigateTo(Page.SimpleWorkoutBuilder);
+    else navigateTo(Page.WorkoutBuilder);
+  };
+
+  const handleAdjustWorkout = (workoutToAdjust: Workout) => {
+    const newDraft = deepCopyAndPrepareAsNew(workoutToAdjust);
+    newDraft.title = `Justering: ${workoutToAdjust.title}`;
+    newDraft.isMemberDraft = true;
+    newDraft.isPublished = false;
+    if (!newDraft.organizationId && selectedOrganization) {
+      newDraft.organizationId = selectedOrganization.id;
+    }
+    setActiveWorkout(newDraft);
+    setIsEditingNewDraft(true);
+    navigateTo(Page.SimpleWorkoutBuilder);
+  };
+
+  const handleSaveAndNavigate = async (workout: Workout, startFirstBlock?: boolean) => {
+    const isMemberRole = sessionRole === 'member' || isStudioMode;
+
+    if (sessionRole === 'member' && !isStudioMode && currentUser?.uid) {
+      await saveCustomProgram(currentUser.uid, workout);
+      window.dispatchEvent(new Event('customProgramsUpdated'));
+      setActiveWorkout(workout);
+      setIsEditingNewDraft(false);
+      handleBack();
+      return;
+    }
+
+    const workoutToSave = {
+      ...workout,
+      isMemberDraft: workout.isMemberDraft ?? isMemberRole,
+    };
+    const savedWorkout = await saveWorkout(workoutToSave);
+
+    if (startFirstBlock && savedWorkout.blocks.length > 0) {
+      handleStartBlock(savedWorkout.blocks[0], savedWorkout);
+    } else {
+      setActiveWorkout(savedWorkout);
+
+      if (isStudioMode) {
+        navigateReplace(Page.WorkoutDetail);
+      } else if (isEditingNewDraft) {
+        setIsEditingNewDraft(false);
+        if (returnToAdminOnSave) {
+          setReturnToAdminOnSave(false);
+          handleBack();
+          setPreferredAdminTab('pass-program');
+        } else {
+          navigateReplace(Page.WorkoutDetail);
+        }
+      } else {
+        handleBack();
+        setPreferredAdminTab('pass-program');
+      }
+    }
+  };
+
+  const handleSaveOnly = async (workout: Workout) => {
+    const isMemberRole = sessionRole === 'member' || isStudioMode;
+    if (sessionRole === 'member' && !isStudioMode && currentUser?.uid) {
+      await saveCustomProgram(currentUser.uid, workout);
+      window.dispatchEvent(new Event('customProgramsUpdated'));
+      return workout;
+    }
+    return await saveWorkout({
+      ...workout,
+      isMemberDraft: workout.isMemberDraft ?? isMemberRole,
+    });
+  };
+
+  const handleTogglePublishStatus = async (workoutId: string, isPublished: boolean, silentPublish?: boolean) => {
+    const workoutToToggle = workouts.find((w) => w.id === workoutId);
+    if (workoutToToggle) await saveWorkout({ ...workoutToToggle, isPublished, silentPublish });
+  };
+
+  const handleToggleFavoriteStatus = async (workoutId: string) => {
+    const workoutToToggle = workouts.find((w) => w.id === workoutId);
+    if (workoutToToggle) await saveWorkout({ ...workoutToToggle, isFavorite: !workoutToToggle.isFavorite });
+  };
+
+  const handleDeleteWorkout = async (workoutId: string) => {
+    await deleteWorkout(workoutId);
+    if (activeWorkout?.id === workoutId && page === Page.WorkoutDetail) {
+      handleBack();
+    }
+  };
+
+  const handleDuplicateWorkout = (workoutToCopy: Workout, origin?: string) => {
+    if (origin === 'admin') setReturnToAdminOnSave(true);
+    const newDraft = deepCopyAndPrepareAsNew(workoutToCopy);
+    setActiveWorkout(newDraft);
+    setIsEditingNewDraft(true);
+    navigateTo(Page.WorkoutBuilder);
+  };
+
+  const handleSelectWorkout = (workout: Workout, action: 'view' | 'log' = 'view') => {
+    if (isStudioMode) {
+      setActiveWorkout(workout);
+      navigateTo(Page.WorkoutDetail, { activeWorkoutId: workout.id });
+      return;
+    }
+
+    if (action === 'view') {
+      setMobileViewData(workout);
+      return;
+    }
+
+    if (isSearchWorkoutOpen && selectedOrganization) {
+      handleLogWorkoutRequest(workout.id, selectedOrganization.id);
+      return;
+    }
+
+    if (isPickingForLog && selectedOrganization) {
+      handleLogWorkoutRequest(workout.id, selectedOrganization.id);
+      return;
+    }
+
+    if (action === 'log' && selectedOrganization) {
+      handleLogWorkoutRequest(workout.id, selectedOrganization.id);
+      return;
+    }
+
+    setActiveWorkout(workout);
+    if ((workout.id.startsWith('hyrox-full-race') || workout.id.includes('custom-race')) && workout.blocks.length > 0) {
+      handleStartBlock(workout.blocks[0], workout);
+    } else {
+      navigateTo(Page.WorkoutDetail);
+    }
+  };
+
+  const handleSelectPasskategori = (passkategori: Passkategori) => {
+    const categoryWorkouts = workouts.filter((w) => w.category === passkategori && w.isPublished && !w.isMemberDraft);
+
+    if (categoryWorkouts.length === 1 && !isPickingForLog) {
+      if (isStudioMode) {
+        handleSelectWorkout(categoryWorkouts[0]);
+        return;
+      } else {
+        handleSelectWorkout(categoryWorkouts[0], 'view');
+        return;
+      }
+    }
+
+    if (!isStudioMode) {
+      if (isPickingForLog) {
+        setIsPickingForLog(true);
+      }
+    }
+
+    setActivePasskategori(passkategori);
+    navigateTo(Page.WorkoutList);
+  };
+
+  const handleGeneratedWorkout = (newWorkout: Workout) => {
+    setActiveWorkout(newWorkout);
+    setFocusedBlockId(null);
+    setIsEditingNewDraft(true);
+    navigateTo(Page.WorkoutBuilder);
+  };
+
+  const handleWorkoutInterpretedFromNote = (workout: Workout) => {
+    const workoutWithOrg = {
+      ...workout,
+      organizationId: selectedOrganization?.id || '',
+      isMemberDraft: true,
+    };
+    setActiveWorkout(workoutWithOrg);
+    setIsEditingNewDraft(true);
+    navigateTo(Page.SimpleWorkoutBuilder);
+  };
+
+  return {
+    handleCreateNewWorkout,
+    handleEditWorkout,
+    handleAdjustWorkout,
+    handleSaveAndNavigate,
+    handleSaveOnly,
+    handleTogglePublishStatus,
+    handleToggleFavoriteStatus,
+    handleDeleteWorkout,
+    handleDuplicateWorkout,
+    handleSelectWorkout,
+    handleSelectPasskategori,
+    handleGeneratedWorkout,
+    handleWorkoutInterpretedFromNote,
+  };
+}

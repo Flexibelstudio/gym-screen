@@ -7,10 +7,9 @@
     "node": "20"
   },
   "scripts": {
-    "dev": "tsx server.ts",
+    "dev": "vite",
     "build": "vite build",
     "lint": "tsc --noEmit",
-    "start": "node server.ts",
     "preview": "vite preview"
   },
   "dependencies": {
@@ -43,7 +42,10 @@
     "@types/canvas-confetti": "^1.9.0",
     "@types/express": "^5.0.6",
     "@types/node": "^20.19.35",
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
     "@vitejs/plugin-react": "^5.0.0",
+    "eslint": "^8.57.0",
     "tsx": "^4.21.0",
     "typescript": "~5.8.2",
     "vite": "^6.2.0"

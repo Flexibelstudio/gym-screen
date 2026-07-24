@@ -215,7 +215,7 @@ const SentimentDashboard: React.FC<{ logs: WorkoutLog[], onDayClick: (date: stri
                                     </span>
                                     <div className="mt-1">
                                         {dominant ? (
-                                            <p className="text-[10px] font-black truncate leading-tight" title={dominant}>
+                                            <p className="text-[10px] font-black truncate leading-[1.2] pt-[0.1em]" title={dominant}>
                                                 "{dominant}"
                                             </p>
                                         ) : (

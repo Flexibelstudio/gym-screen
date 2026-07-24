@@ -1,9 +1,9 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { Workout, WorkoutBlock, TimerMode, TimerSettings, Exercise, StudioConfig, WorkoutResult, WorkoutLog } from '../types';
+import { Workout, WorkoutBlock, TimerMode, TimerSettings, Exercise, StudioConfig, WorkoutResult, WorkoutLog, BankExercise, TrackingField } from '../types';
 import { TimerSetupModal } from './TimerSetupModal';
-import { StarIcon, PencilIcon, DumbbellIcon, ToggleSwitch, SparklesIcon, CloseIcon, ClockIcon, UsersIcon, ChartBarIcon, TrophyIcon, EyeIcon } from './icons';
-import { getWorkoutResults, getMemberLogs } from '../services/firebaseService';
+import { StarIcon, PencilIcon, TrashIcon, DumbbellIcon, ToggleSwitch, SparklesIcon, CloseIcon, ClockIcon, UsersIcon, ChartBarIcon, TrophyIcon, EyeIcon, PlusIcon } from './icons';
+import { getWorkoutResults, getMemberLogs, saveCustomProgram, getOrganizationExerciseBank, getMemberCustomExercises, addMemberCustomExercise } from '../services/firebaseService';
 import { useStudio } from '../context/StudioContext';
 import { AnimatePresence, motion } from 'framer-motion';
 import { WorkoutQRDisplay } from './WorkoutQRDisplay';
@@ -11,6 +11,7 @@ import { useAuth } from '../context/AuthContext';
 import { useWorkout } from '../context/WorkoutContext';
 import { useConfirm } from './ConfirmContext';
 import { getSideLabel } from '../utils/workoutUtils';
+import { Modal } from './ui/Modal';
 
 // Helper to format time for results (00:00)
 const formatResultTime = (timeInSeconds: number) => {
@@ -64,15 +65,413 @@ const getSettingsText = (block: WorkoutBlock) => {
         case TimerMode.NoTimer:
             return 'Egen takt';
         default:
-            return `${rounds || 0}x (${workTime || 0}s / ${restTime || 0}s)`;
+            return `${rounds || 0}x (${formatTime(workTime || 0)}s / ${restTime || 0}s)`;
     }
 };
 
+// --- HOOK FOR CUSTOM WORKOUT EXERCISE EDITING ---
+export function useCustomWorkoutExerciseEditor() {
+    const confirm = useConfirm();
+    const { selectedOrganization } = useStudio();
+    const [exerciseToRename, setExerciseToRename] = useState<{ blockId: string; exerciseIndex: number; exercise: Exercise } | null>(null);
+    const [renameInput, setRenameInput] = useState<string>('');
+    const [trackingFieldsInput, setTrackingFieldsInput] = useState<TrackingField[]>(['reps', 'weight']);
+
+    // Add exercise state
+    const [addModalBlockId, setAddModalBlockId] = useState<string | null>(null);
+    const [exerciseSearchTerm, setExerciseSearchTerm] = useState<string>('');
+    const [exerciseBank, setExerciseBank] = useState<BankExercise[]>([]);
+    const [loadingBank, setLoadingBank] = useState<boolean>(false);
+
+    const handleOpenRename = (blockId: string, exerciseIndex: number, exercise: Exercise) => {
+        setExerciseToRename({ blockId, exerciseIndex, exercise });
+        setRenameInput(exercise.name || '');
+        setTrackingFieldsInput(exercise.trackingFields && exercise.trackingFields.length > 0 ? exercise.trackingFields : ['reps', 'weight']);
+    };
+
+    const handleSaveRename = async (
+        workout: Workout, 
+        setWorkout: (w: Workout) => void, 
+        userId?: string
+    ) => {
+        if (!exerciseToRename) return;
+        const newName = renameInput.trim();
+        if (!newName) return;
+
+        const updatedWorkout = JSON.parse(JSON.stringify(workout)) as Workout;
+        const targetBlock = updatedWorkout.blocks?.find(b => b.id === exerciseToRename.blockId);
+        if (targetBlock && targetBlock.exercises && targetBlock.exercises[exerciseToRename.exerciseIndex]) {
+            targetBlock.exercises[exerciseToRename.exerciseIndex].name = newName;
+            targetBlock.exercises[exerciseToRename.exerciseIndex].trackingFields = trackingFieldsInput.length > 0 ? trackingFieldsInput : ['reps', 'weight'];
+            setWorkout(updatedWorkout);
+            if (userId) {
+                try {
+                    await saveCustomProgram(userId, updatedWorkout);
+                } catch (err) {
+                    console.error("Fel vid sparande av övningsändring:", err);
+                }
+            }
+        }
+        setExerciseToRename(null);
+    };
+
+    const handleDeleteExercise = async (
+        blockId: string, 
+        exerciseIndex: number, 
+        exercise: Exercise, 
+        workout: Workout, 
+        setWorkout: (w: Workout) => void, 
+        userId?: string
+    ) => {
+        const exerciseName = exercise.name || 'Övning';
+        const isConfirmed = await confirm({
+            title: "Ta bort övning?",
+            message: `Ta bort '${exerciseName}' från passet?`,
+            confirmText: "Ta bort",
+            confirmColor: "red"
+        });
+
+        if (!isConfirmed) return;
+
+        const updatedWorkout = JSON.parse(JSON.stringify(workout)) as Workout;
+        const targetBlock = updatedWorkout.blocks?.find(b => b.id === blockId);
+        if (targetBlock && targetBlock.exercises) {
+            targetBlock.exercises.splice(exerciseIndex, 1);
+            setWorkout(updatedWorkout);
+            if (userId) {
+                try {
+                    await saveCustomProgram(userId, updatedWorkout);
+                } catch (err) {
+                    console.error("Fel vid borttagning av övning:", err);
+                }
+            }
+        }
+    };
+
+    const handleOpenAddExercise = async (blockId: string, orgId?: string, userId?: string) => {
+        setAddModalBlockId(blockId);
+        setExerciseSearchTerm('');
+        setLoadingBank(true);
+        try {
+            const orgIdToUse = orgId || selectedOrganization?.id || '';
+            const [bank, userCustom] = await Promise.all([
+                getOrganizationExerciseBank(orgIdToUse),
+                userId ? getMemberCustomExercises(userId) : Promise.resolve([])
+            ]);
+            const combined = [...bank, ...userCustom].sort((a, b) => (a.name || '').localeCompare(b.name || '', 'sv'));
+            setExerciseBank(combined);
+        } catch (e) {
+            console.error("Failed to load exercise bank", e);
+        } finally {
+            setLoadingBank(false);
+        }
+    };
+
+    const handleAddExerciseToBlock = async (
+        blockId: string,
+        bankEx: BankExercise,
+        workout: Workout,
+        setWorkout: (w: Workout) => void,
+        userId?: string
+    ) => {
+        const updatedWorkout = JSON.parse(JSON.stringify(workout)) as Workout;
+        let targetBlock = updatedWorkout.blocks?.find(b => b.id === blockId);
+        if (!targetBlock) {
+            if (!updatedWorkout.blocks) updatedWorkout.blocks = [];
+            if (updatedWorkout.blocks.length === 0) {
+                targetBlock = {
+                    id: `block-${Date.now()}`,
+                    title: 'Block 1',
+                    tag: 'Styrka',
+                    followMe: false,
+                    settings: { mode: TimerMode.NoTimer, workTime: 0, restTime: 0, rounds: 1, prepareTime: 0 },
+                    exercises: []
+                };
+                updatedWorkout.blocks.push(targetBlock);
+            } else {
+                targetBlock = updatedWorkout.blocks[0];
+            }
+        }
+
+        if (!targetBlock.exercises) {
+            targetBlock.exercises = [];
+        }
+
+        const newExercise: Exercise = {
+            id: `ex-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+            originalBankId: bankEx.id || null,
+            name: bankEx.name,
+            description: bankEx.description || '',
+            imageUrl: bankEx.imageUrl || '',
+            loggingEnabled: true
+        };
+
+        targetBlock.exercises.push(newExercise);
+        setWorkout(updatedWorkout);
+
+        if (userId) {
+            try {
+                await saveCustomProgram(userId, updatedWorkout);
+            } catch (err) {
+                console.error("Fel vid sparande av tillagd övning:", err);
+            }
+        }
+
+        setAddModalBlockId(null);
+    };
+
+    const handleCreateAndAddCustomExercise = async (
+        blockId: string,
+        exerciseName: string,
+        workout: Workout,
+        setWorkout: (w: Workout) => void,
+        userId?: string
+    ) => {
+        const trimmed = exerciseName.trim();
+        if (!trimmed) return;
+
+        let bankEx: BankExercise;
+        if (userId) {
+            try {
+                bankEx = await addMemberCustomExercise(userId, trimmed);
+            } catch (e) {
+                console.error("Failed to add custom exercise to bank", e);
+                bankEx = { id: `custom-${Date.now()}`, name: trimmed };
+            }
+        } else {
+            bankEx = { id: `custom-${Date.now()}`, name: trimmed };
+        }
+
+        await handleAddExerciseToBlock(blockId, bankEx, workout, setWorkout, userId);
+    };
+
+    const renderRenameModal = (
+        workout: Workout, 
+        setWorkout: (w: Workout) => void, 
+        userId?: string
+    ) => {
+        if (!exerciseToRename) return null;
+
+        const toggleFieldInModal = (field: TrackingField) => {
+            setTrackingFieldsInput(prev => {
+                if (prev.includes(field)) {
+                    if (prev.length <= 1) return prev; // At least one field required
+                    return prev.filter(f => f !== field);
+                } else {
+                    return [...prev, field];
+                }
+            });
+        };
+
+        const fieldLabels: { id: TrackingField; label: string }[] = [
+            { id: 'time', label: 'Tid' },
+            { id: 'distance', label: 'Distans' },
+            { id: 'kcal', label: 'Kcal' },
+            { id: 'reps', label: 'Reps' },
+            { id: 'weight', label: 'Vikt' }
+        ];
+
+        return (
+            <Modal 
+                isOpen={!!exerciseToRename} 
+                onClose={() => setExerciseToRename(null)} 
+                title="Redigera övning" 
+                size="sm"
+                footer={
+                    <div className="flex gap-2 justify-end w-full">
+                        <button 
+                            type="button"
+                            onClick={() => setExerciseToRename(null)} 
+                            className="px-4 py-2 text-sm font-semibold text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800 rounded-lg transition-colors"
+                        >
+                            Avbryt
+                        </button>
+                        <button 
+                            type="button"
+                            onClick={() => handleSaveRename(workout, setWorkout, userId)} 
+                            className="px-4 py-2 text-sm font-semibold bg-primary text-white rounded-lg hover:brightness-110 transition-colors"
+                        >
+                            Spara
+                        </button>
+                    </div>
+                }
+            >
+                <div className="p-2 space-y-4">
+                    <div>
+                        <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">Övningens namn</label>
+                        <input 
+                            type="text" 
+                            value={renameInput}
+                            onChange={(e) => setRenameInput(e.target.value)}
+                            placeholder="Övningens namn"
+                            autoFocus
+                            onKeyDown={(e) => {
+                                if (e.key === 'Enter') handleSaveRename(workout, setWorkout, userId);
+                            }}
+                            className="w-full bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 text-gray-900 dark:text-gray-100 font-medium"
+                        />
+                    </div>
+
+                    <div className="pt-3 border-t border-gray-100 dark:border-gray-800">
+                        <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Logga fält:</label>
+                        <div className="flex flex-wrap gap-2">
+                            {fieldLabels.map(f => {
+                                const isChecked = trackingFieldsInput.includes(f.id);
+                                return (
+                                    <label 
+                                        key={f.id} 
+                                        className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer select-none transition-all ${
+                                            isChecked 
+                                                ? 'bg-primary text-white shadow-sm' 
+                                                : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
+                                        }`}
+                                    >
+                                        <input 
+                                            type="checkbox" 
+                                            checked={isChecked}
+                                            onChange={() => toggleFieldInModal(f.id)}
+                                            className="sr-only"
+                                        />
+                                        {f.label}
+                                    </label>
+                                );
+                            })}
+                        </div>
+                    </div>
+                </div>
+            </Modal>
+        );
+    };
+
+    const renderAddExerciseModal = (
+        workout: Workout,
+        setWorkout: (w: Workout) => void,
+        userId?: string
+    ) => {
+        if (!addModalBlockId) return null;
+
+        const filteredBank = exerciseBank.filter(ex => 
+            (ex.name || '').toLowerCase().includes(exerciseSearchTerm.toLowerCase())
+        );
+        const showCreateCustom = exerciseSearchTerm.trim().length > 0 && 
+            !filteredBank.some(ex => (ex.name || '').toLowerCase() === exerciseSearchTerm.trim().toLowerCase());
+
+        return (
+            <Modal 
+                isOpen={!!addModalBlockId} 
+                onClose={() => setAddModalBlockId(null)} 
+                size="lg"
+            >
+                <div className="flex flex-col items-center w-full max-h-[85vh]">
+                    <div className="w-full flex items-center justify-between mb-4 pb-2 border-b border-gray-100 dark:border-gray-800">
+                        <h2 className="text-xl font-black uppercase tracking-widest text-gray-900 dark:text-white">Lägg till övning</h2>
+                        <button 
+                            type="button"
+                            onClick={() => setAddModalBlockId(null)}
+                            className="w-10 h-10 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center hover:bg-gray-200 dark:hover:bg-gray-700 transition"
+                        >
+                            <CloseIcon className="w-5 h-5 text-gray-500" />
+                        </button>
+                    </div>
+                    
+                    <div className="w-full relative mb-4">
+                        <input 
+                            type="text" 
+                            placeholder="Sök i övningsbanken eller skriv egen..." 
+                            value={exerciseSearchTerm}
+                            onChange={(e) => setExerciseSearchTerm(e.target.value)}
+                            autoFocus
+                            className="w-full bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 rounded-2xl py-3 px-5 font-bold focus:outline-none focus:ring-2 focus:ring-primary border border-gray-200 dark:border-gray-800 text-sm"
+                        />
+                    </div>
+
+                    <div className="w-full flex-1 overflow-y-auto space-y-2 pr-1 pb-4 max-h-[55vh]">
+                        {loadingBank ? (
+                            <div className="text-center py-8 text-gray-400 font-medium text-sm">Laddar övningar...</div>
+                        ) : (
+                            <>
+                                {showCreateCustom && (
+                                    <div 
+                                        onClick={() => handleCreateAndAddCustomExercise(addModalBlockId, exerciseSearchTerm, workout, setWorkout, userId)}
+                                        className="p-4 rounded-2xl border-2 border-dashed border-primary hover:bg-primary/5 transition flex items-center gap-3 cursor-pointer mb-2"
+                                    >
+                                        <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary shrink-0">
+                                            <PlusIcon className="w-5 h-5" />
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                            <div className="text-xs font-black text-gray-900 dark:text-white uppercase tracking-wider">Skapa Egen:</div>
+                                            <div className="font-medium text-sm text-gray-600 dark:text-gray-300 truncate">"{exerciseSearchTerm.trim()}"</div>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {filteredBank.map(ex => (
+                                    <div 
+                                        key={ex.id}
+                                        onClick={() => handleAddExerciseToBlock(addModalBlockId, ex, workout, setWorkout, userId)}
+                                        className="p-3 bg-gray-50 dark:bg-gray-900 rounded-xl border border-gray-100 dark:border-gray-800 shadow-sm hover:border-primary/50 transition flex items-center gap-3 cursor-pointer"
+                                    >
+                                        <div className="w-10 h-10 rounded-lg bg-gray-200 dark:bg-gray-800 flex items-center justify-center text-gray-600 dark:text-gray-300 font-black text-base shrink-0">
+                                            {ex.name ? ex.name.charAt(0) : '?'}
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                            <h4 className="font-bold text-sm text-gray-900 dark:text-white truncate">{ex.name}</h4>
+                                            {ex.category && (
+                                                <span className="text-[10px] font-black uppercase tracking-widest text-primary">
+                                                    {ex.category === 'Custom Egen' ? 'Egen' : ex.category}
+                                                </span>
+                                            )}
+                                        </div>
+                                        <PlusIcon className="w-5 h-5 text-gray-400 shrink-0" />
+                                    </div>
+                                ))}
+
+                                {filteredBank.length === 0 && !showCreateCustom && (
+                                    <div className="text-center py-8">
+                                        <p className="text-gray-400 font-medium text-sm">Sök för att hitta övningar.</p>
+                                    </div>
+                                )}
+                            </>
+                        )}
+                    </div>
+                </div>
+            </Modal>
+        );
+    };
+
+    return {
+        exerciseToRename,
+        handleOpenRename,
+        handleSaveRename,
+        handleDeleteExercise,
+        handleOpenAddExercise,
+        handleAddExerciseToBlock,
+        handleCreateAndAddCustomExercise,
+        renderRenameModal,
+        renderAddExerciseModal
+    };
+}
+
 // --- COMPONENTS ---
 
-export const WorkoutPresentationModal: React.FC<{ workout: Workout; onClose: () => void; blockId?: string; onHeaderVisibilityChange?: (visible: boolean) => void }> = ({ workout, onClose, blockId, onHeaderVisibilityChange }) => {
+export const WorkoutPresentationModal: React.FC<{ 
+    workout: Workout; 
+    onClose: () => void; 
+    blockId?: string; 
+    onHeaderVisibilityChange?: (visible: boolean) => void;
+    isOwnProgram?: boolean;
+    userId?: string;
+}> = ({ workout, onClose, blockId, onHeaderVisibilityChange, isOwnProgram, userId }) => {
     const scrollRef = useRef<HTMLDivElement>(null);
-    
+    const [currentWorkout, setCurrentWorkout] = useState<Workout>(workout);
+    const { selectedOrganization } = useStudio();
+
+    useEffect(() => {
+        setCurrentWorkout(workout);
+    }, [workout]);
+
+    const editor = useCustomWorkoutExerciseEditor();
+
     useEffect(() => {
         if (onHeaderVisibilityChange) {
             onHeaderVisibilityChange(false);
@@ -98,8 +497,8 @@ export const WorkoutPresentationModal: React.FC<{ workout: Workout; onClose: () 
     }, [onHeaderVisibilityChange, blockId]);
 
     const blocksToShow = blockId 
-        ? workout.blocks?.filter(b => b.id === blockId) 
-        : workout.blocks;
+        ? currentWorkout.blocks?.filter(b => b.id === blockId) 
+        : currentWorkout.blocks;
 
     const modalContent = (
         <motion.div 
@@ -111,7 +510,7 @@ export const WorkoutPresentationModal: React.FC<{ workout: Workout; onClose: () 
             <div className="flex justify-between items-center p-4 sm:p-6 lg:p-8 xl:p-12 border-b border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-900/50 flex-shrink-0">
                 <div className="flex items-center gap-3 sm:gap-4 md:gap-6 lg:gap-8 xl:gap-8 flex-wrap min-w-0">
                     <h1 className={`font-black text-gray-900 dark:text-white uppercase tracking-tight leading-tight break-words ${blockId ? 'text-lg sm:text-xl md:text-2xl lg:text-3xl xl:text-4xl text-gray-400' : 'text-2xl sm:text-3xl md:text-4xl lg:text-5xl xl:text-7xl'}`}>
-                        {workout.title}
+                        {currentWorkout.title}
                     </h1>
                 </div>
                 <button 
@@ -154,60 +553,109 @@ export const WorkoutPresentationModal: React.FC<{ workout: Workout; onClose: () 
                             )}
 
                             <div className="flex flex-col">
-                                {block.exercises?.map((ex, index) => {
-                                    if (!ex) return null;
-                                    const nextEx = block.exercises?.[index + 1];
-                                    const prevEx = block.exercises?.[index - 1];
-                                    const isGroupedWithNext = nextEx && ex.groupId && ex.groupId === nextEx.groupId;
-                                    const isGroupedWithPrev = prevEx && ex.groupId && ex.groupId === prevEx.groupId;
-                                    
-                                    const roundedClass = isGroupedWithNext && !isGroupedWithPrev ? 'rounded-t-2xl rounded-b-sm' :
-                                                         isGroupedWithPrev && !isGroupedWithNext ? 'rounded-b-2xl rounded-t-sm' :
-                                                         isGroupedWithPrev && isGroupedWithNext ? 'rounded-sm' : 'rounded-2xl';
-                                                         
-                                    const borderClass = ex.groupColor ? `border border-r-gray-100 border-y-gray-100 dark:border-r-gray-800 dark:border-y-gray-800 border-l-[4px] xl:border-l-[12px] ${ex.groupColor.replace('bg-', 'border-l-')}` : 'border border-gray-100 dark:border-gray-800';
-                                    const marginClass = isGroupedWithNext ? 'mb-1 xl:mb-3' : 'mb-3 lg:mb-4 xl:mb-10';
+                                {block.exercises && block.exercises.length > 0 ? (
+                                    block.exercises.map((ex, index) => {
+                                        if (!ex) return null;
+                                        const nextEx = block.exercises?.[index + 1];
+                                        const prevEx = block.exercises?.[index - 1];
+                                        const isGroupedWithNext = nextEx && ex.groupId && ex.groupId === nextEx.groupId;
+                                        const isGroupedWithPrev = prevEx && ex.groupId && ex.groupId === prevEx.groupId;
+                                        
+                                        const roundedClass = isGroupedWithNext && !isGroupedWithPrev ? 'rounded-t-2xl rounded-b-sm' :
+                                                             isGroupedWithPrev && !isGroupedWithNext ? 'rounded-b-2xl rounded-t-sm' :
+                                                             isGroupedWithPrev && isGroupedWithNext ? 'rounded-sm' : 'rounded-2xl';
+                                                             
+                                        const borderClass = ex.groupColor ? `border border-r-gray-100 border-y-gray-100 dark:border-r-gray-800 dark:border-y-gray-800 border-l-[4px] xl:border-l-[12px] ${ex.groupColor.replace('bg-', 'border-l-')}` : 'border border-gray-100 dark:border-gray-800';
+                                        const marginClass = isGroupedWithNext ? 'mb-1 xl:mb-3' : 'mb-3 lg:mb-4 xl:mb-10';
 
-                                    return (
-                                    <div key={ex.id || `ex-${index}`} className={`flex items-start gap-4 md:gap-6 lg:gap-10 xl:gap-16 p-4 sm:p-6 md:p-8 lg:p-12 xl:p-16 ${roundedClass} bg-gray-50 dark:bg-gray-900 ${borderClass} ${marginClass}`}>
-                                         <div className="flex-shrink-0 w-8 h-8 sm:w-12 sm:h-12 md:w-16 md:h-16 lg:w-20 lg:h-20 xl:w-28 xl:h-28 rounded-full bg-gray-200 dark:bg-gray-800 flex items-center justify-center text-sm sm:text-lg md:text-2xl lg:text-3xl xl:text-5xl font-black text-gray-500">
-                                            {index + 1}
-                                        </div>
-                                        <div className="flex-grow min-w-0">
-                                            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-2 sm:gap-4 lg:gap-6 xl:gap-12">
-                                                <h3 className="text-lg sm:text-2xl md:text-4xl lg:text-5xl xl:text-7xl font-black text-gray-900 dark:text-white leading-tight break-words flex items-center gap-2 flex-wrap">
-                                                    <span>{ex.name || 'Okänd övning'}</span>
-                                                    {getSideLabel(ex.side) && (
-                                                        <span className="inline-flex items-center justify-center px-2 py-0.5 sm:px-3 sm:py-1 text-xs sm:text-base md:text-xl lg:text-2xl xl:text-3xl font-black rounded-lg bg-orange-100 text-orange-800 dark:bg-orange-950/40 dark:text-orange-400 border border-orange-200 dark:border-orange-800/50 uppercase tracking-wide">
-                                                            {getSideLabel(ex.side)}
-                                                        </span>
+                                        return (
+                                        <div key={ex.id || `ex-${index}`} className={`flex items-start gap-4 md:gap-6 lg:gap-10 xl:gap-16 p-4 sm:p-6 md:p-8 lg:p-12 xl:p-16 ${roundedClass} bg-gray-50 dark:bg-gray-900 ${borderClass} ${marginClass}`}>
+                                             <div className="flex-shrink-0 w-8 h-8 sm:w-12 sm:h-12 md:w-16 md:h-16 lg:w-20 lg:h-20 xl:w-28 xl:h-28 rounded-full bg-gray-200 dark:bg-gray-800 flex items-center justify-center text-sm sm:text-lg md:text-2xl lg:text-3xl xl:text-5xl font-black text-gray-500">
+                                                {index + 1}
+                                            </div>
+                                            <div className="flex-grow min-w-0">
+                                                <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-2 sm:gap-4 lg:gap-6 xl:gap-12">
+                                                    <h3 className="text-lg sm:text-2xl md:text-4xl lg:text-5xl xl:text-7xl font-black text-gray-900 dark:text-white leading-tight break-words flex items-center gap-2 flex-wrap">
+                                                        <span>{ex.name || 'Okänd övning'}</span>
+                                                        {getSideLabel(ex.side) && (
+                                                            <span className="inline-flex items-center justify-center px-2 py-0.5 sm:px-3 sm:py-1 text-xs sm:text-base md:text-xl lg:text-2xl xl:text-3xl font-black rounded-lg bg-orange-100 text-orange-800 dark:bg-orange-950/40 dark:text-orange-400 border border-orange-200 dark:border-orange-800/50 uppercase tracking-wide">
+                                                                {getSideLabel(ex.side)}
+                                                            </span>
+                                                        )}
+                                                    </h3>
+                                                    {ex.reps && (
+                                                        <div className="bg-primary/10 text-primary px-3 py-1.5 md:px-5 md:py-2.5 lg:px-8 lg:py-4 xl:px-12 xl:py-6 rounded-lg whitespace-nowrap self-start sm:self-auto">
+                                                            <span className="text-sm sm:text-lg md:text-2xl lg:text-4xl xl:text-5xl font-mono font-black">{formatReps(ex.reps)}</span>
+                                                        </div>
                                                     )}
-                                                </h3>
-                                                {ex.reps && (
-                                                    <div className="bg-primary/10 text-primary px-3 py-1.5 md:px-5 md:py-2.5 lg:px-8 lg:py-4 xl:px-12 xl:py-6 rounded-lg whitespace-nowrap self-start sm:self-auto">
-                                                        <span className="text-sm sm:text-lg md:text-2xl lg:text-4xl xl:text-5xl font-mono font-black">{formatReps(ex.reps)}</span>
+                                                </div>
+                                                {ex.description && (
+                                                    <p className="text-sm sm:text-base md:text-xl lg:text-2xl xl:text-3xl text-gray-500 dark:text-gray-400 mt-1.5 lg:mt-3 xl:mt-8 leading-relaxed font-medium break-words whitespace-pre-wrap">
+                                                        {ex.description}
+                                                    </p>
+                                                )}
+                                                {ex.loggingEnabled !== false && (
+                                                    <div className="flex items-center gap-2 flex-wrap mt-2 sm:mt-3">
+                                                        <span className="text-xs sm:text-sm md:text-lg font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">Logga:</span>
+                                                        {(ex.trackingFields && ex.trackingFields.length > 0 ? ex.trackingFields : ['reps', 'weight']).map(field => {
+                                                            const label = field === 'time' ? 'Tid' : field === 'distance' ? 'Distans' : field === 'kcal' ? 'Kcal' : field === 'reps' ? 'Reps' : 'Vikt';
+                                                            return (
+                                                                <span key={field} className="text-xs sm:text-sm md:text-base font-bold bg-gray-200/80 dark:bg-gray-800 text-gray-700 dark:text-gray-300 px-2.5 py-0.5 rounded-md">
+                                                                    {label}
+                                                                </span>
+                                                            );
+                                                        })}
                                                     </div>
                                                 )}
                                             </div>
-                                            {ex.description && (
-                                                <p className="text-sm sm:text-base md:text-xl lg:text-2xl xl:text-3xl text-gray-500 dark:text-gray-400 mt-1.5 lg:mt-3 xl:mt-8 leading-relaxed font-medium break-words whitespace-pre-wrap">
-                                                    {ex.description}
-                                                </p>
+                                            {isOwnProgram && (
+                                                <div className="flex items-center gap-1 sm:gap-2 ml-2 sm:ml-4 flex-shrink-0">
+                                                    <button 
+                                                        type="button"
+                                                        onClick={() => editor.handleOpenRename(block.id, index, ex)}
+                                                        className="p-2 text-gray-400 hover:text-primary transition-colors rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800"
+                                                        title="Redigera övning"
+                                                    >
+                                                        <PencilIcon className="w-5 h-5 md:w-6 md:h-6" />
+                                                    </button>
+                                                    <button 
+                                                        type="button"
+                                                        onClick={() => editor.handleDeleteExercise(block.id, index, ex, currentWorkout, setCurrentWorkout, userId)}
+                                                        className="p-2 text-gray-400 hover:text-red-600 transition-colors rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800"
+                                                        title="Ta bort övning"
+                                                    >
+                                                        <TrashIcon className="w-5 h-5 md:w-6 md:h-6" />
+                                                    </button>
+                                                </div>
                                             )}
                                         </div>
+                                    )})
+                                ) : (
+                                    <p className="text-sm lg:text-lg xl:text-2xl text-gray-400 italic pl-4 lg:pl-6 xl:pl-10">Passet har inga övningar</p>
+                                )}
+
+                                {isOwnProgram && (
+                                    <div className="mt-4 sm:mt-6 flex justify-start">
+                                        <button
+                                            type="button"
+                                            onClick={() => editor.handleOpenAddExercise(block.id, selectedOrganization?.id, userId)}
+                                            className="flex items-center gap-2 sm:gap-3 px-4 py-2.5 sm:px-6 sm:py-3 md:px-8 md:py-4 bg-primary/10 hover:bg-primary/20 text-primary font-bold rounded-2xl transition-all text-sm sm:text-base md:text-xl border border-primary/20 shadow-sm active:scale-95 cursor-pointer"
+                                        >
+                                            <PlusIcon className="w-5 h-5 md:w-7 md:h-7" />
+                                            <span>Lägg till övning</span>
+                                        </button>
                                     </div>
-                                )})}
-                                {block.exercises?.length === 0 && (
-                                    <p className="text-sm lg:text-lg xl:text-2xl text-gray-400 italic pl-4 lg:pl-6 xl:pl-10">Inga övningar.</p>
                                 )}
                             </div>
                         </div>
                     )})}
                 </div>
             </div>
+            {editor.renderRenameModal(currentWorkout, setCurrentWorkout, userId)}
+            {editor.renderAddExerciseModal(currentWorkout, setCurrentWorkout, userId)}
         </motion.div>
     );
-    
+
     return createPortal(modalContent, document.body);
 };
 
@@ -219,7 +667,11 @@ const WorkoutBlockCard: React.FC<{
     isCoachView: boolean;
     organizationId: string;
     onPresent?: () => void;
-}> = ({ block, onStart, onEditSettings, onUpdateBlock, isCoachView, organizationId, onPresent }) => {
+    isOwnProgram?: boolean;
+    onRenameExercise?: (blockId: string, index: number, exercise: Exercise) => void;
+    onDeleteExercise?: (blockId: string, index: number, exercise: Exercise) => void;
+    onAddExercise?: (blockId: string) => void;
+}> = ({ block, onStart, onEditSettings, onUpdateBlock, isCoachView, organizationId, onPresent, isOwnProgram, onRenameExercise, onDeleteExercise, onAddExercise }) => {
     
     const [exercisesVisible, setExercisesVisible] = useState(true);
 
@@ -248,7 +700,7 @@ const WorkoutBlockCard: React.FC<{
             case TimerMode.NoTimer:
                 return 'Egen takt';
             default:
-                return `${mode}: ${rounds || 0}x (${workTime || 0}s / ${restTime || 0}s)`;
+                return `${mode}: ${rounds || 0}x (${formatTime(workTime || 0)}s / ${restTime || 0}s)`;
         }
     }, [block.settings]);
   
@@ -314,40 +766,92 @@ const WorkoutBlockCard: React.FC<{
           <AnimatePresence initial={false}>
             {exercisesVisible && (
                 <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="flex flex-col overflow-hidden">
-                {block.exercises?.map((ex, index) => {
-                    if (!ex) return null;
-                    const nextEx = block.exercises?.[index + 1];
-                    const prevEx = block.exercises?.[index - 1];
-                    const isGroupedWithNext = nextEx && ex.groupId && ex.groupId === nextEx.groupId;
-                    const isGroupedWithPrev = prevEx && ex.groupId && ex.groupId === prevEx.groupId;
-                    
-                    const roundedClass = isGroupedWithNext && !isGroupedWithPrev ? 'rounded-t-2xl rounded-b-sm' :
-                                         isGroupedWithPrev && !isGroupedWithNext ? 'rounded-b-2xl rounded-t-sm' :
-                                         isGroupedWithPrev && isGroupedWithNext ? 'rounded-sm' : 'rounded-2xl';
-                                         
-                    const borderClass = ex.groupColor ? `border border-r-gray-100 border-y-gray-100 dark:border-r-gray-800 dark:border-y-gray-800 border-l-[4px] ${ex.groupColor.replace('bg-', 'border-l-')}` : 'border border-gray-100 dark:border-gray-800';
-                    const marginClass = isGroupedWithNext ? 'mb-1' : 'mb-3';
+                {block.exercises && block.exercises.length > 0 ? (
+                    block.exercises.map((ex, index) => {
+                        if (!ex) return null;
+                        const nextEx = block.exercises?.[index + 1];
+                        const prevEx = block.exercises?.[index - 1];
+                        const isGroupedWithNext = nextEx && ex.groupId && ex.groupId === nextEx.groupId;
+                        const isGroupedWithPrev = prevEx && ex.groupId && ex.groupId === prevEx.groupId;
+                        
+                        const roundedClass = isGroupedWithNext && !isGroupedWithPrev ? 'rounded-t-2xl rounded-b-sm' :
+                                             isGroupedWithPrev && !isGroupedWithNext ? 'rounded-b-2xl rounded-t-sm' :
+                                             isGroupedWithPrev && isGroupedWithNext ? 'rounded-sm' : 'rounded-2xl';
+                                             
+                        const borderClass = ex.groupColor ? `border border-r-gray-100 border-y-gray-100 dark:border-r-gray-800 dark:border-y-gray-800 border-l-[4px] ${ex.groupColor.replace('bg-', 'border-l-')}` : 'border border-gray-100 dark:border-gray-800';
+                        const marginClass = isGroupedWithNext ? 'mb-1' : 'mb-3';
 
-                    return (
-                    <div key={ex.id || `ex-${index}`} className={`flex items-start gap-4 p-4 ${roundedClass} bg-gray-50 dark:bg-gray-900 ${borderClass} ${marginClass}`}>
-                        <div className="flex-grow min-w-0">
-                            <h4 className="text-lg font-black text-gray-900 dark:text-white leading-tight break-words flex items-center gap-1.5 flex-wrap">
-                                <span>{ex.name || 'Okänd övning'}</span>
-                                {getSideLabel(ex.side) && (
-                                    <span className="inline-flex items-center justify-center px-1.5 py-0.5 text-[10px] font-black rounded-md bg-orange-100 text-orange-800 dark:bg-orange-950/40 dark:text-orange-400 border border-orange-200 dark:border-orange-800/50 uppercase">
-                                        {getSideLabel(ex.side)}
-                                    </span>
+                        return (
+                        <div key={ex.id || `ex-${index}`} className={`flex items-start gap-4 p-4 ${roundedClass} bg-gray-50 dark:bg-gray-900 ${borderClass} ${marginClass}`}>
+                            <div className="flex-grow min-w-0">
+                                <h4 className="text-lg font-black text-gray-900 dark:text-white leading-tight break-words flex items-center gap-1.5 flex-wrap">
+                                    <span>{ex.name || 'Okänd övning'}</span>
+                                    {getSideLabel(ex.side) && (
+                                        <span className="inline-flex items-center justify-center px-1.5 py-0.5 text-[10px] font-black rounded-md bg-orange-100 text-orange-800 dark:bg-orange-950/40 dark:text-orange-400 border border-orange-200 dark:border-orange-800/50 uppercase">
+                                            {getSideLabel(ex.side)}
+                                        </span>
+                                    )}
+                                </h4>
+                                {ex.description && <p className="text-sm text-gray-500 dark:text-gray-400 mt-1 leading-relaxed font-medium break-words whitespace-pre-wrap">{ex.description}</p>}
+                                {ex.loggingEnabled !== false && (
+                                    <div className="flex items-center gap-1.5 flex-wrap mt-1.5">
+                                        <span className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">Logga:</span>
+                                        {(ex.trackingFields && ex.trackingFields.length > 0 ? ex.trackingFields : ['reps', 'weight']).map(field => {
+                                            const label = field === 'time' ? 'Tid' : field === 'distance' ? 'Distans' : field === 'kcal' ? 'Kcal' : field === 'reps' ? 'Reps' : 'Vikt';
+                                            return (
+                                                <span key={field} className="text-[10px] font-bold bg-gray-200/70 dark:bg-gray-800 text-gray-600 dark:text-gray-300 px-2 py-0.5 rounded">
+                                                    {label}
+                                                </span>
+                                            );
+                                        })}
+                                    </div>
                                 )}
-                            </h4>
-                            {ex.description && <p className="text-sm text-gray-500 dark:text-gray-400 mt-1 leading-relaxed font-medium break-words whitespace-pre-wrap">{ex.description}</p>}
-                        </div>
-                        {ex.reps && (
-                            <div className="bg-white dark:bg-gray-800 px-3 py-1.5 rounded-lg shadow-sm border border-gray-100 dark:border-gray-700 font-mono font-black text-primary text-sm flex-shrink-0 whitespace-nowrap">
-                                {formatReps(ex.reps)}
                             </div>
-                        )}
+                            {ex.reps && (
+                                <div className="bg-white dark:bg-gray-800 px-3 py-1.5 rounded-lg shadow-sm border border-gray-100 dark:border-gray-700 font-mono font-black text-primary text-sm flex-shrink-0 whitespace-nowrap">
+                                    {formatReps(ex.reps)}
+                                </div>
+                            )}
+                            {isOwnProgram && (
+                                <div className="flex items-center gap-1 ml-2 flex-shrink-0">
+                                    <button 
+                                        type="button"
+                                        onClick={() => onRenameExercise?.(block.id, index, ex)}
+                                        className="p-2 text-gray-400 hover:text-primary transition-colors rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800"
+                                        title="Redigera övning"
+                                    >
+                                        <PencilIcon className="w-4 h-4" />
+                                    </button>
+                                    <button 
+                                        type="button"
+                                        onClick={() => onDeleteExercise?.(block.id, index, ex)}
+                                        className="p-2 text-gray-400 hover:text-red-600 transition-colors rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800"
+                                        title="Ta bort övning"
+                                    >
+                                        <TrashIcon className="w-4 h-4" />
+                                    </button>
+                                </div>
+                            )}
+                        </div>
+                    )})
+                ) : (
+                    <div className="py-8 text-center text-gray-400 dark:text-gray-500 font-medium italic">
+                        Passet har inga övningar
                     </div>
-                )})}
+                )}
+
+                {isOwnProgram && (
+                    <div className="mt-3 flex justify-start">
+                        <button
+                            type="button"
+                            onClick={() => onAddExercise?.(block.id)}
+                            className="flex items-center gap-2 px-4 py-2.5 bg-primary/10 hover:bg-primary/20 text-primary font-bold rounded-xl transition-all text-xs sm:text-sm border border-primary/20 shadow-sm active:scale-95 cursor-pointer"
+                        >
+                            <PlusIcon className="w-4 h-4" />
+                            <span>Lägg till övning</span>
+                        </button>
+                    </div>
+                )}
                 </motion.div>
             )}
           </AnimatePresence>
@@ -419,10 +923,20 @@ const WorkoutDetailScreen: React.FC<WorkoutDetailScreenProps> = ({
   const [resultsLoading, setResultsLoading] = useState(false);
   const [visualizingFullWorkout, setVisualizingFullWorkout] = useState(false); 
   const [visualizingBlockId, setVisualizingBlockId] = useState<string | null>(null);
-  
+  const editor = useCustomWorkoutExerciseEditor();
+
   const blockRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const personalBestName = useMemo(() => localStorage.getItem('hyrox-participant-name'), []);
   const isHyroxRace = useMemo(() => workout.id.startsWith('hyrox-full-race') || workout.id.includes('custom-race'), [workout.id]);
+
+  const handleOpenRename = (blockId: string, exerciseIndex: number, exercise: Exercise) => {
+    editor.handleOpenRename(blockId, exerciseIndex, exercise);
+  };
+
+  const handleDeleteExercise = (blockId: string, exerciseIndex: number, exercise: Exercise) => {
+    const userId = currentUser?.uid || userData?.uid;
+    editor.handleDeleteExercise(blockId, exerciseIndex, exercise, sessionWorkout, setSessionWorkout, userId);
+  };
 
   // Scroll to top on mount
   useEffect(() => {
@@ -641,6 +1155,10 @@ const WorkoutDetailScreen: React.FC<WorkoutDetailScreenProps> = ({
                             isCoachView={isCoachView}
                             organizationId={selectedOrganization?.id || ''}
                             onPresent={() => setVisualizingBlockId(block.id)}
+                            isOwnProgram={isOwnProgram}
+                            onRenameExercise={handleOpenRename}
+                            onDeleteExercise={handleDeleteExercise}
+                            onAddExercise={(blockId) => editor.handleOpenAddExercise(blockId, selectedOrganization?.id, currentUser?.uid || userData?.uid)}
                         />
                     </div>
                 )})}
@@ -706,9 +1224,14 @@ const WorkoutDetailScreen: React.FC<WorkoutDetailScreenProps> = ({
                   }}
                   blockId={visualizingBlockId || undefined}
                   onHeaderVisibilityChange={onHeaderVisibilityChange}
+                  isOwnProgram={isOwnProgram}
+                  userId={currentUser?.uid || userData?.uid}
               />
           )}
       </AnimatePresence>
+
+      {editor.renderRenameModal(sessionWorkout, setSessionWorkout, currentUser?.uid || userData?.uid)}
+      {editor.renderAddExerciseModal(sessionWorkout, setSessionWorkout, currentUser?.uid || userData?.uid)}
     </div>
   );
 };

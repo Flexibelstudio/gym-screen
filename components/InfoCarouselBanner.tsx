@@ -127,7 +127,7 @@ export const InfoCarouselBanner: React.FC<InfoCarouselBannerProps> = ({ messages
                     )}
                     <div className={`flex-grow min-w-0 ${layout === 'image-right' ? 'text-right' : 'text-left'}`}>
                         {/* RUBRIK */}
-                        <h4 className="font-bold text-4xl text-primary line-clamp-2 mb-4 leading-tight info-carousel-headline">{currentMessage.headline}</h4>
+                        <h4 className="font-bold text-4xl text-primary line-clamp-2 mb-4 leading-[1.2] pt-[0.1em] info-carousel-headline">{currentMessage.headline}</h4>
                         {/* STOR TEXT: text-xl */}
                         <p className={`text-xl ${secondaryTextClass} line-clamp-12 whitespace-pre-wrap leading-relaxed info-carousel-body`}>{currentMessage.body}</p>
                     </div>

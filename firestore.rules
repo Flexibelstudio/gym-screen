@@ -1,0 +1,268 @@
+// OBS: Denna fil delas av SmartStudio (träning) och SmartStudio Bokningar.
+// Se SHARED-CONTRACT.md i projektroten innan du ändrar något.
+
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Säkerhetsbälte: Neka all åtkomst som inte explicit tillåts nedan
+    match /{document=**} {
+      allow read, write: if false;
+    }
+    /** =========================
+     * Hjälpfunktioner
+     * ========================= */
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    // Snabbare sätt att hämta användardata
+    function getUserData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+    function isSystemOwner() {
+      return isSignedIn() &&
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        getUserData().role == 'systemowner';
+    }
+    // Personal: Systemägare, OrgAdmin eller Coach
+    function isStaff(orgId) {
+      return isSignedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid)) && (
+        getUserData().role == 'systemowner' || (
+          getUserData().organizationId == orgId &&
+          getUserData().role in ['organizationadmin', 'coach']
+        )
+      );
+    }
+    // Endast OrgAdmin (för känsliga saker som att radera org/users)
+    function isOrgAdmin(orgId) {
+      return isSignedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid)) && (
+        getUserData().role == 'systemowner' || (
+          getUserData().organizationId == orgId &&
+          getUserData().role == 'organizationadmin'
+        )
+      );
+    }
+    function belongsToOrg(orgId) {
+      return isSignedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid)) && (
+        getUserData().role == 'systemowner' ||
+        getUserData().organizationId == orgId
+      );
+    }
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+    function isValidLead(data) {
+      return data.get('name', '') is string && data.get('email', '') is string;
+    }
+    function isLockedDevice() {
+      return request.auth != null && request.auth.token.firebase.sign_in_provider == 'anonymous';
+    }
+
+    // ===== DELADE COLLECTIONS (träning + bokning — ändringar kräver bådas godkännande) =====
+
+    match /users/{userId} {
+      allow read: if isSignedIn() && (
+        request.auth.uid == userId ||
+        belongsToOrg(resource.data.organizationId) ||
+        isStaff(resource.data.organizationId) // FIX: Tog bort det obefintliga userDoc()-anropet
+      );
+      allow create: if isSignedIn() && request.auth.uid == userId;
+      allow update: if isSystemOwner() ||
+        (isSignedIn() && request.auth.uid == userId &&
+           !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'adminRole', 'uid', 'organizationId', 'subscriptionStatus'])) ||
+        (isStaff(resource.data.get('organizationId', '')) &&
+         (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'adminRole', 'uid', 'organizationId'])));
+      allow delete: if isSystemOwner();
+      match /personalBests/{pbId} {
+        // FIX: Rättat till en fungerande databashämtning istället för userDoc()
+        allow read: if belongsToOrg(get(/databases/$(database)/documents/users/$(userId)).data.organizationId);
+        allow write: if isSignedIn() && request.auth.uid == userId;
+      }
+      match /customPrograms/{programId} {
+        allow read, write: if isSignedIn() && request.auth.uid == userId;
+      }
+      match /customExercises/{exerciseId} {
+        allow read, write: if isSignedIn() && request.auth.uid == userId;
+      }
+    }
+
+    match /organizations/{orgId} {
+      allow read: if true;
+      allow update: if isStaff(orgId);
+      allow create: if isSignedIn();
+      allow delete: if isOrgAdmin(orgId);
+    }
+
+    // ÄNDRAT: org_settings läsbart publikt (namn/öppettider/bokningsregler är inte hemliga
+    // och behövs före inloggning). Skrivning bara för org-admin.
+    match /org_settings/{id} {
+      allow read: if true;
+      allow write: if isOrgAdmin(id);
+    }
+
+    match /mail/{mailId} {
+      allow create: if true; // Vem som helst får lägga i mail-kön (triggers)
+      allow read, update, delete: if isSystemOwner();
+    }
+
+    match /system/{docId} {
+      allow read: if true;
+      allow write: if isSystemOwner();
+    }
+
+    // ===== TRÄNINGSAPPEN (SmartStudio) =====
+
+    match /workouts/{workoutId} {
+      allow read: if resource == null || belongsToOrg(resource.data.organizationId);
+      // FIX: Raderade onödig logik och den trasiga userDoc(). isStaff löser allt detta automatiskt!
+      allow create: if isStaff(request.resource.data.organizationId);
+      // Lade till säkerhet: Du får bara uppdatera om du är staff i orgId före OCH efter uppdateringen
+      allow update: if isStaff(resource.data.organizationId) && isStaff(request.resource.data.organizationId);
+      allow delete: if isOrgAdmin(resource.data.organizationId);
+    }
+
+    match /workoutLogs/{logId} {
+      allow create: if isSignedIn() && belongsToOrg(request.resource.data.organizationId) &&
+                       request.resource.data.memberId == request.auth.uid;
+      allow read: if isSignedIn() && (
+        request.auth.uid == resource.data.memberId ||
+        belongsToOrg(resource.data.organizationId)
+      );
+      allow update: if isSignedIn() && (
+        request.auth.uid == resource.data.memberId ||
+        (belongsToOrg(resource.data.organizationId) &&
+         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likes']))
+      );
+      allow delete: if isSignedIn() && request.auth.uid == resource.data.memberId;
+    }
+
+    match /workout_results/{resultId} {
+      allow read: if isSignedIn() && (resource == null || belongsToOrg(resource.data.organizationId));
+      allow create: if isSignedIn() && belongsToOrg(request.resource.data.organizationId);
+      allow update, delete: if isStaff(resource.data.organizationId);
+    }
+
+    match /exerciseBank/{exerciseId} {
+      allow read: if isSignedIn();
+      allow write: if isSystemOwner();
+    }
+
+    match /custom_exercises/{exerciseId} {
+      allow read: if isSignedIn() && (resource == null || belongsToOrg(resource.data.organizationId));
+      allow create: if isStaff(request.resource.data.organizationId);
+      allow update, delete: if isStaff(resource.data.organizationId);
+    }
+
+    match /exerciseSuggestions/{suggestionId} {
+      allow read: if isSystemOwner();
+      allow create: if isSignedIn();
+      allow update, delete: if isSystemOwner();
+    }
+
+    match /studio_events/{eventId} {
+      allow read: if isSignedIn() && belongsToOrg(resource.data.organizationId);
+      allow create: if isSignedIn() && belongsToOrg(request.resource.data.organizationId);
+      allow delete: if isOrgAdmin(resource.data.organizationId);
+    }
+
+    match /active_checkins/{checkInId} {
+      allow read: if isSignedIn() && belongsToOrg(resource.data.organizationId);
+      allow create: if isSignedIn() && belongsToOrg(request.resource.data.organizationId);
+      allow delete: if isOrgAdmin(resource.data.organizationId);
+    }
+
+    match /leaderboards/{boardId} {
+      allow read: if isSignedIn() && (resource == null || belongsToOrg(resource.data.orgId));
+      allow write: if isSignedIn() && (
+        isStaff(request.resource.data.orgId) ||
+        (resource != null && isStaff(resource.data.orgId))
+      );
+    }
+
+    match /races/{raceId} {
+      allow read: if isSignedIn() && (resource == null || belongsToOrg(resource.data.organizationId));
+      allow create: if isStaff(request.resource.data.organizationId);
+      allow update: if isStaff(resource.data.organizationId);
+      allow delete: if isOrgAdmin(resource.data.organizationId);
+    }
+
+    match /info_carousel/{slideId} {
+      allow read: if isSignedIn() && (resource == null || belongsToOrg(resource.data.organizationId));
+      allow write: if isStaff(request.resource.data.organizationId) || (resource != null && isStaff(resource.data.organizationId));
+    }
+
+    match /coachNotes/{noteId} {
+      allow read: if isSignedIn() && (resource == null || isStaff(resource.data.organizationId));
+      allow create: if isSignedIn() && isStaff(request.resource.data.organizationId);
+      allow update: if isSignedIn() && isStaff(resource.data.organizationId);
+      allow delete: if isSignedIn() && isStaff(resource.data.organizationId);
+    }
+
+    match /admin_activity/{activityId} {
+      allow read: if isStaff(resource.data.organizationId);
+      allow create: if isStaff(request.resource.data.organizationId);
+      allow update, delete: if isSystemOwner();
+    }
+
+    match /system_gallery/{imageId} {
+      allow read: if true;
+      allow write: if isSystemOwner();
+    }
+
+    match /system_partners/{partnerId} {
+      allow read: if true;
+      allow write: if isSystemOwner();
+    }
+
+    match /leads/{leadId} {
+      allow create: if isValidId(leadId) && isValidLead(request.resource.data);
+      allow read, update, delete: if isSystemOwner();
+    }
+
+    // ===== SMARTSTUDIO BOKNINGAR (frysta block — se SHARED-CONTRACT.md) =====
+
+    match /services/{id} {
+      allow read: if isSignedIn() && belongsToOrg(resource.data.organizationId);
+      allow write: if isStaff(request.resource.data.organizationId) || (resource != null && isStaff(resource.data.organizationId));
+    }
+
+    match /slots/{id} {
+      allow read: if isSignedIn() && belongsToOrg(resource.data.organizationId);
+      allow write: if isStaff(request.resource.data.organizationId) || (resource != null && isStaff(resource.data.organizationId));
+    }
+
+    match /bookings/{id} {
+      allow read: if isSignedIn() && (request.auth.uid == resource.data.clientId || isStaff(resource.data.organizationId));
+      allow write: if false;
+    }
+
+    match /passes/{id} {
+      allow read: if isSignedIn() && (request.auth.uid == resource.data.clientId || isStaff(resource.data.organizationId));
+      allow write: if false;
+    }
+
+    match /client_memberships/{id} {
+      allow read: if isSignedIn() && (request.auth.uid == resource.data.clientId || isStaff(resource.data.organizationId));
+      allow write: if isStaff(request.resource.data.organizationId) || (resource != null && isStaff(resource.data.organizationId));
+    }
+
+    match /memberships/{id} {
+      allow read: if isSignedIn() && belongsToOrg(resource.data.organizationId);
+      allow write: if isStaff(request.resource.data.organizationId) || (resource != null && isStaff(resource.data.organizationId));
+    }
+
+    match /kiosk_products/{id} {
+      allow read: if isSignedIn() && belongsToOrg(resource.data.organizationId);
+      allow write: if isStaff(request.resource.data.organizationId) || (resource != null && isStaff(resource.data.organizationId));
+    }
+
+    match /kiosk_orders/{id} {
+      allow read: if isSignedIn() && (request.auth.uid == resource.data.clientId || isStaff(resource.data.organizationId));
+      allow write: if false;
+    }
+
+    match /noShowFees/{id} {
+      allow read: if isSignedIn() && (request.auth.uid == resource.data.clientId || isStaff(resource.data.organizationId));
+      allow write: if isStaff(request.resource.data.organizationId) || (resource != null && isStaff(resource.data.organizationId));
+    }
+  }
+}

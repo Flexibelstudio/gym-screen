@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { WorkoutLog } from '../types';
-import { listenToCommunityLogs } from '../services/firebaseService';
+import { listenToCommunityLogs, listenToCommunityLogsByLocations } from '../services/firebaseService';
 import { useStudio } from '../context/StudioContext';
 import { DumbbellIcon } from './icons';
 
@@ -48,13 +48,15 @@ export const CommunityFeed: React.FC<CommunityFeedProps> = ({ onExpand, isExpand
     useEffect(() => {
         if (!selectedOrganization) return;
         setIsLoading(true);
-        const unsubscribe = listenToCommunityLogs(selectedOrganization.id, (newLogs) => {
-            let filteredLogs = newLogs;
-            
-            const resolvedLocationId = selectedStudio?.locationId || selectedOrganization?.locations?.[0]?.id;
-            
-            if (resolvedLocationId) {
-                filteredLogs = filteredLogs.filter(log => {
+
+        const resolvedLocationId = selectedStudio?.locationId || selectedOrganization?.locations?.[0]?.id;
+
+        if (resolvedLocationId) {
+            let latestLocationLogs: WorkoutLog[] = [];
+            let latestOrgLogs: WorkoutLog[] = [];
+
+            const updateCombined = () => {
+                const filteredOrgLogs = latestOrgLogs.filter(log => {
                     let logLocation = log.locationId;
                     
                     // Om passet saknar ort (t.ex. äldre loggar), försök hämta från medlemmen
@@ -71,12 +73,39 @@ export const CommunityFeed: React.FC<CommunityFeedProps> = ({ onExpand, isExpand
                     // Vi visar bara passet om det matchar skärmens ort
                     return logLocation === resolvedLocationId;
                 });
-            }
-            
-            setLogs(filteredLogs.slice(0, 50)); 
-            setIsLoading(false);
-        });
-        return () => unsubscribe();
+
+                const map = new Map<string, WorkoutLog>();
+                latestLocationLogs.forEach(log => { if (log.id) map.set(log.id, log); });
+                filteredOrgLogs.forEach(log => { if (log.id) map.set(log.id, log); });
+
+                const combined = Array.from(map.values());
+                combined.sort((a, b) => (b.date || 0) - (a.date || 0));
+
+                setLogs(combined.slice(0, 20));
+                setIsLoading(false);
+            };
+
+            const unsubLocation = listenToCommunityLogsByLocations(selectedOrganization.id, [resolvedLocationId], (locLogs) => {
+                latestLocationLogs = locLogs;
+                updateCombined();
+            });
+
+            const unsubOrg = listenToCommunityLogs(selectedOrganization.id, (orgLogs) => {
+                latestOrgLogs = orgLogs;
+                updateCombined();
+            });
+
+            return () => {
+                unsubLocation();
+                unsubOrg();
+            };
+        } else {
+            const unsubOrg = listenToCommunityLogs(selectedOrganization.id, (newLogs) => {
+                setLogs(newLogs.slice(0, 20));
+                setIsLoading(false);
+            });
+            return () => unsubOrg();
+        }
     }, [selectedOrganization, selectedStudio?.locationId, members]);
 
     const [, setTick] = useState(0);

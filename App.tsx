@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
-import { Page, Workout, WorkoutBlock, TimerMode, Exercise, TimerSettings, Passkategori, Studio, StudioConfig, Organization, CustomPage, UserRole, InfoMessage, StartGroup, InfoCarousel, WorkoutDiploma, TimerStatus } from './types';
+import { Page, Workout, WorkoutBlock, Studio, Organization, CustomPage, UserRole, InfoMessage, StartGroup, InfoCarousel, WorkoutDiploma } from './types';
 
 import { useStudio } from './context/StudioContext';
 import { useAuth } from './context/AuthContext';
@@ -14,17 +14,24 @@ import { WelcomePaywall } from './components/WelcomePaywall';
 import PendingCoachScreen from './components/PendingCoachScreen';
 
 // --- Services ---
-import { createOrganization, updateGlobalConfig, updateStudioConfig, createStudio, updateOrganization, updateOrganizationPasswords, updateOrganizationLogos, updateOrganizationPrimaryColor, updateOrganizationCustomPages, updateStudio, deleteStudio, archiveOrganization as deleteOrganization, updateOrganizationInfoCarousel, updateOrganizationFavicon, updateOrganizationAppIcon, listenToOrganizationChanges, getWorkoutById, getFreshCategoryWorkouts, listenToForegroundMessages } from './services/firebaseService';
+import { createOrganization, updateOrganization, updateOrganizationPasswords, updateOrganizationLogos, updateOrganizationPrimaryColor, updateOrganizationCustomPages, archiveOrganization as deleteOrganization, updateOrganizationInfoCarousel, updateOrganizationFavicon, updateOrganizationAppIcon } from './services/firebaseService';
 import { Toast } from './components/ui/ToastNotification';
 
-// --- Utils ---
-import { deepCopyAndPrepareAsNew } from './utils/workoutUtils';
+// --- Custom Hooks ---
+import { useMinSplashTime } from './hooks/app/useMinSplashTime';
+import { usePushToast } from './hooks/app/usePushToast';
+import { useOnlineStatus } from './hooks/app/useOnlineStatus';
+import { useTheme } from './hooks/app/useTheme';
+import { useInactivityTimer } from './hooks/app/useInactivityTimer';
+import { useNavigation } from './hooks/app/useNavigation';
+import { useWorkoutActions } from './hooks/app/useWorkoutActions';
+import { useTimerFlow } from './hooks/app/useTimerFlow';
+import { useStudioAdmin } from './hooks/app/useStudioAdmin';
 
 // --- Components ---
 import { WorkoutCompleteModal } from './components/WorkoutCompleteModal';
 import { PasswordModal } from './components/PasswordModal';
 import { ReAuthModal } from './components/ReAuthModal';
-import { StudioSelectionScreen } from './components/StudioSelectionScreen';
 import { StudioConfigModal } from './components/AdminConfigScreen';
 import { LoginScreen } from './components/LoginScreen';
 import { RegisterGymScreen } from './components/RegisterGymScreen'; 
@@ -46,8 +53,7 @@ import { WorkoutLogScreen } from './mobile/screens/WorkoutLogScreen';
 import { WorkoutListScreen } from './components/WorkoutListScreen';
 import { WebQRScanner } from './components/WebQRScanner';
 import { motion, AnimatePresence } from 'framer-motion';
-import WorkoutDetailScreen, { WorkoutPresentationModal } from './components/WorkoutDetailScreen';
-import { CloseIcon, PencilIcon } from './components/icons';
+import { WorkoutPresentationModal } from './components/WorkoutDetailScreen';
 import { WorkoutDiplomaView } from './components/WorkoutDiplomaView';
 
 // --- Modals ---
@@ -55,9 +61,7 @@ import { BirthDatePromptModal } from './components/modals/BirthDatePromptModal';
 import { LocationPromptModal } from './components/modals/LocationPromptModal';
 import { PWAInstallPrompt } from './components/PWAInstallPrompt';
 import { CoachWorkoutPreviewModal } from './components/CoachWorkoutPreviewModal';
-import { updateUserProfile, fetchCustomPrograms, saveCustomProgram } from './services/firebaseService';
-
-const THEME_STORAGE_KEY = 'flexibel-screen-theme';
+import { updateUserProfile, fetchCustomPrograms } from './services/firebaseService';
 
 const App: React.FC = () => {
   const { 
@@ -93,7 +97,7 @@ const App: React.FC = () => {
   const [sessionRole, setSessionRole] = useState<UserRole>(role);
   const [showLogin, setShowLogin] = useState(false);
   const [showRegisterGym, setShowRegisterGym] = useState(false); 
-  const [minSplashTimeElapsed, setMinSplashTimeElapsed] = useState(false);
+  const minSplashTimeElapsed = useMinSplashTime();
   const [customPrograms, setCustomPrograms] = useState<Workout[]>([]);
 
   useEffect(() => {
@@ -120,30 +124,38 @@ const App: React.FC = () => {
     };
   }, [currentUser]);
   
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setMinSplashTimeElapsed(true);
-    }, 2000);
-    return () => clearTimeout(timer);
-  }, []);
-  
-  const [history, setHistory] = useState<Page[]>(() => {
-      if (isStudioMode) return [Page.Home];
-      if (role === 'systemowner') return [Page.SystemOwner];
-      if (role === 'organizationadmin') return [Page.SuperAdmin];
-      if (role === 'coach') return [Page.Coach];
-      return [Page.MemberProfile];
+  const [activeBlock, setActiveBlock] = useState<WorkoutBlock | null>(null);
+  const [isPickingForLog, setIsPickingForLog] = useState(false);
+  const pageEntryTimestampRef = useRef<number>(Date.now());
+
+  const { 
+    history, 
+    setHistory, 
+    page, 
+    navigateTo, 
+    navigateReplace, 
+    handleBack, 
+    setCustomBackHandler, 
+    customBackHandlerState, 
+    lastLocalNavigationRef 
+  } = useNavigation({
+    role,
+    sessionRole,
+    setSessionRole,
+    activeWorkout,
+    setActiveWorkout,
+    activeBlock,
+    setActiveBlock,
+    isPickingForLog,
+    setIsPickingForLog,
+    isStudioMode,
+    selectedOrganization,
+    selectedStudio,
+    currentUser,
+    userData,
+    authLoading,
+    isImpersonating
   });
-
-  const page = history[history.length - 1];
-
-  // Scrolla alltid till toppen när vi byter sida
-  useEffect(() => {
-      const timer = setTimeout(() => {
-          window.scrollTo({ top: 0, left: 0, behavior: 'instant' as ScrollBehavior });
-      }, 10);
-      return () => clearTimeout(timer);
-  }, [page]);
 
   const showWelcomePaywall = useMemo(() => {
       if (!currentUser || role !== 'organizationadmin' || isStudioMode) return false;
@@ -178,74 +190,9 @@ const App: React.FC = () => {
       if (role === 'systemowner') return false;
       return userData.organizationId !== selectedOrganization.id;
   }, [userData?.organizationId, selectedOrganization?.id, currentUser, role]);
-  const [pushToast, setPushToast] = useState<{ message: string, isVisible: boolean }>({ message: '', isVisible: false });
 
-  // Push notification foreground listener
-  useEffect(() => {
-    if (isOffline) return;
-    const unsubscribe = listenToForegroundMessages((payload) => {
-      const title = payload.notification?.title || 'Ny notis';
-      const body = payload.notification?.body || '';
-      setPushToast({ message: `${title}: ${body}`, isVisible: true });
-    });
-    return () => unsubscribe();
-  }, []);
-
-  // --- FIXEN: Vi tillåter denna effekt att köras även i StudioMode! ---
-  useEffect(() => {
-    if (!authLoading && currentUser) {
-      const isAtInitialPage = history.length === 1;
-      const currentPage = history[history.length - 1];
-      
-      const actualRole = userData?.role || role;
-
-      if (isStudioMode && currentPage !== Page.Home && isAtInitialPage) {
-        setHistory([Page.Home]); // Tvinga in studiovyn
-      } else if (!isStudioMode) {
-        if (actualRole === 'systemowner' && currentPage !== Page.SystemOwner && isAtInitialPage) {
-          setHistory([Page.SystemOwner]);
-        } else if (actualRole === 'organizationadmin' && currentPage !== Page.SuperAdmin && isAtInitialPage) {
-          setHistory([Page.SuperAdmin]);
-        } else if (actualRole === 'coach' && currentPage !== Page.Coach && isAtInitialPage) {
-          setHistory([Page.Coach]);
-        } else if (actualRole === 'member' && currentPage !== Page.MemberProfile && isAtInitialPage) {
-          setHistory([Page.MemberProfile]);
-        }
-      }
-    }
-  }, [role, userData, authLoading, isStudioMode, history.length, currentUser]);
-
-  const [activeBlock, setActiveBlock] = useState<WorkoutBlock | null>(null);
-  const lastLocalNavigationRef = useRef<number>(0);
-  const pageEntryTimestampRef = useRef<number>(Date.now());
-
-  const navigateTo = useCallback((targetPage: Page, options?: { activeWorkoutId?: string | null, activeBlockId?: string | null }) => {
-    setHistory(prev => {
-        if (prev[prev.length - 1] === targetPage) return prev;
-        return [...prev, targetPage];
-    });
-  }, [isStudioMode, selectedOrganization, selectedStudio, activeWorkout, activeBlock]);
-
-  const navigateReplace = useCallback((page: Page) => {
-    lastLocalNavigationRef.current = Date.now();
-    setHistory(prev => {
-        const newHistory = prev.slice(0, -1);
-        if (newHistory.length > 0 && newHistory[newHistory.length - 1] === page) {
-            return newHistory;
-        }
-        newHistory.push(page);
-        return newHistory;
-    });
-  }, []);
-
-  const [customBackHandlerState, setCustomBackHandlerState] = useState<(() => void) | null>(null);
-  const customBackHandlerRef = useRef<(() => void) | null>(null);
-
-  const setCustomBackHandler = useCallback((handler: (() => void) | null) => {
-      customBackHandlerRef.current = handler;
-      setCustomBackHandlerState(handler ? () => handler : null);
-  }, []);
-  const [isOffline, setIsOffline] = useState(!navigator.onLine);
+  const isOffline = useOnlineStatus();
+  const { pushToast, setPushToast } = usePushToast(isOffline);
 
   const publicLiveRaceId = useMemo(() => {
     const path = window.location.pathname;
@@ -288,17 +235,6 @@ const App: React.FC = () => {
           checkStatus();
       }
   }, [userData?.organizationId]);
-
-  useEffect(() => {
-    const handleOnline = () => setIsOffline(false);
-    const handleOffline = () => setIsOffline(true);
-    window.addEventListener('online', handleOnline);
-    window.addEventListener('offline', handleOffline);
-    return () => {
-      window.removeEventListener('online', handleOnline);
-      window.removeEventListener('offline', handleOffline);
-    };
-  }, []);
 
   // --- SERVICE WORKER AUTO-UPDATE & FRESH PUSHES ---
   useEffect(() => {
@@ -360,7 +296,6 @@ const App: React.FC = () => {
   }, [page]);
 
   const [activePasskategori, setActivePasskategori] = useState<string | null>(null);
-  const [isPickingForLog, setIsPickingForLog] = useState(false);
   const [activeCustomPage, setActiveCustomPage] = useState<CustomPage | null>(null);
   const [racePrepState, setRacePrepState] = useState<{ groups: StartGroup[]; interval: number } | null>(null);
   const [activeRaceId, setActiveRaceId] = useState<string | null>(null);
@@ -422,19 +357,13 @@ const App: React.FC = () => {
       return () => { document.body.style.overflow = ''; };
   }, [mobileLogData, mobileViewData, isSearchWorkoutOpen, isCoachPreviewOpen, isScannerOpen, activeDiploma]);
 
-  const [theme, setTheme] = useState(() => {
-    const savedTheme = localStorage.getItem(THEME_STORAGE_KEY);
-    if (savedTheme === 'light' || savedTheme === 'dark') return savedTheme;
-    if (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) return 'light';
-    return 'dark';
-  });
+  const { theme, toggleTheme } = useTheme();
 
   const [isTimerHeaderVisible, setIsTimerHeaderVisible] = useState(true);
   const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
   const [isScreensaverActive, setIsScreensaverActive] = useState(false);
   const [isBackButtonHidden, setIsBackButtonHidden] = useState(false);
   const [followMeShowImage, setFollowMeShowImage] = useState(true);
-  const inactivityTimerRef = useRef<number | null>(null);
   const [profileEditTrigger, setProfileEditTrigger] = useState(0);
 
   useEffect(() => {
@@ -496,42 +425,13 @@ const App: React.FC = () => {
       }
   }, [userData?.uid]);
 
-  const pagesThatPreventScreensaver: Page[] = [
-      Page.Timer, 
-      Page.RepsOnly, 
-      Page.IdeaBoard, 
-      Page.MemberProfile, 
-      Page.MemberRegistry, 
-      Page.MobileLog
-  ];
-
-  const resetInactivityTimer = useCallback(() => {
-      if (inactivityTimerRef.current) clearTimeout(inactivityTimerRef.current);
-      if (isStudioMode && studioConfig.enableScreensaver && !pagesThatPreventScreensaver.includes(page)) {
-          const timeoutMinutes = studioConfig.screensaverTimeoutMinutes || 15;
-          inactivityTimerRef.current = window.setTimeout(() => {
-              setIsScreensaverActive(true);
-          }, timeoutMinutes * 60 * 1000);
-      } else {
-          if (isScreensaverActive) setIsScreensaverActive(false);
-      }
-  }, [isStudioMode, studioConfig.enableScreensaver, studioConfig.screensaverTimeoutMinutes, page, isScreensaverActive]);
-
-  const handleUserActivity = useCallback(() => {
-      if (isScreensaverActive) setIsScreensaverActive(false);
-      resetInactivityTimer();
-  }, [isScreensaverActive, resetInactivityTimer]);
-
-  useEffect(() => {
-      resetInactivityTimer();
-      return () => { if (inactivityTimerRef.current) clearTimeout(inactivityTimerRef.current); };
-  }, [resetInactivityTimer, page]);
-
-  useEffect(() => {
-      const events: (keyof WindowEventMap)[] = ['mousemove', 'mousedown', 'touchstart', 'keydown', 'scroll'];
-      events.forEach(event => window.addEventListener(event, handleUserActivity));
-      return () => { events.forEach(event => window.removeEventListener(event, handleUserActivity)); };
-  }, [handleUserActivity]);
+  useInactivityTimer({
+    isStudioMode,
+    studioConfig,
+    page,
+    isScreensaverActive,
+    setIsScreensaverActive,
+  });
 
   const activeInfoMessages = useMemo((): InfoMessage[] => {
     const infoCarousel = selectedOrganization?.infoCarousel;
@@ -553,17 +453,6 @@ const App: React.FC = () => {
   useEffect(() => {
     setSessionRole(role);
   }, [role]);
-
-  const toggleTheme = () => {
-    const newTheme = theme === 'dark' ? 'light' : 'dark';
-    setTheme(newTheme);
-  };
-  
-  useEffect(() => {
-    localStorage.setItem(THEME_STORAGE_KEY, theme);
-    document.documentElement.classList.remove('light', 'dark');
-    document.documentElement.classList.add(theme);
-  }, [theme]);
   
   useEffect(() => {
     const root = document.documentElement;
@@ -574,40 +463,7 @@ const App: React.FC = () => {
 
 
 
-  const handleBack = useCallback(() => {
-    if (customBackHandlerRef.current) {
-      customBackHandlerRef.current();
-      return;
-    }
 
-    if (history.length <= 1) return;
-
-    const currentPage = history[history.length - 1];
-    const newHistory = history.slice(0, -1);
-    const targetPage = newHistory[newHistory.length - 1];
-    
-    if (currentPage === Page.Coach && role === 'member') {
-        setSessionRole('member');
-    }
-    
-    if (currentPage === Page.IdeaBoard) setActiveWorkout(null);
-
-    if (currentPage === Page.WorkoutList && isPickingForLog) {
-        setIsPickingForLog(false);
-    }
-    
-    // Clear active block if we are leaving the timer
-    let nextActiveBlockId = activeBlock?.id || null;
-    if (targetPage === Page.WorkoutDetail || targetPage === Page.Home || targetPage === Page.Coach || targetPage === Page.SuperAdmin) {
-        setActiveBlock(null);
-        nextActiveBlockId = null;
-    }
-        if (targetPage === Page.Home || targetPage === Page.Coach || targetPage === Page.SuperAdmin) {
-         setActiveWorkout(null);
-    }
-    
-    setHistory(newHistory);
-  }, [history, role, isImpersonating, setActiveWorkout, isPickingForLog, isStudioMode, selectedOrganization, selectedStudio, activeWorkout, activeBlock]);;
 
   const handleMemberProfileRequest = () => {
       if (isStudioMode) {
@@ -642,218 +498,89 @@ const App: React.FC = () => {
       }
   };
 
-  const handleCreateNewWorkout = () => {
-    setActiveWorkout(null);
-    setFocusedBlockId(null);
-    setIsEditingNewDraft(true);
-    if (sessionRole === 'member') navigateTo(Page.SimpleWorkoutBuilder);
-    else navigateTo(Page.WorkoutBuilder);
-  };
+  const {
+    handleStartBlock,
+    handleStartFreestandingTimer,
+    handleStartRace,
+    handleSelectRace,
+    handleReturnToGroupPrep,
+    handleTimerFinish,
+    handleCloseWorkoutCompleteModal,
+    handleLogWorkoutRequest,
+    handleCancelLog,
+    handleScanCode,
+  } = useTimerFlow({
+    workouts,
+    activeWorkout,
+    activeBlock,
+    completionInfo,
+    page,
+    history,
+    selectedOrganization,
+    selectedStudio,
+    isStudioMode,
+    pageEntryTimestampRef,
+    lastLocalNavigationRef,
+    setActiveWorkout,
+    setActiveBlock,
+    setIsAutoTransition,
+    setIsBackButtonHidden,
+    setActiveRaceId,
+    setCompletionInfo,
+    setRacePrepState,
+    setIsSearchWorkoutOpen,
+    setMobileViewData,
+    setMobileLogData,
+    setActiveDiploma,
+    setIsScannerOpen,
+    navigateTo,
+    navigateReplace,
+    handleBack,
+  });
 
-  const handleEditWorkout = (workout: Workout, blockId?: string) => {
-    setActiveWorkout(workout);
-    setFocusedBlockId(blockId || null);
-    setIsEditingNewDraft(false);
-    if (sessionRole === 'member') navigateTo(Page.SimpleWorkoutBuilder);
-    else navigateTo(Page.WorkoutBuilder);
-  };
+  const {
+    handleCreateNewWorkout,
+    handleEditWorkout,
+    handleAdjustWorkout,
+    handleSaveAndNavigate,
+    handleSaveOnly,
+    handleTogglePublishStatus,
+    handleToggleFavoriteStatus,
+    handleDeleteWorkout,
+    handleDuplicateWorkout,
+    handleSelectWorkout,
+    handleSelectPasskategori,
+    handleGeneratedWorkout,
+    handleWorkoutInterpretedFromNote,
+  } = useWorkoutActions({
+    sessionRole,
+    isStudioMode,
+    currentUser,
+    selectedOrganization,
+    workouts,
+    activeWorkout,
+    page,
+    isEditingNewDraft,
+    returnToAdminOnSave,
+    isSearchWorkoutOpen,
+    isPickingForLog,
+    setActiveWorkout,
+    setFocusedBlockId,
+    setIsEditingNewDraft,
+    setReturnToAdminOnSave,
+    setPreferredAdminTab,
+    setMobileViewData,
+    setIsPickingForLog,
+    setActivePasskategori,
+    navigateTo,
+    navigateReplace,
+    handleBack,
+    saveWorkout,
+    deleteWorkout,
+    handleStartBlock,
+    handleLogWorkoutRequest,
+  });
 
-  const handleAdjustWorkout = (workoutToAdjust: Workout) => {
-    const newDraft = deepCopyAndPrepareAsNew(workoutToAdjust);
-    newDraft.title = `Justering: ${workoutToAdjust.title}`;
-    newDraft.isMemberDraft = true;
-    newDraft.isPublished = false;
-    if (!newDraft.organizationId && selectedOrganization) {
-        newDraft.organizationId = selectedOrganization.id;
-    }
-    setActiveWorkout(newDraft);
-    setIsEditingNewDraft(true);
-    navigateTo(Page.SimpleWorkoutBuilder);
-  };
-
-  const handleSaveAndNavigate = async (workout: Workout, startFirstBlock?: boolean) => {
-    const isMemberRole = sessionRole === 'member' || isStudioMode;
-    
-    if (sessionRole === 'member' && currentUser?.uid) {
-        await saveCustomProgram(currentUser.uid, workout);
-        window.dispatchEvent(new Event('customProgramsUpdated'));
-        setActiveWorkout(workout);
-        setIsEditingNewDraft(false);
-        handleBack();
-        return;
-    }
-
-    const workoutToSave = { 
-        ...workout, 
-        isMemberDraft: workout.isMemberDraft ?? isMemberRole 
-    };
-    const savedWorkout = await saveWorkout(workoutToSave);
-    
-    if (startFirstBlock && savedWorkout.blocks.length > 0) {
-        handleStartBlock(savedWorkout.blocks[0], savedWorkout);
-    } else {
-        setActiveWorkout(savedWorkout);
-        
-        if (isStudioMode) {
-            navigateReplace(Page.WorkoutDetail);
-        } else if (isEditingNewDraft) {
-            setIsEditingNewDraft(false);
-            if (returnToAdminOnSave) {
-                setReturnToAdminOnSave(false);
-                handleBack();
-                setPreferredAdminTab('pass-program');
-            } else {
-                navigateReplace(Page.WorkoutDetail);
-            }
-        } else {
-            handleBack();
-            setPreferredAdminTab('pass-program');
-        }
-    }
-  };
-
-  const handleSaveOnly = async (workout: Workout) => {
-      const isMemberRole = sessionRole === 'member' || isStudioMode;
-      if (sessionRole === 'member' && currentUser?.uid) {
-          await saveCustomProgram(currentUser.uid, workout);
-          window.dispatchEvent(new Event('customProgramsUpdated'));
-          return workout;
-      }
-      return await saveWorkout({ 
-          ...workout, 
-          isMemberDraft: workout.isMemberDraft ?? isMemberRole 
-      });
-  };
-  
-  const handleTogglePublishStatus = async (workoutId: string, isPublished: boolean, silentPublish?: boolean) => {
-    const workoutToToggle = workouts.find(w => w.id === workoutId);
-    if (workoutToToggle) await saveWorkout({ ...workoutToToggle, isPublished, silentPublish });
-  };
-
-  const handleToggleFavoriteStatus = async (workoutId: string) => {
-    const workoutToToggle = workouts.find(w => w.id === workoutId);
-    if (workoutToToggle) await saveWorkout({ ...workoutToToggle, isFavorite: !workoutToToggle.isFavorite });
-  };
-
-  const handleDeleteWorkout = async (workoutId: string) => {
-    await deleteWorkout(workoutId);
-    if (activeWorkout?.id === workoutId && page === Page.WorkoutDetail) {
-      handleBack();
-    }
-  };
-  
-  const handleStartBlock = (block: WorkoutBlock, workoutContext: Workout) => {
-    const isSavedWorkout = workouts.some(w => w.id === workoutContext.id);
-
-    pageEntryTimestampRef.current = Date.now();
-    setIsAutoTransition(false); 
-
-    if (isStudioMode && selectedOrganization && selectedStudio && isSavedWorkout) {
-        setActiveWorkout(workoutContext);
-        setActiveBlock(block);
-        const targetPage = block.settings.mode === TimerMode.NoTimer ? Page.RepsOnly : Page.Timer;
-        navigateTo(targetPage, { activeWorkoutId: workoutContext.id, activeBlockId: block.id });
-        return;
-    }
-    setActiveWorkout(workoutContext);
-    setActiveBlock(block);
-    if (block.settings.mode === TimerMode.NoTimer) navigateTo(Page.RepsOnly);
-    else navigateTo(Page.Timer);
-  };
-
-  const handleStartFreestandingTimer = (block: WorkoutBlock) => {
-    setIsAutoTransition(false);
-    if (!selectedOrganization) return alert("Kan inte starta timer: ingen organisation är vald.");
-    const tempWorkout: Workout = {
-        id: `freestanding-workout-${Date.now()}`,
-        title: block.title,
-        coachTips: '',
-        blocks: [block],
-        category: 'Ej kategoriserad',
-        isPublished: false,
-        organizationId: selectedOrganization.id,
-        createdAt: Date.now() 
-    };
-
-    pageEntryTimestampRef.current = Date.now();
-
-    setIsAutoTransition(false); 
-    setActiveWorkout(tempWorkout);
-    setActiveBlock(block);
-    if (block.settings.mode === TimerMode.NoTimer) navigateTo(Page.RepsOnly, { activeWorkoutId: tempWorkout.id, activeBlockId: block.id });
-    else navigateTo(Page.Timer, { activeWorkoutId: tempWorkout.id, activeBlockId: block.id });
-  };
-
-  const handleSelectWorkout = (workout: Workout, action: 'view' | 'log' = 'view') => {
-    if (isStudioMode) {
-        setActiveWorkout(workout);
-        navigateTo(Page.WorkoutDetail, { activeWorkoutId: workout.id });
-        return;
-    }
-
-    if (action === 'view') {
-        setMobileViewData(workout);
-        return;
-    }
-
-    if (isSearchWorkoutOpen && selectedOrganization) {
-        handleLogWorkoutRequest(workout.id, selectedOrganization.id);
-        return;
-    }
-
-    if (isPickingForLog && selectedOrganization) {
-        handleLogWorkoutRequest(workout.id, selectedOrganization.id);
-        return;
-    }
-
-    if (action === 'log' && selectedOrganization) {
-        handleLogWorkoutRequest(workout.id, selectedOrganization.id);
-        return;
-    }
-
-    setActiveWorkout(workout);
-    if ((workout.id.startsWith('hyrox-full-race') || workout.id.includes('custom-race')) && workout.blocks.length > 0) {
-      handleStartBlock(workout.blocks[0], workout);
-    } else {
-      navigateTo(Page.WorkoutDetail);
-    }
-  };
-
-  const handleStartRace = (workout: Workout) => {
-    if (workout.blocks.length > 0) handleStartBlock(workout.blocks[0], workout);
-  };
-  
-  const handleDuplicateWorkout = (workoutToCopy: Workout, origin?: string) => {
-    if (origin === 'admin') setReturnToAdminOnSave(true);
-    const newDraft = deepCopyAndPrepareAsNew(workoutToCopy);
-    setActiveWorkout(newDraft);
-    setIsEditingNewDraft(true);
-    navigateTo(Page.WorkoutBuilder);
-  };
-
-  const handleSelectPasskategori = (passkategori: Passkategori) => {
-    let categoryWorkouts = workouts.filter(w => w.category === passkategori && w.isPublished && !w.isMemberDraft);
-    
-    if (categoryWorkouts.length === 1 && !isPickingForLog) {
-        if (isStudioMode) {
-            handleSelectWorkout(categoryWorkouts[0]);
-            return;
-        } else {
-             handleSelectWorkout(categoryWorkouts[0], 'view');
-             return;
-        }
-    }
-
-    if (!isStudioMode) {
-        if (isPickingForLog) {
-             setIsPickingForLog(true);
-        }
-    }
-    
-    setActivePasskategori(passkategori);
-    navigateTo(Page.WorkoutList);
-  };
-  
   const handleCoachAccessRequest = () => {
     if (sessionRole === 'member') setIsPasswordModalOpen(true);
     else navigateTo(Page.Coach);
@@ -868,219 +595,26 @@ const App: React.FC = () => {
     navigateTo(Page.CustomContent);
   };
 
-  const handleGeneratedWorkout = (newWorkout: Workout) => {
-    setActiveWorkout(newWorkout);
-    setFocusedBlockId(null);
-    setIsEditingNewDraft(true);
-    navigateTo(Page.WorkoutBuilder);
-  }
-  
-  const handleWorkoutInterpretedFromNote = (workout: Workout) => {
-    const workoutWithOrg = { 
-        ...workout, 
-        organizationId: selectedOrganization?.id || '',
-        isMemberDraft: true 
-    };
-    setActiveWorkout(workoutWithOrg); 
-    setIsEditingNewDraft(true);
-    navigateTo(Page.SimpleWorkoutBuilder);
-  };
-  
-  const handleReturnToGroupPrep = useCallback(() => {
-    if (activeWorkout && (activeWorkout.id.startsWith('hyrox-full-race') || activeWorkout.id.includes('custom-race'))) {
-        setRacePrepState({
-            groups: activeWorkout.startGroups || [],
-            interval: activeWorkout.startIntervalMinutes || 2,
-        });
-        handleBack();
-    }
-  }, [activeWorkout, handleBack]);
-
-  const handleTimerFinish = useCallback((finishData: { isNatural?: boolean; time?: number, raceId?: string }) => {
-    const { isNatural = false, time, raceId } = finishData;
-
-    if (raceId) {
-        setIsBackButtonHidden(false);
-        setActiveRaceId(raceId);
-        navigateReplace(Page.HyroxRaceDetail);
-        return;
-    }
-
-    if (completionInfo) return; 
-    
-    if (!isNatural) {
-      handleBack();
-      return;
-    }
-
-    if (activeWorkout && activeBlock && activeBlock.autoAdvance) {
-        const blockIndex = activeWorkout.blocks.findIndex(b => b.id === activeBlock.id);
-        const nextBlockInWorkout = activeWorkout.blocks[blockIndex + 1];
-        if (nextBlockInWorkout) {
-            setIsAutoTransition(true);
-            pageEntryTimestampRef.current = Date.now();
-            lastLocalNavigationRef.current = Date.now(); 
-            
-            setActiveBlock(nextBlockInWorkout);
-            return;
-        }
-    }
-
-    if (activeWorkout && activeBlock) {
-        const blockIndex = activeWorkout.blocks.findIndex(b => b.id === activeBlock.id);
-        const isLastBlock = blockIndex === activeWorkout.blocks.length - 1;
-        setCompletionInfo({ workout: activeWorkout, isFinal: isLastBlock, blockTag: activeBlock.tag, finishTime: time });
-    } else if (activeWorkout) {
-        setCompletionInfo({ workout: activeWorkout, isFinal: true, blockTag: activeWorkout.blocks[0]?.tag, finishTime: time });
-    }
-  }, [completionInfo, handleBack, activeWorkout, activeBlock, isStudioMode, navigateReplace, selectedOrganization, selectedStudio, workouts]);
-
-  const handleCloseWorkoutCompleteModal = () => {
-    if (!completionInfo) return;
-
-    const isFinalBlock = completionInfo.isFinal;
-    const workoutId = completionInfo.workout.id;
-    const isFreestanding = workoutId.startsWith('freestanding-workout-') || 
-                           workoutId.startsWith('fs-workout-');
-
-    setCompletionInfo(null);
-
-    if (isFreestanding) {
-        setActiveWorkout(null);
-        setActiveBlock(null);
-        handleBack();
-        return;
-    }
-
-    setActiveBlock(null);
-
-    if (isFinalBlock) {
-      if (page === Page.Timer || page === Page.RepsOnly) {
-          navigateReplace(Page.WorkoutDetail);
-      } else if (history.length > 1) {
-          handleBack();
-      }
-    } else {
-      if (page === Page.Timer || page === Page.RepsOnly) {
-          navigateReplace(Page.WorkoutDetail);
-      } else {
-          handleBack();
-      }
-    }
-  };
-
   const handleClosePasswordModal = () => {
     setIsPasswordModalOpen(false);
   }
 
-  const handleLogWorkoutRequest = (workoutId: string, orgId: string, source: 'qr_scan' | 'manual' = 'manual') => {
-    setIsSearchWorkoutOpen(false);
-    setMobileViewData(null); 
-    setMobileLogData({ workoutId, organizationId: orgId, source });
-  };
-
-  const handleCancelLog = (isSuccess?: boolean, diploma?: WorkoutDiploma) => {
-      setMobileLogData(null);
-      window.history.replaceState({}, document.title, window.location.pathname);
-      if (isSuccess === true && diploma) {
-          setActiveDiploma(diploma);
-      }
-  };
-
-  const handleScanCode = (data: string | null) => {
-      if (!data) return;
-      try {
-          let payload: any;
-          if (data.includes('log=')) {
-              const parts = data.split('log=');
-              const base64 = parts[1].split('&')[0];
-              payload = JSON.parse(atob(base64));
-          } else {
-              payload = JSON.parse(data);
-          }
-          if (payload && payload.wid && payload.oid) {
-              handleLogWorkoutRequest(payload.wid, payload.oid, 'qr_scan');
-              setIsScannerOpen(false);
-          }
-      } catch (e) {
-          console.error("Failed to parse scanned code", e);
-      }
-  };
-
-  const handleSaveStudioConfig = async (organizationId: string, studioId: string, newConfigOverrides: Partial<StudioConfig>) => {
-    try {
-      const updatedStudio = await updateStudioConfig(organizationId, studioId, newConfigOverrides);
-      selectStudio(updatedStudio); 
-      setAllStudios(prev => prev.map(s => s.id === studioId ? updatedStudio : s));
-      setStudioToEditConfig(null);
-    } catch (error) {
-      console.error("Failed to save studio config:", error);
-      alert("Kunde inte spara konfigurationen.");
-    }
-  };
-
-  const handleEditStudioConfig = (studio: Studio) => setStudioToEditConfig(studio);
-
-  const handleSaveGlobalConfig = async (organizationId: string, newConfig: StudioConfig) => {
-      try {
-          await updateGlobalConfig(organizationId, newConfig);
-          const updatedOrg = { ...selectedOrganization!, globalConfig: newConfig };
-          selectOrganization(updatedOrg);
-          setAllOrganizations(prev => prev.map(o => o.id === organizationId ? updatedOrg : o));
-      } catch (error) {
-           console.error("Failed to save global config:", error);
-           alert("Kunde inte spara global konfiguration.");
-      }
-  };
-
-  const handleCreateStudio = async (organizationId: string, name: string, locationId?: string) => {
-      try {
-          const newStudio = await createStudio(organizationId, name, locationId);
-          const newOrgs = allOrganizations.length > 0 ? allOrganizations.map(o => o.id === organizationId ? { ...o, studios: [...o.studios, newStudio] } : o) : [];
-          setAllOrganizations(newOrgs);
-          const updatedOrg = newOrgs.find(o => o.id === organizationId);
-          if (updatedOrg) selectOrganization(updatedOrg);
-      } catch (error) {
-          console.error("Failed to create studio:", error);
-          alert("Kunde inte skapa studio.");
-      }
-  };
-
-    const handleUpdateStudio = async (organizationId: string, studioId: string, name: string, locationId?: string) => {
-        try {
-            await updateStudio(organizationId, studioId, name, locationId);
-            const newOrgs = allOrganizations.map(o => {
-                if (o.id === organizationId) {
-                    return { ...o, studios: o.studios.map(s => s.id === studioId ? { ...s, name, locationId: locationId !== undefined ? locationId : s.locationId } : s) };
-                }
-                return o;
-            });
-            setAllOrganizations(newOrgs);
-            const updatedOrg = newOrgs.find(o => o.id === organizationId);
-            if (updatedOrg) selectOrganization(updatedOrg);
-        } catch (error) {
-            console.error("Failed to update studio:", error);
-            alert("Kunde inte uppdatera studion.");
-        }
-    };
-
-    const handleDeleteStudio = async (organizationId: string, studioId: string) => {
-        try {
-            await deleteStudio(organizationId, studioId);
-            const newOrgs = allOrganizations.map(o => {
-                if (o.id === organizationId) {
-                    return { ...o, studios: o.studios.filter(s => s.id !== studioId) };
-                }
-                return o;
-            });
-            setAllOrganizations(newOrgs);
-            const updatedOrg = newOrgs.find(o => o.id === organizationId);
-            if (updatedOrg) selectOrganization(updatedOrg);
-        } catch (error) {
-            console.error("Failed to delete studio:", error);
-            alert("Kunde inte ta bort studion.");
-        }
-    };
+  const {
+    handleSaveStudioConfig,
+    handleEditStudioConfig,
+    handleSaveGlobalConfig,
+    handleCreateStudio,
+    handleUpdateStudio,
+    handleDeleteStudio,
+  } = useStudioAdmin({
+    selectedOrganization,
+    allOrganizations,
+    selectOrganization,
+    setAllOrganizations,
+    selectStudio,
+    setAllStudios,
+    setStudioToEditConfig,
+  });
 
   const handleCreateOrganization = async (name: string, subdomain: string) => {
     try {
@@ -1228,11 +762,6 @@ const App: React.FC = () => {
     selectStudio(studio);
     startImpersonation({ role: 'member', isStudioMode: true });
     setHistory([Page.Home]);
-  };
-
-  const handleSelectRace = (raceId: string) => {
-    setActiveRaceId(raceId);
-    navigateTo(Page.HyroxRaceDetail);
   };
 
   const isFullScreenPage = page === Page.Timer || page === Page.RepsOnly || page === Page.IdeaBoard;
@@ -1605,6 +1134,8 @@ const App: React.FC = () => {
               <WorkoutPresentationModal
                   workout={mobileViewData}
                   onClose={() => setMobileViewData(null)}
+                  isOwnProgram={customPrograms.some(cp => cp.id === mobileViewData.id)}
+                  userId={currentUser?.uid || userData?.uid}
               />
           )}
       </AnimatePresence>
