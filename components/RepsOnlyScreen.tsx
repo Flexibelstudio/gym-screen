@@ -110,7 +110,7 @@ export const RepsOnlyScreen: React.FC<RepsOnlyScreenProps> = ({ block, onFinish,
                                 >
                                     <span>{ex.name}</span>
                                     {getSideLabel(ex.side) && (
-                                        <span className="inline-flex items-center justify-center px-2 py-0.5 text-[10px] font-black rounded-md bg-blue-500/10 text-blue-600 dark:bg-blue-500/20 dark:text-blue-400 border border-blue-500/30 uppercase tracking-wider">
+                                        <span className="inline-flex items-center justify-center px-2 py-0.5 text-[10px] font-black rounded-md bg-work/10 text-work dark:bg-work/20 dark:text-work border border-work/30 uppercase tracking-wider">
                                             {getSideLabel(ex.side)}
                                         </span>
                                     )}
