@@ -461,10 +461,18 @@ export const WorkoutPresentationModal: React.FC<{
     onHeaderVisibilityChange?: (visible: boolean) => void;
     isOwnProgram?: boolean;
     userId?: string;
-}> = ({ workout, onClose, blockId, onHeaderVisibilityChange, isOwnProgram, userId }) => {
+    onWorkoutUpdated?: (w: Workout) => void;
+}> = ({ workout, onClose, blockId, onHeaderVisibilityChange, isOwnProgram, userId, onWorkoutUpdated }) => {
     const scrollRef = useRef<HTMLDivElement>(null);
     const [currentWorkout, setCurrentWorkout] = useState<Workout>(workout);
     const { selectedOrganization } = useStudio();
+
+    const handleWorkoutUpdate = (updatedWorkout: Workout) => {
+        setCurrentWorkout(updatedWorkout);
+        if (onWorkoutUpdated) {
+            onWorkoutUpdated(updatedWorkout);
+        }
+    };
 
     useEffect(() => {
         setCurrentWorkout(workout);
@@ -620,7 +628,7 @@ export const WorkoutPresentationModal: React.FC<{
                                                     </button>
                                                     <button 
                                                         type="button"
-                                                        onClick={() => editor.handleDeleteExercise(block.id, index, ex, currentWorkout, setCurrentWorkout, userId)}
+                                                        onClick={() => editor.handleDeleteExercise(block.id, index, ex, currentWorkout, handleWorkoutUpdate, userId)}
                                                         className="p-2 text-gray-400 hover:text-red-600 transition-colors rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800"
                                                         title="Ta bort övning"
                                                     >
@@ -651,8 +659,8 @@ export const WorkoutPresentationModal: React.FC<{
                     )})}
                 </div>
             </div>
-            {editor.renderRenameModal(currentWorkout, setCurrentWorkout, userId)}
-            {editor.renderAddExerciseModal(currentWorkout, setCurrentWorkout, userId)}
+            {editor.renderRenameModal(currentWorkout, handleWorkoutUpdate, userId)}
+            {editor.renderAddExerciseModal(currentWorkout, handleWorkoutUpdate, userId)}
         </motion.div>
     );
 
@@ -1226,6 +1234,7 @@ const WorkoutDetailScreen: React.FC<WorkoutDetailScreenProps> = ({
                   onHeaderVisibilityChange={onHeaderVisibilityChange}
                   isOwnProgram={isOwnProgram}
                   userId={currentUser?.uid || userData?.uid}
+                  onWorkoutUpdated={(w) => setSessionWorkout(w)}
               />
           )}
       </AnimatePresence>

@@ -1136,6 +1136,7 @@ const App: React.FC = () => {
                   onClose={() => setMobileViewData(null)}
                   isOwnProgram={customPrograms.some(cp => cp.id === mobileViewData.id)}
                   userId={currentUser?.uid || userData?.uid}
+                  onWorkoutUpdated={(w) => setMobileViewData(w)}
               />
           )}
       </AnimatePresence>
