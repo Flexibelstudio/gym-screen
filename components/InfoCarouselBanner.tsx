@@ -73,8 +73,8 @@ export const InfoCarouselBanner: React.FC<InfoCarouselBannerProps> = ({ messages
         : 'text-gray-600 dark:text-gray-300';
     
     const borderClass = forceDark
-        ? 'border-gray-800'
-        : 'border-gray-200 dark:border-gray-700/50';
+        ? 'border-white/10'
+        : 'border-gray-200 dark:border-white/10';
 
     return (
         // DOLD PÅ MOBIL (hidden md:flex), INGET "FIXED" (fyller sin behållare snyggt)
@@ -127,7 +127,7 @@ export const InfoCarouselBanner: React.FC<InfoCarouselBannerProps> = ({ messages
                     )}
                     <div className={`flex-grow min-w-0 ${layout === 'image-right' ? 'text-right' : 'text-left'}`}>
                         {/* RUBRIK */}
-                        <h4 className="font-bold text-4xl text-primary line-clamp-2 mb-4 leading-[1.2] pt-[0.1em] info-carousel-headline">{currentMessage.headline}</h4>
+                        <h4 className="font-black uppercase tracking-tight text-4xl text-primary line-clamp-2 mb-4 leading-[1.2] pt-[0.1em] info-carousel-headline">{currentMessage.headline}</h4>
                         {/* STOR TEXT: text-xl */}
                         <p className={`text-xl ${secondaryTextClass} line-clamp-12 whitespace-pre-wrap leading-relaxed info-carousel-body`}>{currentMessage.body}</p>
                     </div>

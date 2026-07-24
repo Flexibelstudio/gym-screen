@@ -235,7 +235,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
         });
     });
     if (selectedOrganization?.globalConfig?.enableEventsModule && studioConfig.enableHyrox) {
-        items.push({ title: 'Event & Tävlingar', action: () => navigateTo(Page.Hyrox), icon: <FlagIcon className="w-8 h-8 text-amber-500 dark:text-amber-450" /> });
+        items.push({ title: 'Event & Tävlingar', action: () => navigateTo(Page.Hyrox), icon: <FlagIcon className="w-8 h-8 text-record" /> });
     }
     if (studioConfig.enableWorkoutGames) items.push({ title: 'Träningslekar', action: () => navigateTo(Page.WorkoutGamesHub), icon: <SparklesIcon className="w-8 h-8" /> });
     if (studioConfig.enableNotes) items.push({ title: 'AI White-board', action: () => navigateTo(Page.IdeaBoard), icon: <PencilIcon className="w-8 h-8" /> });
@@ -295,14 +295,14 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                 <div className="flex flex-col gap-3">
                     {renderBranding()}
                     <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
-                        <h2 className="text-2xl sm:text-3xl md:text-3xl lg:text-4xl xl:text-5xl font-black text-gray-900 dark:text-white tracking-tight leading-none">{welcomeMessage.title}</h2>
+                        <h2 className="text-2xl sm:text-3xl md:text-3xl lg:text-4xl xl:text-5xl font-black text-gray-900 dark:text-white tracking-tight leading-[1.2] pt-[0.1em]">{welcomeMessage.title}</h2>
                         <p className="text-sm sm:text-base lg:text-lg text-gray-400 font-medium mt-1">...{welcomeMessage.subtitle}</p>
                     </motion.div>
                 </div>
 
                 <div className="flex flex-col items-end gap-3">
                     <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="text-right">
-                        <span className="block text-4xl sm:text-5xl md:text-5xl lg:text-6xl xl:text-7xl font-thin font-mono leading-none text-gray-900 dark:text-white">
+                        <span className="block text-4xl sm:text-5xl md:text-5xl lg:text-6xl xl:text-7xl font-thin font-mono leading-none tabular-nums text-gray-900 dark:text-white">
                             {currentTime.toLocaleTimeString('sv-SE', { hour: '2-digit', minute: '2-digit', hour12: false })}
                         </span>
                         <span className="text-primary uppercase tracking-[0.2em] font-black text-[10px] sm:text-xs md:text-sm mt-1.5 block">
@@ -372,11 +372,11 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                         animate={{ scale: 1, y: 0 }}
                         exit={{ scale: 0.9, y: 20 }}
                         onClick={(e) => e.stopPropagation()}
-                        className="w-full max-w-5xl h-[85vh] bg-white dark:bg-gray-950 rounded-[3rem] shadow-[0_50px_100px_-20px_rgba(0,0,0,0.3)] border border-gray-100 dark:border-gray-800 flex flex-col relative"
+                        className="w-full max-w-5xl h-[85vh] bg-white dark:bg-gray-950 rounded-[3rem] shadow-2xl border border-gray-100 dark:border-white/10 flex flex-col relative"
                     >
                         {/* Internal Header with Close Button */}
-                        <div className="flex items-center justify-between p-8 border-b border-gray-100 dark:border-gray-800">
-                             <h3 className="text-3xl font-black text-gray-900 dark:text-white uppercase tracking-tight">
+                        <div className="flex items-center justify-between p-8 border-b border-gray-100 dark:border-white/10">
+                             <h3 className="text-3xl font-black text-gray-900 dark:text-white uppercase tracking-tight leading-[1.2] pt-[0.1em]">
                                  {expandedList === 'feed' ? 'Fullständigt Flöde' : 'Wall of Fame'}
                              </h3>
                              <button 
@@ -407,7 +407,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                         initial={{ opacity: 0, scale: 0.9, y: 20 }}
                         animate={{ opacity: 1, scale: 1, y: 0 }}
                         exit={{ opacity: 0, scale: 0.9, y: 20 }}
-                        className="bg-white dark:bg-gray-900 rounded-3xl p-8 max-w-md w-full shadow-2xl border border-gray-100 dark:border-gray-800"
+                        className="bg-white dark:bg-gray-900 rounded-3xl p-8 max-w-md w-full shadow-2xl border border-gray-100 dark:border-white/10"
                     >
                         <div className="flex justify-center mb-6">
                             <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center text-primary">
@@ -415,7 +415,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                             </div>
                         </div>
                         
-                        <h2 className="text-2xl font-black text-center text-gray-900 dark:text-white mb-2 uppercase tracking-tight">
+                        <h2 className="text-2xl font-black text-center text-gray-900 dark:text-white mb-2 uppercase tracking-tight leading-[1.2] pt-[0.1em]">
                             Låst Kategori
                         </h2>
                         <p className="text-center text-gray-500 dark:text-gray-400 mb-8">
@@ -447,7 +447,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                                     placeholder="Lösenord"
                                     className={`w-full text-center text-2xl tracking-widest p-4 pr-12 rounded-xl border-2 bg-gray-50 dark:bg-black text-gray-900 dark:text-white focus:outline-none transition-colors ${
                                         passwordError 
-                                            ? 'border-red-500 focus:border-red-500' 
+                                            ? 'border-danger focus:border-danger' 
                                             : 'border-gray-200 dark:border-gray-800 focus:border-primary'
                                     }`}
                                     autoFocus
@@ -463,7 +463,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                             </div>
                             
                             {passwordError && (
-                                <p className="text-red-500 text-center text-sm font-bold mt-3 animate-shake">
+                                <p className="text-danger text-center text-sm font-bold mt-3 animate-shake">
                                     Fel lösenord, försök igen.
                                 </p>
                             )}

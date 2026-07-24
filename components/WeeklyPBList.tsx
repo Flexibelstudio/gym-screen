@@ -71,13 +71,13 @@ export const WeeklyPBList: React.FC<WeeklyPBListProps> = ({ onExpand, isExpanded
             {/* Header */}
             <div className="flex items-center justify-between mb-5 relative z-10">
                 <div className="flex items-center gap-3">
-                    <div className="p-2 bg-yellow-500/10 dark:bg-yellow-500/20 rounded-2xl text-yellow-600 dark:text-yellow-400 border border-yellow-500/10 shadow-inner">
+                    <div className="p-2 bg-record/10 rounded-2xl text-record border border-record/20 shadow-inner">
                         <TrophyIcon className="w-5 h-5" />
                     </div>
-                    <h3 className="text-xl font-black text-gray-900 dark:text-white uppercase tracking-tight leading-none">Personbästa</h3>
+                    <h3 className="text-xl font-black text-gray-900 dark:text-white uppercase tracking-tight leading-[1.2] pt-[0.1em]">Personbästa</h3>
                 </div>
                 <div className="flex items-center gap-2">
-                    <span className="text-[10px] font-black text-yellow-600 dark:text-yellow-400 uppercase tracking-[0.2em] bg-yellow-500/10 px-2 py-1 rounded-lg border border-yellow-500/20 shadow-sm">WoF</span>
+                    <span className="text-[10px] font-black text-record uppercase tracking-[0.2em] bg-record/10 px-2 py-1 rounded-lg border border-record/20 shadow-sm">WoF</span>
                     {!isExpanded && <span className="text-[10px] font-black text-primary uppercase">Visa mer</span>}
                 </div>
             </div>
@@ -100,11 +100,11 @@ export const WeeklyPBList: React.FC<WeeklyPBListProps> = ({ onExpand, isExpanded
                                     initial={{ opacity: 0, x: 20 }}
                                     animate={{ opacity: 1, x: 0 }}
                                     transition={{ delay: index * 0.05 }}
-                                    className="bg-gray-50 dark:bg-black/30 hover:bg-gray-100 dark:hover:bg-black/40 transition-colors rounded-2xl flex items-center gap-4 border border-gray-100 dark:border-white/5 group px-4 shadow-sm"
+                                    className="bg-gray-50 dark:bg-black/30 hover:bg-gray-100 dark:hover:bg-black/40 transition-colors duration-150 rounded-2xl flex items-center gap-4 border border-gray-100 dark:border-white/10 group px-4 shadow-sm"
                                     style={{ height: 'var(--pb-item-height, 64px)' }}
                                 >
                                     {/* Avatar */}
-                                    <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-yellow-400 to-orange-600 flex items-center justify-center text-white font-black text-lg shadow-lg flex-shrink-0 overflow-hidden border border-yellow-400/50">
+                                    <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-record to-work flex items-center justify-center text-white font-black text-lg shadow-lg flex-shrink-0 overflow-hidden border border-record/50">
                                         {event.data.userPhotoUrl ? (
                                             <img src={event.data.userPhotoUrl} alt="" className="w-full h-full object-cover" />
                                         ) : (
@@ -117,11 +117,11 @@ export const WeeklyPBList: React.FC<WeeklyPBListProps> = ({ onExpand, isExpanded
                                             <p className="text-gray-900 dark:text-white font-bold text-sm truncate mr-2">
                                                 {event.data.userName}
                                             </p>
-                                            <span className="text-[9px] text-gray-500 dark:text-white/30 font-bold uppercase whitespace-nowrap">
+                                            <span className="text-[9px] text-gray-500 dark:text-white/40 font-bold uppercase whitespace-nowrap tabular-nums">
                                                 {formatEventTime(event.timestamp)}
                                             </span>
                                         </div>
-                                        <p className="text-yellow-600 dark:text-yellow-500 text-[10px] font-black uppercase tracking-[0.1em] truncate flex items-center gap-1">
+                                        <p className="text-record text-[10px] font-black uppercase tracking-[0.1em] truncate flex items-center gap-1">
                                             🔥 {isBatch ? `${recordCount} NYA PB!` : `PB I ${mainRecord.exerciseName.toUpperCase()}`}
                                         </p>
                                     </div>
