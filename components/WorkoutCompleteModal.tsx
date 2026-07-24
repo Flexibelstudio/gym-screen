@@ -162,9 +162,9 @@ export const WorkoutCompleteModal: React.FC<WorkoutCompleteModalProps> = ({
               {isRegistration ? 'Registrera Tid' : 'Loppet Klart!'}
           </h2>
           
-          <div className="bg-gray-50 dark:bg-gray-950/80 rounded-3xl p-6 mb-8 border border-gray-200 dark:border-gray-800">
+          <div className="bg-gray-50 dark:bg-gray-950/80 rounded-3xl p-6 mb-8 border border-gray-200 dark:border-white/10">
               <p className="text-xs font-black uppercase tracking-[0.25em] text-gray-400 mb-1">Officiell Tid</p>
-              <p className="font-mono text-6xl sm:text-7xl font-black text-primary drop-shadow-sm">{formatTime(finishTime || 0)}</p>
+              <p className="font-mono text-6xl sm:text-7xl font-black text-primary drop-shadow-sm tabular-nums">{formatTime(finishTime || 0)}</p>
           </div>
           
           {!resultSaved ? (
@@ -175,7 +175,7 @@ export const WorkoutCompleteModal: React.FC<WorkoutCompleteModalProps> = ({
                           value={participantName}
                           onChange={(e) => setParticipantName(e.target.value)}
                           placeholder="Ditt namn..."
-                          className="w-full bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-center p-4 sm:p-5 rounded-2xl border-2 border-gray-200 dark:border-gray-700 focus:border-primary focus:ring-4 focus:ring-primary/20 focus:outline-none transition-all font-black text-xl placeholder-gray-400 dark:placeholder-gray-500"
+                          className="w-full bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-center p-4 sm:p-5 min-h-[44px] rounded-2xl border-2 border-gray-200 dark:border-gray-700 focus:border-primary focus:ring-2 focus:ring-primary focus:outline-none transition-all font-black text-xl placeholder-gray-400 dark:placeholder-gray-500"
                           required
                           disabled={isSaving}
                           autoFocus
@@ -184,7 +184,7 @@ export const WorkoutCompleteModal: React.FC<WorkoutCompleteModalProps> = ({
                    <button 
                       type="submit"
                       disabled={isSaving || !participantName.trim()}
-                      className="w-full bg-primary hover:brightness-110 text-white font-black py-4 sm:py-5 rounded-2xl transition-all shadow-lg shadow-primary/20 disabled:opacity-50 text-lg uppercase tracking-wider cursor-pointer active:scale-98"
+                      className="w-full min-h-[44px] bg-primary hover:brightness-110 text-white font-black py-4 sm:py-5 rounded-2xl transition-all shadow-lg shadow-primary/20 disabled:opacity-50 text-lg uppercase tracking-wider cursor-pointer active:scale-98 focus:outline-none focus:ring-2 focus:ring-primary"
                   >
                     {isSaving ? 'Sparar...' : 'Spara på topplistan'}
                   </button>
@@ -194,14 +194,14 @@ export const WorkoutCompleteModal: React.FC<WorkoutCompleteModalProps> = ({
                   <div className="w-16 h-16 bg-green-100 dark:bg-green-900/40 rounded-full flex items-center justify-center mx-auto mb-4">
                       <span className="text-3xl text-green-600 dark:text-green-400 font-bold">✓</span>
                   </div>
-                  <p className="text-2xl font-black text-green-600 dark:text-green-400 uppercase tracking-tight">Snyggt {lastSavedName}!</p>
+                  <p className="text-2xl font-black text-green-600 dark:text-green-400 uppercase tracking-tight leading-[1.2]">Snyggt {lastSavedName}!</p>
                   <p className="text-gray-500 dark:text-gray-400 font-medium mt-1 text-sm">Ditt resultat är sparat.</p>
               </div>
           )}
           
           <button 
               onClick={handleClose} 
-              className="mt-6 w-full text-xs font-black uppercase tracking-widest text-gray-400 hover:text-gray-900 dark:hover:text-white py-2 transition-colors cursor-pointer"
+              className="mt-6 w-full min-h-[44px] text-xs font-black uppercase tracking-widest text-gray-400 hover:text-gray-900 dark:hover:text-white py-2 transition-colors cursor-pointer flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-primary rounded-xl"
           >
             Stäng fönstret
           </button>
@@ -215,15 +215,15 @@ export const WorkoutCompleteModal: React.FC<WorkoutCompleteModalProps> = ({
           initial={{ opacity: 0, scale: 0.92, y: 16 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           transition={{ type: 'spring', duration: 0.5, bounce: 0.12 }}
-          className="relative bg-white dark:bg-gray-900 rounded-[2.5rem] p-8 sm:p-12 w-full max-w-lg text-gray-900 dark:text-white text-center shadow-2xl border-2 border-amber-500/30 overflow-hidden z-[11001]"
+          className="relative bg-white dark:bg-gray-900 rounded-[2.5rem] p-8 sm:p-12 w-full max-w-lg text-gray-900 dark:text-white text-center shadow-2xl border-2 border-record/30 overflow-hidden z-[11001]"
           onClick={e => e.stopPropagation()}
         >
           {/* Subtle warm ambient background glow */}
-          <div className="absolute -top-24 left-1/2 -translate-x-1/2 w-72 h-72 bg-amber-500/15 rounded-full blur-3xl pointer-events-none" />
+          <div className="absolute -top-24 left-1/2 -translate-x-1/2 w-72 h-72 bg-record/15 rounded-full blur-3xl pointer-events-none" />
 
           <div className="relative z-10">
             <div className="text-6xl sm:text-7xl mb-4 animate-bounce">🏆</div>
-            <h2 id="workout-complete-title" className="text-3xl sm:text-5xl font-black tracking-tight uppercase mb-3 text-gray-900 dark:text-white drop-shadow-sm">
+            <h2 id="workout-complete-title" className="text-3xl sm:text-5xl font-black tracking-tight uppercase mb-3 text-gray-900 dark:text-white drop-shadow-sm leading-[1.2]">
               {message.title}
             </h2>
             <p className="text-base sm:text-xl text-gray-600 dark:text-gray-300 font-semibold leading-relaxed mb-6 max-w-md mx-auto">
@@ -231,15 +231,15 @@ export const WorkoutCompleteModal: React.FC<WorkoutCompleteModalProps> = ({
             </p>
 
             {finishTime !== undefined && finishTime > 0 && (
-              <div className="bg-gray-50 dark:bg-gray-950/80 rounded-2xl p-4 mb-8 border border-gray-200 dark:border-gray-800 inline-block px-8 shadow-inner">
+              <div className="bg-gray-50 dark:bg-gray-950/80 rounded-2xl p-4 mb-8 border border-gray-200 dark:border-white/10 inline-block px-8 shadow-inner">
                 <p className="text-[10px] font-black uppercase tracking-[0.25em] text-gray-400 mb-0.5">Total Tid</p>
-                <p className="font-mono text-4xl sm:text-5xl font-black text-primary">{formatTime(finishTime)}</p>
+                <p className="font-mono text-4xl sm:text-5xl font-black text-record tabular-nums">{formatTime(finishTime)}</p>
               </div>
             )}
 
             <button 
               onClick={handleClose} 
-              className="w-full bg-primary hover:brightness-110 text-white font-black py-5 px-8 rounded-2xl text-xl shadow-xl shadow-primary/25 transition-all transform hover:scale-[1.02] active:scale-98 uppercase tracking-wider cursor-pointer"
+              className="w-full min-h-[44px] bg-primary hover:brightness-110 text-white font-black py-5 px-8 rounded-2xl text-xl shadow-xl shadow-primary/25 transition-all transform hover:scale-[1.02] active:scale-98 uppercase tracking-wider cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary"
             >
               Klar
             </button>
@@ -254,11 +254,11 @@ export const WorkoutCompleteModal: React.FC<WorkoutCompleteModalProps> = ({
           initial={{ opacity: 0, scale: 0.92, y: 16 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           transition={{ type: 'spring', duration: 0.5, bounce: 0.12 }}
-          className="relative bg-white dark:bg-gray-900 rounded-[2.5rem] p-8 sm:p-10 w-full max-w-md text-gray-900 dark:text-white text-center shadow-2xl border-2 border-orange-500/30 z-[11001]" 
+          className="relative bg-white dark:bg-gray-900 rounded-[2.5rem] p-8 sm:p-10 w-full max-w-md text-gray-900 dark:text-white text-center shadow-2xl border-2 border-work/30 z-[11001]" 
           onClick={e => e.stopPropagation()}
         >
           <div className="text-5xl mb-3">🔥</div>
-          <h2 id="workout-complete-title" className="text-3xl sm:text-4xl font-black tracking-tight uppercase mb-2 text-gray-900 dark:text-white">
+          <h2 id="workout-complete-title" className="text-3xl sm:text-4xl font-black tracking-tight uppercase mb-2 text-gray-900 dark:text-white leading-[1.2]">
             Redo!
           </h2>
           <p className="text-base sm:text-lg text-gray-600 dark:text-gray-300 font-medium mb-8">
@@ -266,7 +266,7 @@ export const WorkoutCompleteModal: React.FC<WorkoutCompleteModalProps> = ({
           </p>
           <button 
             onClick={handleClose} 
-            className="w-full bg-orange-500 hover:bg-orange-600 text-white font-black py-4 sm:py-5 rounded-2xl text-lg shadow-lg shadow-orange-500/20 transition-all uppercase tracking-wider cursor-pointer active:scale-98"
+            className="w-full min-h-[44px] bg-work hover:brightness-110 text-white font-black py-4 sm:py-5 rounded-2xl text-lg shadow-lg shadow-work/20 transition-all uppercase tracking-wider cursor-pointer active:scale-98 focus:outline-none focus:ring-2 focus:ring-work"
           >
             Starta passet
           </button>
@@ -289,7 +289,7 @@ export const WorkoutCompleteModal: React.FC<WorkoutCompleteModalProps> = ({
           </span>
         )}
         <div className="text-5xl mb-3">⚡</div>
-        <h2 id="workout-complete-title" className="text-3xl sm:text-4xl font-black tracking-tight uppercase mb-2 text-gray-900 dark:text-white">
+        <h2 id="workout-complete-title" className="text-3xl sm:text-4xl font-black tracking-tight uppercase mb-2 text-gray-900 dark:text-white leading-[1.2]">
           Snyggt!
         </h2>
         <p className="text-base sm:text-lg text-gray-600 dark:text-gray-300 font-medium mb-8">
@@ -297,7 +297,7 @@ export const WorkoutCompleteModal: React.FC<WorkoutCompleteModalProps> = ({
         </p>
         <button 
           onClick={handleClose} 
-          className="w-full bg-primary hover:brightness-110 text-white font-black py-4 sm:py-5 rounded-2xl text-lg shadow-lg shadow-primary/20 transition-all uppercase tracking-wider cursor-pointer active:scale-98"
+          className="w-full min-h-[44px] bg-primary hover:brightness-110 text-white font-black py-4 sm:py-5 rounded-2xl text-lg shadow-lg shadow-primary/20 transition-all uppercase tracking-wider cursor-pointer active:scale-98 focus:outline-none focus:ring-2 focus:ring-primary"
         >
           Nästa Block
         </button>
