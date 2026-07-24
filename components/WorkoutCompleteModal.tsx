@@ -23,7 +23,7 @@ export const Confetti = React.memo(() => {
             left: `${Math.random() * 100}%`,
             animationDelay: `${Math.random() * 4}s`,
             animationDuration: `${6 + Math.random() * 6}s`,
-            backgroundColor: ['#10b981', '#059669', '#34d399', '#f59e0b', '#fbbf24', '#6366f1', '#8b5cf6', '#ec4899'][Math.floor(Math.random() * 8)],
+            backgroundColor: ['#2563eb', '#16a34a', '#20b2aa', '#f97316', '#eab308', '#8b5cf6', '#ec4899', '#f59e0b'][Math.floor(Math.random() * 8)],
             transform: `rotate(${Math.random() * 360}deg)`
         }
     })), []);

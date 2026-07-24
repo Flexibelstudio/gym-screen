@@ -575,17 +575,17 @@ export const WorkoutPresentationModal: React.FC<{
                                             </div>
                                             <div className="flex-grow min-w-0">
                                                 <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-2 sm:gap-4 lg:gap-6 xl:gap-12">
-                                                    <h3 className="text-lg sm:text-2xl md:text-4xl lg:text-5xl xl:text-7xl font-black text-gray-900 dark:text-white leading-tight break-words flex items-center gap-2 flex-wrap">
+                                                    <h3 className="text-lg sm:text-2xl md:text-4xl lg:text-5xl xl:text-7xl font-black text-gray-900 dark:text-white leading-[1.2] pt-[0.1em] break-words flex items-center gap-2 flex-wrap">
                                                         <span>{ex.name || 'Okänd övning'}</span>
                                                         {getSideLabel(ex.side) && (
-                                                            <span className="inline-flex items-center justify-center px-2 py-0.5 sm:px-3 sm:py-1 text-xs sm:text-base md:text-xl lg:text-2xl xl:text-3xl font-black rounded-lg bg-orange-100 text-orange-800 dark:bg-orange-950/40 dark:text-orange-400 border border-orange-200 dark:border-orange-800/50 uppercase tracking-wide">
+                                                            <span className="inline-flex items-center justify-center px-2 py-0.5 sm:px-3 sm:py-1 text-xs sm:text-base md:text-xl lg:text-2xl xl:text-3xl font-black rounded-lg bg-work/10 text-work dark:bg-work/20 dark:text-work border border-work/30 uppercase tracking-wider">
                                                                 {getSideLabel(ex.side)}
                                                             </span>
                                                         )}
                                                     </h3>
                                                     {ex.reps && (
                                                         <div className="bg-primary/10 text-primary px-3 py-1.5 md:px-5 md:py-2.5 lg:px-8 lg:py-4 xl:px-12 xl:py-6 rounded-lg whitespace-nowrap self-start sm:self-auto">
-                                                            <span className="text-sm sm:text-lg md:text-2xl lg:text-4xl xl:text-5xl font-mono font-black">{formatReps(ex.reps)}</span>
+                                                            <span className="text-sm sm:text-lg md:text-2xl lg:text-4xl xl:text-5xl font-mono font-black tabular-nums">{formatReps(ex.reps)}</span>
                                                         </div>
                                                     )}
                                                 </div>
@@ -737,9 +737,9 @@ const WorkoutBlockCard: React.FC<{
                     )}
                     <button 
                         onClick={onStart} 
-                        className="bg-primary hover:brightness-95 text-white font-black py-3 px-6 rounded-xl flex items-center justify-center gap-2 transition-all shadow-md shadow-primary/30 transform active:scale-95 group w-full sm:w-auto"
+                        className="bg-primary hover:brightness-95 text-white font-black py-3.5 px-7 rounded-xl flex items-center justify-center gap-2 transition-all shadow-md shadow-primary/30 transform active:scale-95 group w-full sm:w-auto min-h-[48px] uppercase tracking-wider text-base sm:text-lg"
                     >
-                        <span className="text-lg uppercase tracking-tight">Starta</span>
+                        <span>STARTA BLOCK</span>
                     </button>
                 </div>
             </div>
@@ -784,10 +784,10 @@ const WorkoutBlockCard: React.FC<{
                         return (
                         <div key={ex.id || `ex-${index}`} className={`flex items-start gap-4 p-4 ${roundedClass} bg-gray-50 dark:bg-gray-900 ${borderClass} ${marginClass}`}>
                             <div className="flex-grow min-w-0">
-                                <h4 className="text-lg font-black text-gray-900 dark:text-white leading-tight break-words flex items-center gap-1.5 flex-wrap">
+                                <h4 className="text-lg font-black text-gray-900 dark:text-white leading-[1.2] pt-[0.1em] break-words flex items-center gap-1.5 flex-wrap">
                                     <span>{ex.name || 'Okänd övning'}</span>
                                     {getSideLabel(ex.side) && (
-                                        <span className="inline-flex items-center justify-center px-1.5 py-0.5 text-[10px] font-black rounded-md bg-orange-100 text-orange-800 dark:bg-orange-950/40 dark:text-orange-400 border border-orange-200 dark:border-orange-800/50 uppercase">
+                                        <span className="inline-flex items-center justify-center px-1.5 py-0.5 text-[10px] font-black rounded-md bg-work/10 text-work dark:bg-work/20 dark:text-work border border-work/30 uppercase tracking-wider">
                                             {getSideLabel(ex.side)}
                                         </span>
                                     )}
