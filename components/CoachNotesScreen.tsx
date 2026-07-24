@@ -1,19 +1,42 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Page, CoachNote } from '../types';
+import { Page, CoachNote, Workout } from '../types';
 import { useAuth } from '../context/AuthContext';
 import { useStudio } from '../context/StudioContext';
-import { listenToCoachNotes, saveCoachNote, toggleCoachNoteFavorite, deleteCoachNote, uploadImage, updateCoachNote } from '../services/firebaseService';
-import { chatWithNotesAssistant } from '../services/geminiService';
+import { 
+    listenToCoachNotes, 
+    saveCoachNote, 
+    toggleCoachNoteFavorite, 
+    deleteCoachNote, 
+    uploadImage, 
+    updateCoachNote, 
+    resolveAndCreateExercises, 
+    getOrganizationExerciseBank 
+} from '../services/firebaseService';
+import { chatWithNotesAssistant, parseWorkoutFromText, parseWorkoutFromImage } from '../services/geminiService';
 import { Modal } from './ui/Modal';
 import { WebCamCaptureModal } from './ui/WebCamCaptureModal';
+import { AILoadingOverlay } from './AILoadingOverlay';
 import { CloseIcon, PlusIcon, TrashIcon } from './icons';
 import { motion, AnimatePresence } from 'framer-motion';
 
 interface CoachNotesScreenProps {
     onBack: () => void;
+    onWorkoutInterpreted?: (workout: Workout) => void;
 }
 
-export const CoachNotesScreen: React.FC<CoachNotesScreenProps> = ({ onBack }) => {
+async function urlToBase64(url: string): Promise<string> {
+    if (url.startsWith('data:')) return url;
+    const response = await fetch(url);
+    const blob = await response.blob();
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result as string);
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+    });
+}
+
+export const CoachNotesScreen: React.FC<CoachNotesScreenProps> = ({ onBack, onWorkoutInterpreted }) => {
     const { userData } = useAuth();
     const { selectedOrganization } = useStudio();
     const [notes, setNotes] = useState<CoachNote[]>([]);
@@ -21,6 +44,14 @@ export const CoachNotesScreen: React.FC<CoachNotesScreenProps> = ({ onBack }) =>
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
     const [isWebCamOpen, setIsWebCamOpen] = useState(false);
     
+    // Quick camera capture state
+    const [isQuickCapturing, setIsQuickCapturing] = useState(false);
+    const headerCameraInputRef = useRef<HTMLInputElement>(null);
+
+    // AI Interpretation State
+    const [isInterpreting, setIsInterpreting] = useState(false);
+    const [isResolving, setIsResolving] = useState(false);
+
     // Search State
     const [searchQuery, setSearchQuery] = useState('');
 
@@ -107,6 +138,33 @@ export const CoachNotesScreen: React.FC<CoachNotesScreenProps> = ({ onBack }) =>
         }
     };
 
+    // Quick photo note capture from header camera button
+    const handleQuickCameraSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (!e.target.files || !e.target.files[0] || !selectedOrganization?.id || !userData?.uid) return;
+        const file = e.target.files[0];
+        setIsQuickCapturing(true);
+        try {
+            const { resizeAndCompressImage } = await import('../utils/imageResize');
+            const imageUrl = await resizeAndCompressImage(file, 1000, 1000, 0.7);
+            await saveCoachNote({
+                organizationId: selectedOrganization.id,
+                createdBy: userData.uid,
+                creatorName: `${userData.firstName || ''} ${userData.lastName || ''}`.trim() || 'Coach',
+                creatorPhotoUrl: userData.photoUrl,
+                title: 'Foto-anteckning',
+                text: '',
+                imageUrl: imageUrl || undefined,
+                isFavorite: false
+            });
+        } catch (error) {
+            console.error("Failed to capture quick photo note:", error);
+            alert("Kunde inte spara foto-anteckningen.");
+        } finally {
+            setIsQuickCapturing(false);
+            if (e.target) e.target.value = '';
+        }
+    };
+
     const handleSaveNote = async () => {
         if (!selectedOrganization?.id || !userData?.uid) return;
         if (!newText.trim() && !newImage && !newImagePreview) {
@@ -127,11 +185,21 @@ export const CoachNotesScreen: React.FC<CoachNotesScreenProps> = ({ onBack }) =>
                 }
             }
 
+            // Auto-title logic: title is optional. If left empty, use first line of text trimmed (max 40 chars).
+            let computedTitle = newTitle.trim();
+            if (!computedTitle && newText.trim()) {
+                const firstLine = newText.trim().split('\n')[0].trim();
+                computedTitle = firstLine.length > 40 ? firstLine.substring(0, 40) + '...' : firstLine;
+            }
+            if (!computedTitle) {
+                computedTitle = 'Coachanteckning';
+            }
+
             if (editingNoteId) {
                 let finalImageUrl = imageUrl || (newImagePreview && !newImagePreview.startsWith('data:image') ? newImagePreview : '');
                 
                 await updateCoachNote(editingNoteId, {
-                    title: newTitle.trim() || 'Coachanteckning',
+                    title: computedTitle,
                     text: newText.trim(),
                     imageUrl: finalImageUrl || null // Allow nulling out existing image
                 });
@@ -141,7 +209,7 @@ export const CoachNotesScreen: React.FC<CoachNotesScreenProps> = ({ onBack }) =>
                     createdBy: userData.uid,
                     creatorName: `${userData.firstName || ''} ${userData.lastName || ''}`.trim() || 'Coach',
                     creatorPhotoUrl: userData.photoUrl,
-                    title: newTitle.trim() || 'Coachanteckning',
+                    title: computedTitle,
                     text: newText.trim(),
                     imageUrl: imageUrl || undefined,
                     isFavorite: false
@@ -159,6 +227,47 @@ export const CoachNotesScreen: React.FC<CoachNotesScreenProps> = ({ onBack }) =>
             alert("Ett fel uppstod när anteckningen skulle sparas.");
         } finally {
             setIsSaving(false);
+        }
+    };
+
+    // Convert Note to Workout
+    const handleConvertToWorkout = async (note: CoachNote) => {
+        if (!selectedOrganization?.id) return;
+        setIsInterpreting(true);
+        setIsResolving(false);
+        try {
+            const bank = await getOrganizationExerciseBank(selectedOrganization.id);
+            const availableExercises = bank.map(e => e.name);
+
+            let parsedWorkout: Workout;
+
+            if (note.imageUrl) {
+                const base64Image = await urlToBase64(note.imageUrl);
+                parsedWorkout = await parseWorkoutFromImage(base64Image, note.text || '', false, availableExercises);
+            } else if (note.text?.trim()) {
+                parsedWorkout = await parseWorkoutFromText(note.text, availableExercises);
+            } else {
+                alert("Anteckningen saknar innehåll att tolka.");
+                setIsInterpreting(false);
+                return;
+            }
+
+            setIsInterpreting(false);
+            setIsResolving(true);
+
+            const resolvedWorkout = await resolveAndCreateExercises(selectedOrganization.id, parsedWorkout, false);
+
+            setIsResolving(false);
+
+            if (onWorkoutInterpreted) {
+                onWorkoutInterpreted(resolvedWorkout);
+            }
+        } catch (error) {
+            console.error("Fel vid tolkning av anteckning till pass:", error);
+            alert("Kunde inte tolka anteckningen till ett pass. Försök igen.");
+        } finally {
+            setIsInterpreting(false);
+            setIsResolving(false);
         }
     };
 
@@ -192,7 +301,29 @@ export const CoachNotesScreen: React.FC<CoachNotesScreenProps> = ({ onBack }) =>
                         💬 Chatta med AI
                     </button>
                     <button 
-                        onClick={() => setIsCreateModalOpen(true)}
+                        onClick={() => headerCameraInputRef.current?.click()}
+                        disabled={isQuickCapturing}
+                        className="flex-1 md:flex-none justify-center bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white px-4 py-4 md:py-3 rounded-xl font-bold flex items-center gap-2 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors shadow-sm border border-gray-200 dark:border-gray-700 text-sm sm:text-base whitespace-nowrap disabled:opacity-50"
+                    >
+                        📷 {isQuickCapturing ? 'Sparar...' : 'Fota'}
+                    </button>
+                    <input 
+                        type="file" 
+                        accept="image/*" 
+                        capture="environment"
+                        ref={headerCameraInputRef} 
+                        onChange={handleQuickCameraSelect} 
+                        style={{ position: 'absolute', opacity: 0, width: 1, height: 1, overflow: 'hidden' }}
+                    />
+                    <button 
+                        onClick={() => {
+                            setEditingNoteId(null);
+                            setNewTitle('');
+                            setNewText('');
+                            setNewImage(null);
+                            setNewImagePreview(null);
+                            setIsCreateModalOpen(true);
+                        }}
                         className="flex-1 md:flex-none justify-center bg-primary text-white px-4 py-4 md:py-3 rounded-xl font-bold flex items-center gap-2 hover:bg-primary/90 transition-colors shadow-lg text-sm sm:text-base whitespace-nowrap"
                     >
                         <PlusIcon className="w-5 h-5 shrink-0" /> Ny Anteckning
@@ -278,32 +409,42 @@ export const CoachNotesScreen: React.FC<CoachNotesScreenProps> = ({ onBack }) =>
                                             {note.text}
                                         </p>
                                     )}
-                                    <div className="mt-4 pt-4 border-t border-gray-100 dark:border-gray-700 flex justify-end gap-2 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity">
+                                    <div className="mt-4 pt-4 border-t border-gray-100 dark:border-gray-700 flex justify-between items-center gap-2 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity">
                                         <button 
-                                            onClick={() => {
-                                                setEditingNoteId(note.id);
-                                                setNewTitle(note.title);
-                                                setNewText(note.text || '');
-                                                setNewImagePreview(note.imageUrl || null);
-                                                setNewImage(null);
-                                                setIsCreateModalOpen(true);
-                                            }}
-                                            className="text-gray-500 hover:text-gray-700 p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                                            onClick={() => handleConvertToWorkout(note)}
+                                            disabled={isInterpreting || isResolving}
+                                            className="text-xs font-extrabold text-primary hover:text-primary/80 bg-primary/10 hover:bg-primary/20 px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1.5 active:scale-95 disabled:opacity-50"
+                                            title="Gör till pass"
                                         >
-                                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
-                                              <path strokeLinecap="round" strokeLinejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L6.832 19.82a4.5 4.5 0 0 1-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 0 1 1.13-1.897L16.863 4.487Zm0 0L19.5 7.125" />
-                                            </svg>
+                                            ⚡️ Gör till pass
                                         </button>
-                                        <button 
-                                            onClick={() => {
-                                                if(window.confirm('Är du säker på att du vill radera denna anteckning?')) {
-                                                    deleteCoachNote(note.id, note.imageUrl);
-                                                }
-                                            }}
-                                            className="text-red-500 hover:text-red-700 p-2 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
-                                        >
-                                            <TrashIcon className="w-5 h-5" />
-                                        </button>
+                                        <div className="flex items-center gap-1">
+                                            <button 
+                                                onClick={() => {
+                                                    setEditingNoteId(note.id);
+                                                    setNewTitle(note.title);
+                                                    setNewText(note.text || '');
+                                                    setNewImagePreview(note.imageUrl || null);
+                                                    setNewImage(null);
+                                                    setIsCreateModalOpen(true);
+                                                }}
+                                                className="text-gray-500 hover:text-gray-700 p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                                            >
+                                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
+                                                  <path strokeLinecap="round" strokeLinejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L6.832 19.82a4.5 4.5 0 0 1-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 0 1 1.13-1.897L16.863 4.487Zm0 0L19.5 7.125" />
+                                                </svg>
+                                            </button>
+                                            <button 
+                                                onClick={() => {
+                                                    if(window.confirm('Är du säker på att du vill radera denna anteckning?')) {
+                                                        deleteCoachNote(note.id, note.imageUrl);
+                                                    }
+                                                }}
+                                                className="text-red-500 hover:text-red-700 p-2 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                                            >
+                                                <TrashIcon className="w-5 h-5" />
+                                            </button>
+                                        </div>
                                     </div>
                                 </div>
                             </motion.div>
@@ -350,8 +491,6 @@ export const CoachNotesScreen: React.FC<CoachNotesScreenProps> = ({ onBack }) =>
                             <div className="grid grid-cols-2 gap-4">
                                 <div 
                                     onClick={() => {
-                                        // On mobile browser, 'capture' works best opening native camera.
-                                        // On desktop, the native input just acts as a file picker, so we use HTML5 camera instead.
                                         const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
                                         if (isMobile) {
                                             cameraInputRef.current?.click();
@@ -393,6 +532,7 @@ export const CoachNotesScreen: React.FC<CoachNotesScreenProps> = ({ onBack }) =>
                     <div>
                         <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">Text / Upplägg</label>
                         <textarea 
+                            autoFocus
                             value={newText}
                             onChange={e => setNewText(e.target.value)}
                             placeholder="Skriv ner passet, idéer eller kommentarer..."
@@ -491,6 +631,12 @@ export const CoachNotesScreen: React.FC<CoachNotesScreenProps> = ({ onBack }) =>
                     setNewImagePreview(base64String);
                     setIsWebCamOpen(false);
                 }} 
+            />
+
+            <AILoadingOverlay 
+                isInterpreting={isInterpreting} 
+                isResolving={isResolving} 
+                isBeautifying={false} 
             />
         </div>
     );

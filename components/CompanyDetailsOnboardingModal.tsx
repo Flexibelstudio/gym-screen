@@ -1,3 +1,4 @@
+git add -A
 import React, { useState, useEffect } from 'react';
 import { CompanyDetails } from '../types';
 
