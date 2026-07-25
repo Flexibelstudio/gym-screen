@@ -887,6 +887,7 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
     // Monthly Wrapped states
     const [personalBests, setPersonalBests] = useState<PersonalBest[]>([]);
     const [isMonthlyWrappedOpen, setIsMonthlyWrappedOpen] = useState(false);
+    const [selectedWrappedDate, setSelectedWrappedDate] = useState<Date | undefined>(undefined);
     const [dismissedMonthlyWrapped, setDismissedMonthlyWrapped] = useState(false);
 
     const loggedInMember = useMemo(() => {
@@ -1858,21 +1859,24 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
     return (
         <div className="w-full max-w-4xl mx-auto px-0.5 sm:px-3 pt-2 pb-24 animate-fade-in relative z-0 overflow-x-hidden">
             
-            {/* 1. Resume Workout Banner */}
+            {/* 1. Monthly Wrapped Banner (Days 1-7 of new month - Top card) */}
+            {showMonthlyBanner && (
+                <MonthlyWrappedBanner 
+                    monthNameCap={monthlyStats.monthNameCap}
+                    onOpen={() => {
+                        setSelectedWrappedDate(undefined);
+                        setIsMonthlyWrappedOpen(true);
+                    }}
+                    onDismiss={handleDismissMonthlyBanner}
+                />
+            )}
+
+            {/* 2. Resume Workout Banner */}
             {activeSession && (
                 <ResumeWorkoutBanner 
                     workoutTitle={activeSession.displayTitle}
                     onContinue={handleResumeWorkout}
                     onDismiss={handleDismissResume}
-                />
-            )}
-
-            {/* 2. Monthly Wrapped Banner (Days 1-7 of new month) */}
-            {showMonthlyBanner && (
-                <MonthlyWrappedBanner 
-                    monthNameCap={monthlyStats.monthNameCap}
-                    onOpen={() => setIsMonthlyWrappedOpen(true)}
-                    onDismiss={handleDismissMonthlyBanner}
                 />
             )}
 
@@ -2212,7 +2216,10 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                             </div>
                         </div>
                         <button
-                            onClick={() => setIsMonthlyWrappedOpen(true)}
+                            onClick={() => {
+                                setSelectedWrappedDate(undefined);
+                                setIsMonthlyWrappedOpen(true);
+                            }}
                             className="px-4 py-2 bg-primary hover:bg-primary-dark text-white text-xs font-black rounded-xl transition-all shadow-sm active:scale-95 flex items-center gap-1 shrink-0"
                         >
                             <span>Se story</span>
@@ -2945,6 +2952,10 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                                 setSelectedDateLogs({ date, logs: dayLogs });
                             }
                         }} 
+                        onOpenMonthlyWrapped={(refDate) => {
+                            setSelectedWrappedDate(refDate);
+                            setIsMonthlyWrappedOpen(true);
+                        }}
                     />
 
                     {/* --- MINA HYROX & EVENT-RESULTAT --- */}
@@ -3410,6 +3421,7 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                 personalBests={personalBests}
                 userName={loggedInMemberName}
                 gymName={selectedOrganization?.name || 'Mitt gym'}
+                referenceDate={selectedWrappedDate}
             />
         </div>
     );

@@ -271,6 +271,7 @@ export interface InfoMessage {
 export interface InfoCarousel {
   isEnabled: boolean;
   messages: InfoMessage[];
+  enableJoinSlide?: boolean;
 }
 
 export interface DisplayWindow {
@@ -318,6 +319,7 @@ export interface Organization {
   stripeConnectAccountId?: string;
   stripeConnectSetupComplete?: boolean;
   memberPromotionCode?: string; // Stripe promotion code-ID (t.ex. "promo_...")
+  allowMemberPromotionCode?: boolean; // Tillåt medlemsrabattkod (endast systemägare)
   
   // Subscription / Payment fields
   stripeCustomerId?: string;

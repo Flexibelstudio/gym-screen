@@ -161,6 +161,7 @@ interface MonthlyWrappedProps {
     personalBests?: PersonalBest[];
     userName: string;
     gymName?: string;
+    referenceDate?: Date;
 }
 
 export const MonthlyWrappedModal: React.FC<MonthlyWrappedProps> = ({
@@ -169,11 +170,10 @@ export const MonthlyWrappedModal: React.FC<MonthlyWrappedProps> = ({
     logs,
     personalBests = [],
     userName,
-    gymName = 'Mitt gym'
+    gymName = 'Mitt gym',
+    referenceDate
 }) => {
-    if (!isOpen) return null;
-
-    const stats = useMemo(() => calculateMonthlyStats(logs, personalBests), [logs, personalBests]);
+    const stats = useMemo(() => calculateMonthlyStats(logs, personalBests, referenceDate), [logs, personalBests, referenceDate]);
     const [currentStep, setCurrentStep] = useState(0);
     const [isPaused, setIsPaused] = useState(false);
 
@@ -214,6 +214,16 @@ export const MonthlyWrappedModal: React.FC<MonthlyWrappedProps> = ({
 
         return () => clearTimeout(timer);
     }, [currentStep, isPaused, totalSteps, stats.hasData]);
+
+    // Reset step state when modal opens
+    useEffect(() => {
+        if (isOpen) {
+            setCurrentStep(0);
+            setIsPaused(false);
+        }
+    }, [isOpen]);
+
+    if (!isOpen) return null;
 
     const handleNext = () => {
         if (currentStep < totalSteps - 1) {

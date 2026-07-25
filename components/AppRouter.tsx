@@ -264,6 +264,7 @@ export const AppRouter: React.FC<AppRouterProps> = (props) => {
                 sessionRole={role}
                 setCustomBackHandler={functions.setCustomBackHandler}
                 isNewDraft={props.isEditingNewDraft}
+                isAdminView={!isStudioMode}
             />;
 
         case Page.SimpleWorkoutBuilder:
@@ -272,6 +273,7 @@ export const AppRouter: React.FC<AppRouterProps> = (props) => {
                 onSave={onSaveWorkout} 
                 onCancel={handleBack}
                 isNewDraft={props.isEditingNewDraft}
+                isAdminView={!isStudioMode}
                 setCustomBackHandler={functions.setCustomBackHandler}
             />;
 

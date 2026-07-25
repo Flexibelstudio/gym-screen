@@ -244,6 +244,12 @@ export const updateOrganizationStripeBypassOption = async (id: string, allow: bo
     return getOrganizationById(id);
 };
 
+export const updateOrganizationAllowMemberPromotionCode = async (id: string, allow: boolean) => {
+    if(isOffline || !db || !id) return;
+    await updateDoc(doc(db, 'organizations', id), { allowMemberPromotionCode: allow });
+    return getOrganizationById(id);
+};
+
 export const updateOrganizationMemberPromotionCode = async (id: string, code: string) => {
     if(isOffline || !db || !id) return;
     await updateDoc(doc(db, 'organizations', id), { memberPromotionCode: code.trim() });

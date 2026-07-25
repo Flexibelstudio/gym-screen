@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { InfoMessage } from '../types';
+import QRCodePNG from 'qrcode';
 
 interface InfoCarouselBannerProps {
     messages: InfoMessage[];
@@ -22,6 +23,7 @@ const getAnimationClass = (animation: InfoMessage['animation']) => {
 export const InfoCarouselBanner: React.FC<InfoCarouselBannerProps> = ({ messages, className = '', forceDark = false }) => {
     const [currentIndex, setCurrentIndex] = useState(0);
     const [isFading, setIsFading] = useState(false);
+    const [qrDataUrl, setQrDataUrl] = useState<string>('');
 
     useEffect(() => {
         // Reset to first message if the list of active messages changes
@@ -49,13 +51,20 @@ export const InfoCarouselBanner: React.FC<InfoCarouselBannerProps> = ({ messages
         return () => clearTimeout(timer);
     }, [currentIndex, messages]);
 
-    if (messages.length === 0) {
+    const safeIndex = currentIndex >= messages.length ? 0 : currentIndex;
+    const currentMessage = messages[safeIndex] as (InfoMessage & { isJoinSlide?: boolean; joinUrl?: string; orgName?: string; locationName?: string; logoUrl?: string });
+
+    useEffect(() => {
+        if (currentMessage?.isJoinSlide && currentMessage?.joinUrl) {
+            QRCodePNG.toDataURL(currentMessage.joinUrl, { width: 800, margin: 1 })
+                .then(setQrDataUrl)
+                .catch(console.error);
+        }
+    }, [currentMessage?.isJoinSlide, currentMessage?.joinUrl]);
+
+    if (messages.length === 0 || !currentMessage) {
         return null;
     }
-
-    const safeIndex = currentIndex >= messages.length ? 0 : currentIndex;
-    const currentMessage = messages[safeIndex];
-    if (!currentMessage) return null;
 
     const layout = currentMessage.layout || 'text-only';
     const hasImage = layout !== 'text-only' && currentMessage.imageUrl;
@@ -115,23 +124,40 @@ export const InfoCarouselBanner: React.FC<InfoCarouselBannerProps> = ({ messages
                 key={safeIndex} 
                 className={`w-full max-w-6xl mx-auto px-4 transition-opacity duration-500 ${isFading ? 'opacity-0' : 'opacity-100'} ${getAnimationClass(currentMessage.animation)}`}
             >
-                {/* STORT AVSTÅND: gap-12 */}
-                <div className={`flex items-center h-full gap-12 info-carousel-inner ${layout === 'image-right' ? 'flex-row-reverse justify-end' : 'justify-start'}`}>
-                    {hasImage && (
-                        <img 
-                            src={currentMessage.imageUrl} 
-                            alt={currentMessage.headline} 
-                            // MAFFIG BILD: w-96 h-96
-                            className="w-96 h-96 object-cover rounded-2xl flex-shrink-0 shadow-xl info-carousel-image"
-                        />
-                    )}
-                    <div className={`flex-grow min-w-0 ${layout === 'image-right' ? 'text-right' : 'text-left'}`}>
-                        {/* RUBRIK */}
-                        <h4 className="font-black uppercase tracking-tight text-4xl text-primary line-clamp-2 mb-4 leading-[1.2] pt-[0.1em] info-carousel-headline">{currentMessage.headline}</h4>
-                        {/* STOR TEXT: text-xl */}
-                        <p className={`text-xl ${secondaryTextClass} line-clamp-12 whitespace-pre-wrap leading-relaxed info-carousel-body`}>{currentMessage.body}</p>
+                {currentMessage.isJoinSlide ? (
+                    <div className="flex items-center justify-between gap-12 info-carousel-inner">
+                        {qrDataUrl && (
+                            <div className="bg-white p-4 rounded-3xl shadow-2xl flex-shrink-0 border-4 border-primary/20">
+                                <img src={qrDataUrl} alt="Skanna för att bli medlem" className="w-56 h-56 md:w-72 md:h-72 object-contain info-carousel-image" />
+                            </div>
+                        )}
+                        <div className="flex-1 min-w-0 text-left space-y-4">
+                            <span className="bg-primary/20 text-primary text-xs font-black uppercase px-3.5 py-1.5 rounded-full tracking-widest inline-block border border-primary/30">
+                                Medlemsregistrering — Skanna koden
+                            </span>
+                            <h4 className="font-black uppercase tracking-tight text-3xl md:text-5xl text-primary leading-tight info-carousel-headline">
+                                {currentMessage.headline}
+                            </h4>
+                            <p className={`text-lg md:text-2xl ${secondaryTextClass} leading-relaxed font-medium info-carousel-body`}>
+                                {currentMessage.body}
+                            </p>
+                        </div>
                     </div>
-                </div>
+                ) : (
+                    <div className={`flex items-center h-full gap-12 info-carousel-inner ${layout === 'image-right' ? 'flex-row-reverse justify-end' : 'justify-start'}`}>
+                        {hasImage && (
+                            <img 
+                                src={currentMessage.imageUrl} 
+                                alt={currentMessage.headline} 
+                                className="w-96 h-96 object-cover rounded-2xl flex-shrink-0 shadow-xl info-carousel-image"
+                            />
+                        )}
+                        <div className={`flex-grow min-w-0 ${layout === 'image-right' ? 'text-right' : 'text-left'}`}>
+                            <h4 className="font-black uppercase tracking-tight text-4xl text-primary line-clamp-2 mb-4 leading-[1.2] pt-[0.1em] info-carousel-headline">{currentMessage.headline}</h4>
+                            <p className={`text-xl ${secondaryTextClass} line-clamp-12 whitespace-pre-wrap leading-relaxed info-carousel-body`}>{currentMessage.body}</p>
+                        </div>
+                    </div>
+                )}
             </div>
         </div>
     );

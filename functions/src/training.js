@@ -829,7 +829,7 @@ app.post("/create-member-checkout", async (req, res) => {
       metadata: { userId, organizationId, paymentType: 'member_subscription' }
     };
 
-    if (orgData.memberPromotionCode && orgData.memberPromotionCode.trim()) {
+    if (orgData.allowMemberPromotionCode === true && orgData.memberPromotionCode && orgData.memberPromotionCode.trim()) {
       sessionParams.discounts = [{ promotion_code: orgData.memberPromotionCode.trim() }];
     }
 
@@ -857,7 +857,7 @@ app.post("/create-member-checkout", async (req, res) => {
       return res.json({ url: session.url });
     } catch (checkoutErr) {
       console.error("Error creating member checkout session:", checkoutErr);
-      if (orgData.memberPromotionCode && orgData.memberPromotionCode.trim()) {
+      if (orgData.allowMemberPromotionCode === true && orgData.memberPromotionCode && orgData.memberPromotionCode.trim()) {
         console.error(`Stripe avvisade promotion_code '${orgData.memberPromotionCode}' för organisation ${organizationId}:`, checkoutErr.message);
         return res.status(400).json({ error: "Gymmets rabattkod är ogiltig — kontakta gymmet" });
       }

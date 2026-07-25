@@ -41,7 +41,11 @@ Regelblocken för bokningens collections (rad ~221–269) samt org_settings publ
 ## 4. Framtida SmartStudio Hemsida
 Hemsidan förväntas endast LÄSA publika ytor (org_settings m.m.). Nya publika läsytor ska läggas till i detta kontrakt innan de implementeras.
 
-## 5. Ändringsprocess
+## 6. Stripe-noteringar
+Organization.memberPromotionCode: Stripe promotion code-ID för automatisk medlemsrabatt vid registrering. Måste vara skapad på SmartStudios plattformskonto i Stripe (inte gymmets Connect-konto). Rabatten påverkar även plattformsavgiften proportionerligt.
+Organization.allowMemberPromotionCode: Sätter om organisationen har tillstånd att använda medlemsrabattkod. Sätts endast av systemägare; utan true ignoreras memberPromotionCode i checkout (serverside).
+
+## 7. Ändringsprocess
 1. Föreslå ändring i detta dokument först.
 2. Båda apparnas ägare godkänner.
 3. Genomför ändringen i kod/regler.
@@ -49,3 +53,5 @@ Versionslogg förs längst ner i denna fil.
 
 ---
 Version 1.0 — 2026-07-20 — Initialt kontrakt.
+Version 1.1 — 2026-07-25 — Tillägg av Stripe-noteringar för memberPromotionCode.
+Version 1.2 — 2026-07-25 — Tillägg av allowMemberPromotionCode för behörighetsspärr av medlemsrabattkod.

@@ -7,10 +7,80 @@ import { PrintablePoster } from './PrintablePoster';
 import { useStudio } from '../context/StudioContext';
 import { listenToMembers, updateMemberEndDate, updateUserRoleCloud, approveCoach, updateOrganization, updateUserProfile } from '../services/firebaseService';
 import QRCode from 'react-qr-code';
+import QRCodePNG from 'qrcode';
 import { Modal } from './ui/Modal';
 import { useAuth } from '../context/AuthContext';
 import { Toast } from './ui/ToastNotification';
 import { calculateAge, formatBirthday, isBirthdayToday } from '../utils/dateUtils';
+
+const LocationInviteCard: React.FC<{
+    locationName: string;
+    inviteCode: string;
+    orgName: string;
+    onCopy: (text: string) => void;
+}> = ({ locationName, inviteCode, orgName, onCopy }) => {
+    const [qrUrl, setQrUrl] = useState<string>('');
+    const joinUrl = `${window.location.origin}/?invite=${inviteCode}`;
+
+    useEffect(() => {
+        if (inviteCode) {
+            QRCodePNG.toDataURL(joinUrl, { width: 400, margin: 2 })
+                .then(setQrUrl)
+                .catch(console.error);
+        }
+    }, [joinUrl, inviteCode]);
+
+    const handleDownload = async () => {
+        try {
+            const highResUrl = await QRCodePNG.toDataURL(joinUrl, { width: 1600, margin: 2 });
+            const a = document.createElement('a');
+            a.href = highResUrl;
+            a.download = `QR-Bli-Medlem-${orgName.replace(/\s+/g, '-')}-${locationName.replace(/\s+/g, '-')}.png`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+        } catch (err) {
+            console.error('QR download failed', err);
+        }
+    };
+
+    return (
+        <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl p-6 shadow-sm flex flex-col sm:flex-row gap-6 items-center justify-between">
+            <div className="space-y-3 flex-1 min-w-0 w-full">
+                <div className="flex items-center gap-2">
+                    <h4 className="text-lg font-black text-gray-900 dark:text-white uppercase tracking-tight">{locationName}</h4>
+                    <span className="bg-primary/10 text-primary text-xs font-black uppercase px-2.5 py-1 rounded-lg border border-primary/20">
+                        Kod: {inviteCode}
+                    </span>
+                </div>
+                <p className="text-xs text-gray-500 dark:text-gray-400">
+                    Länk och QR-kod för registrering av medlemmar till {locationName}.
+                </p>
+                <div className="flex items-center gap-2 bg-gray-50 dark:bg-gray-900 p-2.5 rounded-xl border border-gray-200 dark:border-gray-700 w-full">
+                    <span className="text-xs font-mono text-gray-600 dark:text-gray-300 truncate flex-1">{joinUrl}</span>
+                    <button
+                        onClick={() => onCopy(joinUrl)}
+                        className="bg-primary hover:brightness-110 text-white font-black text-xs px-3 py-2 rounded-lg transition-all flex-shrink-0 flex items-center gap-1 uppercase tracking-wider"
+                    >
+                        <CopyIcon className="w-3.5 h-3.5" /> Kopiera
+                    </button>
+                </div>
+            </div>
+
+            {qrUrl && (
+                <div className="flex flex-col items-center gap-2 flex-shrink-0 bg-gray-50 dark:bg-gray-900/60 p-4 rounded-2xl border border-gray-100 dark:border-gray-800 w-full sm:w-auto">
+                    <img src={qrUrl} alt={`QR kod ${locationName}`} className="w-28 h-28 rounded-xl bg-white p-2 border border-gray-200 shadow-sm" />
+                    <button
+                        onClick={handleDownload}
+                        className="bg-gray-900 dark:bg-white text-white dark:text-gray-900 hover:brightness-125 font-black text-[10px] px-3 py-2 rounded-xl uppercase tracking-wider transition-all shadow-md w-full text-center"
+                    >
+                        ⬇ Ladda ner QR (PNG)
+                    </button>
+                </div>
+            )}
+        </div>
+    );
+};
 
 const generateInviteCode = () => {
     const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
@@ -321,6 +391,41 @@ export const MemberManagementScreen: React.FC<MemberManagementScreenProps> = ({ 
           </p>
         </div>
       </div>
+
+      {/* Bjud in medlemmar sektion */}
+      {selectedOrganization && (
+        <div className="bg-gray-50 dark:bg-gray-900/40 border border-gray-200 dark:border-gray-800 rounded-3xl p-6 sm:p-8 space-y-6">
+          <div>
+            <h4 className="text-2xl font-black text-gray-900 dark:text-white uppercase tracking-tight flex items-center gap-3">
+              <QrCodeIcon className="w-7 h-7 text-primary" /> Bjud in medlemmar
+            </h4>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+              Dela registreringslänken eller ladda ner högupplöst QR-kod för utskrift per ort.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 gap-4">
+            {(selectedOrganization.locations && selectedOrganization.locations.length > 0
+              ? selectedOrganization.locations
+              : [{ id: 'default', name: selectedOrganization.name, inviteCode: selectedOrganization.inviteCode || '' }]
+            ).map((loc) => {
+              const code = loc.inviteCode || selectedOrganization.inviteCode || '';
+              return (
+                <LocationInviteCard
+                  key={loc.id}
+                  locationName={loc.name}
+                  inviteCode={code}
+                  orgName={selectedOrganization.name}
+                  onCopy={(text) => {
+                    navigator.clipboard.writeText(text);
+                    setToast({ visible: true, message: `Länk för ${loc.name} kopierad!` });
+                  }}
+                />
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Search and filters removed the invite cards code above here */}
       <div className="flex flex-col lg:flex-row gap-4 items-center justify-between">

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Organization, SmartScreenPricing, InvoiceDetails, SeasonalThemeSetting, ThemeDateRange } from '../types';
 import { OvningsbankContent } from './OvningsbankContent';
-import { getSmartScreenPricing, updateSmartScreenPricing, updateOrganizationFreeCoaches, getSeasonalThemes, updateSeasonalThemes, archiveOrganization, restoreOrganization, deleteOrganizationPermanently, updateOrganizationName, getMembers, requestPushNotificationPermission, auth, updateGlobalConfig, updateOrganizationMigrationOption, updateOrganizationStripeBypassOption, getGlobalSummerChallenge, updateGlobalSummerChallenge, listenToGlobalSummerChallenge, listenToMembers, listenToCommunityLogs } from '../services/firebaseService';
+import { getSmartScreenPricing, updateSmartScreenPricing, updateOrganizationFreeCoaches, getSeasonalThemes, updateSeasonalThemes, archiveOrganization, restoreOrganization, deleteOrganizationPermanently, updateOrganizationName, getMembers, requestPushNotificationPermission, auth, updateGlobalConfig, updateOrganizationMigrationOption, updateOrganizationStripeBypassOption, updateOrganizationAllowMemberPromotionCode, getGlobalSummerChallenge, updateGlobalSummerChallenge, listenToGlobalSummerChallenge, listenToMembers, listenToCommunityLogs, listenToCommunityLogsByLocations } from '../services/firebaseService';
 import { PencilIcon, HomeIcon, BuildingIcon, SparklesIcon, ToggleSwitch, ChevronDownIcon, CloseIcon } from './icons';
 import { MoreVertical } from 'lucide-react';
 import { calculateInvoiceDetails } from '../utils/billing';
@@ -29,9 +29,10 @@ interface OrganizationCardProps {
     onUpdateGlobalConfig: (orgId: string, config: any) => Promise<void>;
     onUpdateMigrationOption: (orgId: string, allow: boolean) => Promise<void>;
     onUpdateStripeBypassOption: (orgId: string, allow: boolean) => Promise<void>;
+    onUpdateAllowMemberPromotionCode: (orgId: string, allow: boolean) => Promise<void>;
 }
 
-const OrganizationCard: React.FC<OrganizationCardProps> = React.memo(({ org, onSelect, onArchive, onRestore, onDeletePermanent, onUpdateFreeCoaches, onUpdateName, onUpdateGlobalConfig, onUpdateMigrationOption, onUpdateStripeBypassOption }) => {
+const OrganizationCard: React.FC<OrganizationCardProps> = React.memo(({ org, onSelect, onArchive, onRestore, onDeletePermanent, onUpdateFreeCoaches, onUpdateName, onUpdateGlobalConfig, onUpdateMigrationOption, onUpdateStripeBypassOption, onUpdateAllowMemberPromotionCode }) => {
     const [freeCoaches, setFreeCoaches] = useState(org.freeCoachAccounts || 0);
     const [enableEventsModule, setEnableEventsModule] = useState(org.globalConfig?.enableEventsModule || false);
     const [enableSummerChallenge, setEnableSummerChallenge] = useState(org.globalConfig?.enableSummerChallenge || false);
@@ -39,6 +40,7 @@ const OrganizationCard: React.FC<OrganizationCardProps> = React.memo(({ org, onS
     const [summerEndDate, setSummerEndDate] = useState(org.globalConfig?.summerChallengeEndDate ? new Date(org.globalConfig.summerChallengeEndDate).toISOString().split('T')[0] : '');
     const [allowMigrationOption, setAllowMigrationOption] = useState(org.allowMigrationOption || false);
     const [allowStripeBypass, setAllowStripeBypass] = useState(org.allowStripeBypass || false);
+    const [allowMemberPromotionCode, setAllowMemberPromotionCode] = useState(org.allowMemberPromotionCode || false);
     const [isSaving, setIsSaving] = useState(false);
     const [isEditingName, setIsEditingName] = useState(false);
     const [editNameValue, setEditNameValue] = useState(org.name);
@@ -60,7 +62,8 @@ const OrganizationCard: React.FC<OrganizationCardProps> = React.memo(({ org, onS
         summerStartDate !== orgStartIso ||
         summerEndDate !== orgEndIso ||
         allowMigrationOption !== (org.allowMigrationOption || false) ||
-        allowStripeBypass !== (org.allowStripeBypass || false);
+        allowStripeBypass !== (org.allowStripeBypass || false) ||
+        allowMemberPromotionCode !== (org.allowMemberPromotionCode || false);
 
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
@@ -79,7 +82,10 @@ const OrganizationCard: React.FC<OrganizationCardProps> = React.memo(({ org, onS
         setEnableSummerChallenge(org.globalConfig?.enableSummerChallenge || false);
         setSummerStartDate(org.globalConfig?.summerChallengeStartDate ? new Date(org.globalConfig.summerChallengeStartDate).toISOString().split('T')[0] : '');
         setSummerEndDate(org.globalConfig?.summerChallengeEndDate ? new Date(org.globalConfig.summerChallengeEndDate).toISOString().split('T')[0] : '');
-    }, [org.freeCoachAccounts, org.name, org.globalConfig?.enableEventsModule, org.globalConfig?.enableSummerChallenge, org.globalConfig?.summerChallengeStartDate, org.globalConfig?.summerChallengeEndDate]);
+        setAllowMigrationOption(org.allowMigrationOption || false);
+        setAllowStripeBypass(org.allowStripeBypass || false);
+        setAllowMemberPromotionCode(org.allowMemberPromotionCode || false);
+    }, [org.freeCoachAccounts, org.name, org.globalConfig?.enableEventsModule, org.globalConfig?.enableSummerChallenge, org.globalConfig?.summerChallengeStartDate, org.globalConfig?.summerChallengeEndDate, org.allowMigrationOption, org.allowStripeBypass, org.allowMemberPromotionCode]);
 
     useEffect(() => {
         if (!isExpanded) return; // Only fetch counts if expanded (performance optimization)
@@ -108,6 +114,7 @@ const OrganizationCard: React.FC<OrganizationCardProps> = React.memo(({ org, onS
             });
             await onUpdateMigrationOption(org.id, allowMigrationOption);
             await onUpdateStripeBypassOption(org.id, allowStripeBypass);
+            await onUpdateAllowMemberPromotionCode(org.id, allowMemberPromotionCode);
         } catch (error) {
             alert("Kunde inte spara inställningarna.");
         } finally {
@@ -389,6 +396,26 @@ const OrganizationCard: React.FC<OrganizationCardProps> = React.memo(({ org, onS
                                         />
                                     </div>
                                     <p className="text-[9px] text-gray-500 font-medium mt-2 leading-tight">Stänger av tvingande registreringskrav för systemhyra.</p>
+                                </div>
+                                <div className="bg-white dark:bg-gray-800/50 p-4 rounded-2xl border border-gray-200 dark:border-gray-700 flex flex-col justify-between">
+                                    <p className="text-[10px] text-purple-500 dark:text-purple-400 font-black uppercase tracking-widest mb-2">Medlemsrabattkod</p>
+                                    <div className="scale-90 origin-left">
+                                        <ToggleSwitch 
+                                            label="Tillåt medlemsrabattkod (Stripe)"
+                                            checked={allowMemberPromotionCode} 
+                                            onChange={async () => {
+                                                const newValue = !allowMemberPromotionCode;
+                                                setAllowMemberPromotionCode(newValue);
+                                                try {
+                                                    await onUpdateAllowMemberPromotionCode(org.id, newValue);
+                                                } catch (e) {
+                                                    setAllowMemberPromotionCode(!newValue);
+                                                    alert("Ett fel inträffade vid sparande.");
+                                                }
+                                            }} 
+                                        />
+                                    </div>
+                                    <p className="text-[9px] text-gray-500 font-medium mt-2 leading-tight">Ger organisationens admin möjlighet att lägga in en promotion-kod som auto-appliceras på deras medlemmars prenumeration. Standard: av.</p>
                                 </div>
                             </div>
                         </div>
@@ -677,7 +704,10 @@ const OrgChallengeStatsRow: React.FC<{ org: Organization; challengeId: string }>
     useEffect(() => {
         if (!org.id) return;
         const unsubMembers = listenToMembers(org.id, (data) => setMembers(data));
-        const unsubLogs = listenToCommunityLogs(org.id, (data) => setLogs(data));
+        const locIds = org.locations?.map(l => l.id) || [];
+        const unsubLogs = locIds.length > 0 
+            ? listenToCommunityLogsByLocations(org.id, locIds, (data) => setLogs(data))
+            : listenToCommunityLogs(org.id, (data) => setLogs(data));
         return () => {
             unsubMembers();
             unsubLogs();
@@ -1034,6 +1064,11 @@ export const SystemOwnerScreen: React.FC<SystemOwnerScreenProps> = ({ allOrganiz
         setLocalOrgs(prev => prev.map(o => o.id === orgId ? { ...o, allowStripeBypass: allow } : o));
     }, []);
 
+    const handleUpdateAllowMemberPromotionCode = useCallback(async (orgId: string, allow: boolean) => {
+        await updateOrganizationAllowMemberPromotionCode(orgId, allow);
+        setLocalOrgs(prev => prev.map(o => o.id === orgId ? { ...o, allowMemberPromotionCode: allow } : o));
+    }, []);
+
     const tabs = [
         { id: 'dashboard', label: 'Dashboard' },
         { id: 'list', label: 'Organisationer' },
@@ -1167,6 +1202,7 @@ export const SystemOwnerScreen: React.FC<SystemOwnerScreenProps> = ({ allOrganiz
                                                         onUpdateGlobalConfig={handleUpdateGlobalConfig}
                                                         onUpdateMigrationOption={handleUpdateMigrationOption}
                                                         onUpdateStripeBypassOption={handleUpdateStripeBypassOption}
+                                                        onUpdateAllowMemberPromotionCode={handleUpdateAllowMemberPromotionCode}
                                                     />
                                             ))}
                                         </div>
@@ -1189,6 +1225,7 @@ export const SystemOwnerScreen: React.FC<SystemOwnerScreenProps> = ({ allOrganiz
                                                         onUpdateGlobalConfig={handleUpdateGlobalConfig}
                                                         onUpdateMigrationOption={handleUpdateMigrationOption}
                                                         onUpdateStripeBypassOption={handleUpdateStripeBypassOption}
+                                                        onUpdateAllowMemberPromotionCode={handleUpdateAllowMemberPromotionCode}
                                                     />
                                                 ))}
                                             </div>

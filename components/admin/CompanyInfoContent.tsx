@@ -64,33 +64,41 @@ export const CompanyInfoContent: React.FC<{ organization: Organization; onEdit: 
                                  <p><strong>Information om utbetalningar:</strong> Utbetalning av er intäkt (20 kr per aktiv betalande medlem minus Stripes kortavgifter) hanteras automatiskt via Stripe. Ni behöver koppla ett Stripe-konto nedan för att kunna ta emot betalningar.</p>
                              </div>
 
-                             <div className="mt-6 pt-6 border-t border-gray-100 dark:border-gray-800">
-                                 <h5 className="font-bold text-gray-900 dark:text-white mb-1">Stripe-rabattkod för medlemmar (promotion code-ID)</h5>
-                                 <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
-                                     Appliceras automatiskt när era medlemmar registrerar sig — medlemmen ser slutpriset direkt och behöver aldrig ange någon kod.
-                                 </p>
-                                 <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 max-w-xl">
-                                     <input 
-                                         type="text"
-                                         value={promoCode}
-                                         onChange={(e) => setPromoCode(e.target.value)}
-                                         placeholder="promo_..."
-                                         className="flex-1 bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary"
-                                     />
-                                     <button
-                                         onClick={handleSavePromo}
-                                         disabled={isSavingPromo}
-                                         className="bg-primary text-white font-semibold px-4 py-2 rounded-lg text-sm hover:brightness-110 transition-colors disabled:opacity-50 flex items-center justify-center min-w-[80px]"
-                                     >
-                                         {isSavingPromo ? 'Sparar...' : 'Spara'}
-                                     </button>
-                                     {promoSaved && (
-                                         <span className="text-xs text-green-600 dark:text-green-400 font-bold self-center">
-                                             Sparad!
-                                         </span>
-                                     )}
+                             {organization.allowMemberPromotionCode === true && (
+                                 <div className="mt-6 pt-6 border-t border-gray-100 dark:border-gray-800">
+                                     <h5 className="font-bold text-gray-900 dark:text-white mb-1">Stripe-rabattkod för medlemmar (promotion code-ID)</h5>
+                                     <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">
+                                         Appliceras automatiskt när era medlemmar registrerar sig — medlemmen ser slutpriset direkt och behöver aldrig ange någon kod.
+                                     </p>
+                                     <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">
+                                         OBS: Promotion-koden måste vara skapad på SmartStudios plattformskonto i Stripe (inte gymmets eget Connect-konto).
+                                     </p>
+                                     <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
+                                         Rabatten påverkar även plattformsavgiften proportionerligt.
+                                     </p>
+                                     <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 max-w-xl">
+                                         <input 
+                                             type="text"
+                                             value={promoCode}
+                                             onChange={(e) => setPromoCode(e.target.value)}
+                                             placeholder="promo_..."
+                                             className="flex-1 bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary"
+                                         />
+                                         <button
+                                             onClick={handleSavePromo}
+                                             disabled={isSavingPromo}
+                                             className="bg-primary text-white font-semibold px-4 py-2 rounded-lg text-sm hover:brightness-110 transition-colors disabled:opacity-50 flex items-center justify-center min-w-[80px]"
+                                         >
+                                             {isSavingPromo ? 'Sparar...' : 'Spara'}
+                                         </button>
+                                         {promoSaved && (
+                                             <span className="text-xs text-green-600 dark:text-green-400 font-bold self-center">
+                                                 Sparad!
+                                             </span>
+                                         )}
+                                     </div>
                                  </div>
-                             </div>
+                             )}
 
                              <div className="mt-6 pt-6 border-t border-gray-100 dark:border-gray-800">
                                  <h5 className="font-bold text-gray-900 dark:text-white mb-2">SmartStudio Licens</h5>
