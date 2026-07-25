@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import { Page, UserRole } from '../../types';
 import { DigitalClock } from '../common/DigitalClock';

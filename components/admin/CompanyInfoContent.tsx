@@ -1,8 +1,30 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Organization } from '../../types';
+import { updateOrganizationMemberPromotionCode } from '../../services/firebaseService';
 
 export const CompanyInfoContent: React.FC<{ organization: Organization; onEdit: () => void }> = ({ organization, onEdit }) => {
     const [isConnectingStripe, setIsConnectingStripe] = useState(false);
+    const [promoCode, setPromoCode] = useState(organization.memberPromotionCode || '');
+    const [isSavingPromo, setIsSavingPromo] = useState(false);
+    const [promoSaved, setPromoSaved] = useState(false);
+
+    useEffect(() => {
+        setPromoCode(organization.memberPromotionCode || '');
+    }, [organization.memberPromotionCode]);
+
+    const handleSavePromo = async () => {
+        setIsSavingPromo(true);
+        setPromoSaved(false);
+        try {
+            await updateOrganizationMemberPromotionCode(organization.id, promoCode);
+            setPromoSaved(true);
+            setTimeout(() => setPromoSaved(false), 3000);
+        } catch (e) {
+            console.error("Kunde inte spara Stripe-rabattkod:", e);
+        } finally {
+            setIsSavingPromo(false);
+        }
+    };
 
     return (
          <div className="bg-slate-50 dark:bg-gray-800/50 p-6 rounded-xl border border-slate-200 dark:border-gray-700">
@@ -40,6 +62,34 @@ export const CompanyInfoContent: React.FC<{ organization: Organization; onEdit: 
                              
                              <div className="mt-4 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg text-sm text-blue-800 dark:text-blue-300">
                                  <p><strong>Information om utbetalningar:</strong> Utbetalning av er intäkt (20 kr per aktiv betalande medlem minus Stripes kortavgifter) hanteras automatiskt via Stripe. Ni behöver koppla ett Stripe-konto nedan för att kunna ta emot betalningar.</p>
+                             </div>
+
+                             <div className="mt-6 pt-6 border-t border-gray-100 dark:border-gray-800">
+                                 <h5 className="font-bold text-gray-900 dark:text-white mb-1">Stripe-rabattkod för medlemmar (promotion code-ID)</h5>
+                                 <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
+                                     Appliceras automatiskt när era medlemmar registrerar sig — medlemmen ser slutpriset direkt och behöver aldrig ange någon kod.
+                                 </p>
+                                 <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 max-w-xl">
+                                     <input 
+                                         type="text"
+                                         value={promoCode}
+                                         onChange={(e) => setPromoCode(e.target.value)}
+                                         placeholder="promo_..."
+                                         className="flex-1 bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary"
+                                     />
+                                     <button
+                                         onClick={handleSavePromo}
+                                         disabled={isSavingPromo}
+                                         className="bg-primary text-white font-semibold px-4 py-2 rounded-lg text-sm hover:brightness-110 transition-colors disabled:opacity-50 flex items-center justify-center min-w-[80px]"
+                                     >
+                                         {isSavingPromo ? 'Sparar...' : 'Spara'}
+                                     </button>
+                                     {promoSaved && (
+                                         <span className="text-xs text-green-600 dark:text-green-400 font-bold self-center">
+                                             Sparad!
+                                         </span>
+                                     )}
+                                 </div>
                              </div>
 
                              <div className="mt-6 pt-6 border-t border-gray-100 dark:border-gray-800">

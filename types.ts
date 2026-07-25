@@ -317,6 +317,7 @@ export interface Organization {
   allowStripeBypass?: boolean; // NYTT: Tillåt bypass för Stripe Connect
   stripeConnectAccountId?: string;
   stripeConnectSetupComplete?: boolean;
+  memberPromotionCode?: string; // Stripe promotion code-ID (t.ex. "promo_...")
   
   // Subscription / Payment fields
   stripeCustomerId?: string;
