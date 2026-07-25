@@ -435,9 +435,10 @@ const App: React.FC = () => {
 
   const activeInfoMessages = useMemo((): InfoMessage[] => {
     const infoCarousel = selectedOrganization?.infoCarousel;
-    if (!infoCarousel?.isEnabled || !infoCarousel.messages) return [];
+    if (!infoCarousel?.isEnabled) return [];
+    const messages = infoCarousel.messages || [];
     const now = new Date();
-    return infoCarousel.messages.filter(msg => {
+    const filtered = messages.filter(msg => {
         const isStudioMatch = !selectedStudio 
           ? msg.visibleInStudios.includes('all')
           : (msg.visibleInStudios.includes('all') || msg.visibleInStudios.includes(selectedStudio.id));
@@ -446,6 +447,35 @@ const App: React.FC = () => {
         if (msg.endDate && new Date(msg.endDate) < now) return false;
         return true;
     }).sort((a, b) => a.internalTitle.localeCompare(b.internalTitle));
+
+    if (infoCarousel.enableJoinSlide) {
+        const currentLoc = selectedOrganization?.locations?.find(l => l.id === selectedStudio?.locationId) || selectedOrganization?.locations?.[0];
+        const code = currentLoc?.inviteCode || selectedOrganization?.inviteCode || '';
+        const locName = currentLoc?.name || '';
+        const orgName = selectedOrganization?.name || '';
+        const logoUrl = selectedOrganization?.logoUrlLight || selectedOrganization?.logoUrlDark;
+
+        if (code) {
+            const joinSlideMsg: InfoMessage & { isJoinSlide?: boolean; joinUrl?: string; orgName?: string; locationName?: string; logoUrl?: string } = {
+                id: 'join-slide-auto',
+                internalTitle: 'Bli medlem — skanna koden',
+                headline: `Bli medlem i ${orgName}${locName ? ` — ${locName}` : ''}`,
+                body: 'Skanna QR-koden med din mobil för att skapa konto och komma igång direkt!',
+                durationSeconds: 15,
+                animation: 'fade',
+                layout: 'image-left',
+                visibleInStudios: ['all'],
+                isJoinSlide: true,
+                joinUrl: `${window.location.origin}/?invite=${code}`,
+                orgName,
+                locationName: locName,
+                logoUrl
+            };
+            filtered.push(joinSlideMsg);
+        }
+    }
+
+    return filtered;
   }, [selectedOrganization, selectedStudio]);
 
   const isInfoBannerVisible = (page === Page.Home || isScreensaverActive) && activeInfoMessages.length > 0;
