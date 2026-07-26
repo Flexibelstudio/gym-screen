@@ -14,6 +14,12 @@ module.exports = {
     './services/**/*.{js,ts,jsx,tsx}',
   ],
   safelist: [
+    // WorkoutLogScreen set table dynamic column classes
+    'grid-cols-[36px_repeat(1,_1fr)_40px_48px]',
+    'grid-cols-[36px_repeat(2,_1fr)_40px_48px]',
+    'grid-cols-[36px_repeat(3,_1fr)_40px_48px]',
+    'grid-cols-[36px_repeat(4,_1fr)_40px_48px]',
+    'grid-cols-[36px_repeat(5,_1fr)_40px_48px]',
     // GROUP_COLORS bg
     'bg-blue-500',
     'bg-pink-500',

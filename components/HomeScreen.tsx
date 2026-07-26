@@ -283,7 +283,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = React.memo(({
           );
       }
 
-      return <h1 className="text-2xl font-black text-primary uppercase tracking-tighter">Smart Skärm</h1>;
+      return <h1 className="text-2xl font-black text-primary uppercase tracking-tighter">SmartStudio</h1>;
   };
 
   return (

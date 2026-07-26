@@ -95,7 +95,7 @@ export const RegisterGymScreen: React.FC<RegisterGymScreenProps> = ({ onCancel }
 
                 <div className="text-center mb-8">
                     <h2 className="text-3xl font-bold text-white tracking-tight">Registrera ditt gym</h2>
-                    <p className="text-gray-400 mt-2">Börja använda Smart Skärm i din verksamhet idag.</p>
+                    <p className="text-gray-400 mt-2">Börja använda SmartStudio i din verksamhet idag.</p>
                 </div>
 
                 {error && (
@@ -200,7 +200,7 @@ export const RegisterGymScreen: React.FC<RegisterGymScreenProps> = ({ onCancel }
                 </form>
 
                 <p className="text-[10px] text-gray-600 mt-6 text-center leading-relaxed">
-                    Genom att registrera dig skapar du en ny organisation i Smart Skärm. Systemavgiften betalas i nästa steg för att aktivera ditt medlemskap.
+                    Genom att registrera dig skapar du en ny organisation i SmartStudio. Systemavgiften betalas i nästa steg för att aktivera ditt medlemskap.
                 </p>
             </motion.div>
         </div>

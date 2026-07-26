@@ -80,6 +80,59 @@ const getSnugTextSize = (text: string, fontSize: number) => {
     return { width: computedWidth, height: computedHeight };
 };
 
+const clampSmartObject = (
+    obj: SmartObject,
+    containerWidth: number,
+    containerHeight: number
+): SmartObject => {
+    const maxW = Math.max(100, containerWidth * 0.9);
+    const maxH = Math.max(100, containerHeight * 0.9);
+
+    let { x, y, width, height, fontSize, endX, endY } = obj;
+
+    // 1. Begränsa storleken till max ~90% av ritytan och behåll proportioner
+    if (width > maxW || height > maxH) {
+        const scaleW = maxW / width;
+        const scaleH = maxH / height;
+        const scale = Math.min(scaleW, scaleH);
+
+        width = Math.max(50, Math.round(width * scale));
+        height = Math.max(50, Math.round(height * scale));
+        if (fontSize) {
+            fontSize = Math.max(12, Math.round(fontSize * scale));
+        }
+    }
+
+    // 2. Begränsa positionen så HELA ramen inkl. handtag, färgväljare och röda krysset är synliga
+    const minX = 20;
+    const minY = 50; // Plats för färgväljare ovanför
+    const maxX = Math.max(minX, containerWidth - width - 24); // Plats för röda krysset och handtag till höger
+    const maxY = Math.max(minY, containerHeight - height - 24); // Plats för handtag i botten
+
+    const clampedX = Math.max(minX, Math.min(x, maxX));
+    const clampedY = Math.max(minY, Math.min(y, maxY));
+
+    let newEndX = endX;
+    let newEndY = endY;
+    if (obj.type === 'arrow' && endX !== undefined && endY !== undefined) {
+        const dx = clampedX - x;
+        const dy = clampedY - y;
+        newEndX = endX + dx;
+        newEndY = endY + dy;
+    }
+
+    return {
+        ...obj,
+        x: clampedX,
+        y: clampedY,
+        width,
+        height,
+        fontSize,
+        ...(newEndX !== undefined ? { endX: newEndX } : {}),
+        ...(newEndY !== undefined ? { endY: newEndY } : {}),
+    };
+};
+
 // New modal component for the archive
 const ColorPicker: React.FC<{ currentColor: string, onColorSelect: (color: string) => void }> = ({ currentColor, onColorSelect }) => {
     return (
@@ -148,7 +201,8 @@ const SmartObjectItem: React.FC<{
     obj: SmartObject;
     onUpdate: (id: string, updates: Partial<SmartObject>) => void;
     onRemove: (id: string) => void;
-}> = React.memo(({ obj, onUpdate, onRemove }) => {
+    containerBounds: { width: number; height: number };
+}> = React.memo(({ obj, onUpdate, onRemove, containerBounds }) => {
     const isArrow = obj.type === 'arrow';
     const arrowX = isArrow ? Math.min(obj.x, obj.endX || obj.x) : obj.x;
     const arrowY = isArrow ? Math.min(obj.y, obj.endY || obj.y) : obj.y;
@@ -176,6 +230,10 @@ const SmartObjectItem: React.FC<{
         const startEndX = obj.endX || obj.x;
         const startEndY = obj.endY || obj.y;
 
+        // Max-gränser vid resize: max 90% av ritytan och begränsat till skärmkanten
+        const maxW = Math.max(50, Math.min(containerBounds.width * 0.9, containerBounds.width - arrowX - 24));
+        const maxH = Math.max(50, Math.min(containerBounds.height * 0.9, containerBounds.height - arrowY - 24));
+
         let lastW = startWidth;
         let lastH = startHeight;
         let lastFS = startFontSize;
@@ -192,17 +250,26 @@ const SmartObjectItem: React.FC<{
                 if (!containerRef.current) return;
 
                 if (isArrow) {
-                    lastEX = startEndX + dx;
-                    lastEY = startEndY + dy;
+                    lastEX = Math.max(20, Math.min(startEndX + dx, containerBounds.width - 24));
+                    lastEY = Math.max(20, Math.min(startEndY + dy, containerBounds.height - 24));
                     const newW = Math.max(20, Math.abs(lastEX - obj.x));
                     const newH = Math.max(20, Math.abs(lastEY - obj.y));
                     containerRef.current.style.width = `${newW}px`;
                     containerRef.current.style.height = `${newH}px`;
                 } else {
-                    lastW = Math.max(50, startWidth + dx);
-                    lastH = Math.max(50, startHeight + dy);
+                    let candidateW = Math.max(50, startWidth + dx);
+                    let candidateH = Math.max(50, startHeight + dy);
+
+                    if (candidateW > maxW || candidateH > maxH) {
+                        const scale = Math.min(maxW / candidateW, maxH / candidateH, 1);
+                        candidateW = Math.max(50, candidateW * scale);
+                        candidateH = Math.max(50, candidateH * scale);
+                    }
+
+                    lastW = candidateW;
+                    lastH = candidateH;
                     const heightRatio = lastH / startHeight;
-                    lastFS = startFontSize * heightRatio;
+                    lastFS = Math.max(12, startFontSize * heightRatio);
 
                     containerRef.current.style.width = `${lastW}px`;
                     containerRef.current.style.height = `${lastH}px`;
@@ -241,11 +308,16 @@ const SmartObjectItem: React.FC<{
             ref={containerRef as any}
             drag
             dragMomentum={false}
-            onDragEnd={(e, info) => onUpdate(obj.id, { 
-                x: obj.x + info.offset.x, 
-                y: obj.y + info.offset.y,
-                ...(isArrow ? { endX: (obj.endX || obj.x) + info.offset.x, endY: (obj.endY || obj.y) + info.offset.y } : {})
-            })}
+            onDragEnd={(e, info) => {
+                const rawX = obj.x + info.offset.x;
+                const rawY = obj.y + info.offset.y;
+                const clamped = clampSmartObject({ ...obj, x: rawX, y: rawY }, containerBounds.width, containerBounds.height);
+                onUpdate(obj.id, { 
+                    x: clamped.x, 
+                    y: clamped.y,
+                    ...(isArrow ? { endX: (obj.endX || obj.x) + info.offset.x, endY: (obj.endY || obj.y) + info.offset.y } : {})
+                });
+            }}
             initial={{ x: arrowX, y: arrowY }}
             animate={{ x: arrowX, y: arrowY }}
             style={{
@@ -849,10 +921,41 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
     const [savedNotes, setSavedNotes] = useState<Note[]>([]);
     const [smartObjects, setSmartObjects] = useState<SmartObject[]>([]);
     
+    const getContainerBounds = useCallback(() => {
+        if (containerRef.current) {
+            return {
+                width: containerRef.current.clientWidth || (typeof window !== 'undefined' ? window.innerWidth : 1200),
+                height: containerRef.current.clientHeight || (typeof window !== 'undefined' ? window.innerHeight : 800),
+            };
+        }
+        return {
+            width: typeof window !== 'undefined' ? window.innerWidth : 1200,
+            height: typeof window !== 'undefined' ? window.innerHeight : 800,
+        };
+    }, []);
+
+    // Automatisk clamping vid inladdning / skärmstorleksändring för sparade anteckningar & smartObjects
+    useEffect(() => {
+        if (smartObjects.length === 0) return;
+        const bounds = getContainerBounds();
+        let needsClamp = false;
+        const clamped = smartObjects.map(obj => {
+            const c = clampSmartObject(obj, bounds.width, bounds.height);
+            if (c.x !== obj.x || c.y !== obj.y || c.width !== obj.width || c.height !== obj.height || c.fontSize !== obj.fontSize) {
+                needsClamp = true;
+            }
+            return c;
+        });
+        if (needsClamp) {
+            setSmartObjects(clamped);
+        }
+    }, [smartObjects, getContainerBounds]);
+
     const updateSmartObject = useCallback((id: string, updates: Partial<SmartObject>) => {
+        const bounds = getContainerBounds();
         setSmartObjects(prev => prev.map(obj => {
             if (obj.id !== id) return obj;
-            const updated = { ...obj, ...updates };
+            let updated = { ...obj, ...updates };
             
             // Anpassa storleken dynamiskt om texten uppdateras i ett text-objekt
             if (obj.type === 'text' && updates.text !== undefined) {
@@ -867,9 +970,9 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
                 updated.width = size.width;
                 updated.height = size.height;
             }
-            return updated;
+            return clampSmartObject(updated, bounds.width, bounds.height);
         }));
-    }, []);
+    }, [getContainerBounds]);
 
     const removeSmartObject = useCallback((id: string) => {
         setSmartObjects(prev => prev.filter(obj => obj.id !== id));
@@ -921,7 +1024,8 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
             // Put text on canvas as a smart object
             const rawText = note.title ? `${note.title}\n\n${note.text}` : note.text;
             const size = getSnugTextSize(rawText, 36);
-            const newObj: SmartObject = {
+            const bounds = getContainerBounds();
+            const rawObj: SmartObject = {
                 id: `smart-text-${Date.now()}`,
                 type: 'text',
                 x: 150,
@@ -932,7 +1036,8 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
                 color: '#FFFFFF',
                 fontSize: 36
             };
-            setSmartObjects(prev => [...prev, newObj]);
+            const clampedObj = clampSmartObject(rawObj, bounds.width, bounds.height);
+            setSmartObjects(prev => [...prev, clampedObj]);
         }
     };
 
@@ -1535,7 +1640,8 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
         const canvas = canvasRef.current;
         const ctx = canvas?.getContext('2d');
         if (!canvas || !ctx) return;
-        setIsArchiveVisible(false); 
+        setIsArchiveVisible(false);
+        setIsCoachNotesModalOpen(false);
         const img = new Image();
         img.crossOrigin = "anonymous";
         img.onload = () => {
@@ -1606,6 +1712,7 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
                         obj={obj} 
                         onUpdate={updateSmartObject} 
                         onRemove={removeSmartObject} 
+                        containerBounds={getContainerBounds()}
                     />
                 ))}
             </div>
@@ -1879,15 +1986,18 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
                         ) : (
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-2">
                                 {savedNotes.map(note => (
-                                    <div key={note.id} className="bg-gray-50 dark:bg-gray-800 p-4 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm flex flex-col gap-3">
+                                    <div 
+                                        key={note.id} 
+                                        className="bg-gray-50 dark:bg-gray-800 p-4 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm flex flex-col gap-3 cursor-pointer hover:border-primary transition-colors"
+                                        onClick={() => handleLoadNote(note)}
+                                    >
                                         <div 
-                                            className="w-full h-40 bg-gray-200 dark:bg-gray-900 rounded-lg overflow-hidden shrink-0 relative group cursor-pointer"
-                                            onClick={() => setFullscreenImage(note.imageUrl)}
-                                            title="Klicka för att förstora"
+                                            className="w-full h-40 bg-gray-200 dark:bg-gray-900 rounded-lg overflow-hidden shrink-0 relative group"
+                                            title="Klicka för att ladda till tavlan"
                                         >
                                             <img src={note.imageUrl} alt="Handskriven anteckning" className="w-full h-full object-contain transition-transform group-hover:scale-[1.02]" />
                                             <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center rounded-lg pointer-events-none">
-                                                <span className="text-white font-bold tracking-widest uppercase text-sm">Förstora bild</span>
+                                                <span className="text-white font-bold tracking-widest uppercase text-sm">Ladda till tavlan</span>
                                             </div>
                                         </div>
                                         <div className="flex flex-col flex-grow">
@@ -1897,11 +2007,8 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
                                                     {note.text}
                                                 </pre>
                                             )}
-                                            <div className="flex gap-2 mt-auto flex-wrap">
-                                                <button onClick={() => {
-                                                    handleLoadNote(note);
-                                                    setIsCoachNotesModalOpen(false);
-                                                }} className="bg-primary/90 hover:bg-primary text-white text-xs font-bold py-2 px-3 rounded-lg transition-colors flex-1">
+                                            <div className="flex gap-2 mt-auto flex-wrap" onClick={(e) => e.stopPropagation()}>
+                                                <button onClick={() => handleLoadNote(note)} className="bg-primary/90 hover:bg-primary text-white text-xs font-bold py-2 px-3 rounded-lg transition-colors flex-1">
                                                     Ladda till tavlan
                                                 </button>
                                                 {note.text ? (

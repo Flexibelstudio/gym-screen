@@ -46,6 +46,135 @@ interface LocalSetDetail {
     completed: boolean;
 }
 
+interface LastPerformanceRecord {
+    weight?: number | null;
+    reps?: string | number | null;
+    time?: string | number | null;
+    distance?: string | number | null;
+    kcal?: string | number | null;
+    note?: string;
+    trackingFields?: string[];
+}
+
+function formatTimeValue(val: string | number): string {
+    if (!val && val !== 0) return '';
+    const sVal = String(val).trim();
+    if (!sVal) return '';
+    if (sVal.includes(':')) return sVal;
+    const num = parseFloat(sVal);
+    if (isNaN(num) || num <= 0) return '';
+    
+    let totalSec = num;
+    if (num < 100) {
+        totalSec = Math.round(num * 60);
+    }
+    const m = Math.floor(totalSec / 60);
+    const s = Math.round(totalSec % 60);
+    return `${m}:${s.toString().padStart(2, '0')}`;
+}
+
+export function formatLastPerformance(perf: LastPerformanceRecord | null | undefined): string | null {
+    if (!perf) return null;
+
+    const parts: string[] = [];
+
+    const weightNum = perf.weight != null ? parseFloat(String(perf.weight)) : 0;
+    const hasWeight = !isNaN(weightNum) && weightNum > 0;
+
+    const repsStr = perf.reps != null ? String(perf.reps).trim() : '';
+    const repsNum = parseFloat(repsStr);
+    const hasReps = repsStr !== '' && repsStr !== '0' && (!isNaN(repsNum) ? repsNum > 0 : true);
+
+    const kcalStr = perf.kcal != null ? String(perf.kcal).trim() : '';
+    const kcalNum = parseFloat(kcalStr);
+    const hasKcal = kcalStr !== '' && kcalStr !== '0' && !isNaN(kcalNum) && kcalNum > 0;
+
+    const distStr = perf.distance != null ? String(perf.distance).trim() : '';
+    const distNum = parseFloat(distStr);
+    const hasDist = distStr !== '' && distStr !== '0' && !isNaN(distNum) && distNum > 0;
+
+    const timeStr = perf.time != null ? String(perf.time).trim() : '';
+    const timeFormatted = formatTimeValue(timeStr);
+    const hasTime = timeFormatted !== '';
+
+    if (hasReps && hasWeight) {
+        parts.push(`${repsStr} × ${weightNum} kg`);
+    } else if (hasReps) {
+        parts.push(`${repsStr} reps`);
+    } else if (hasWeight) {
+        parts.push(`${weightNum} kg`);
+    }
+
+    if (hasKcal) {
+        parts.push(`${kcalNum} kcal`);
+    }
+
+    if (hasTime) {
+        parts.push(timeFormatted);
+    }
+
+    if (hasDist) {
+        parts.push(`${String(distNum).replace('.', ',')} km`);
+    }
+
+    if (parts.length === 0) return null;
+    return parts.join(' · ');
+}
+
+function extractPerformanceFromLogEx(exMatch: any, note?: string): LastPerformanceRecord {
+    let bestWeight = 0;
+    let bestReps = '0';
+    let bestTime: string | number = '';
+    let bestDistance: string | number = '';
+    let bestKcal: string | number = '';
+    const trackingFields: string[] = exMatch.trackingFields || [];
+
+    if (exMatch.setDetails && exMatch.setDetails.length > 0) {
+        let bestSet = exMatch.setDetails[0];
+        for (let i = 1; i < exMatch.setDetails.length; i++) {
+            const s = exMatch.setDetails[i];
+            const currW = parseFloat(String(s.weight)) || 0;
+            const prevW = parseFloat(String(bestSet.weight)) || 0;
+            if (currW > prevW) {
+                bestSet = s;
+            } else if (currW === prevW) {
+                const currR = parseFloat(String(s.reps)) || 0;
+                const prevR = parseFloat(String(bestSet.reps)) || 0;
+                if (currR > prevR) {
+                    bestSet = s;
+                } else if (currR === prevR) {
+                    const currKcal = parseFloat(String(s.kcal || s.calories)) || 0;
+                    const prevKcal = parseFloat(String(bestSet.kcal || bestSet.calories)) || 0;
+                    if (currKcal > prevKcal) {
+                        bestSet = s;
+                    }
+                }
+            }
+        }
+        bestWeight = parseFloat(String(bestSet.weight)) || 0;
+        bestReps = bestSet.reps != null ? String(bestSet.reps) : '0';
+        bestTime = bestSet.time != null ? bestSet.time : '';
+        bestDistance = bestSet.distance != null ? bestSet.distance : '';
+        bestKcal = bestSet.kcal != null ? bestSet.kcal : (bestSet.calories != null ? bestSet.calories : '');
+    } else {
+        bestWeight = parseFloat(String(exMatch.weight)) || 0;
+        bestReps = exMatch.reps != null ? String(exMatch.reps) : '0';
+        bestTime = exMatch.time != null ? exMatch.time : '';
+        bestDistance = exMatch.distance != null ? exMatch.distance : '';
+        bestKcal = exMatch.kcal != null ? exMatch.kcal : (exMatch.calories != null ? exMatch.calories : '');
+    }
+
+    return {
+        weight: bestWeight,
+        reps: bestReps,
+        time: bestTime,
+        distance: bestDistance,
+        kcal: bestKcal,
+        note,
+        trackingFields
+    };
+}
+
 interface LocalExerciseResult {
   exerciseId: string;
   exerciseName: string;
@@ -406,14 +535,22 @@ const GROUP_COLORS = [
     { bg: 'bg-purple-500', border: 'border-purple-500', text: 'text-purple-500', lightBg: 'bg-purple-50 dark:bg-purple-900/20', lightBorder: 'border-purple-200 dark:border-purple-800' },
 ];
 
-const ExerciseLogCard: React.FC<{
+const GRID_COLS_MAP: Record<number, string> = {
+    1: 'grid-cols-[36px_repeat(1,_1fr)_40px_48px]',
+    2: 'grid-cols-[36px_repeat(2,_1fr)_40px_48px]',
+    3: 'grid-cols-[36px_repeat(3,_1fr)_40px_48px]',
+    4: 'grid-cols-[36px_repeat(4,_1fr)_40px_48px]',
+    5: 'grid-cols-[36px_repeat(5,_1fr)_40px_48px]',
+};
+
+export const ExerciseLogCard: React.FC<{
   name: string;
   result: LocalExerciseResult;
   onUpdate: (updates: Partial<LocalExerciseResult>) => void;
   onRemove?: () => void;
   aiSuggestion?: string; // Koncept 1: Coach Whisper
   scaling?: string;      // Koncept 1: Alternativ
-  lastPerformance?: { weight: number, reps: string, note?: string } | null;
+  lastPerformance?: LastPerformanceRecord | null;
   personalBest?: PersonalBest | null;
   isLastInGroup?: boolean;
   onAddGroupSet?: () => void;
@@ -428,7 +565,7 @@ const ExerciseLogCard: React.FC<{
     const showKcal = trackingFields.includes('kcal');
 
     const dynamicColsCount = [showReps, showWeight, showTime, showDistance, showKcal].filter(Boolean).length;
-    const gridColsClass = `grid-cols-[36px_repeat(${dynamicColsCount},_1fr)_40px_48px]`;
+    const gridColsClass = GRID_COLS_MAP[dynamicColsCount] || 'grid-cols-[36px_repeat(2,_1fr)_40px_48px]';
 
     // Extract tailwind color classes from groupColor (e.g. "bg-pink-500")
     const groupColorObj = result.groupColor ? GROUP_COLORS.find(c => c.bg === result.groupColor) : null;
@@ -498,18 +635,24 @@ const ExerciseLogCard: React.FC<{
                 <div className="flex justify-between items-center">
                     <div className="flex-1 min-w-0">
                         <h4 className="font-black text-gray-900 dark:text-white text-xl truncate leading-[1.2] pt-[0.1em]">{name}</h4>
-                        {lastPerformance ? (
-                            <div className="inline-flex items-center gap-1.5 bg-gray-100/80 dark:bg-gray-800/80 border border-gray-200/60 dark:border-gray-700/60 px-2.5 py-1 rounded-lg mt-1.5 text-xs font-medium text-gray-500 dark:text-gray-400">
-                                <span className="text-[10px] font-black uppercase tracking-wider text-gray-400 dark:text-gray-500 leading-[1.2] pt-[0.1em]">Senast:</span>
-                                <span className="text-gray-900 dark:text-white font-black tabular-nums">
-                                    {lastPerformance.weight > 0 ? `${lastPerformance.reps} × ${lastPerformance.weight} kg` : `${lastPerformance.reps} reps`}
-                                </span>
-                            </div>
-                        ) : (
-                            <p className="text-[11px] text-gray-400 dark:text-gray-500 uppercase font-black tracking-wider mt-1.5 leading-[1.2] pt-[0.1em]">
-                               Ingen historik
-                            </p>
-                        )}
+                        {(() => {
+                            const formatted = formatLastPerformance(lastPerformance);
+                            if (formatted) {
+                                return (
+                                    <div className="inline-flex items-center gap-1.5 bg-gray-100/80 dark:bg-gray-800/80 border border-gray-200/60 dark:border-gray-700/60 px-2.5 py-1 rounded-lg mt-1.5 text-xs font-medium text-gray-500 dark:text-gray-400">
+                                        <span className="text-[10px] font-black uppercase tracking-wider text-gray-400 dark:text-gray-500 leading-[1.2] pt-[0.1em]">Senast:</span>
+                                        <span className="text-gray-900 dark:text-white font-black tabular-nums">
+                                            {formatted}
+                                        </span>
+                                    </div>
+                                );
+                            }
+                            return (
+                                <p className="text-[11px] text-gray-400 dark:text-gray-500 uppercase font-black tracking-wider mt-1.5 leading-[1.2] pt-[0.1em]">
+                                   Ingen historik
+                                </p>
+                            );
+                        })()}
                     </div>
                     {/* Gear / Edit / Delete buttons */}
                     <div className="flex items-center gap-2">
@@ -1016,7 +1159,7 @@ const PostWorkoutForm: React.FC<{ data: LogData; onUpdate: (updates: Partial<Log
                 {isSummerChallengeOn && (
                     <div className="mt-10 border-2 border-dashed border-gray-200 dark:border-gray-800 rounded-2xl p-6 text-center bg-gray-50/50 dark:bg-gray-900/10 hover:border-primary/50 transition-colors animate-fade-in">
                         <h5 className="text-[11px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-2 leading-[1.2] pt-[0.1em]">📸 Dela en sommarbild</h5>
-                        <p className="text-xs text-gray-500 dark:text-gray-400 mb-4 max-w-sm mx-auto font-medium">Bifoga en bild till ditt pass så visas den i Sommarfeeden på Smart Skärmen och Topplistan! ☀️</p>
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mb-4 max-w-sm mx-auto font-medium">Bifoga en bild till ditt pass så visas den i Sommarfeeden på SmartStudio och Topplistan! ☀️</p>
                         {data.imageUrl ? (
                             <div className="relative inline-block mt-2">
                                 <img src={data.imageUrl} alt="Bifogad sommarbild" className="w-32 h-32 object-cover rounded-2xl shadow-md border-2 border-primary" />
@@ -1272,7 +1415,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
   const scanSource = source || route?.params?.source;
   const [inStudio, setInStudio] = useState<boolean | null>(scanSource === 'qr_scan' ? true : null);
 
-  const [history, setHistory] = useState<Record<string, { weight: number, reps: string }>>({}); 
+  const [history, setHistory] = useState<Record<string, LastPerformanceRecord>>({}); 
   const [personalBests, setPersonalBests] = useState<Record<string, PersonalBest>>({});
 
   useEffect(() => {
@@ -1566,14 +1709,24 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
                 }
                 if (loadedCustomActivity) setCustomActivity(loadedCustomActivity);
 
-                const historyMap: Record<string, { weight: number, reps: string, note?: string }> = {};
+                const historyMap: Record<string, LastPerformanceRecord> = {};
                 
                 exercises.forEach(currentEx => {
                     const hasRealPerformance = (logEx: any) => {
                         if (logEx.setDetails && logEx.setDetails.length > 0) {
-                            return logEx.setDetails.some((s: any) => (parseFloat(String(s.weight)) || 0) > 0 || (parseFloat(String(s.reps)) || 0) > 0);
+                            return logEx.setDetails.some((s: any) => 
+                                (parseFloat(String(s.weight)) || 0) > 0 || 
+                                (parseFloat(String(s.reps)) || 0) > 0 ||
+                                (parseFloat(String(s.time)) || 0) > 0 ||
+                                (parseFloat(String(s.distance)) || 0) > 0 ||
+                                (parseFloat(String(s.kcal || s.calories)) || 0) > 0
+                            );
                         }
-                        return (parseFloat(String(logEx.weight)) || 0) > 0 || (parseFloat(String(logEx.reps)) || 0) > 0;
+                        return (parseFloat(String(logEx.weight)) || 0) > 0 || 
+                               (parseFloat(String(logEx.reps)) || 0) > 0 ||
+                               (parseFloat(String(logEx.time)) || 0) > 0 ||
+                               (parseFloat(String(logEx.distance)) || 0) > 0 ||
+                               (parseFloat(String(logEx.calories || logEx.kcal)) || 0) > 0;
                     };
 
                     let match = logs.find(log => 
@@ -1601,29 +1754,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
                     if (match) {
                         const exMatch = match.exerciseResults?.find(logEx => isExerciseMatch(currentEx.exerciseName, currentEx.exerciseId, logEx.exerciseName, logEx.exerciseId));
                         if (exMatch) {
-                            let maxWeight = 0;
-                            let maxReps = '0';
-                            
-                            if (exMatch.setDetails && exMatch.setDetails.length > 0) {
-                                let bestSet = exMatch.setDetails.reduce((prev: any, current: any) => {
-                                    const prevW = parseFloat(String(prev.weight)) || 0;
-                                    const currW = parseFloat(String(current.weight)) || 0;
-                                    if (currW > prevW) return current;
-                                    if (currW === prevW) {
-                                        const prevR = parseFloat(String(prev.reps)) || 0;
-                                        const currR = parseFloat(String(current.reps)) || 0;
-                                        return currR > prevR ? current : prev;
-                                    }
-                                    return prev;
-                                }, exMatch.setDetails[0]);
-                                maxWeight = parseFloat(String(bestSet.weight)) || 0;
-                                maxReps = bestSet.reps?.toString() || '0';
-                            } else {
-                                maxWeight = parseFloat(String(exMatch.weight)) || 0;
-                                maxReps = exMatch.reps?.toString() || '0';
-                            }
-                            
-                            historyMap[currentEx.exerciseName] = { weight: maxWeight, reps: maxReps, note: mostRecentNote };
+                            historyMap[currentEx.exerciseName] = extractPerformanceFromLogEx(exMatch, mostRecentNote);
                         }
                     }
                 });
@@ -1659,13 +1790,23 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
                  
                  // Compute history for loaded manual mode results
                  if (loadedResults) {
-                     const historyMap: Record<string, { weight: number, reps: string, note?: string }> = {};
+                     const historyMap: Record<string, LastPerformanceRecord> = {};
                      loadedResults.forEach(currentEx => {
                          const hasRealPerformance = (logEx: any) => {
 							if (logEx.setDetails && logEx.setDetails.length > 0) {
-								return logEx.setDetails.some((s: any) => (parseFloat(String(s.weight)) || 0) > 0 || (parseFloat(String(s.reps)) || 0) > 0);
+								return logEx.setDetails.some((s: any) => 
+                                    (parseFloat(String(s.weight)) || 0) > 0 || 
+                                    (parseFloat(String(s.reps)) || 0) > 0 ||
+                                    (parseFloat(String(s.time)) || 0) > 0 ||
+                                    (parseFloat(String(s.distance)) || 0) > 0 ||
+                                    (parseFloat(String(s.kcal || s.calories)) || 0) > 0
+                                );
 							}
-							return (parseFloat(String(logEx.weight)) || 0) > 0 || (parseFloat(String(logEx.reps)) || 0) > 0;
+							return (parseFloat(String(logEx.weight)) || 0) > 0 || 
+                                   (parseFloat(String(logEx.reps)) || 0) > 0 ||
+                                   (parseFloat(String(logEx.time)) || 0) > 0 ||
+                                   (parseFloat(String(logEx.distance)) || 0) > 0 ||
+                                   (parseFloat(String(logEx.calories || logEx.kcal)) || 0) > 0;
 						};
 
 						let match = logs.find(log => 
@@ -1692,29 +1833,9 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
 
                          if (match) {
                              const exMatch = match.exerciseResults?.find(logEx => logEx.exerciseName.toLowerCase() === currentEx.exerciseName.toLowerCase());
-                              if (exMatch) {
-                                  let maxWeight = 0;
-                                  let maxReps = '0';
-                                  if (exMatch.setDetails && exMatch.setDetails.length > 0) {
-                                      let bestSet = exMatch.setDetails.reduce((prev: any, current: any) => {
-                                          const prevW = parseFloat(String(prev.weight)) || 0;
-                                          const currW = parseFloat(String(current.weight)) || 0;
-                                          if (currW > prevW) return current;
-                                          if (currW === prevW) {
-                                              const prevR = parseFloat(String(prev.reps)) || 0;
-                                              const currR = parseFloat(String(current.reps)) || 0;
-                                              return currR > prevR ? current : prev;
-                                          }
-                                          return prev;
-                                      }, exMatch.setDetails[0]);
-                                      maxWeight = parseFloat(String(bestSet.weight)) || 0;
-                                      maxReps = bestSet.reps?.toString() || '0';
-                                  } else {
-                                      maxWeight = parseFloat(String(exMatch.weight)) || 0;
-                                      maxReps = exMatch.reps?.toString() || '0';
-                                  }
-                                  historyMap[currentEx.exerciseName] = { weight: maxWeight, reps: maxReps, note: mostRecentNote };
-                              }
+                             if (exMatch) {
+                                 historyMap[currentEx.exerciseName] = extractPerformanceFromLogEx(exMatch, mostRecentNote);
+                             }
                          }
                      });
                      setHistory(historyMap);
@@ -1818,29 +1939,10 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
       if (match) {
           const exMatch = match.exerciseResults?.find(logEx => logEx.exerciseName.toLowerCase() === exerciseName.trim().toLowerCase());
           if (exMatch) {
-              let maxWeight = 0;
-              let maxReps = '0';
-              if (exMatch.setDetails && exMatch.setDetails.length > 0) {
-                  let bestSet = exMatch.setDetails.reduce((prev: any, current: any) => {
-                      const prevW = parseFloat(String(prev.weight)) || 0;
-                      const currW = parseFloat(String(current.weight)) || 0;
-                      if (currW > prevW) return current;
-                      if (currW === prevW) {
-                          const prevR = parseFloat(String(prev.reps)) || 0;
-                          const currR = parseFloat(String(current.reps)) || 0;
-                          return currR > prevR ? current : prev;
-                      }
-                      return prev;
-                  }, exMatch.setDetails[0]);
-                  maxWeight = parseFloat(String(bestSet.weight)) || 0;
-                  maxReps = bestSet.reps?.toString() || '0';
-              } else {
-                  maxWeight = parseFloat(String(exMatch.weight)) || 0;
-                  maxReps = exMatch.reps?.toString() || '0';
-              }
+              const perfRecord = extractPerformanceFromLogEx(exMatch, mostRecentNote);
               setHistory(prev => ({
                   ...prev,
-                  [exerciseName.trim()]: { weight: maxWeight, reps: maxReps, note: mostRecentNote }
+                  [exerciseName.trim()]: perfRecord
               }));
           }
       }

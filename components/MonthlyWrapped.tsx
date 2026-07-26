@@ -614,7 +614,7 @@ export const MonthlyWrappedModal: React.FC<MonthlyWrappedProps> = ({
                                     )}
 
                                     <div className="text-[10px] text-gray-500 text-center pt-1 border-t border-white/5">
-                                        Loggat i SmartSkärm • {gymName}
+                                        Loggat i SmartStudio • {gymName}
                                     </div>
                                 </div>
                             </div>
