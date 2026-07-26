@@ -151,7 +151,7 @@ interface HomeScreenProps {
     studioLoading?: boolean;
 }
 
-export const HomeScreen: React.FC<HomeScreenProps> = ({ 
+export const HomeScreen: React.FC<HomeScreenProps> = React.memo(({ 
     navigateTo, 
     onSelectWorkout, 
     onSelectPasskategori, 
@@ -496,4 +496,4 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
         </AnimatePresence>
     </>
   );
-};
+});

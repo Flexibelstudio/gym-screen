@@ -1245,4 +1245,4 @@ const WorkoutDetailScreen: React.FC<WorkoutDetailScreenProps> = ({
   );
 };
 
-export default WorkoutDetailScreen;
+export default React.memo(WorkoutDetailScreen);

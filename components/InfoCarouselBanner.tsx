@@ -20,7 +20,7 @@ const getAnimationClass = (animation: InfoMessage['animation']) => {
     }
 };
 
-export const InfoCarouselBanner: React.FC<InfoCarouselBannerProps> = ({ messages, className = '', forceDark = false }) => {
+export const InfoCarouselBanner: React.FC<InfoCarouselBannerProps> = React.memo(({ messages, className = '', forceDark = false }) => {
     const [currentIndex, setCurrentIndex] = useState(0);
     const [isFading, setIsFading] = useState(false);
     const [qrDataUrl, setQrDataUrl] = useState<string>('');
@@ -161,4 +161,4 @@ export const InfoCarouselBanner: React.FC<InfoCarouselBannerProps> = ({ messages
             </div>
         </div>
     );
-};
+});

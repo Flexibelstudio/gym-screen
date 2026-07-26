@@ -6,7 +6,7 @@ import { CheckInEvent } from '../types';
 import { useStudio } from '../context/StudioContext';
 import { FireIcon } from './icons';
 
-export const SpotlightOverlay: React.FC = () => {
+export const SpotlightOverlay: React.FC = React.memo(() => {
     const { selectedOrganization } = useStudio();
     const [currentCheckIn, setCurrentCheckIn] = useState<CheckInEvent | null>(null);
     const [queue, setQueue] = useState<CheckInEvent[]>([]);
@@ -76,4 +76,4 @@ export const SpotlightOverlay: React.FC = () => {
             </AnimatePresence>
         </div>
     );
-};
+});

@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect } from 'react';
 import { Page, UserRole } from '../../types';
 import { DigitalClock } from '../common/DigitalClock';
@@ -28,7 +29,7 @@ interface HeaderProps {
     hasBackgroundImage?: boolean;
 }
 
-export const Header: React.FC<HeaderProps> = ({ 
+export const Header: React.FC<HeaderProps> = React.memo(({ 
     page, 
     onBack, 
     theme, 
@@ -455,4 +456,4 @@ export const Header: React.FC<HeaderProps> = ({
         )}
     </>
   );
-};
+});

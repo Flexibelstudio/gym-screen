@@ -11,7 +11,7 @@ interface WeeklyPBListProps {
     isExpanded?: boolean;
 }
 
-export const WeeklyPBList: React.FC<WeeklyPBListProps> = ({ onExpand, isExpanded = false }) => {
+export const WeeklyPBList: React.FC<WeeklyPBListProps> = React.memo(({ onExpand, isExpanded = false }) => {
     const { selectedOrganization, selectedStudio } = useStudio();
     const [events, setEvents] = useState<StudioEvent[]>([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -139,4 +139,4 @@ export const WeeklyPBList: React.FC<WeeklyPBListProps> = ({ onExpand, isExpanded
             </div>
         </div>
     );
-};
+});

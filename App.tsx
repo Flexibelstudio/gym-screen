@@ -34,9 +34,10 @@ import { PasswordModal } from './components/PasswordModal';
 import { ReAuthModal } from './components/ReAuthModal';
 import { StudioConfigModal } from './components/AdminConfigScreen';
 import { LoginScreen } from './components/LoginScreen';
-import { RegisterGymScreen } from './components/RegisterGymScreen'; 
-import { LandingPage } from './components/LandingPage';
 import { ResetPasswordScreen } from './components/ResetPasswordScreen';
+
+const RegisterGymScreen = React.lazy(() => import('./components/RegisterGymScreen').then(m => ({ default: m.RegisterGymScreen })));
+const LandingPage = React.lazy(() => import('./components/LandingPage').then(m => ({ default: m.LandingPage })));
 import { DeveloperToolbar } from './components/DeveloperToolbar';
 import { InfoCarouselBanner } from './components/InfoCarouselBanner';
 import { TermsOfServiceModal } from './components/TermsOfServiceModal';
@@ -45,7 +46,7 @@ import { Screensaver } from './components/common/Screensaver';
 import { ImagePreviewModal } from './components/ui/ImagePreviewModal';
 import { Header } from './components/layout/Header';
 import { SeasonalOverlay } from './components/common/SeasonalOverlay';
-import { HyroxRaceDetailScreen } from './components/HyroxRaceDetailScreen';
+const HyroxRaceDetailScreen = React.lazy(() => import('./components/HyroxRaceDetailScreen').then(m => ({ default: m.HyroxRaceDetailScreen })));
 import { SpotlightOverlay } from './components/SpotlightOverlay';
 import { PBOverlay } from './components/PBOverlay'; 
 import { ScanButton } from './components/ScanButton';
@@ -99,6 +100,14 @@ const App: React.FC = () => {
   const [showRegisterGym, setShowRegisterGym] = useState(false); 
   const minSplashTimeElapsed = useMinSplashTime();
   const [customPrograms, setCustomPrograms] = useState<Workout[]>([]);
+
+  useEffect(() => {
+    if (isStudioMode) {
+      document.documentElement.classList.add('studio-mode');
+    } else {
+      document.documentElement.classList.remove('studio-mode');
+    }
+  }, [isStudioMode]);
 
   useEffect(() => {
     const loadCustomPrograms = async () => {
@@ -843,9 +852,11 @@ const App: React.FC = () => {
                 {theme === 'dark' ? '☀️' : '🌙'}
             </button>
         </div>
-        <HyroxRaceDetailScreen raceId={publicLiveRaceId} isPublicView={true} onBack={() => {
-           window.location.href = '/';
-        }} />
+        <React.Suspense fallback={<div className="min-h-screen bg-black flex items-center justify-center text-white">Laddar lopp...</div>}>
+          <HyroxRaceDetailScreen raceId={publicLiveRaceId} isPublicView={true} onBack={() => {
+             window.location.href = '/';
+          }} />
+        </React.Suspense>
       </div>
     );
   }
@@ -858,23 +869,29 @@ const App: React.FC = () => {
       }
 
       // Annars på smartstudio.se (marknadsföringssidan/huvuddomänen eller i dev med ?marketing=true)
-      if (showRegisterGym) {
-          return <RegisterGymScreen onCancel={() => setShowRegisterGym(false)} />;
-      }
-      if (showLogin) {
-          return <LoginScreen onClose={() => setShowLogin(false)} onRegisterGym={() => setShowRegisterGym(true)} />;
-      }
       return (
-          <LandingPage 
-              onLoginClick={() => {
-                  const hostname = window.location.hostname;
-                  const targetAppUrl = hostname.includes('staging.smartstudio.se')
-                      ? 'https://app.staging.smartstudio.se'
-                      : 'https://app.smartstudio.se';
-                  window.location.href = targetAppUrl + window.location.search;
-              }} 
-              onRegisterGymClick={() => setShowRegisterGym(true)} 
-          />
+          <React.Suspense fallback={
+              <div className="min-h-screen bg-black flex items-center justify-center">
+                  <div className="w-10 h-10 border-4 border-emerald-500/20 border-t-emerald-500 rounded-full animate-spin" />
+              </div>
+          }>
+              {showRegisterGym ? (
+                  <RegisterGymScreen onCancel={() => setShowRegisterGym(false)} />
+              ) : showLogin ? (
+                  <LoginScreen onClose={() => setShowLogin(false)} onRegisterGym={() => setShowRegisterGym(true)} />
+              ) : (
+                  <LandingPage 
+                      onLoginClick={() => {
+                          const hostname = window.location.hostname;
+                          const targetAppUrl = hostname.includes('staging.smartstudio.se')
+                              ? 'https://app.staging.smartstudio.se'
+                              : 'https://app.smartstudio.se';
+                          window.location.href = targetAppUrl + window.location.search;
+                      }} 
+                      onRegisterGymClick={() => setShowRegisterGym(true)} 
+                  />
+              )}
+          </React.Suspense>
       );
   }
 

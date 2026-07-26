@@ -54,7 +54,7 @@ interface PBOverlayProps {
   isGrattisOpen?: boolean;
 }
 
-export const PBOverlay: React.FC<PBOverlayProps> = ({ isGrattisOpen }) => {
+export const PBOverlay: React.FC<PBOverlayProps> = React.memo(({ isGrattisOpen }) => {
   const { selectedOrganization, selectedStudio } = useStudio();
 
   // State för den som visas just nu
@@ -355,4 +355,4 @@ export const PBOverlay: React.FC<PBOverlayProps> = ({ isGrattisOpen }) => {
       </AnimatePresence>
     </div>
   );
-};
+});

@@ -245,7 +245,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         isImpersonating, startImpersonation, stopImpersonation,
         showTerms, acceptTerms,
         switchSimulatedUser
-    }), [currentUser, userData, role, isStudioMode, authLoading, handleSignIn, handleSignInAsStudio, handleSignOut, isImpersonating, showTerms, switchSimulatedUser]);
+    }), [currentUser, userData, role, isStudioMode, authLoading, handleSignIn, handleSignInAsStudio, handleSignOut, clearDeviceProvisioning, reauthenticate, handleSendPasswordResetEmail, isImpersonating, startImpersonation, stopImpersonation, showTerms, acceptTerms, switchSimulatedUser]);
 
     return (
         <AuthContext.Provider value={value}>

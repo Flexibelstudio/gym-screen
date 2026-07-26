@@ -16,7 +16,7 @@ interface WorkoutListScreenProps {
     onSelectWorkout: (workout: Workout, action?: 'view' | 'log') => void;
 }
 
-export const WorkoutListScreen: React.FC<WorkoutListScreenProps> = ({ passkategori, onSelectWorkout }) => {
+export const WorkoutListScreen: React.FC<WorkoutListScreenProps> = React.memo(({ passkategori, onSelectWorkout }) => {
     const { workouts } = useWorkout();
     const { isStudioMode, currentUser, userData } = useAuth();
     const { studioConfig, selectedOrganization } = useStudio();
@@ -554,4 +554,4 @@ export const WorkoutListScreen: React.FC<WorkoutListScreenProps> = ({ passkatego
             )}
         </div>
     );
-};
+});

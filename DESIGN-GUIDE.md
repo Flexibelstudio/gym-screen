@@ -15,7 +15,7 @@ Alla designändringar ska följa denna guide. Avvikelser kräver beslut av produ
 - Hierarki: Display (skärmens stora tal/namn) > H1 (vyrubrik) > H2 (sektion) > Body (font-medium) > Caption (text-[10px]–xs, font-bold, uppercase, tracking-widest).
 - Siffror är hjältar: tider, reps, vikter och räknare visas stort, font-black, gärna tabular-nums.
 
-## 3. Färgsystem (semantiska tokens — se tailwind.config i index.html — detta är appens ENDA Tailwind-konfiguration)
+## 3. Färgsystem (semantiska tokens — se tailwind.config.js — detta är appens ENDA Tailwind-konfiguration)
 - primary: var(--color-primary) — organisationens färg. Primära knappar, aktiva val, framsteg.
 - work: orange (befintlig arbetsfärg i timern) — arbetsintervall, sidobadges, intensitet.
 - rest: teal — vila och återhämtning.
@@ -45,6 +45,7 @@ Alla designändringar ska följa denna guide. Avvikelser kräver beslut av produ
 - Inga hårdkodade hexfärger där en token finns.
 - Inga logik-/flödesändringar i designetapper — endast visuellt.
 - Datum aldrig i pass-titlar; sidoinformation aldrig i övningsnamn (etablerade regler).
-- Tailwind-tokens definieras ENDAST i index.html:s inline-konfig — inga parallella konfigfiler.
+- Tailwind-tokens definieras ENDAST i tailwind.config.js — inga parallella konfigfiler eller CDN-skript.
 
 Version 1.0 — beslut: riktning "Energisk precision" (produktägare Mikael).
+Version 1.1 — PRESTANDA P1: ersatt runtime-Tailwind (CDN) med byggd Tailwind i Vite (tailwind.config.js + index.css).

@@ -588,7 +588,7 @@ interface TimerScreenProps {
 
 interface FinishData { time: number; placement: number | null; }
 
-export const TimerScreen: React.FC<TimerScreenProps> = ({ 
+export const TimerScreen: React.FC<TimerScreenProps> = React.memo(({ 
     block, onFinish, onHeaderVisibilityChange, onShowImage,
     setCompletionInfo, setIsRegisteringHyroxTime,
     setIsBackButtonHidden, followMeShowImage, organization, onBackToGroups,
@@ -2908,4 +2908,4 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
       )}
     </div>
   );
-};
+});

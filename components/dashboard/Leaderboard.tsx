@@ -8,7 +8,7 @@ interface LeaderboardProps {
     organizationId: string;
 }
 
-export const Leaderboard: React.FC<LeaderboardProps> = ({ organizationId }) => {
+export const Leaderboard: React.FC<LeaderboardProps> = React.memo(({ organizationId }) => {
     const { selectedOrganization, studioConfig } = useStudio();
     const { userData } = useAuth();
     const [members, setMembers] = useState<any[]>([]);
@@ -400,4 +400,4 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ organizationId }) => {
             )}
         </div>
     );
-};
+});

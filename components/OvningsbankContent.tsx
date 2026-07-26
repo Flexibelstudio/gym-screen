@@ -3,14 +3,10 @@ import { BankExercise } from '../types';
 import { getExerciseBank, saveExerciseToBank, deleteExerciseFromBank, mergeExercises } from '../services/firebaseService';
 import { generateExerciseSuggestions } from '../services/geminiService';
 // FIX: Safer import for react-window to handle both Vite and CDN environments
-import * as ReactWindow from 'react-window';
+import { FixedSizeList as ReactWindowList } from 'react-window';
 import AutoSizer from 'react-virtualized-auto-sizer';
 
-// Handle potential import issues with react-window in different environments
-// This looks for Named export, Default export with property, or the module itself
-const FixedSizeList = ReactWindow.FixedSizeList || (ReactWindow as any).default?.FixedSizeList || ReactWindow;
-// Fallback to a simple div if react-window fails completely (very rare with above fix)
-const List = FixedSizeList || (({ children }: any) => <div>{children}</div>);
+const List = ReactWindowList || (({ children }: any) => <div>{children}</div>);
 
 const AILoadingSpinner: React.FC = () => (
     <div className="relative w-8 h-8">
