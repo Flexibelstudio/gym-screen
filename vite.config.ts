@@ -107,7 +107,7 @@ export default defineConfig(({ mode }) => {
                 if (id.includes('firebase')) {
                   return 'vendor-firebase';
                 }
-                if (id.includes('recharts') || id.includes('d3')) {
+                if (id.includes('recharts') || id.includes('victory-vendor') || id.includes('d3-') || id.includes('react-smooth')) {
                   return 'vendor-charts';
                 }
                 if (id.includes('framer-motion')) {
@@ -122,9 +122,12 @@ export default defineConfig(({ mode }) => {
                 if (id.includes('react-markdown') || id.includes('roughjs')) {
                   return 'vendor-ui-helpers';
                 }
-                if (id.includes('react') || id.includes('react-dom')) {
-                  return 'vendor-react';
-                }
+                // Catch-all: react, react-dom, scheduler och ALLA övriga småpaket
+                // hamnar i EN gemensam vendor-chunk. Utan denna läcker t.ex.
+                // scheduler (react-doms beroende) till index-chunken och skapar
+                // en cirkulär laddkedja => "Cannot read properties of undefined
+                // (reading 'forwardRef')" i vendor-charts vid sidladdning.
+                return 'vendor';
               }
             }
           }
