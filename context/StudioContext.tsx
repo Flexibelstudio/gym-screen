@@ -177,17 +177,33 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         if (authLoading || !selectedOrganization?.id) return;
 
         const unsubscribe = listenToOrganizationChanges(selectedOrganization.id, (updatedOrg) => {
-            setSelectedOrganization(updatedOrg);
-            setAllOrganizations(prevOrgs => 
-                prevOrgs.map(o => o.id === updatedOrg.id ? updatedOrg : o)
-            );
-            setAllStudios(updatedOrg.studios);
+            setSelectedOrganization(prevOrg => {
+                if (prevOrg && JSON.stringify(prevOrg) === JSON.stringify(updatedOrg)) {
+                    return prevOrg;
+                }
+                return updatedOrg;
+            });
+            setAllOrganizations(prevOrgs => {
+                const existing = prevOrgs.find(o => o.id === updatedOrg.id);
+                if (existing && JSON.stringify(existing) === JSON.stringify(updatedOrg)) {
+                    return prevOrgs;
+                }
+                return prevOrgs.map(o => o.id === updatedOrg.id ? updatedOrg : o);
+            });
+            setAllStudios(prevStudios => {
+                if (JSON.stringify(prevStudios) === JSON.stringify(updatedOrg.studios)) {
+                    return prevStudios;
+                }
+                return updatedOrg.studios;
+            });
 
             // FIX: Update selectedStudio if it exists in the updated list to ensure we have the latest remoteState
             setSelectedStudio(prevStudio => {
                 if (!prevStudio) return null;
                 const updated = updatedOrg.studios.find(s => s.id === prevStudio.id);
-                // Only update if actually changed to avoid unnecessary re-renders (though object ref change will trigger it anyway)
+                if (updated && JSON.stringify(updated) === JSON.stringify(prevStudio)) {
+                    return prevStudio;
+                }
                 return updated || prevStudio;
             });
         });

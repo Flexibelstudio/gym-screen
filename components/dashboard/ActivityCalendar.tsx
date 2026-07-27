@@ -1,12 +1,14 @@
 import React, { useState } from 'react';
 import { WorkoutLog } from '../../types';
+import { SparklesIcon } from '../icons';
 
 interface ActivityCalendarProps {
     logs: WorkoutLog[];
     onDayClick: (date: Date, logs: WorkoutLog[]) => void;
+    onOpenMonthlyWrapped?: (referenceDate: Date) => void;
 }
 
-export const ActivityCalendar: React.FC<ActivityCalendarProps> = ({ logs, onDayClick }) => {
+export const ActivityCalendar: React.FC<ActivityCalendarProps> = ({ logs, onDayClick, onOpenMonthlyWrapped }) => {
     const [viewDate, setViewDate] = useState(new Date());
     const today = new Date();
     const currentMonth = viewDate.getMonth();
@@ -14,6 +16,17 @@ export const ActivityCalendar: React.FC<ActivityCalendarProps> = ({ logs, onDayC
 
     const handlePrevMonth = () => setViewDate(new Date(currentYear, currentMonth - 1, 1));
     const handleNextMonth = () => setViewDate(new Date(currentYear, currentMonth + 1, 1));
+
+    // Check if viewed month is a completed calendar month (strictly before current month)
+    const isCompletedMonth = (currentYear < today.getFullYear()) || 
+        (currentYear === today.getFullYear() && currentMonth < today.getMonth());
+
+    // Check if viewed month has at least 1 logged workout
+    const monthStart = new Date(currentYear, currentMonth, 1, 0, 0, 0, 0).getTime();
+    const monthEnd = new Date(currentYear, currentMonth + 1, 0, 23, 59, 59, 999).getTime();
+    const hasMonthLogs = logs.some(log => log.date >= monthStart && log.date <= monthEnd);
+
+    const showWrappedChip = isCompletedMonth && hasMonthLogs && !!onOpenMonthlyWrapped;
 
     // Helper to get local date string YYYY-MM-DD
     const getLocalDateString = (d: Date) => {
@@ -49,10 +62,27 @@ export const ActivityCalendar: React.FC<ActivityCalendarProps> = ({ logs, onDayC
 
     return (
         <div className="bg-white dark:bg-gray-900 rounded-2xl p-3 sm:p-4 shadow-sm border border-gray-100 dark:border-gray-800">
-            <div className="flex justify-between items-center mb-4">
-                <h3 className="text-xl font-black text-gray-900 dark:text-white capitalize">
-                    {monthNames[currentMonth]} {currentYear}
-                </h3>
+            <div className="flex justify-between items-center mb-4 flex-wrap gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
+                    <h3 className="text-xl font-black text-gray-900 dark:text-white capitalize">
+                        {monthNames[currentMonth]} {currentYear}
+                    </h3>
+                    {showWrappedChip && (
+                        <button
+                            onClick={() => {
+                                // calculateMonthlyStats calculates month BEFORE referenceDate
+                                // So passing 1st of next month calculates the viewed month stats!
+                                const refDate = new Date(currentYear, currentMonth + 1, 1);
+                                onOpenMonthlyWrapped!(refDate);
+                            }}
+                            className="px-2.5 py-1 bg-gradient-to-r from-purple-900/30 via-indigo-900/30 to-slate-900/30 hover:from-purple-900/50 hover:to-indigo-900/50 text-purple-600 dark:text-purple-300 hover:text-purple-800 dark:hover:text-white border border-purple-500/30 rounded-full text-xs font-black transition-all flex items-center gap-1 shadow-sm active:scale-95 cursor-pointer"
+                            title={`Se månadssummering för ${monthNames[currentMonth].toLowerCase()}`}
+                        >
+                            <SparklesIcon className="w-3.5 h-3.5 text-purple-500 dark:text-purple-400 animate-pulse" />
+                            <span>Min {monthNames[currentMonth].toLowerCase()}</span>
+                        </button>
+                    )}
+                </div>
                 <div className="flex items-center gap-2">
                     <button onClick={handlePrevMonth} className="p-2 text-gray-400 hover:text-primary hover:bg-primary/10 rounded-lg transition-colors">
                         <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">

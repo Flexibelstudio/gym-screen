@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { QRCodeSVG } from 'qrcode.react';
+import QRCode from 'qrcode';
 
 interface PrintablePosterProps {
   title: string;
@@ -10,6 +10,16 @@ interface PrintablePosterProps {
 }
 
 export const PrintablePoster: React.FC<PrintablePosterProps> = ({ title, code, url, organizationName }) => {
+  const [qrCodeDataUrl, setQrCodeDataUrl] = useState<string>('');
+
+  useEffect(() => {
+    if (url) {
+      QRCode.toDataURL(url, { width: 880, margin: 1, errorCorrectionLevel: 'H' })
+        .then(setQrCodeDataUrl)
+        .catch(console.error);
+    }
+  }, [url]);
+
   const posterContent = (
     <div className="print-only w-full bg-white text-black flex flex-col items-center justify-start p-8" style={{ minHeight: '100vh', boxSizing: 'border-box', pageBreakInside: 'avoid' }}>
       <div className="max-w-3xl mx-auto flex flex-col items-center w-full pt-6 pb-4">
@@ -17,7 +27,11 @@ export const PrintablePoster: React.FC<PrintablePosterProps> = ({ title, code, u
         <h1 className="text-4xl sm:text-5xl font-black mb-8 leading-tight uppercase max-w-2xl text-center text-black">{title}</h1>
         
         <div className="bg-gray-50 p-8 rounded-[3rem] border-4 border-gray-100 flex flex-col items-center mb-10 shadow-xl w-full max-w-sm mx-auto">
-          <QRCodeSVG value={url} size={220} level="H" includeMargin={true} className="mb-6 rounded-xl bg-white" />
+          {qrCodeDataUrl ? (
+            <img src={qrCodeDataUrl} alt="QR Code" className="w-[220px] h-[220px] mb-6 rounded-xl bg-white" />
+          ) : (
+            <div className="w-[220px] h-[220px] mb-6 rounded-xl bg-gray-200 animate-pulse" />
+          )}
           <p className="text-xs font-bold text-gray-400 uppercase tracking-[0.3em] mb-2 text-center">Din Inbjudningskod</p>
           <p className="text-6xl font-black font-mono tracking-[0.2em] text-center text-black">{code}</p>
         </div>

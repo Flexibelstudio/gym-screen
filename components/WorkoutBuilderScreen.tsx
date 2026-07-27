@@ -835,12 +835,35 @@ export const WorkoutBuilderScreen: React.FC<WorkoutBuilderScreenProps> = ({ init
                                 {studioConfig.customCategories.map(cat => (
                                     <button
                                         key={cat.id}
-                                        onClick={() => handleUpdateWorkoutDetail('category', cat.name)}
+                                        onClick={() => {
+                                            handleUpdateWorkoutDetail('category', cat.name);
+                                            if (cat.durationMinutes && !workout.durationMinutes) {
+                                                handleUpdateWorkoutDetail('durationMinutes', cat.durationMinutes);
+                                            }
+                                        }}
                                         className={`px-3 py-1.5 text-sm font-semibold rounded-md transition-colors ${workout.category === cat.name ? 'bg-primary text-white' : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'}`}
                                     >
                                         {cat.name}
                                     </button>
                                 ))}
+                            </div>
+                            <div className="mt-4">
+                                <label className="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">Passlängd (min)</label>
+                                <div className="flex items-center gap-2">
+                                    <input 
+                                        type="number"
+                                        min="1"
+                                        max="300"
+                                        placeholder="t.ex. 45"
+                                        value={workout.durationMinutes || ''}
+                                        onChange={(e) => {
+                                            const val = e.target.value ? parseInt(e.target.value, 10) : undefined;
+                                            handleUpdateWorkoutDetail('durationMinutes', val);
+                                        }}
+                                        className="w-32 bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white p-2 text-sm rounded-md border border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-primary outline-none font-semibold"
+                                    />
+                                    <span className="text-xs text-gray-400">Planerad tid för passet</span>
+                                </div>
                             </div>
                         </div>
                         

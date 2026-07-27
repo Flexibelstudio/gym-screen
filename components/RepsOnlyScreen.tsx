@@ -3,6 +3,7 @@ import React from 'react';
 import { WorkoutBlock, Exercise, Organization } from '../types';
 import { useWorkout } from '../context/WorkoutContext';
 import { PlayIcon, InformationCircleIcon } from './icons';
+import { getSideLabel } from '../utils/workoutUtils';
 
 interface RepsOnlyScreenProps {
     block: WorkoutBlock;
@@ -36,16 +37,16 @@ export const RepsOnlyScreen: React.FC<RepsOnlyScreenProps> = ({ block, onFinish,
     return (
         <div className="fixed inset-0 w-full h-full flex flex-col bg-gray-50 dark:bg-black p-4 md:p-6 overflow-hidden z-50">
             {/* Top Header Box */}
-            <div className="w-full flex-shrink-0 transition-colors duration-500 rounded-3xl p-6 md:p-8 flex flex-col items-center justify-center relative overflow-hidden shadow-2xl bg-blue-600 border-blue-400 border-4 mb-4">
-                <h1 className="text-5xl md:text-7xl lg:text-8xl text-white uppercase tracking-widest font-black text-center leading-none drop-shadow-lg">
+            <div className="w-full flex-shrink-0 transition-colors duration-500 rounded-3xl p-6 md:p-8 flex flex-col items-center justify-center relative overflow-hidden shadow-2xl bg-blue-600 border-blue-400 border-2 mb-4">
+                <h1 className="text-4xl md:text-6xl lg:text-7xl text-white uppercase tracking-tight font-black text-center leading-[1.2] pt-[0.1em] drop-shadow-lg">
                     {block.title}
                 </h1>
-                <p className="text-xl md:text-2xl text-blue-100 mt-4 font-bold uppercase tracking-wider text-center mb-6">
+                <p className="text-lg md:text-xl text-blue-100 mt-3 font-black uppercase tracking-widest text-center mb-6 leading-[1.2] pt-[0.1em]">
                     Utför i din egen takt
                 </p>
                 <button 
                     onClick={onFinish} 
-                    className="font-black text-xl py-4 px-12 rounded-2xl flex items-center justify-center gap-3 transition-all text-blue-600 shadow-xl bg-white hover:bg-blue-50 hover:scale-105 active:scale-95"
+                    className="font-black text-lg py-3.5 px-10 rounded-2xl flex items-center justify-center gap-3 transition-all text-blue-600 shadow-xl bg-white hover:bg-blue-50 hover:scale-105 active:scale-95 uppercase tracking-wider"
                 >
                     <span>Klar med blocket</span>
                     <PlayIcon className="w-6 h-6" />
@@ -54,11 +55,11 @@ export const RepsOnlyScreen: React.FC<RepsOnlyScreenProps> = ({ block, onFinish,
             
             {/* Block Description */}
             {block.showDescriptionInTimer && block.setupDescription && (
-                <div className="px-8 py-6 mb-4 bg-white/95 dark:bg-gray-900 border-2 border-blue-500/20 dark:border-white/10 w-full flex items-center gap-6 shadow-xl rounded-[2.5rem] flex-shrink-0">
+                <div className="px-8 py-5 mb-4 bg-white/95 dark:bg-gray-900 border border-blue-500/20 dark:border-white/10 w-full flex items-center gap-5 shadow-xl rounded-3xl flex-shrink-0">
                     <div className="bg-blue-500/10 p-3 rounded-2xl">
                         <InformationCircleIcon className="w-8 h-8 text-blue-500 shrink-0" />
                     </div>
-                    <p className="text-gray-900 dark:text-white text-2xl md:text-3xl font-black leading-tight tracking-tight">
+                    <p className="text-gray-900 dark:text-white text-xl md:text-2xl font-black leading-[1.2] pt-[0.1em] tracking-tight">
                         {block.setupDescription}
                     </p>
                 </div>
@@ -83,10 +84,10 @@ export const RepsOnlyScreen: React.FC<RepsOnlyScreenProps> = ({ block, onFinish,
                     return (
                         <div 
                             key={ex.id} 
-                            className={`flex-1 min-h-0 bg-white/95 dark:bg-gray-900/90 backdrop-blur-sm rounded-2xl flex flex-col justify-center border-l-[12px] shadow-sm transition-all relative group ${
+                            className={`flex-1 min-h-0 bg-white/95 dark:bg-gray-900/90 backdrop-blur-sm rounded-2xl flex flex-col justify-center border border-gray-100 dark:border-white/10 border-l-[12px] shadow-sm transition-all relative group ${
                                 useGroupColor 
                                 ? ex.groupColor.replace('bg-', 'border-') 
-                                : 'border-gray-100 dark:border-transparent'
+                                : 'border-gray-100 dark:border-white/10'
                             } ${padding} ${mbClass}`}
                             style={{ 
                                 borderLeftColor: useGroupColor ? undefined : '#3b82f6' // blue-500
@@ -96,7 +97,7 @@ export const RepsOnlyScreen: React.FC<RepsOnlyScreenProps> = ({ block, onFinish,
                                 {ex.reps && (
                                     <div className="shrink-0 flex items-center justify-center bg-blue-500/10 rounded-2xl border border-blue-500/20 px-4 py-2 min-w-[80px] md:min-w-[120px]">
                                         <span 
-                                            className="font-mono font-black text-blue-500 whitespace-nowrap leading-none"
+                                            className="font-mono font-black text-blue-500 dark:text-blue-400 whitespace-nowrap leading-none tabular-nums"
                                             style={{ fontSize: calculatedRepsSize }}
                                         >
                                             {formatReps(ex.reps)}
@@ -104,10 +105,15 @@ export const RepsOnlyScreen: React.FC<RepsOnlyScreenProps> = ({ block, onFinish,
                                     </div>
                                 )}
                                 <h4 
-                                    className="font-black text-gray-900 dark:text-white leading-[0.9] tracking-tight overflow-visible whitespace-normal transition-all duration-300"
+                                    className="font-black text-gray-900 dark:text-white leading-[1.2] pt-[0.1em] tracking-tight overflow-visible whitespace-normal transition-all duration-300 flex items-center gap-2 flex-wrap"
                                     style={{ fontSize: calculatedTitleSize }}
                                 >
-                                    {ex.name}
+                                    <span>{ex.name}</span>
+                                    {getSideLabel(ex.side) && (
+                                        <span className="inline-flex items-center justify-center px-2 py-0.5 text-[10px] font-black rounded-md bg-work/10 text-work dark:bg-work/20 dark:text-work border border-work/30 uppercase tracking-wider">
+                                            {getSideLabel(ex.side)}
+                                        </span>
+                                    )}
                                 </h4>
                             </div>
 

@@ -99,8 +99,16 @@ export const WorkoutProvider: React.FC<{ children: ReactNode }> = ({ children })
     }, [selectedOrganization]);
 
 
+    const value = React.useMemo(() => ({
+        ...state,
+        dispatch,
+        saveWorkout,
+        deleteWorkout,
+        setActiveWorkout
+    }), [state, saveWorkout, deleteWorkout, setActiveWorkout]);
+
     return (
-        <WorkoutContext.Provider value={{ ...state, dispatch, saveWorkout, deleteWorkout, setActiveWorkout }}>
+        <WorkoutContext.Provider value={value}>
             {children}
         </WorkoutContext.Provider>
     );

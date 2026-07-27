@@ -29,7 +29,7 @@ interface TimerStyle {
 
 const getTimerStyle = (status: TimerStatus, mode: TimerMode, isHyrox: boolean, isTransitioning: boolean, currentSegment: TimerSegment | null): TimerStyle => {
   if (isTransitioning) {
-      return { bg: 'bg-teal-500', text: 'text-white', pulseRgb: '45, 212, 191', border: 'border-teal-200', badge: 'bg-teal-600' };
+      return { bg: 'bg-rest', text: 'text-white', pulseRgb: '20, 184, 166', border: 'border-rest/40', badge: 'bg-rest' };
   }
   
   if (isHyrox) {
@@ -39,31 +39,31 @@ const getTimerStyle = (status: TimerStatus, mode: TimerMode, isHyrox: boolean, i
   // CUSTOM MODE OVERRIDE
   if (mode === TimerMode.Custom && currentSegment) {
       if (currentSegment.type === 'work') {
-          return { bg: 'bg-orange-600', text: 'text-white', pulseRgb: '249, 115, 22', border: 'border-orange-300', badge: 'bg-orange-600' };
+          return { bg: 'bg-work', text: 'text-white', pulseRgb: '249, 115, 22', border: 'border-work/40', badge: 'bg-work' };
       } else {
-          return { bg: 'bg-teal-500', text: 'text-white', pulseRgb: '45, 212, 191', border: 'border-teal-200', badge: 'bg-teal-600' };
+          return { bg: 'bg-rest', text: 'text-white', pulseRgb: '20, 184, 166', border: 'border-rest/40', badge: 'bg-rest' };
       }
   }
 
   switch (status) {
     case TimerStatus.Preparing:
-      return { bg: 'bg-blue-600', text: 'text-white', pulseRgb: '59, 130, 246', border: 'border-blue-300', badge: 'bg-blue-600' };
+      return { bg: 'bg-blue-600', text: 'text-white', pulseRgb: '59, 130, 246', border: 'border-blue-400', badge: 'bg-blue-600' };
     case TimerStatus.Running:
       switch (mode) {
-        case TimerMode.Interval: return { bg: 'bg-orange-600', text: 'text-white', pulseRgb: '249, 115, 22', border: 'border-orange-300', badge: 'bg-orange-600' };
-        case TimerMode.Tabata: return { bg: 'bg-red-600', text: 'text-white', pulseRgb: '239, 68, 68', border: 'border-red-300', badge: 'bg-red-600' };
-        case TimerMode.AMRAP: return { bg: 'bg-pink-600', text: 'text-white', pulseRgb: '219, 39, 119', border: 'border-pink-300', badge: 'bg-pink-700' };
-        case TimerMode.EMOM: return { bg: 'bg-purple-600', text: 'text-white', pulseRgb: '147, 51, 234', border: 'border-purple-300', badge: 'bg-purple-700' };
-        case TimerMode.TimeCap: return { bg: 'bg-indigo-600', text: 'text-white', pulseRgb: '79, 70, 229', border: 'border-indigo-300', badge: 'bg-indigo-700' };
-        case TimerMode.Stopwatch: return { bg: 'bg-green-600', text: 'text-white', pulseRgb: '22, 163, 74', border: 'border-green-300', badge: 'bg-green-700' };
-        default: return { bg: 'bg-orange-600', text: 'text-white', pulseRgb: '249, 115, 22', border: 'border-orange-300', badge: 'bg-orange-600' };
+        case TimerMode.Interval: return { bg: 'bg-work', text: 'text-white', pulseRgb: '249, 115, 22', border: 'border-work/40', badge: 'bg-work' };
+        case TimerMode.Tabata: return { bg: 'bg-red-600', text: 'text-white', pulseRgb: '239, 68, 68', border: 'border-red-400', badge: 'bg-red-600' };
+        case TimerMode.AMRAP: return { bg: 'bg-pink-600', text: 'text-white', pulseRgb: '219, 39, 119', border: 'border-pink-400', badge: 'bg-pink-700' };
+        case TimerMode.EMOM: return { bg: 'bg-purple-600', text: 'text-white', pulseRgb: '147, 51, 234', border: 'border-purple-400', badge: 'bg-purple-700' };
+        case TimerMode.TimeCap: return { bg: 'bg-indigo-600', text: 'text-white', pulseRgb: '79, 70, 229', border: 'border-indigo-400', badge: 'bg-indigo-700' };
+        case TimerMode.Stopwatch: return { bg: 'bg-green-600', text: 'text-white', pulseRgb: '22, 163, 74', border: 'border-green-400', badge: 'bg-green-700' };
+        default: return { bg: 'bg-work', text: 'text-white', pulseRgb: '249, 115, 22', border: 'border-work/40', badge: 'bg-work' };
       }
     case TimerStatus.Resting:
-      return { bg: 'bg-teal-500', text: 'text-white', pulseRgb: '45, 212, 191', border: 'border-teal-200', badge: 'bg-teal-600' };
+      return { bg: 'bg-rest', text: 'text-white', pulseRgb: '20, 184, 166', border: 'border-rest/40', badge: 'bg-rest' };
     case TimerStatus.Paused:
       return { bg: 'bg-gray-600', text: 'text-white', pulseRgb: '107, 114, 128', border: 'border-gray-400', badge: 'bg-gray-600' };
     case TimerStatus.Finished:
-      return { bg: 'bg-teal-700', text: 'text-white', pulseRgb: '13, 148, 136', border: 'border-teal-400', badge: 'bg-teal-800' };
+      return { bg: 'bg-rest', text: 'text-white', pulseRgb: '20, 184, 166', border: 'border-rest/40', badge: 'bg-rest' };
     case TimerStatus.Idle:
     default:
       // IDLE STATE - Use a neutral but ready color
@@ -110,15 +110,15 @@ const NextUpCompactBar: React.FC<{ transitionTime?: number; block?: WorkoutBlock
         <motion.div 
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="w-full bg-white/95 dark:bg-black/40 backdrop-blur-xl rounded-[2.5rem] border-2 border-gray-100 dark:border-white/10 p-8 flex items-center justify-between shadow-2xl mt-4"
+            className="w-full bg-white/95 dark:bg-black/40 backdrop-blur-xl rounded-3xl border border-gray-100 dark:border-white/10 p-6 sm:p-8 flex items-center justify-between shadow-2xl mt-4"
         >
             <div className="flex items-center gap-6">
                 <div className="bg-primary/10 p-4 rounded-2xl border border-primary/20">
                     {isRestNext ? <ClockIcon className="w-10 h-10 text-primary" /> : <ChevronRightIcon className="w-10 h-10 text-primary" />}
                 </div>
                 <div>
-                    <span className="block text-[12px] font-black text-gray-400 dark:text-white/40 uppercase tracking-[0.4em] mb-1.5">HÄRNÄST</span>
-                    <h5 className="text-4xl font-black text-gray-900 dark:text-white uppercase tracking-tight leading-none">
+                    <span className="block text-[12px] font-black text-gray-400 dark:text-white/40 uppercase tracking-[0.4em] mb-1.5 leading-[1.2] pt-[0.1em]">HÄRNÄST</span>
+                    <h5 className="text-3xl sm:text-4xl font-black text-gray-900 dark:text-white uppercase tracking-tight leading-[1.2] pt-[0.1em]">
                         {isRestNext ? 'VILA' : block?.title}
                     </h5>
                 </div>
@@ -126,7 +126,7 @@ const NextUpCompactBar: React.FC<{ transitionTime?: number; block?: WorkoutBlock
 
             <div className="flex items-center gap-8">
                 {transitionTime !== undefined && transitionTime > 0 ? (
-                    <div className="text-6xl font-mono font-black text-primary tabular-nums drop-shadow-xl">
+                    <div className="text-5xl sm:text-6xl font-mono font-black text-primary tabular-nums drop-shadow-xl">
                         {formatSeconds(transitionTime)}
                     </div>
                 ) : (
@@ -178,7 +178,7 @@ const SegmentedRoadmap: React.FC<{
                     <div 
                         key={b.id} 
                         style={{ width: `${widthPercent}%` }} 
-                        className={`h-3 rounded-full overflow-hidden border relative shadow-sm transition-all ${isActive ? 'bg-black/40 border-white/60' : 'bg-black/20 border-white/10'}`}
+                        className={`h-2.5 rounded-full overflow-hidden border relative shadow-sm transition-all ${isActive ? 'bg-black/40 border-white/60' : 'bg-black/20 border-white/10'}`}
                     >
                         <motion.div 
                             className={`absolute inset-0 transition-colors duration-500 ${isActive ? 'bg-white shadow-[0_0_10px_rgba(255,255,255,0.8)]' : 'bg-white/30'}`}
@@ -207,25 +207,25 @@ const NextStartIndicator: React.FC<{
             exit={{ opacity: 0, scale: 0.9, height: 0 }}
             className="w-full mb-4 relative flex-shrink-0"
         >
-            <div className={`bg-white/95 dark:bg-black/60 backdrop-blur-2xl rounded-[1.8rem] p-4 border-2 shadow-xl dark:shadow-2xl flex items-center justify-between transition-colors duration-500 ${isUrgent ? 'border-orange-500 shadow-orange-500/20' : 'border-gray-200 dark:border-white/10'}`}>
+            <div className={`bg-white/95 dark:bg-black/60 backdrop-blur-2xl rounded-2xl p-4 border shadow-xl flex items-center justify-between transition-colors duration-500 ${isUrgent ? 'border-work shadow-work/20' : 'border-gray-200 dark:border-white/10'}`}>
                 <div className="flex items-center gap-6">
-                    <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shadow-inner ${isUrgent ? 'bg-orange-500 text-white animate-pulse' : 'bg-gray-100 dark:bg-white/10 text-gray-400 dark:text-white/40'}`}>
+                    <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shadow-inner ${isUrgent ? 'bg-work text-white animate-pulse motion-reduce:animate-none' : 'bg-gray-100 dark:bg-white/10 text-gray-400 dark:text-white/40'}`}>
                         <LightningIcon className="w-6 h-6" />
                     </div>
                     <div className="min-w-0">
-                        <span className="block text-[8px] font-black text-gray-400 dark:text-white/30 uppercase tracking-widest mb-0.5">NÄSTA START</span>
+                        <span className="block text-[8px] font-black text-gray-400 dark:text-white/30 uppercase tracking-widest mb-0.5 leading-[1.2] pt-[0.1em]">NÄSTA START</span>
                         <h4 className="text-xl font-black text-gray-900 dark:text-white uppercase tracking-tight truncate max-w-[250px] sm:max-w-md leading-[1.2] pt-[0.1em]">
                             {groupName}
                         </h4>
-                        <p className="text-[8px] font-black text-gray-400 dark:text-white/20 uppercase tracking-[0.2em] mt-1">
+                        <p className="text-[8px] font-black text-gray-400 dark:text-white/20 uppercase tracking-[0.2em] mt-1 leading-[1.2] pt-[0.1em]">
                             {groupsLeft} {groupsLeft === 1 ? 'GRUPP' : 'GRUPPER'} KVAR
                         </p>
                     </div>
                 </div>
 
                 <div className="text-right shrink-0">
-                    <span className="block text-[8px] font-black text-gray-400 dark:text-white/30 uppercase tracking-[0.3em] mb-0.5">STARTAR OM</span>
-                    <div className={`font-mono text-3xl font-black tabular-nums leading-none ${isUrgent ? 'text-orange-500' : 'text-gray-900 dark:text-white'}`}>
+                    <span className="block text-[8px] font-black text-gray-400 dark:text-white/30 uppercase tracking-[0.3em] mb-0.5 leading-[1.2] pt-[0.1em]">STARTAR OM</span>
+                    <div className={`font-mono text-3xl font-black tabular-nums leading-none ${isUrgent ? 'text-work' : 'text-gray-900 dark:text-white'}`}>
                         {minutes}:{seconds.toString().padStart(2, '0')}
                     </div>
                 </div>
@@ -280,27 +280,27 @@ const FollowMeView: React.FC<{
                     animate={{ x: 0, opacity: 1 }}
                     exit={{ x: 100, opacity: 0 }}
                     transition={{ type: "spring", stiffness: 300, damping: 30 }}
-                    className={`w-full max-w-5xl bg-white dark:bg-gray-900 rounded-[3.5rem] shadow-2xl overflow-hidden border-l-[20px] ${isResting ? 'border-teal-400' : timerStyle.border.replace('border-', 'border-')}`}
+                    className={`w-full max-w-5xl bg-white dark:bg-gray-900 rounded-[3.5rem] shadow-2xl overflow-hidden border-l-[20px] ${isResting ? 'border-rest' : timerStyle.border.replace('border-', 'border-')}`}
                     style={{ borderColor: isResting ? undefined : `rgb(${timerStyle.pulseRgb})` }}
                 >
                     <div className="p-10 md:p-14 flex flex-col items-center text-center">
-                        <span className="block text-2xl md:text-3xl font-bold tracking-widest uppercase text-gray-500 dark:text-gray-400 mb-4">
+                        <span className="block text-2xl md:text-3xl font-black tracking-widest uppercase text-gray-500 dark:text-gray-400 mb-4 leading-[1.2] pt-[0.1em]">
                             {label}
                         </span>
                         <h3 
-                            className="font-black text-gray-900 dark:text-white leading-tight mb-6 tracking-tight transition-all duration-300"
+                            className="font-black text-gray-900 dark:text-white leading-[1.2] pt-[0.1em] mb-6 tracking-tight transition-all duration-300"
                             style={{ fontSize: calculatedTitleSize }}
                         >
                             {displayExercise.name}
                         </h3>
                         {getSideLabel(displayExercise.side) && (
-                            <span className="inline-flex items-center justify-center px-6 py-2 mb-6 text-2xl md:text-4xl font-black rounded-2xl bg-orange-100 text-orange-800 dark:bg-orange-950/40 dark:text-orange-400 border-2 border-orange-200 dark:border-orange-800/50 uppercase tracking-wide">
+                            <span className="inline-flex items-center justify-center px-6 py-2 mb-6 text-2xl md:text-3xl font-black rounded-2xl bg-work/10 text-work dark:bg-work/20 dark:text-work border border-work/30 uppercase tracking-wider">
                                 {getSideLabel(displayExercise.side)}
                             </span>
                         )}
                         {displayExercise.reps && (
                             <p 
-                                className="font-black text-primary mb-6 transition-all duration-300"
+                                className="font-mono font-black text-primary mb-6 transition-all duration-300 tabular-nums"
                                 style={{ fontSize: calculatedRepsSize }}
                             >
                                 {formatReps(displayExercise.reps)}
@@ -321,10 +321,10 @@ const FollowMeView: React.FC<{
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, y: 20 }}
-                        className="mt-8 bg-white px-10 py-5 rounded-3xl shadow-2xl flex items-center gap-4"
+                        className="mt-8 bg-white dark:bg-gray-900 px-10 py-5 rounded-3xl shadow-2xl border border-gray-100 dark:border-white/10 flex items-center gap-4"
                     >
-                        <span className="text-gray-500 font-bold uppercase tracking-widest text-2xl md:text-3xl">Nästa:</span>
-                        <span className="text-gray-900 font-black uppercase tracking-tight text-5xl md:text-6xl">
+                        <span className="text-gray-500 dark:text-gray-400 font-black uppercase tracking-widest text-2xl md:text-3xl leading-[1.2] pt-[0.1em]">Nästa:</span>
+                        <span className="text-gray-900 dark:text-white font-black uppercase tracking-tight text-4xl md:text-5xl leading-[1.2] pt-[0.1em]">
                             {upcomingText}
                         </span>
                     </motion.div>
@@ -354,9 +354,6 @@ const StandardListView: React.FC<{
     const count = exercises.length;
     const isLargeList = count > 12 || isHyrox; 
     
-    // --- NY LOGIK FÖR STORLEKAR (REM-baserad + Skalning) ---
-    // Vi definierar en "Bas" för Standardläget och multiplicerar med skalningen.
-    
     // Standardstorlekar i REM
     const titleBaseRem = isHyrox ? 1.5 : 2.25; // ~text-2xl / text-4xl
     const repsBaseRem = isHyrox ? 1.25 : 3;    // ~text-xl / text-5xl
@@ -364,7 +361,6 @@ const StandardListView: React.FC<{
     const calculatedTitleSize = `${titleBaseRem * textSizeScale}rem`;
     const calculatedRepsSize = `${repsBaseRem * repsSizeScale}rem`;
 
-    // Padding logic (behåller standard-Tailwind för enkelhet, men kan skalas om man vill)
     const padding = isHyrox ? 'pl-16 pr-6 py-2' : isLargeList ? 'pl-8 pr-4 py-2' : count > 6 ? 'pl-8 pr-6 py-3' : 'px-10 py-4';
 
     return (
@@ -377,7 +373,7 @@ const StandardListView: React.FC<{
                 let mbClass = '';
                 if (i < exercises.length - 1) {
                     if (isGroupedWithNext) {
-                        mbClass = isLargeList ? 'mb-0' : 'mb-1'; // Reduced gap for grouped items
+                        mbClass = isLargeList ? 'mb-0' : 'mb-1';
                     } else {
                         mbClass = isLargeList ? 'mb-1' : count > 6 ? 'mb-2' : 'mb-4';
                     }
@@ -386,10 +382,10 @@ const StandardListView: React.FC<{
                 return (
                     <div 
                         key={ex.id} 
-                        className={`flex-1 min-h-0 bg-white/95 dark:bg-gray-900/90 backdrop-blur-sm rounded-2xl flex flex-col justify-center border-l-[12px] shadow-sm transition-all relative group ${
+                        className={`flex-1 min-h-0 bg-white/95 dark:bg-gray-900/90 backdrop-blur-sm rounded-2xl flex flex-col justify-center border border-gray-100 dark:border-white/10 border-l-[12px] shadow-sm transition-all relative group ${
                             useGroupColor 
                             ? ex.groupColor.replace('bg-', 'border-') 
-                            : 'border-gray-100 dark:border-transparent'
+                            : 'border-gray-100 dark:border-white/10'
                         } ${padding} ${mbClass}`}
                         style={{ 
                             borderLeftColor: useGroupColor ? undefined : (isHyrox ? '#6366f1' : `rgb(${timerStyle.pulseRgb})`)
@@ -399,7 +395,7 @@ const StandardListView: React.FC<{
                             {ex.reps && (
                                 <div className="shrink-0 flex items-center justify-center bg-primary/5 rounded-2xl border border-primary/10 px-4 py-2 min-w-[80px] md:min-w-[120px]">
                                     <span 
-                                        className={`font-mono font-black text-primary whitespace-nowrap leading-none`}
+                                        className={`font-mono font-black text-primary whitespace-nowrap leading-none tabular-nums`}
                                         style={{ fontSize: calculatedRepsSize }}
                                     >
                                         {formatReps(ex.reps)}
@@ -407,12 +403,12 @@ const StandardListView: React.FC<{
                                 </div>
                             )}
                             <h4 
-                                className={`font-black text-gray-900 dark:text-white leading-[0.9] tracking-tight overflow-visible whitespace-normal transition-all duration-300 flex items-center gap-2 flex-wrap`}
+                                className={`font-black text-gray-900 dark:text-white leading-[1.2] pt-[0.1em] tracking-tight overflow-visible whitespace-normal transition-all duration-300 flex items-center gap-2 flex-wrap`}
                                 style={{ fontSize: calculatedTitleSize }}
                             >
                                 <span>{ex.name}</span>
                                 {getSideLabel(ex.side) && (
-                                    <span className="inline-flex items-center justify-center px-2 py-1 text-xs font-black rounded-lg bg-orange-100 text-orange-800 dark:bg-orange-950/40 dark:text-orange-400 border border-orange-200 dark:border-orange-800/50 uppercase">
+                                    <span className="inline-flex items-center justify-center px-2 py-0.5 text-[10px] font-black rounded-md bg-work/10 text-work dark:bg-work/20 dark:text-work border border-work/30 uppercase tracking-wider">
                                         {getSideLabel(ex.side)}
                                     </span>
                                 )}
@@ -481,19 +477,19 @@ const BigRoundIndicator: React.FC<BigIndicatorProps> = ({ currentRound, totalRou
     }
 
     return (
-        <div className="flex flex-col items-end gap-1 animate-fade-in">
+        <div className="flex flex-col items-end gap-1 animate-fade-in motion-reduce:animate-none">
             <div className="flex flex-col items-end">
-                <span className="block text-white/80 font-black text-xs sm:text-sm uppercase tracking-[0.4em] mb-1 drop-shadow-md">{primaryLabel}</span>
+                <span className="block text-white/80 font-black text-xs sm:text-sm uppercase tracking-[0.4em] mb-1 drop-shadow-md leading-[1.2] pt-[0.1em]">{primaryLabel}</span>
                 <div className="flex items-baseline justify-end gap-1">
                     <motion.span 
                         key={`primary-${primaryCurrent}`} 
                         initial={{ opacity: 0, scale: 0.8 }} 
                         animate={{ opacity: 1, scale: 1 }} 
-                        className="font-black text-6xl sm:text-7xl text-white drop-shadow-lg leading-none"
+                        className="font-black text-6xl sm:text-7xl text-white drop-shadow-lg leading-none tabular-nums"
                     >
                         {primaryCurrent}
                     </motion.span>
-                    <span className="text-2xl sm:text-3xl font-black text-white/80 drop-shadow-md">/ {primaryTotal}</span>
+                    <span className="text-2xl sm:text-3xl font-black text-white/80 drop-shadow-md tabular-nums">/ {primaryTotal}</span>
                 </div>
             </div>
 
@@ -503,12 +499,12 @@ const BigRoundIndicator: React.FC<BigIndicatorProps> = ({ currentRound, totalRou
                     animate={{ opacity: 1, y: 0 }}
                     className="flex items-center justify-end gap-3 mt-2"
                 >
-                    <span className="text-white/80 font-black text-[10px] sm:text-xs uppercase tracking-[0.3em] drop-shadow-md">
+                    <span className="text-white/80 font-black text-[10px] sm:text-xs uppercase tracking-[0.3em] drop-shadow-md leading-[1.2] pt-[0.1em]">
                         {secondaryLabel}
                     </span>
                     <div className="flex items-baseline gap-1">
-                        <span className="text-2xl sm:text-3xl font-black text-white drop-shadow-lg">{secondaryCurrent}</span>
-                        <span className="text-sm sm:text-base font-bold text-white/80 drop-shadow-md">/ {secondaryTotal}</span>
+                        <span className="text-2xl sm:text-3xl font-black text-white drop-shadow-lg tabular-nums">{secondaryCurrent}</span>
+                        <span className="text-sm sm:text-base font-bold text-white/80 drop-shadow-md tabular-nums">/ {secondaryTotal}</span>
                     </div>
                 </motion.div>
             )}
@@ -592,7 +588,7 @@ interface TimerScreenProps {
 
 interface FinishData { time: number; placement: number | null; }
 
-export const TimerScreen: React.FC<TimerScreenProps> = ({ 
+export const TimerScreen: React.FC<TimerScreenProps> = React.memo(({ 
     block, onFinish, onHeaderVisibilityChange, onShowImage,
     setCompletionInfo, setIsRegisteringHyroxTime,
     setIsBackButtonHidden, followMeShowImage, organization, onBackToGroups,
@@ -2912,4 +2908,4 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
       )}
     </div>
   );
-};
+});

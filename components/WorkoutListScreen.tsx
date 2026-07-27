@@ -16,7 +16,7 @@ interface WorkoutListScreenProps {
     onSelectWorkout: (workout: Workout, action?: 'view' | 'log') => void;
 }
 
-export const WorkoutListScreen: React.FC<WorkoutListScreenProps> = ({ passkategori, onSelectWorkout }) => {
+export const WorkoutListScreen: React.FC<WorkoutListScreenProps> = React.memo(({ passkategori, onSelectWorkout }) => {
     const { workouts } = useWorkout();
     const { isStudioMode, currentUser, userData } = useAuth();
     const { studioConfig, selectedOrganization } = useStudio();
@@ -97,11 +97,11 @@ export const WorkoutListScreen: React.FC<WorkoutListScreenProps> = ({ passkatego
                 >
                     <div className="relative z-10 flex-grow flex flex-col">
                         {workout.benchmarkId && (
-                            <div className="mb-4 self-start bg-yellow-100/80 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-400 px-3 py-1 rounded-md text-[10px] font-black uppercase tracking-wider font-mono">
+                            <div className="mb-4 self-start bg-record/10 text-record border border-record/20 px-3 py-1 rounded-md text-[10px] font-black uppercase tracking-wider font-mono">
                                 BENCHMARK
                             </div>
                         )}
-                        <h3 className="text-2xl font-black text-primary leading-tight mb-4">
+                        <h3 className="text-2xl font-black text-primary leading-[1.2] mb-4">
                             {workout.title || 'Namnlöst pass'}
                         </h3>
                         {workout.coachTips && (
@@ -130,7 +130,7 @@ export const WorkoutListScreen: React.FC<WorkoutListScreenProps> = ({ passkatego
                 onClick={() => {
                     setSelectedWorkoutHistory(workout);
                 }}
-                className={`cursor-pointer group relative overflow-hidden rounded-2xl p-4 sm:p-5 transition-all bg-white dark:bg-[#0f141e] border-2 border-gray-200 dark:border-gray-800 hover:border-gray-300 dark:hover:border-gray-700 shadow-md flex flex-col`}
+                className={`cursor-pointer group relative overflow-hidden rounded-2xl p-4 sm:p-5 transition-all bg-white dark:bg-[#0f141e] border-2 border-gray-200 dark:border-white/10 hover:border-gray-300 dark:hover:border-white/20 shadow-md flex flex-col`}
                 style={{ touchAction: 'manipulation' }}
             >
                 {/* Decorative Background */}
@@ -139,7 +139,7 @@ export const WorkoutListScreen: React.FC<WorkoutListScreenProps> = ({ passkatego
                 <div className="relative z-10 flex-grow flex flex-col">
                     <div className="flex justify-between items-start mb-3 w-full">
                         <div className="flex items-center gap-2 flex-1 pr-2">
-                             <h3 className="text-base font-bold text-gray-900 dark:text-white leading-tight">
+                             <h3 className="text-base font-bold text-gray-900 dark:text-white leading-[1.2]">
                                  {workout.title || 'Namnlöst pass'}
                              </h3>
                         </div>
@@ -150,14 +150,14 @@ export const WorkoutListScreen: React.FC<WorkoutListScreenProps> = ({ passkatego
                                         e.stopPropagation();
                                         setProgramToDelete(workout);
                                     }}
-                                    className="p-1.5 bg-gray-100 dark:bg-gray-800/80 backdrop-blur-sm text-gray-500 hover:text-red-500 hover:bg-red-100 dark:hover:bg-red-900/40 rounded-full transition-colors z-40 cursor-pointer border border-gray-200 dark:border-gray-700 hover:scale-105 active:scale-95"
+                                    className="p-1.5 min-h-[44px] min-w-[44px] flex items-center justify-center bg-gray-100 dark:bg-gray-800/80 backdrop-blur-sm text-gray-500 hover:text-danger hover:bg-danger/10 dark:hover:bg-danger/20 rounded-full transition-colors z-40 cursor-pointer border border-gray-200 dark:border-white/10 hover:scale-105 active:scale-95 focus:outline-none focus:ring-2 focus:ring-danger"
                                     aria-label="Radera pass"
                                 >
                                     <TrashIcon className="w-4 h-4" />
                                 </button>
                             )}
                             {workout.benchmarkId && (
-                                <div className="bg-yellow-100 dark:bg-yellow-900/30 text-yellow-600 dark:text-yellow-400 px-2 py-2 rounded-xl border border-yellow-300/30 dark:border-yellow-500/20 shadow-sm">
+                                <div className="bg-record/10 text-record px-2 py-2 rounded-xl border border-record/20 shadow-sm">
                                     <TrophyIcon className="w-4 h-4" />
                                 </div>
                             )}
@@ -168,13 +168,13 @@ export const WorkoutListScreen: React.FC<WorkoutListScreenProps> = ({ passkatego
                         {attempts > 0 ? (
                             <div className="flex flex-col justify-end mt-2">
                                 {pbVolume && pbVolume > 0 ? (
-                                    <p className="text-2xl sm:text-3xl leading-none font-black text-gray-900 dark:text-white tracking-tight">
+                                    <p className="text-2xl sm:text-3xl leading-none font-black text-gray-900 dark:text-white tracking-tight tabular-nums">
                                         {pbVolume.toLocaleString('sv-SE')} <span className="text-sm text-gray-500 font-bold ml-1">kg</span>
                                     </p>
                                 ) : (
                                     <p className="text-xl font-black text-gray-900 dark:text-white tracking-tight mb-1">Genomfört</p>
                                 )}
-                                <p className="text-[10px] text-gray-500 mt-1 uppercase tracking-widest font-black flex items-center gap-1">
+                                <p className="text-[10px] text-gray-500 mt-1 uppercase tracking-widest font-black flex items-center gap-1 tabular-nums">
                                     {latestDate} • {attempts} FÖRSÖK 
                                 </p>
                             </div>
@@ -195,7 +195,7 @@ export const WorkoutListScreen: React.FC<WorkoutListScreenProps> = ({ passkatego
                                      e.stopPropagation();
                                      onSelectWorkout(workout, 'view');
                                  }}
-                                 className="flex-1 py-3 bg-gray-200 dark:bg-gray-800 hover:bg-gray-300 dark:hover:bg-gray-700 text-gray-900 dark:text-white rounded-xl text-sm font-extrabold uppercase tracking-wider transition-all active:scale-95 shadow-sm border border-gray-300/30 dark:border-gray-700/50"
+                                 className="flex-1 min-h-[44px] py-3 bg-gray-100 dark:bg-white/10 hover:bg-gray-200 dark:hover:bg-white/20 text-gray-900 dark:text-white rounded-xl text-sm font-extrabold uppercase tracking-wider transition-all active:scale-95 shadow-sm border border-gray-200 dark:border-white/10 flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-primary"
                              >
                                  Visa
                              </button>
@@ -205,7 +205,7 @@ export const WorkoutListScreen: React.FC<WorkoutListScreenProps> = ({ passkatego
                                          e.stopPropagation();
                                          onSelectWorkout(workout, 'log');
                                      }}
-                                     className="flex-[1.2] py-3 bg-primary text-white hover:bg-primary/95 rounded-xl text-sm font-black uppercase tracking-wider transition-all active:scale-95 shadow-md shadow-primary/20"
+                                     className="flex-[1.2] min-h-[44px] py-3 bg-primary text-white hover:bg-primary/95 rounded-xl text-sm font-black uppercase tracking-wider transition-all active:scale-95 shadow-md shadow-primary/20 flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-primary"
                                  >
                                      Logga
                                  </button>
@@ -554,4 +554,4 @@ export const WorkoutListScreen: React.FC<WorkoutListScreenProps> = ({ passkatego
             )}
         </div>
     );
-};
+});

@@ -22,7 +22,7 @@ export const CategoryPromptManager: React.FC<CategoryPromptManagerProps> = ({ ca
     const handleCancelEditing = (id: string) => setEditingState(prev => { const n = {...prev}; delete n[id]; return n; });
     const handleEditingChange = (id: string, value: string) => setEditingState(prev => ({ ...prev, [id]: value }));
 
-    const handleUpdateCategory = (id: string, field: 'name' | 'prompt' | 'icon' | 'isLocked', value: any) => {
+    const handleUpdateCategory = (id: string, field: 'name' | 'prompt' | 'icon' | 'isLocked' | 'durationMinutes', value: any) => {
         onCategoriesChange(categories.map(cat => cat.id === id ? { ...cat, [field]: value } : cat));
     };
     
@@ -118,6 +118,22 @@ export const CategoryPromptManager: React.FC<CategoryPromptManagerProps> = ({ ca
                                         />
                                         <span>Låst på studioskärmen (kräver coach-lösenord)</span>
                                     </label>
+                                    <div className="flex items-center gap-2 mt-2 ml-2">
+                                        <label className="text-xs text-gray-600 dark:text-gray-400 font-medium">Passlängd (min):</label>
+                                        <input 
+                                            type="number"
+                                            min="1"
+                                            max="300"
+                                            placeholder="t.ex. 45"
+                                            value={cat.durationMinutes || ''}
+                                            onChange={(e) => {
+                                                const val = e.target.value ? parseInt(e.target.value, 10) : undefined;
+                                                handleUpdateCategory(cat.id, 'durationMinutes', val);
+                                            }}
+                                            className="w-24 bg-white dark:bg-gray-900 text-gray-900 dark:text-white p-1 px-2 text-xs rounded-md border border-slate-300 dark:border-gray-600 focus:ring-1 focus:ring-primary outline-none font-semibold"
+                                            disabled={isSaving}
+                                        />
+                                    </div>
                                 </div>
                             </div>
                             

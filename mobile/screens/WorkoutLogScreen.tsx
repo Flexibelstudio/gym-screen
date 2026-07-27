@@ -46,6 +46,135 @@ interface LocalSetDetail {
     completed: boolean;
 }
 
+interface LastPerformanceRecord {
+    weight?: number | null;
+    reps?: string | number | null;
+    time?: string | number | null;
+    distance?: string | number | null;
+    kcal?: string | number | null;
+    note?: string;
+    trackingFields?: string[];
+}
+
+function formatTimeValue(val: string | number): string {
+    if (!val && val !== 0) return '';
+    const sVal = String(val).trim();
+    if (!sVal) return '';
+    if (sVal.includes(':')) return sVal;
+    const num = parseFloat(sVal);
+    if (isNaN(num) || num <= 0) return '';
+    
+    let totalSec = num;
+    if (num < 100) {
+        totalSec = Math.round(num * 60);
+    }
+    const m = Math.floor(totalSec / 60);
+    const s = Math.round(totalSec % 60);
+    return `${m}:${s.toString().padStart(2, '0')}`;
+}
+
+export function formatLastPerformance(perf: LastPerformanceRecord | null | undefined): string | null {
+    if (!perf) return null;
+
+    const parts: string[] = [];
+
+    const weightNum = perf.weight != null ? parseFloat(String(perf.weight)) : 0;
+    const hasWeight = !isNaN(weightNum) && weightNum > 0;
+
+    const repsStr = perf.reps != null ? String(perf.reps).trim() : '';
+    const repsNum = parseFloat(repsStr);
+    const hasReps = repsStr !== '' && repsStr !== '0' && (!isNaN(repsNum) ? repsNum > 0 : true);
+
+    const kcalStr = perf.kcal != null ? String(perf.kcal).trim() : '';
+    const kcalNum = parseFloat(kcalStr);
+    const hasKcal = kcalStr !== '' && kcalStr !== '0' && !isNaN(kcalNum) && kcalNum > 0;
+
+    const distStr = perf.distance != null ? String(perf.distance).trim() : '';
+    const distNum = parseFloat(distStr);
+    const hasDist = distStr !== '' && distStr !== '0' && !isNaN(distNum) && distNum > 0;
+
+    const timeStr = perf.time != null ? String(perf.time).trim() : '';
+    const timeFormatted = formatTimeValue(timeStr);
+    const hasTime = timeFormatted !== '';
+
+    if (hasReps && hasWeight) {
+        parts.push(`${repsStr} × ${weightNum} kg`);
+    } else if (hasReps) {
+        parts.push(`${repsStr} reps`);
+    } else if (hasWeight) {
+        parts.push(`${weightNum} kg`);
+    }
+
+    if (hasKcal) {
+        parts.push(`${kcalNum} kcal`);
+    }
+
+    if (hasTime) {
+        parts.push(timeFormatted);
+    }
+
+    if (hasDist) {
+        parts.push(`${String(distNum).replace('.', ',')} km`);
+    }
+
+    if (parts.length === 0) return null;
+    return parts.join(' · ');
+}
+
+function extractPerformanceFromLogEx(exMatch: any, note?: string): LastPerformanceRecord {
+    let bestWeight = 0;
+    let bestReps = '0';
+    let bestTime: string | number = '';
+    let bestDistance: string | number = '';
+    let bestKcal: string | number = '';
+    const trackingFields: string[] = exMatch.trackingFields || [];
+
+    if (exMatch.setDetails && exMatch.setDetails.length > 0) {
+        let bestSet = exMatch.setDetails[0];
+        for (let i = 1; i < exMatch.setDetails.length; i++) {
+            const s = exMatch.setDetails[i];
+            const currW = parseFloat(String(s.weight)) || 0;
+            const prevW = parseFloat(String(bestSet.weight)) || 0;
+            if (currW > prevW) {
+                bestSet = s;
+            } else if (currW === prevW) {
+                const currR = parseFloat(String(s.reps)) || 0;
+                const prevR = parseFloat(String(bestSet.reps)) || 0;
+                if (currR > prevR) {
+                    bestSet = s;
+                } else if (currR === prevR) {
+                    const currKcal = parseFloat(String(s.kcal || s.calories)) || 0;
+                    const prevKcal = parseFloat(String(bestSet.kcal || bestSet.calories)) || 0;
+                    if (currKcal > prevKcal) {
+                        bestSet = s;
+                    }
+                }
+            }
+        }
+        bestWeight = parseFloat(String(bestSet.weight)) || 0;
+        bestReps = bestSet.reps != null ? String(bestSet.reps) : '0';
+        bestTime = bestSet.time != null ? bestSet.time : '';
+        bestDistance = bestSet.distance != null ? bestSet.distance : '';
+        bestKcal = bestSet.kcal != null ? bestSet.kcal : (bestSet.calories != null ? bestSet.calories : '');
+    } else {
+        bestWeight = parseFloat(String(exMatch.weight)) || 0;
+        bestReps = exMatch.reps != null ? String(exMatch.reps) : '0';
+        bestTime = exMatch.time != null ? exMatch.time : '';
+        bestDistance = exMatch.distance != null ? exMatch.distance : '';
+        bestKcal = exMatch.kcal != null ? exMatch.kcal : (exMatch.calories != null ? exMatch.calories : '');
+    }
+
+    return {
+        weight: bestWeight,
+        reps: bestReps,
+        time: bestTime,
+        distance: bestDistance,
+        kcal: bestKcal,
+        note,
+        trackingFields
+    };
+}
+
 interface LocalExerciseResult {
   exerciseId: string;
   exerciseName: string;
@@ -128,12 +257,12 @@ const TimeInput: React.FC<{
     };
 
     return (
-        <div className={`flex items-center ${compact ? '' : 'bg-gray-5 dark:bg-gray-800/50 rounded-2xl border px-2'} ${
+        <div className={`flex items-center justify-center ${compact ? 'px-2 py-1 bg-gray-50 dark:bg-gray-800/50 rounded-xl border' : 'bg-primary/5 dark:bg-primary/10 rounded-2xl border-2 p-3 shadow-xs'} ${
             error 
                 ? 'border-red-500 ring-2 ring-red-500/20' 
-                : 'border-gray-100 dark:border-gray-700'
+                : compact ? 'border-gray-200 dark:border-gray-700' : 'border-primary/30'
         } focus-within:ring-2 focus-within:ring-primary focus-within:border-primary transition-all ${className}`}>
-             <div className="flex-1 flex flex-col justify-center">
+             <div className="flex-1 flex flex-col justify-center items-center">
                 <input
                     type="text"
                     inputMode="numeric"
@@ -141,11 +270,12 @@ const TimeInput: React.FC<{
                     value={min}
                     onChange={(e) => update(e.target.value, sec)}
                     placeholder={placeholder || "0"}
-                    className={`w-full bg-transparent font-black text-lg text-gray-900 dark:text-white focus:outline-none text-center appearance-none ${compact ? 'py-0' : 'p-4'}`}
+                    className={`w-full bg-transparent font-black tabular-nums text-gray-900 dark:text-white focus:outline-none text-center appearance-none ${compact ? 'text-base py-0' : 'text-3xl sm:text-4xl py-2'}`}
                 />
+                {!compact && <span className="text-[10px] font-black uppercase tracking-wider text-gray-400 dark:text-gray-500 leading-[1.2] pt-[0.1em]">Minuter</span>}
              </div>
-             <span className={`text-gray-300 dark:text-gray-600 font-black ${compact ? 'text-lg pb-0' : 'text-2xl pb-1'}`}>:</span>
-             <div className="flex-1 flex flex-col justify-center">
+             <span className={`text-primary font-black ${compact ? 'text-base' : 'text-3xl pb-3'}`}>:</span>
+             <div className="flex-1 flex flex-col justify-center items-center">
                 <input
                     type="text"
                     inputMode="numeric"
@@ -153,8 +283,9 @@ const TimeInput: React.FC<{
                     value={sec}
                     onChange={(e) => update(min, e.target.value)}
                     placeholder="00"
-                    className={`w-full bg-transparent font-black text-lg text-gray-900 dark:text-white focus:outline-none text-center appearance-none ${compact ? 'py-0' : 'p-4'}`}
+                    className={`w-full bg-transparent font-black tabular-nums text-gray-900 dark:text-white focus:outline-none text-center appearance-none ${compact ? 'text-base py-0' : 'text-3xl sm:text-4xl py-2'}`}
                 />
+                {!compact && <span className="text-[10px] font-black uppercase tracking-wider text-gray-400 dark:text-gray-500 leading-[1.2] pt-[0.1em]">Sekunder</span>}
              </div>
         </div>
     );
@@ -171,7 +302,7 @@ const getRandomDiplomaTitle = () => DIPLOMA_TITLES[Math.floor(Math.random() * DI
 
 const WEIGHT_COMPARISONS = [
     { name: "Hamstrar", singular: "en Hamster", weight: 0.15, emoji: "🐹" },
-    { name: "Fotbollar", singular: "en Fortboll", weight: 0.45, emoji: "⚽" },
+    { name: "Fotbollar", singular: "en Fotboll", weight: 0.45, emoji: "⚽" },
     { name: "Ananasar", singular: "en Ananas", weight: 1, emoji: "🍍" },
     { name: "Chihuahuas", singular: "en Chihuahua", weight: 2, emoji: "🐕" },
     { name: "Katter", singular: "en Katt", weight: 5, emoji: "🐈" },
@@ -188,7 +319,7 @@ const WEIGHT_COMPARISONS = [
     { name: "Hästar", singular: "en Häst", weight: 500, emoji: "🐎" },
     { name: "Giraffer", singular: "en Giraff", weight: 800, emoji: "🦒" },
     { name: "Personbilar", singular: "en Personbil", weight: 1500, emoji: "🚘" },
-    { name: "Noshörningar", singular: "en Noshörning", weight: 2000, emoji: "🛏️" },
+    { name: "Noshörningar", singular: "en Noshörning", weight: 2000, emoji: "🦏" },
     { name: "Elefanter", singular: "en Elefant", weight: 5000, emoji: "🐘" },
     { name: "T-Rex", singular: "en T-Rex", weight: 8000, emoji: "🦖" },
     { name: "Skolbussar", singular: "en Skolbuss", weight: 12000, emoji: "🚌" },
@@ -254,14 +385,14 @@ const MissionHeader: React.FC<{ strategy: string; feeling: 'good' | 'neutral' | 
         <motion.div 
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
-            className={`relative overflow-hidden rounded-2xl bg-gradient-to-r ${gradient} p-5 text-white shadow-lg mb-6`}
+            className={`relative overflow-hidden rounded-2xl bg-gradient-to-r ${gradient} p-5 text-white shadow-md mb-6`}
         >
             <div className="relative z-10 flex items-start gap-4">
-                <div className="text-3xl bg-white/20 rounded-xl p-2 h-12 w-12 flex items-center justify-center backdrop-blur-sm">
+                <div className="text-3xl bg-white/20 rounded-xl p-2 h-12 w-12 flex items-center justify-center backdrop-blur-xs shrink-0">
                     {icon}
                 </div>
                 <div>
-                    <h3 className="font-black uppercase tracking-wider text-sm text-white/80 mb-1">{title}</h3>
+                    <h3 className="font-black uppercase tracking-wider text-xs text-white/90 mb-1 leading-[1.2] pt-[0.1em]">{title}</h3>
                     <p className="font-bold text-lg leading-tight text-white">{strategy}</p>
                 </div>
             </div>
@@ -302,53 +433,53 @@ const PreGameView: React.FC<{
             {/* Scrollable Content Area */}
             <div className="relative z-10 flex-1 overflow-y-auto p-6 scrollbar-hide">
                 <div className="flex justify-between items-start mb-6">
-                    <button onClick={onCancel} className="text-gray-400 dark:text-white/50 hover:text-gray-900 dark:hover:text-white font-bold text-sm uppercase tracking-widest px-2 py-1 transition-colors">Avbryt</button>
+                    <button onClick={onCancel} className="min-h-[44px] min-w-[44px] flex items-center justify-center text-gray-400 dark:text-white/50 hover:text-gray-900 dark:hover:text-white font-bold text-xs uppercase tracking-widest px-3 py-1 transition-all active:scale-95 leading-[1.2] pt-[0.1em]">Avbryt</button>
                 </div>
                 
                 <div className="text-center mb-8">
-                    <span className="inline-block py-1 px-3 rounded-full bg-primary/10 dark:bg-white/10 border border-primary/20 dark:border-white/20 text-xs font-bold uppercase tracking-widest text-primary mb-4">Pre-Game Strategy</span>
-                    <h1 className="text-3xl font-black leading-tight mb-2 text-gray-900 dark:text-white">{workoutTitle}</h1>
-                    <p className="text-gray-500 dark:text-gray-400 text-sm">Din personliga plan för dagens pass</p>
+                    <span className="inline-block py-1.5 px-3.5 rounded-full bg-primary/10 dark:bg-white/10 border border-primary/20 dark:border-white/20 text-xs font-black uppercase tracking-wider text-primary mb-4 leading-[1.2] pt-[0.1em]">Pre-Game Strategy</span>
+                    <h1 className="text-3xl font-black leading-[1.2] pt-[0.1em] mb-2 text-gray-900 dark:text-white uppercase tracking-tight">{workoutTitle}</h1>
+                    <p className="text-gray-500 dark:text-gray-400 text-sm font-medium">Din personliga plan för dagens pass</p>
                 </div>
                 
                 <div className="mb-8">
-                    <p className="text-center text-xs font-bold uppercase text-gray-400 dark:text-gray-500 mb-3 tracking-wider">Hur känns kroppen?</p>
+                    <p className="text-center text-xs font-black uppercase text-gray-400 dark:text-gray-500 mb-3 tracking-wider leading-[1.2] pt-[0.1em]">Hur känns kroppen?</p>
                     <div className="flex gap-3 justify-center">
                         {['good', 'neutral', 'bad'].map((f) => (
                             <button 
                                 key={f} 
                                 onClick={() => onFeelingChange(f as any)} 
                                 disabled={isGenerating}
-                                className={`p-4 rounded-2xl border-2 transition-all ${currentFeeling === f ? 'bg-white dark:bg-gray-800 border-primary scale-110 shadow-lg z-10' : 'bg-white/50 dark:bg-gray-800/50 border-gray-200 dark:border-gray-700 hover:bg-white dark:hover:bg-gray-800'} ${isGenerating ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                className={`min-h-[52px] min-w-[52px] p-4 rounded-2xl border-2 transition-all active:scale-95 focus:outline-none focus:ring-2 focus:ring-primary ${currentFeeling === f ? 'bg-white dark:bg-gray-800 border-primary scale-105 shadow-md z-10' : 'bg-white/50 dark:bg-gray-800/50 border-gray-200 dark:border-gray-700 hover:bg-white dark:hover:bg-gray-800'} ${isGenerating ? 'opacity-50 cursor-not-allowed' : ''}`}
                             >
                                 <span className="text-2xl block">{f === 'good' ? '🔥' : f === 'bad' ? '🤕' : '🙂'}</span>
                             </button>
                         ))}
                     </div>
                     {!currentFeeling && !isGenerating && (
-                        <p className="text-center text-sm text-gray-400 dark:text-gray-500 mt-4 animate-pulse">Klicka på en emoji för att få din strategi</p>
+                        <p className="text-center text-sm text-gray-400 dark:text-gray-500 mt-4 animate-pulse font-medium">Klicka på en emoji för att få din strategi</p>
                     )}
                     {isGenerating && (
-                        <p className="text-center text-sm text-primary mt-4 animate-pulse">Genererar din personliga strategi...</p>
+                        <p className="text-center text-sm text-primary mt-4 animate-pulse font-bold">Genererar din personliga strategi...</p>
                     )}
                 </div>
 
                 {currentFeeling && insight && !isGenerating && (
-                    <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm border border-gray-100 dark:border-gray-700 rounded-3xl p-6 shadow-xl mb-6 transition-all animate-fade-in">
+                    <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-xs border border-gray-100 dark:border-gray-700 rounded-2xl p-6 shadow-lg mb-6 transition-all animate-fade-in">
                         <div className="flex items-start gap-4 mb-6">
-                            <div className={`w-12 h-12 rounded-xl bg-gradient-to-br flex items-center justify-center flex-shrink-0 shadow-lg ${currentFeeling === 'good' ? 'from-orange-500 to-red-600' : currentFeeling === 'bad' ? 'from-green-500 to-blue-600' : 'from-indigo-500 to-purple-600'}`}>
+                            <div className={`w-12 h-12 rounded-xl bg-gradient-to-br flex items-center justify-center flex-shrink-0 shadow-md ${currentFeeling === 'good' ? 'from-orange-500 to-red-600' : currentFeeling === 'bad' ? 'from-green-500 to-blue-600' : 'from-indigo-500 to-purple-600'}`}>
                                 <SparklesIcon className="w-6 h-6 text-white" />
                             </div>
                             <div>
-                                <h3 className="font-bold text-lg text-gray-900 dark:text-white mb-1">Dagens Fokus</h3>
+                                <h3 className="font-black text-lg text-gray-900 dark:text-white mb-1 uppercase tracking-tight leading-[1.2] pt-[0.1em]">Dagens Fokus</h3>
                                 <p className="text-sm text-gray-600 dark:text-gray-300 leading-relaxed font-medium italic">"{displayStrategy}"</p>
                             </div>
                         </div>
                         
                         <div className="space-y-4">
                             {insight?.suggestions && Object.keys(insight.suggestions).length > 0 && (
-                                <div className={`p-4 rounded-2xl border ${currentFeeling === 'good' ? 'bg-orange-50 dark:bg-orange-900/10 border-orange-200 dark:border-orange-800/30' : 'bg-gray-50 dark:bg-gray-900/30 border-gray-100 dark:border-gray-700'}`}>
-                                    <h4 className={`text-xs font-bold uppercase tracking-wider mb-3 flex items-center gap-2 ${currentFeeling === 'good' ? 'text-orange-600 dark:text-orange-400' : 'text-gray-400 dark:text-gray-500'}`}>
+                                <div className={`p-4 rounded-xl border ${currentFeeling === 'good' ? 'bg-orange-50 dark:bg-orange-900/10 border-orange-200 dark:border-orange-800/30' : 'bg-gray-50 dark:bg-gray-900/30 border-gray-100 dark:border-gray-700'}`}>
+                                    <h4 className={`text-xs font-black uppercase tracking-wider mb-3 flex items-center gap-2 leading-[1.2] pt-[0.1em] ${currentFeeling === 'good' ? 'text-orange-600 dark:text-orange-400' : 'text-gray-400 dark:text-gray-500'}`}>
                                         {currentFeeling === 'good' && <FireIcon className="w-4 h-4" />}
                                         Smart Load (Dina resultatmål)
                                     </h4>
@@ -356,7 +487,7 @@ const PreGameView: React.FC<{
                                         {Object.entries(insight.suggestions).slice(0, 3).map(([exercise, suggestion]) => (
                                             <div key={exercise} className="flex justify-between items-center bg-white dark:bg-black/20 p-2.5 rounded-lg border border-gray-100 dark:border-white/5">
                                                 <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">{exercise}</span>
-                                                <span className={`text-sm font-bold ${currentFeeling === 'good' ? 'text-orange-600 dark:text-orange-400' : 'text-primary'}`}>{String(suggestion)}</span>
+                                                <span className={`text-sm font-black tabular-nums ${currentFeeling === 'good' ? 'text-orange-600 dark:text-orange-400' : 'text-primary'}`}>{String(suggestion)}</span>
                                             </div>
                                         ))}
                                     </div>
@@ -365,7 +496,7 @@ const PreGameView: React.FC<{
                             
                             {insight?.scaling && Object.keys(insight.scaling).length > 0 && (
                                 <div className="mt-4">
-                                    <h4 className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-2 flex items-center gap-1">
+                                    <h4 className="text-xs font-black text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-2 flex items-center gap-1 leading-[1.2] pt-[0.1em]">
                                         <LightningIcon className="w-3 h-3" /> Alternativ / Skalning
                                     </h4>
                                     <div className="space-y-2">
@@ -384,8 +515,8 @@ const PreGameView: React.FC<{
 
                 {/* --- START BUTTON IN SCROLL FLOW --- */}
                 <div className="mt-8 pb-12">
-                    <button onClick={onStart} className="w-full bg-primary hover:brightness-110 text-white font-black text-lg py-5 rounded-2xl shadow-lg shadow-primary/20 transition-all transform active:scale-95 flex items-center justify-center gap-2">
-                        <span className="tracking-tight uppercase">Starta passet</span>
+                    <button onClick={onStart} className="w-full min-h-[52px] bg-primary hover:brightness-110 text-white font-black text-lg py-4 rounded-xl shadow-lg shadow-primary/20 transition-all transform active:scale-95 flex items-center justify-center gap-2 focus:ring-2 focus:ring-primary uppercase tracking-tight">
+                        <span className="leading-[1.2] pt-[0.1em]">Starta passet</span>
                         <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
                             <path fillRule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clipRule="evenodd" />
                         </svg>
@@ -404,14 +535,22 @@ const GROUP_COLORS = [
     { bg: 'bg-purple-500', border: 'border-purple-500', text: 'text-purple-500', lightBg: 'bg-purple-50 dark:bg-purple-900/20', lightBorder: 'border-purple-200 dark:border-purple-800' },
 ];
 
-const ExerciseLogCard: React.FC<{
+const GRID_COLS_MAP: Record<number, string> = {
+    1: 'grid-cols-[36px_repeat(1,_1fr)_40px_48px]',
+    2: 'grid-cols-[36px_repeat(2,_1fr)_40px_48px]',
+    3: 'grid-cols-[36px_repeat(3,_1fr)_40px_48px]',
+    4: 'grid-cols-[36px_repeat(4,_1fr)_40px_48px]',
+    5: 'grid-cols-[36px_repeat(5,_1fr)_40px_48px]',
+};
+
+export const ExerciseLogCard: React.FC<{
   name: string;
   result: LocalExerciseResult;
   onUpdate: (updates: Partial<LocalExerciseResult>) => void;
   onRemove?: () => void;
   aiSuggestion?: string; // Koncept 1: Coach Whisper
   scaling?: string;      // Koncept 1: Alternativ
-  lastPerformance?: { weight: number, reps: string, note?: string } | null;
+  lastPerformance?: LastPerformanceRecord | null;
   personalBest?: PersonalBest | null;
   isLastInGroup?: boolean;
   onAddGroupSet?: () => void;
@@ -426,7 +565,7 @@ const ExerciseLogCard: React.FC<{
     const showKcal = trackingFields.includes('kcal');
 
     const dynamicColsCount = [showReps, showWeight, showTime, showDistance, showKcal].filter(Boolean).length;
-    const gridColsClass = `grid-cols-[36px_repeat(${dynamicColsCount},_1fr)_40px_48px]`;
+    const gridColsClass = GRID_COLS_MAP[dynamicColsCount] || 'grid-cols-[36px_repeat(2,_1fr)_40px_48px]';
 
     // Extract tailwind color classes from groupColor (e.g. "bg-pink-500")
     const groupColorObj = result.groupColor ? GROUP_COLORS.find(c => c.bg === result.groupColor) : null;
@@ -465,8 +604,19 @@ const ExerciseLogCard: React.FC<{
     const [showTip, setShowTip] = useState(true);
     const [showScaling, setShowScaling] = useState(false);
     const [isEditingFields, setIsEditingFields] = useState(false);
+    const [showMoreFields, setShowMoreFields] = useState(false);
     const [isNoteActive, setIsNoteActive] = useState(true);
     const [isNoteExpanded, setIsNoteExpanded] = useState(false);
+
+    const ALL_TRACKING_FIELDS = [
+        { id: 'reps', label: 'Reps' },
+        { id: 'weight', label: 'Vikt' },
+        { id: 'time', label: 'Tid' },
+        { id: 'distance', label: 'Distans' },
+        { id: 'kcal', label: 'Kcal' },
+    ] as const;
+
+    const inactiveFields = ALL_TRACKING_FIELDS.filter(f => !trackingFields.includes(f.id));
 
     const toggleField = (field: 'reps' | 'weight' | 'time' | 'distance' | 'kcal') => {
         const current = [...trackingFields];
@@ -484,18 +634,25 @@ const ExerciseLogCard: React.FC<{
             <div className="flex flex-col gap-2 mb-4">
                 <div className="flex justify-between items-center">
                     <div className="flex-1 min-w-0">
-                        <h4 className="font-black text-gray-900 dark:text-white text-xl truncate">{name}</h4>
-                        {lastPerformance ? (
-                            <p className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest mt-1">
-                                Senast: <span className="text-gray-600 dark:text-gray-300 font-extrabold">
-                                    {lastPerformance.weight > 0 ? `${lastPerformance.reps} x ${lastPerformance.weight}kg` : `${lastPerformance.reps} reps`}
-                                </span>
-                            </p>
-                        ) : (
-                            <p className="text-xs text-gray-400 uppercase font-extrabold tracking-wider mt-1">
-                               Ingen historik
-                            </p>
-                        )}
+                        <h4 className="font-black text-gray-900 dark:text-white text-xl truncate leading-[1.2] pt-[0.1em]">{name}</h4>
+                        {(() => {
+                            const formatted = formatLastPerformance(lastPerformance);
+                            if (formatted) {
+                                return (
+                                    <div className="inline-flex items-center gap-1.5 bg-gray-100/80 dark:bg-gray-800/80 border border-gray-200/60 dark:border-gray-700/60 px-2.5 py-1 rounded-lg mt-1.5 text-xs font-medium text-gray-500 dark:text-gray-400">
+                                        <span className="text-[10px] font-black uppercase tracking-wider text-gray-400 dark:text-gray-500 leading-[1.2] pt-[0.1em]">Senast:</span>
+                                        <span className="text-gray-900 dark:text-white font-black tabular-nums">
+                                            {formatted}
+                                        </span>
+                                    </div>
+                                );
+                            }
+                            return (
+                                <p className="text-[11px] text-gray-400 dark:text-gray-500 uppercase font-black tracking-wider mt-1.5 leading-[1.2] pt-[0.1em]">
+                                   Ingen historik
+                                </p>
+                            );
+                        })()}
                     </div>
                     {/* Gear / Edit / Delete buttons */}
                     <div className="flex items-center gap-2">
@@ -543,6 +700,49 @@ const ExerciseLogCard: React.FC<{
                         )}
                     </div>
                 </div>
+
+                {inactiveFields.length > 0 && !isEditingFields && (
+                    <div className="mt-1">
+                        {!showMoreFields ? (
+                            <button
+                                type="button"
+                                onClick={() => setShowMoreFields(true)}
+                                className="inline-flex items-center gap-1 text-[11px] font-extrabold text-gray-400 dark:text-gray-500 hover:text-primary dark:hover:text-primary-light bg-gray-50/80 dark:bg-gray-800/80 hover:bg-primary/10 px-2.5 py-1 rounded-full transition-all border border-gray-150 dark:border-gray-700/60 active:scale-95"
+                            >
+                                <PlusIcon className="w-3 h-3" />
+                                <span>+ fler fält</span>
+                            </button>
+                        ) : (
+                            <div className="flex items-center gap-1.5 flex-wrap p-2 bg-gray-50 dark:bg-gray-800/60 rounded-xl border border-gray-150 dark:border-gray-700/80 animate-fade-in">
+                                <span className="text-[10px] font-extrabold uppercase tracking-widest text-gray-400 mr-1">Lägg till:</span>
+                                {inactiveFields.map(f => (
+                                    <button
+                                        key={f.id}
+                                        type="button"
+                                        onClick={() => {
+                                            toggleField(f.id as any);
+                                            if (inactiveFields.length <= 1) {
+                                                setShowMoreFields(false);
+                                            }
+                                        }}
+                                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 text-primary dark:text-primary-light hover:bg-primary hover:text-white transition-all shadow-2xs active:scale-95"
+                                    >
+                                        <PlusIcon className="w-3 h-3" />
+                                        {f.label}
+                                    </button>
+                                ))}
+                                <button
+                                    type="button"
+                                    onClick={() => setShowMoreFields(false)}
+                                    className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 ml-1 rounded-lg"
+                                    title="Dölj"
+                                >
+                                    <CloseIcon className="w-3.5 h-3.5" />
+                                </button>
+                            </div>
+                        )}
+                    </div>
+                )}
 
                 {isEditingFields && (
                     <div className="flex flex-wrap gap-2 mt-2 p-3 bg-gray-50 dark:bg-gray-800/50 rounded-xl border border-gray-100 dark:border-gray-800">
@@ -920,39 +1120,61 @@ const PostWorkoutForm: React.FC<{ data: LogData; onUpdate: (updates: Partial<Log
     return (
         <div className="mt-8 space-y-8 animate-fade-in">
             <div>
-                <h4 className="text-2xl font-black text-gray-900 dark:text-white tracking-tight mb-6">Hur kändes passet?</h4>
+                <h4 className="text-2xl font-black text-gray-900 dark:text-white uppercase tracking-tight mb-6 leading-[1.2] pt-[0.1em]">Hur kändes passet?</h4>
                 <div className="space-y-4">
-                    <div className="flex items-center gap-2"><h5 className="text-[11px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.15em]">Ansträngning (RPE 1-10)</h5><button onClick={() => setShowRpeInfo(true)} className="p-1 -m-1 text-gray-300 hover:text-primary transition-colors"><InformationCircleIcon className="w-4 h-4" /></button></div>
+                    <div className="flex items-center gap-2">
+                        <h5 className="text-[11px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-wider leading-[1.2] pt-[0.1em]">Ansträngning (RPE 1-10)</h5>
+                        <button onClick={() => setShowRpeInfo(true)} className="p-1.5 -m-1.5 text-gray-400 hover:text-primary transition-colors focus:ring-2 focus:ring-primary rounded-lg">
+                            <InformationCircleIcon className="w-4 h-4" />
+                        </button>
+                    </div>
                     <div className="flex justify-between gap-1 sm:gap-2">
                         {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(num => (
-                            <button key={num} onClick={() => onUpdate({ rpe: num })} className={`flex-1 h-12 rounded-xl flex items-center justify-center font-black text-sm transition-all ${data.rpe === num ? 'bg-primary text-white scale-110 shadow-lg shadow-primary/30 z-10' : `${getRpeColor(num)} opacity-60 hover:opacity-100`}`}>{num}</button>
+                            <button 
+                                key={num} 
+                                onClick={() => onUpdate({ rpe: num })} 
+                                className={`flex-1 min-h-[44px] rounded-xl flex items-center justify-center font-black text-sm tabular-nums transition-all active:scale-95 focus:outline-none focus:ring-2 focus:ring-primary ${data.rpe === num ? 'bg-primary text-white scale-105 shadow-md shadow-primary/30 z-10' : `${getRpeColor(num)} opacity-70 hover:opacity-100`}`}
+                            >
+                                {num}
+                            </button>
                         ))}
                     </div>
                 </div>
-                <div className="mt-10"><h5 className="text-[11px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-4">Kroppskänsla</h5><div className="flex flex-wrap gap-2">
-                    {KROPPSKANSLA_TAGS.map(tag => (<button key={tag} onClick={() => toggleTag(tag)} className={`px-6 py-3 rounded-2xl text-xs font-bold border-2 transition-all active:scale-95 ${data.tags.includes(tag) ? 'bg-gray-900 dark:bg-white text-white dark:text-gray-900 border-gray-900 dark:border-white shadow-md' : 'bg-white dark:bg-gray-800 text-gray-400 dark:text-gray-500 border-gray-100 dark:border-gray-700'}`}>{tag}</button>))}
-                </div></div>
+                <div className="mt-10">
+                    <h5 className="text-[11px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-4 leading-[1.2] pt-[0.1em]">Kroppskänsla</h5>
+                    <div className="flex flex-wrap gap-2">
+                        {KROPPSKANSLA_TAGS.map(tag => (
+                            <button 
+                                key={tag} 
+                                onClick={() => toggleTag(tag)} 
+                                className={`min-h-[44px] px-5 py-2.5 rounded-xl text-xs font-bold border transition-all active:scale-95 focus:outline-none focus:ring-2 focus:ring-primary ${data.tags.includes(tag) ? 'bg-gray-900 dark:bg-white text-white dark:text-gray-900 border-gray-900 dark:border-white shadow-sm' : 'bg-white dark:bg-gray-800 text-gray-500 dark:text-gray-400 border-gray-200 dark:border-gray-700'}`}
+                            >
+                                {tag}
+                            </button>
+                        ))}
+                    </div>
+                </div>
                 
                 {/* --- Sommarpepp Bild-uppladdning (visas endast under sommarutmaningen) --- */}
                 {isSummerChallengeOn && (
-                    <div className="mt-10 border-2 border-dashed border-gray-100 dark:border-gray-800 rounded-[2rem] p-6 text-center bg-gray-50/50 dark:bg-gray-900/10 hover:border-primary/50 transition-colors animate-fade-in">
-                        <h5 className="text-[11px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-2">📸 Dela en sommarbild</h5>
-                        <p className="text-xs text-gray-500 dark:text-gray-400 mb-4 max-w-sm mx-auto">Bifoga en bild till ditt pass så visas den i Sommarfeeden på Smart Skärmen och Topplistan! ☀️</p>
+                    <div className="mt-10 border-2 border-dashed border-gray-200 dark:border-gray-800 rounded-2xl p-6 text-center bg-gray-50/50 dark:bg-gray-900/10 hover:border-primary/50 transition-colors animate-fade-in">
+                        <h5 className="text-[11px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-2 leading-[1.2] pt-[0.1em]">📸 Dela en sommarbild</h5>
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mb-4 max-w-sm mx-auto font-medium">Bifoga en bild till ditt pass så visas den i Sommarfeeden på SmartStudio och Topplistan! ☀️</p>
                         {data.imageUrl ? (
                             <div className="relative inline-block mt-2">
                                 <img src={data.imageUrl} alt="Bifogad sommarbild" className="w-32 h-32 object-cover rounded-2xl shadow-md border-2 border-primary" />
                                 <button 
                                     onClick={(e) => { e.preventDefault(); onUpdate({ imageUrl: '' }); }}
-                                    className="absolute -top-2 -right-2 bg-red-500 hover:bg-red-600 text-white p-1.5 rounded-full shadow-lg transition-transform hover:scale-110 active:scale-95"
+                                    className="absolute -top-2 -right-2 bg-red-500 hover:bg-red-600 text-white p-2 rounded-full shadow-lg transition-transform hover:scale-110 active:scale-95 min-h-[44px] min-w-[44px] flex items-center justify-center"
                                 >
-                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="2.5" stroke="currentColor" className="w-3 h-3">
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="2.5" stroke="currentColor" className="w-4 h-4">
                                         <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
                                     </svg>
                                 </button>
                             </div>
                         ) : (
                             <div className="flex justify-center">
-                                <label className={`cursor-pointer px-6 py-2.5 bg-gray-900 dark:bg-white text-white dark:text-gray-900 text-xs font-black uppercase tracking-widest rounded-xl transition-all shadow hover:bg-primary dark:hover:bg-primary dark:hover:text-white hover:text-white active:scale-95 flex items-center gap-2 ${isUploading ? 'opacity-50 pointer-events-none' : ''}`}>
+                                <label className={`cursor-pointer min-h-[44px] px-6 py-2.5 bg-gray-900 dark:bg-white text-white dark:text-gray-900 text-xs font-black uppercase tracking-wider rounded-xl transition-all shadow hover:bg-primary dark:hover:bg-primary dark:hover:text-white hover:text-white active:scale-95 flex items-center gap-2 focus:ring-2 focus:ring-primary ${isUploading ? 'opacity-50 pointer-events-none' : ''}`}>
                                     {isUploading ? (
                                         <>
                                             <div className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin"></div>
@@ -970,11 +1192,28 @@ const PostWorkoutForm: React.FC<{ data: LogData; onUpdate: (updates: Partial<Log
                     </div>
                 )}
 
-                <div className="mt-10"><h5 className="text-[11px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-3 ml-1">Kommentar</h5><textarea value={data.comment} onChange={(e) => onUpdate({ comment: e.target.value })} placeholder="Anteckningar..." rows={4} className="w-full bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-800 rounded-[1.5rem] p-5 text-gray-900 dark:text-white text-base focus:ring-2 focus:ring-primary outline-none transition-all shadow-inner" /></div>
+                <div className="mt-10">
+                    <h5 className="text-[11px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-3 ml-1 leading-[1.2] pt-[0.1em]">Kommentar</h5>
+                    <textarea value={data.comment} onChange={(e) => onUpdate({ comment: e.target.value })} placeholder="Anteckningar..." rows={4} className="w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl p-4 text-gray-900 dark:text-white text-base focus:ring-2 focus:ring-primary outline-none transition-all shadow-inner font-medium" />
+                </div>
             </div>
-            <Modal isOpen={showRpeInfo} onClose={() => setShowRpeInfo(false)} title="Vad är RPE?" size="sm"><div className="space-y-6"><p className="text-sm text-gray-600 dark:text-gray-300 leading-relaxed">RPE (Rate of Perceived Exertion) är en skala mellan 1-10 som hjälper dig att skatta din ansträngning.</p><div className="space-y-2">
-                {RPE_LEVELS.map(level => (<div key={level.range} className="flex gap-4 p-3 rounded-2xl bg-gray-50 dark:bg-gray-900/50 border border-gray-100 dark:border-gray-800"><div className={`w-12 h-12 rounded-xl ${level.color} flex items-center justify-center text-white font-black flex-shrink-0 shadow-sm`}>{level.range}</div><div><h6 className="font-bold text-gray-900 dark:text-white text-sm">{level.label}</h6><p className="text-xs text-gray-500 dark:text-gray-400">{level.desc}</p></div></div>))}
-            </div><button onClick={() => setShowRpeInfo(false)} className="w-full bg-gray-900 dark:bg-white text-white dark:text-gray-900 font-bold py-4 rounded-xl mt-4">Jag förstår</button></div></Modal>
+            <Modal isOpen={showRpeInfo} onClose={() => setShowRpeInfo(false)} title="Vad är RPE?" size="sm">
+                <div className="space-y-6">
+                    <p className="text-sm text-gray-600 dark:text-gray-300 leading-relaxed font-medium">RPE (Rate of Perceived Exertion) är en skala mellan 1-10 som hjälper dig att skatta din ansträngning.</p>
+                    <div className="space-y-2">
+                        {RPE_LEVELS.map(level => (
+                            <div key={level.range} className="flex gap-4 p-3 rounded-xl bg-gray-50 dark:bg-gray-900/50 border border-gray-100 dark:border-gray-800">
+                                <div className={`w-12 h-12 rounded-xl ${level.color} flex items-center justify-center text-white font-black tabular-nums flex-shrink-0 shadow-xs`}>{level.range}</div>
+                                <div>
+                                    <h6 className="font-bold text-gray-900 dark:text-white text-sm">{level.label}</h6>
+                                    <p className="text-xs text-gray-500 dark:text-gray-400">{level.desc}</p>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                    <button onClick={() => setShowRpeInfo(false)} className="w-full min-h-[44px] bg-gray-900 dark:bg-white text-white dark:text-gray-900 font-black py-3.5 rounded-xl uppercase tracking-wider text-xs active:scale-95 transition-all">Jag förstår</button>
+                </div>
+            </Modal>
         </div>
     );
 };
@@ -1165,6 +1404,8 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
   const [dailyFeeling, setDailyFeeling] = useState<'good' | 'neutral' | 'bad' | null>(null);
   const [customActivity, setCustomActivity] = useState({ name: '', duration: '', distance: '', calories: '' });
   const [sessionStats, setSessionStats] = useState({ distance: '', calories: '', time: '', rounds: '' });
+  const [activeSummaryFields, setActiveSummaryFields] = useState<string[]>([]);
+  const [showSummaryMoreFields, setShowSummaryMoreFields] = useState(false);
   const [showExerciseSearch, setShowExerciseSearch] = useState(false);
   const [exerciseSearchTerm, setExerciseSearchTerm] = useState('');
   const [saveAsProgram, setSaveAsProgram] = useState(false);
@@ -1174,7 +1415,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
   const scanSource = source || route?.params?.source;
   const [inStudio, setInStudio] = useState<boolean | null>(scanSource === 'qr_scan' ? true : null);
 
-  const [history, setHistory] = useState<Record<string, { weight: number, reps: string }>>({}); 
+  const [history, setHistory] = useState<Record<string, LastPerformanceRecord>>({}); 
   const [personalBests, setPersonalBests] = useState<Record<string, PersonalBest>>({});
 
   useEffect(() => {
@@ -1447,26 +1688,45 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
                     });
                 });
                 
+                const defaultDuration = foundWorkout.durationMinutes ? String(foundWorkout.durationMinutes) : ((foundWorkout as any).duration ? String((foundWorkout as any).duration) : '');
+                
                 setExerciseResults(exercises);
                 if (loadedLogData) setLogData(loadedLogData);
                 if (loadedSessionStats) {
                     setSessionStats({
                         distance: loadedSessionStats.distance || '',
                         calories: loadedSessionStats.calories || '',
-                        time: loadedSessionStats.time || '',
+                        time: (loadedSessionStats.time && loadedSessionStats.time.trim() !== '' && loadedSessionStats.time !== '0') ? loadedSessionStats.time : defaultDuration,
                         rounds: loadedSessionStats.rounds || ''
+                    });
+                } else {
+                    setSessionStats({
+                        distance: '',
+                        calories: '',
+                        time: defaultDuration,
+                        rounds: ''
                     });
                 }
                 if (loadedCustomActivity) setCustomActivity(loadedCustomActivity);
 
-                const historyMap: Record<string, { weight: number, reps: string, note?: string }> = {};
+                const historyMap: Record<string, LastPerformanceRecord> = {};
                 
                 exercises.forEach(currentEx => {
                     const hasRealPerformance = (logEx: any) => {
                         if (logEx.setDetails && logEx.setDetails.length > 0) {
-                            return logEx.setDetails.some((s: any) => (parseFloat(String(s.weight)) || 0) > 0 || (parseFloat(String(s.reps)) || 0) > 0);
+                            return logEx.setDetails.some((s: any) => 
+                                (parseFloat(String(s.weight)) || 0) > 0 || 
+                                (parseFloat(String(s.reps)) || 0) > 0 ||
+                                (parseFloat(String(s.time)) || 0) > 0 ||
+                                (parseFloat(String(s.distance)) || 0) > 0 ||
+                                (parseFloat(String(s.kcal || s.calories)) || 0) > 0
+                            );
                         }
-                        return (parseFloat(String(logEx.weight)) || 0) > 0 || (parseFloat(String(logEx.reps)) || 0) > 0;
+                        return (parseFloat(String(logEx.weight)) || 0) > 0 || 
+                               (parseFloat(String(logEx.reps)) || 0) > 0 ||
+                               (parseFloat(String(logEx.time)) || 0) > 0 ||
+                               (parseFloat(String(logEx.distance)) || 0) > 0 ||
+                               (parseFloat(String(logEx.calories || logEx.kcal)) || 0) > 0;
                     };
 
                     let match = logs.find(log => 
@@ -1494,29 +1754,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
                     if (match) {
                         const exMatch = match.exerciseResults?.find(logEx => isExerciseMatch(currentEx.exerciseName, currentEx.exerciseId, logEx.exerciseName, logEx.exerciseId));
                         if (exMatch) {
-                            let maxWeight = 0;
-                            let maxReps = '0';
-                            
-                            if (exMatch.setDetails && exMatch.setDetails.length > 0) {
-                                let bestSet = exMatch.setDetails.reduce((prev: any, current: any) => {
-                                    const prevW = parseFloat(String(prev.weight)) || 0;
-                                    const currW = parseFloat(String(current.weight)) || 0;
-                                    if (currW > prevW) return current;
-                                    if (currW === prevW) {
-                                        const prevR = parseFloat(String(prev.reps)) || 0;
-                                        const currR = parseFloat(String(current.reps)) || 0;
-                                        return currR > prevR ? current : prev;
-                                    }
-                                    return prev;
-                                }, exMatch.setDetails[0]);
-                                maxWeight = parseFloat(String(bestSet.weight)) || 0;
-                                maxReps = bestSet.reps?.toString() || '0';
-                            } else {
-                                maxWeight = parseFloat(String(exMatch.weight)) || 0;
-                                maxReps = exMatch.reps?.toString() || '0';
-                            }
-                            
-                            historyMap[currentEx.exerciseName] = { weight: maxWeight, reps: maxReps, note: mostRecentNote };
+                            historyMap[currentEx.exerciseName] = extractPerformanceFromLogEx(exMatch, mostRecentNote);
                         }
                     }
                 });
@@ -1552,13 +1790,23 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
                  
                  // Compute history for loaded manual mode results
                  if (loadedResults) {
-                     const historyMap: Record<string, { weight: number, reps: string, note?: string }> = {};
+                     const historyMap: Record<string, LastPerformanceRecord> = {};
                      loadedResults.forEach(currentEx => {
                          const hasRealPerformance = (logEx: any) => {
 							if (logEx.setDetails && logEx.setDetails.length > 0) {
-								return logEx.setDetails.some((s: any) => (parseFloat(String(s.weight)) || 0) > 0 || (parseFloat(String(s.reps)) || 0) > 0);
+								return logEx.setDetails.some((s: any) => 
+                                    (parseFloat(String(s.weight)) || 0) > 0 || 
+                                    (parseFloat(String(s.reps)) || 0) > 0 ||
+                                    (parseFloat(String(s.time)) || 0) > 0 ||
+                                    (parseFloat(String(s.distance)) || 0) > 0 ||
+                                    (parseFloat(String(s.kcal || s.calories)) || 0) > 0
+                                );
 							}
-							return (parseFloat(String(logEx.weight)) || 0) > 0 || (parseFloat(String(logEx.reps)) || 0) > 0;
+							return (parseFloat(String(logEx.weight)) || 0) > 0 || 
+                                   (parseFloat(String(logEx.reps)) || 0) > 0 ||
+                                   (parseFloat(String(logEx.time)) || 0) > 0 ||
+                                   (parseFloat(String(logEx.distance)) || 0) > 0 ||
+                                   (parseFloat(String(logEx.calories || logEx.kcal)) || 0) > 0;
 						};
 
 						let match = logs.find(log => 
@@ -1585,29 +1833,9 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
 
                          if (match) {
                              const exMatch = match.exerciseResults?.find(logEx => logEx.exerciseName.toLowerCase() === currentEx.exerciseName.toLowerCase());
-                              if (exMatch) {
-                                  let maxWeight = 0;
-                                  let maxReps = '0';
-                                  if (exMatch.setDetails && exMatch.setDetails.length > 0) {
-                                      let bestSet = exMatch.setDetails.reduce((prev: any, current: any) => {
-                                          const prevW = parseFloat(String(prev.weight)) || 0;
-                                          const currW = parseFloat(String(current.weight)) || 0;
-                                          if (currW > prevW) return current;
-                                          if (currW === prevW) {
-                                              const prevR = parseFloat(String(prev.reps)) || 0;
-                                              const currR = parseFloat(String(current.reps)) || 0;
-                                              return currR > prevR ? current : prev;
-                                          }
-                                          return prev;
-                                      }, exMatch.setDetails[0]);
-                                      maxWeight = parseFloat(String(bestSet.weight)) || 0;
-                                      maxReps = bestSet.reps?.toString() || '0';
-                                  } else {
-                                      maxWeight = parseFloat(String(exMatch.weight)) || 0;
-                                      maxReps = exMatch.reps?.toString() || '0';
-                                  }
-                                  historyMap[currentEx.exerciseName] = { weight: maxWeight, reps: maxReps, note: mostRecentNote };
-                              }
+                             if (exMatch) {
+                                 historyMap[currentEx.exerciseName] = extractPerformanceFromLogEx(exMatch, mostRecentNote);
+                             }
                          }
                      });
                      setHistory(historyMap);
@@ -1711,29 +1939,10 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
       if (match) {
           const exMatch = match.exerciseResults?.find(logEx => logEx.exerciseName.toLowerCase() === exerciseName.trim().toLowerCase());
           if (exMatch) {
-              let maxWeight = 0;
-              let maxReps = '0';
-              if (exMatch.setDetails && exMatch.setDetails.length > 0) {
-                  let bestSet = exMatch.setDetails.reduce((prev: any, current: any) => {
-                      const prevW = parseFloat(String(prev.weight)) || 0;
-                      const currW = parseFloat(String(current.weight)) || 0;
-                      if (currW > prevW) return current;
-                      if (currW === prevW) {
-                          const prevR = parseFloat(String(prev.reps)) || 0;
-                          const currR = parseFloat(String(current.reps)) || 0;
-                          return currR > prevR ? current : prev;
-                      }
-                      return prev;
-                  }, exMatch.setDetails[0]);
-                  maxWeight = parseFloat(String(bestSet.weight)) || 0;
-                  maxReps = bestSet.reps?.toString() || '0';
-              } else {
-                  maxWeight = parseFloat(String(exMatch.weight)) || 0;
-                  maxReps = exMatch.reps?.toString() || '0';
-              }
+              const perfRecord = extractPerformanceFromLogEx(exMatch, mostRecentNote);
               setHistory(prev => ({
                   ...prev,
-                  [exerciseName.trim()]: { weight: maxWeight, reps: maxReps, note: mostRecentNote }
+                  [exerciseName.trim()]: perfRecord
               }));
           }
       }
@@ -1994,7 +2203,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
                               title: getRandomDiplomaTitle(),
                               subtitle: `BENCHMARK: ${benchmarkDefinition.title}`,
                               achievement: `Du lyfte totalt ${finalLogRaw.benchmarkValue.toLocaleString()} kg! Det motsvarar ca ${comparison.count} st ${comparison.name}`,
-                              footer: `En ${comparison.single} väger ca ${comparison.weight} kg`,
+                              footer: `${comparison.single.charAt(0).toUpperCase() + comparison.single.slice(1)} väger ca ${comparison.weight.toLocaleString('sv-SE')} kg`,
                               imagePrompt: comparison.emoji,
                               newPBs: newRecords.length > 0 ? newRecords : undefined
                           };
@@ -2030,7 +2239,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
                           title: getRandomDiplomaTitle(),
                           subtitle: `Du lyfte totalt ${totalVolume.toLocaleString()} kg`,
                           achievement: `Det motsvarar ca ${comparison.count} st ${comparison.name}`,
-                          footer: `En ${comparison.single} väger ca ${comparison.weight} kg`,
+                          footer: `${comparison.single.charAt(0).toUpperCase() + comparison.single.slice(1)} väger ca ${comparison.weight.toLocaleString('sv-SE')} kg`,
                           imagePrompt: comparison.emoji, 
                           newPBs: newRecords.length > 0 ? newRecords : undefined
                       };
@@ -2721,70 +2930,139 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
               ) : (
                   <div className="space-y-6 animate-fade-in">
                       {/* STEP 2: SUMMARY */}
-                      {!isManualMode && (
-                          <div className="p-5 bg-white dark:bg-gray-900 rounded-[2rem] border border-gray-100 dark:border-gray-800 shadow-sm">
-                              <div className="grid grid-cols-2 gap-4">
-                                  <div>
-                                      <label className={`block text-[10px] font-black uppercase tracking-widest mb-2 flex justify-between ${benchmarkDefinition?.type === 'time' ? 'text-yellow-600 dark:text-yellow-500' : 'text-gray-400 dark:text-gray-500'}`}>
-                                          Tid (min:sek)
-                                          {benchmarkDefinition?.type === 'time' && prevBenchmarkBest && (
-                                              <span className="text-[9px] bg-yellow-105 dark:bg-yellow-900/30 px-1.5 py-0.5 rounded">PB: {formatPrev(prevBenchmarkBest, 'time')}</span>
+                      {!isManualMode && (() => {
+                          const showRounds = activeSummaryFields.includes('rounds') || (sessionStats.rounds !== undefined && String(sessionStats.rounds).trim() !== '') || benchmarkDefinition?.type === 'reps';
+                          const showCalories = activeSummaryFields.includes('calories') || (sessionStats.calories !== undefined && String(sessionStats.calories).trim() !== '');
+                          const showDistance = activeSummaryFields.includes('distance') || (sessionStats.distance !== undefined && String(sessionStats.distance).trim() !== '');
+
+                          const inactiveSummaryFields = [
+                              { id: 'rounds', label: 'Varv / Reps', show: showRounds },
+                              { id: 'calories', label: 'kcal', show: showCalories },
+                              { id: 'distance', label: 'km', show: showDistance }
+                          ].filter(f => !f.show);
+
+                          return (
+                              <div className="p-5 bg-white dark:bg-gray-900 rounded-[2rem] border border-gray-100 dark:border-gray-800 shadow-sm">
+                                  <div className="grid grid-cols-2 gap-4">
+                                      {/* TID (MIN:SEK) - ALWAYS VISIBLE */}
+                                      <div>
+                                          <label className={`block text-[10px] font-black uppercase tracking-widest mb-2 flex justify-between ${benchmarkDefinition?.type === 'time' ? 'text-yellow-600 dark:text-yellow-500' : 'text-gray-400 dark:text-gray-500'}`}>
+                                              Tid (min:sek)
+                                              {benchmarkDefinition?.type === 'time' && prevBenchmarkBest && (
+                                                  <span className="text-[9px] bg-yellow-100 dark:bg-yellow-900/30 px-1.5 py-0.5 rounded">PB: {formatPrev(prevBenchmarkBest, 'time')}</span>
+                                              )}
+                                          </label>
+                                          <div className={`bg-gray-50 dark:bg-gray-800 rounded-xl p-2 border transition-colors ${benchmarkDefinition?.type === 'time' ? 'border-yellow-400 dark:border-yellow-600 ring-2 ring-yellow-400/20' : 'border-gray-100 dark:border-gray-700'}`}>
+                                              <TimeInput
+                                                  value={sessionStats.time}
+                                                  onChange={(val) => setSessionStats(prev => ({ ...prev, time: val }))}
+                                                  placeholder={benchmarkDefinition?.type === 'time' ? "45" : "-"}
+                                                  className="w-full bg-transparent text-gray-900 dark:text-white font-black text-lg focus:outline-none text-center"
+                                                  compact={true}
+                                              />
+                                          </div>
+                                      </div>
+
+                                      {/* VARV / REPS */}
+                                      {showRounds && (
+                                          <div>
+                                              <label className={`block text-[10px] font-black uppercase tracking-widest mb-2 flex justify-between ${benchmarkDefinition?.type === 'reps' ? 'text-yellow-600 dark:text-yellow-500' : 'text-gray-400 dark:text-gray-500'}`}>
+                                                  Varv / Reps
+                                                  {benchmarkDefinition?.type === 'reps' && prevBenchmarkBest && (
+                                                      <span className="text-[9px] bg-yellow-100 dark:bg-yellow-900/30 px-1.5 py-0.5 rounded">PB: {formatPrev(prevBenchmarkBest, 'reps')}</span>
+                                                  )}
+                                              </label>
+                                              <div className={`bg-gray-50 dark:bg-gray-800 rounded-xl p-2 border transition-colors ${benchmarkDefinition?.type === 'reps' ? 'border-yellow-400 dark:border-yellow-600 ring-2 ring-yellow-400/20' : 'border-gray-100 dark:border-gray-700'}`}>
+                                                  <input 
+                                                      type="number"
+                                                      value={sessionStats.rounds}
+                                                      onChange={(e) => setSessionStats(prev => ({ ...prev, rounds: e.target.value }))}
+                                                      placeholder={benchmarkDefinition?.type === 'reps' ? "T.ex. 5" : "-"}
+                                                      className="w-full bg-transparent text-gray-900 dark:text-white font-black text-lg focus:outline-none text-center"
+                                                  />
+                                              </div>
+                                          </div>
+                                      )}
+
+                                      {/* KCAL */}
+                                      {showCalories && (
+                                          <div>
+                                              <label className="block text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-2">kcal</label>
+                                              <div className="bg-gray-50 dark:bg-gray-800 rounded-xl p-2 border border-gray-100 dark:border-gray-700">
+                                                  <input 
+                                                      type="number"
+                                                      value={sessionStats.calories}
+                                                      onChange={(e) => setSessionStats(prev => ({ ...prev, calories: e.target.value }))}
+                                                      placeholder="T.ex. 350"
+                                                      className="w-full bg-transparent text-gray-900 dark:text-white font-black text-lg focus:outline-none text-center"
+                                                  />
+                                              </div>
+                                          </div>
+                                      )}
+
+                                      {/* KM */}
+                                      {showDistance && (
+                                          <div>
+                                              <label className="block text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-2">km</label>
+                                              <div className="bg-gray-50 dark:bg-gray-800 rounded-xl p-2 border border-gray-100 dark:border-gray-700">
+                                                  <input 
+                                                      type="number"
+                                                      value={sessionStats.distance}
+                                                      onChange={(e) => setSessionStats(prev => ({ ...prev, distance: e.target.value }))}
+                                                      placeholder="T.ex. 3.5"
+                                                      className="w-full bg-transparent text-gray-900 dark:text-white font-black text-lg focus:outline-none text-center"
+                                                  />
+                                              </div>
+                                          </div>
+                                      )}
+                                  </div>
+
+                                  {/* "+ fler fält" chip for summary */}
+                                  {inactiveSummaryFields.length > 0 && (
+                                      <div className="mt-3">
+                                          {!showSummaryMoreFields ? (
+                                              <button
+                                                  type="button"
+                                                  onClick={() => setShowSummaryMoreFields(true)}
+                                                  className="inline-flex items-center gap-1 text-[11px] font-extrabold text-gray-400 dark:text-gray-500 hover:text-primary dark:hover:text-primary-light bg-gray-50/80 dark:bg-gray-800/80 hover:bg-primary/10 px-2.5 py-1 rounded-full transition-all border border-gray-150 dark:border-gray-700/60 active:scale-95"
+                                              >
+                                                  <PlusIcon className="w-3 h-3" />
+                                                  <span>+ fler fält</span>
+                                              </button>
+                                          ) : (
+                                              <div className="flex items-center gap-1.5 flex-wrap p-2 bg-gray-50 dark:bg-gray-800/60 rounded-xl border border-gray-150 dark:border-gray-700/80 animate-fade-in">
+                                                  <span className="text-[10px] font-extrabold uppercase tracking-widest text-gray-400 mr-1">Lägg till:</span>
+                                                  {inactiveSummaryFields.map(f => (
+                                                      <button
+                                                          key={f.id}
+                                                          type="button"
+                                                          onClick={() => {
+                                                              setActiveSummaryFields(prev => [...prev, f.id]);
+                                                              if (inactiveSummaryFields.length <= 1) {
+                                                                  setShowSummaryMoreFields(false);
+                                                              }
+                                                          }}
+                                                          className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 text-primary dark:text-primary-light hover:bg-primary hover:text-white transition-all shadow-2xs active:scale-95"
+                                                      >
+                                                          <PlusIcon className="w-3 h-3" />
+                                                          {f.label}
+                                                      </button>
+                                                  ))}
+                                                  <button
+                                                      type="button"
+                                                      onClick={() => setShowSummaryMoreFields(false)}
+                                                      className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 ml-1 rounded-lg"
+                                                      title="Dölj"
+                                                  >
+                                                      <CloseIcon className="w-3.5 h-3.5" />
+                                                  </button>
+                                              </div>
                                           )}
-                                      </label>
-                                      <div className={`bg-gray-50 dark:bg-gray-800 rounded-xl p-2 border transition-colors ${benchmarkDefinition?.type === 'time' ? 'border-yellow-400 dark:border-yellow-600 ring-2 ring-yellow-400/20' : 'border-gray-100 dark:border-gray-700'}`}>
-                                          <TimeInput
-                                              value={sessionStats.time}
-                                              onChange={(val) => setSessionStats(prev => ({ ...prev, time: val }))}
-                                              placeholder={benchmarkDefinition?.type === 'time' ? "45" : "-"}
-                                              className="w-full bg-transparent text-gray-900 dark:text-white font-black text-lg focus:outline-none text-center"
-                                              compact={true}
-                                          />
                                       </div>
-                                  </div>
-                                  <div>
-                                      <label className={`block text-[10px] font-black uppercase tracking-widest mb-2 flex justify-between ${benchmarkDefinition?.type === 'reps' ? 'text-yellow-600 dark:text-yellow-500' : 'text-gray-400 dark:text-gray-500'}`}>
-                                          Varv / Reps
-                                          {benchmarkDefinition?.type === 'reps' && prevBenchmarkBest && (
-                                              <span className="text-[9px] bg-yellow-101 dark:bg-yellow-900/30 px-1.5 py-0.5 rounded">PB: {formatPrev(prevBenchmarkBest, 'reps')}</span>
-                                          )}
-                                      </label>
-                                      <div className={`bg-gray-50 dark:bg-gray-800 rounded-xl p-2 border transition-colors ${benchmarkDefinition?.type === 'reps' ? 'border-yellow-400 dark:border-yellow-600 ring-2 ring-yellow-400/20' : 'border-gray-100 dark:border-gray-700'}`}>
-                                          <input 
-                                              type="number"
-                                              value={sessionStats.rounds}
-                                              onChange={(e) => setSessionStats(prev => ({ ...prev, rounds: e.target.value }))}
-                                              placeholder={benchmarkDefinition?.type === 'reps' ? "T.ex. 5" : "-"}
-                                              className="w-full bg-transparent text-gray-900 dark:text-white font-black text-lg focus:outline-none text-center"
-                                          />
-                                      </div>
-                                  </div>
-                                  <div>
-                                      <label className="block text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-2">kcal</label>
-                                      <div className="bg-gray-50 dark:bg-gray-800 rounded-xl p-2 border border-gray-100 dark:border-gray-700">
-                                          <input 
-                                              type="number"
-                                              value={sessionStats.calories}
-                                              onChange={(e) => setSessionStats(prev => ({ ...prev, calories: e.target.value }))}
-                                              placeholder="T.ex. 350"
-                                              className="w-full bg-transparent text-gray-900 dark:text-white font-black text-lg focus:outline-none text-center"
-                                          />
-                                      </div>
-                                  </div>
-                                  <div>
-                                      <label className="block text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-2">km</label>
-                                      <div className="bg-gray-50 dark:bg-gray-800 rounded-xl p-2 border border-gray-100 dark:border-gray-700">
-                                          <input 
-                                              type="number"
-                                              value={sessionStats.distance}
-                                              onChange={(e) => setSessionStats(prev => ({ ...prev, distance: e.target.value }))}
-                                              placeholder="T.ex. 3.5"
-                                              className="w-full bg-transparent text-gray-900 dark:text-white font-black text-lg focus:outline-none text-center"
-                                          />
-                                      </div>
-                                  </div>
+                                  )}
                               </div>
-                          </div>
-                      )}
+                          );
+                      })()}
 
                       <PostWorkoutForm 
                           data={logData} 

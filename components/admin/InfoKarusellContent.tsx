@@ -369,6 +369,27 @@ export const InfoKarusellContent: React.FC<InfoKarusellContentProps> = ({ organi
                         </div>
                     </div>
 
+                    <div className="bg-gray-50 dark:bg-gray-900/50 p-4 rounded-xl border border-gray-100 dark:border-gray-700 mb-8 flex items-center justify-between">
+                        <div>
+                            <h4 className="font-bold text-gray-900 dark:text-white text-sm">Bli medlem — skanna koden (QR-slide)</h4>
+                            <p className="text-xs text-gray-500 dark:text-gray-400">Rullar automatiskt med i karusellen med ortens QR-kod för skanning från golvet.</p>
+                        </div>
+                        <div className="flex items-center gap-3">
+                            <span className={`text-xs font-bold ${carousel.enableJoinSlide ? 'text-green-600' : 'text-gray-500'}`}>
+                                {carousel.enableJoinSlide ? 'PÅ' : 'AV'}
+                            </span>
+                            <ToggleSwitch
+                                label=""
+                                checked={!!carousel.enableJoinSlide}
+                                onChange={(checked) => {
+                                    const updatedCarousel = { ...carousel, enableJoinSlide: checked };
+                                    setCarousel(updatedCarousel);
+                                    handleGlobalSave(updatedCarousel);
+                                }}
+                            />
+                        </div>
+                    </div>
+
                     <button onClick={handleCreateNew} className="w-full py-4 mb-8 border-2 border-dashed border-gray-200 dark:border-gray-700 rounded-xl text-gray-500 hover:text-primary hover:border-primary/50 hover:bg-gray-50 dark:hover:bg-gray-900/30 transition-all font-bold flex items-center justify-center gap-2">
                         <span className="text-xl">+</span> Skapa nytt meddelande
                     </button>

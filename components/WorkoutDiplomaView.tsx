@@ -77,11 +77,11 @@ export const WorkoutDiplomaView: React.FC<WorkoutDiplomaViewProps> = ({ diploma,
             </AnimatePresence>
             
             <motion.div 
-                initial={{ scale: 0.9, opacity: 0, y: 40 }}
-                animate={{ scale: 1, opacity: 1, y: 0 }}
-                exit={{ scale: 0.9, opacity: 0, y: 40 }}
-                transition={{ type: "spring", damping: 25, stiffness: 150 }}
-                className="relative w-full max-w-sm rounded-[3rem] overflow-hidden shadow-[0_40px_80px_-15px_rgba(20,184,166,0.25)] dark:shadow-[0_50px_100px_-20px_rgba(0,0,0,0.8)] flex flex-col bg-white dark:bg-gray-950 border border-gray-100 dark:border-gray-800"
+                initial={{ scale: 0.92, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.92, opacity: 0 }}
+                transition={{ duration: 0.2, ease: "easeOut" }}
+                className="relative w-full max-w-sm rounded-3xl overflow-hidden shadow-[0_40px_80px_-15px_rgba(20,184,166,0.25)] dark:shadow-[0_50px_100px_-20px_rgba(0,0,0,0.8)] flex flex-col bg-white dark:bg-gray-950 border border-gray-100 dark:border-gray-800"
                 style={{ 
                     fontFamily: '"Inter", sans-serif',
                     maxHeight: '85vh'
@@ -89,24 +89,25 @@ export const WorkoutDiplomaView: React.FC<WorkoutDiplomaViewProps> = ({ diploma,
                 onClick={e => e.stopPropagation()}
             >
                 {/* Dekorativt ljus */}
-                <div className="absolute top-0 right-0 w-64 h-64 bg-amber-100/40 dark:bg-primary/10 rounded-full blur-[80px] -mr-20 -mt-20 pointer-events-none"></div>
-                <div className="absolute bottom-0 left-0 w-48 h-48 bg-teal-100/30 dark:hidden rounded-full blur-[60px] -ml-10 -mb-10 pointer-events-none"></div>
+                <div className="absolute top-0 right-0 w-64 h-64 bg-record/20 dark:bg-record/10 rounded-full blur-[80px] -mr-20 -mt-20 pointer-events-none"></div>
+                <div className="absolute bottom-0 left-0 w-48 h-48 bg-primary/10 dark:hidden rounded-full blur-[60px] -ml-10 -mb-10 pointer-events-none"></div>
                 
                 {/* Kryss (X) */}
                 <button 
                     onClick={onClose}
-                    className="absolute top-5 right-5 z-50 p-2 bg-gray-100 dark:bg-white/10 hover:bg-gray-200 dark:hover:bg-white/20 rounded-full shadow-sm transition-all active:scale-90"
+                    className="absolute top-4 right-4 z-50 min-h-[44px] min-w-[44px] p-2 bg-gray-100 dark:bg-white/10 hover:bg-gray-200 dark:hover:bg-white/20 rounded-full shadow-xs transition-all active:scale-95 flex items-center justify-center"
+                    aria-label="Stäng diplom"
                 >
                     <CloseIcon className="w-5 h-5 text-gray-500 dark:text-white" />
                 </button>
 
                 {/* HEADER */}
-                <div className="pt-10 pb-4 text-center px-8 flex-shrink-0 relative z-10">
-                    <h1 className="text-3xl sm:text-4xl font-black uppercase tracking-tighter leading-none mb-2 text-black dark:text-white">
+                <div className="pt-8 pb-3 text-center px-6 flex-shrink-0 relative z-10">
+                    <h1 className="text-3xl sm:text-4xl font-black uppercase tracking-tight leading-[1.2] pt-[0.1em] mb-2 text-black dark:text-white">
                         {displayTitle}
                     </h1>
                     <div className="inline-block px-4 py-1 rounded-full bg-gray-100 dark:bg-white/5 border border-gray-100 dark:border-white/10">
-                        <p className="text-[10px] sm:text-xs font-black uppercase tracking-[0.2em] text-gray-700 dark:text-gray-400">
+                        <p className="text-[10px] sm:text-xs font-black uppercase tracking-[0.2em] text-gray-700 dark:text-gray-400 leading-[1.2] pt-[0.1em]">
                             {subtitle}
                         </p>
                     </div>
@@ -123,16 +124,16 @@ export const WorkoutDiplomaView: React.FC<WorkoutDiplomaViewProps> = ({ diploma,
                             {icon}
                         </motion.div>
                         
-                        <div className="bg-gray-50/50 dark:bg-white/5 border border-gray-100 dark:border-white/10 p-5 rounded-[2rem] w-full shadow-sm backdrop-blur-sm">
+                        <div className="bg-gray-50/50 dark:bg-white/5 border border-gray-100 dark:border-white/10 p-5 rounded-2xl w-full shadow-xs backdrop-blur-xs">
                             <p className="text-xl sm:text-2xl font-black text-black dark:text-white leading-tight mb-4 text-center">
                                 {achievement}
                             </p>
                             
-                            {/* PB-LISTA */}
+                            {/* PB-LISTA - RECORD GULD */}
                             {pbCount > 0 && (
                                 <div className="space-y-2 mb-3">
-                                    <p className="text-m font-black uppercase tracking-[0.2em] text-primary text-center mb-3">Nya PB satta 🏆</p>
-                                    <div className="space-y-1">
+                                    <p className="text-xs font-black uppercase tracking-[0.2em] text-record text-center mb-3 leading-[1.2] pt-[0.1em]">Nya PB satta 🏆</p>
+                                    <div className="space-y-1.5">
                                         {diploma.newPBs?.map((pb, i) => {
                                             let diffText = `+${pb.diff} kg`;
                                             if (pb.weight === 0 && pb.reps !== undefined) {
@@ -144,9 +145,9 @@ export const WorkoutDiplomaView: React.FC<WorkoutDiplomaViewProps> = ({ diploma,
                                                 diffText = m > 0 ? `-${m}m ${s}s` : `-${s}s`;
                                             }
                                             return (
-                                                <div key={i} className="flex justify-between items-center text-xs font-bold text-gray-900 dark:text-white bg-white dark:bg-black/40 px-4 py-2.5 rounded-2xl border border-gray-50 dark:border-white/5 shadow-sm">
-                                                    <span className="truncate pr-4 uppercase tracking-tight">{pb.exerciseName}</span>
-                                                    <span className="text-primary font-black shrink-0">{diffText}</span>
+                                                <div key={i} className="flex justify-between items-center text-xs font-bold text-gray-900 dark:text-white bg-record/10 dark:bg-record/15 px-4 py-2.5 rounded-xl border border-record/30 shadow-xs">
+                                                    <span className="truncate pr-4 uppercase tracking-tight leading-[1.2] pt-[0.1em]">{pb.exerciseName}</span>
+                                                    <span className="text-record font-black shrink-0 tabular-nums">{diffText}</span>
                                                 </div>
                                             );
                                         })}
@@ -164,21 +165,23 @@ export const WorkoutDiplomaView: React.FC<WorkoutDiplomaViewProps> = ({ diploma,
                 </div>
 
                 {/* FOOTER INFO */}
-                <div className="px-8 pb-8 flex-shrink-0 flex justify-between items-center bg-white dark:bg-gray-950 border-t border-gray-50 dark:border-gray-900 pt-4 relative z-10">
-                    <div className="text-left">
-                        <p className="text-[10px] font-bold text-gray-900 dark:text-white">{new Date().toLocaleDateString('sv-SE')}</p>
-                    </div>
-                    
-                    <div className="text-right flex flex-col items-end">
-                        {selectedOrganization?.logoUrlLight ? (
-                            <img src={selectedOrganization.logoUrlLight} alt={studioName} className="h-14 object-contain dark:hidden" referrerPolicy="no-referrer" />
-                        ) : null}
-                        {selectedOrganization?.logoUrlDark ? (
-                            <img src={selectedOrganization.logoUrlDark} alt={studioName} className="h-14 object-contain hidden dark:block" referrerPolicy="no-referrer" />
-                        ) : null}
-                        {(!selectedOrganization?.logoUrlLight && !selectedOrganization?.logoUrlDark) && (
-                            <p className="text-[12px] font-black text-primary uppercase">{studioName}</p>
-                        )}
+                <div className="px-6 pb-6 flex-shrink-0 bg-white dark:bg-gray-950 border-t border-gray-100 dark:border-gray-900 pt-4 relative z-10">
+                    <div className="flex justify-between items-center">
+                        <div className="text-left">
+                            <p className="text-[10px] font-bold text-gray-900 dark:text-white tabular-nums">{new Date().toLocaleDateString('sv-SE')}</p>
+                        </div>
+                        
+                        <div className="text-right flex flex-col items-end">
+                            {selectedOrganization?.logoUrlLight ? (
+                                <img src={selectedOrganization.logoUrlLight} alt={studioName} className="h-10 object-contain dark:hidden" referrerPolicy="no-referrer" />
+                            ) : null}
+                            {selectedOrganization?.logoUrlDark ? (
+                                <img src={selectedOrganization.logoUrlDark} alt={studioName} className="h-10 object-contain hidden dark:block" referrerPolicy="no-referrer" />
+                            ) : null}
+                            {(!selectedOrganization?.logoUrlLight && !selectedOrganization?.logoUrlDark) && (
+                                <p className="text-[12px] font-black text-primary uppercase tracking-tight">{studioName}</p>
+                            )}
+                        </div>
                     </div>
                 </div>
             </motion.div>

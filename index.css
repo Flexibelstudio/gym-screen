@@ -1,0 +1,490 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Custom keyframes & styles moved from index.html */
+/* Hide scrollbar for Chrome, Safari and Opera */
+::-webkit-scrollbar {
+  display: none;
+}
+/* Hide scrollbar for IE, Edge and Firefox and prevent side-scrolling */
+html, body, #root {
+  -ms-overflow-style: none;  /* IE and Edge */
+  scrollbar-width: none;  /* Firefox */
+  overflow-x: hidden !important;
+  max-width: 100vw;
+  position: relative;
+}
+
+@keyframes confetti-fall {
+  0% { transform: translateY(-20px) rotateZ(0deg); opacity: 1; }
+  100% { transform: translateY(100vh) rotateZ(720deg); opacity: 0; }
+}
+
+.confetti-piece {
+  position: absolute;
+  top: 0;
+  width: 10px;
+  height: 20px;
+  opacity: 0;
+  animation-name: confetti-fall;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+  will-change: transform, opacity;
+}
+
+@keyframes heart-rise {
+  0% { transform: translateY(100px) scale(0.5); opacity: 0; }
+  10% { opacity: 1; }
+  90% { opacity: 0.8; }
+  100% { transform: translateY(-110vh) scale(1.5) rotate(15deg); opacity: 0; }
+}
+
+.heart-piece {
+  position: absolute;
+  bottom: -50px;
+  font-size: 32px;
+  color: #e63946;
+  opacity: 0;
+  animation-name: heart-rise;
+  animation-timing-function: ease-out;
+  animation-iteration-count: infinite;
+  will-change: transform, opacity;
+  filter: drop-shadow(0 0 10px rgba(230, 57, 70, 0.4));
+}
+
+@keyframes snowfall {
+  0% {
+    transform: translateY(-10px) translateX(0);
+    opacity: 1;
+  }
+  50% {
+    transform: translateY(50vh) translateX(20px);
+    opacity: 0.8;
+  }
+  100% {
+    transform: translateY(100vh) translateX(-20px);
+    opacity: 0;
+  }
+}
+
+.snowflake {
+  position: absolute;
+  top: -10px;
+  background: white;
+  border-radius: 50%;
+  opacity: 0.8;
+  animation-name: snowfall;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+  will-change: transform;
+  pointer-events: none;
+}
+
+@keyframes fog-move {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+
+.fog-layer {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 200%;
+  height: 300px;
+  background: linear-gradient(to top, rgba(50,50,50,0.4) 0%, transparent 100%);
+  background-size: 50% 100%;
+  animation: fog-move 20s linear infinite;
+  pointer-events: none;
+  z-index: 5;
+}
+
+.line-clamp-4 {
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 4;
+}
+
+.line-clamp-6 {
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 6;
+}
+
+/* Keyframes for the pulsating background color */
+@keyframes pulse-bg-light-keyframes {
+  50% { background-color: rgba(var(--pulse-color-rgb, 249 115 22), 0.3); }
+}
+@keyframes pulse-bg-medium-keyframes {
+  50% { background-color: rgba(var(--pulse-color-rgb, 249 115 22), 0.5); }
+}
+@keyframes pulse-bg-intense-keyframes {
+  50% { background-color: rgba(var(--pulse-color-rgb, 249 115 22), 0.7); }
+}
+
+/* Keyframes for the pulsating inner glow effect */
+@keyframes pulse-inset-light-keyframes {
+  50% { box-shadow: inset 0 0 2rem 0.5rem rgba(255, 255, 255, 0.2); }
+}
+@keyframes pulse-inset-medium-keyframes {
+  50% { box-shadow: inset 0 0 2.5rem 0.75rem rgba(255, 255, 255, 0.3); }
+}
+@keyframes pulse-inset-intense-keyframes {
+  50% { box-shadow: inset 0 0 3rem 1rem rgba(255, 255, 255, 0.4); }
+}
+
+/* Keyframes for banner animations */
+@keyframes slideInLeft {
+  from { transform: translateX(-100%); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+@keyframes slideInRight {
+  from { transform: translateX(100%); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+@keyframes fadeInBanner {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes fade-in-out {
+  0% { opacity: 0; transform: scale(0.95); }
+  10% { opacity: 1; transform: scale(1); }
+  90% { opacity: 1; transform: scale(1); }
+  100% { opacity: 0; transform: scale(1.05); }
+}
+
+/* Keyframes for NotesScreen word cloud */
+@keyframes word-cloud-fade-in {
+  from {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes pulse-border-keyframes {
+  50% {
+    border-color: var(--color-primary, #14b8a6);
+    box-shadow: 0 0 12px 0 var(--color-primary, #14b8a6);
+  }
+}
+
+/* Keyframes for Hyrox gradient background */
+@keyframes pulse-hyrox-bg-keyframes {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+/* Blob animations for Home Screen Background */
+@keyframes blob {
+  0% { transform: translate(0px, 0px) scale(1); }
+  33% { transform: translate(30px, -50px) scale(1.1); }
+  66% { transform: translate(-20px, 20px) scale(0.9); }
+  100% { transform: translate(0px, 0px) scale(1); }
+}
+.animate-blob {
+  animation: blob 7s infinite;
+}
+.animation-delay-2000 {
+  animation-delay: 2s;
+}
+.animation-delay-4000 {
+  animation-delay: 4s;
+}
+
+@media screen {
+  .print-only {
+    display: none !important;
+  }
+}
+
+@media print {
+  @page {
+    margin: 0;
+    size: auto;
+  }
+  body, html {
+    margin: 0 !important;
+    padding: 0 !important;
+    background-color: white !important;
+    color: black !important;
+  }
+  /* Förhindra att webbläsarens mörka läge gör texten vit under utskrift */
+  html, html.dark, body, body.dark {
+    background-color: white !important;
+    color: black !important;
+  }
+  #root {
+    display: none !important;
+  }
+  .print-only {
+    display: block !important;
+    width: 100% !important;
+    height: auto !important;
+    min-height: 100vh !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background-color: white !important;
+    color: black !important;
+  }
+  /* Tvinga all text inuti postern till svart */
+  .print-only * {
+    color: black !important;
+    background-color: transparent !important;
+    border-color: #e5e7eb !important;
+  }
+  /* Bevara fyllnadsklasser för specifika runda bubblor/knappar på postern */
+  .print-only .bg-gray-100, .print-only .bg-gray-50 {
+    background-color: #f3f4f6 !important;
+  }
+  .print-only .bg-black {
+    background-color: #000000 !important;
+    color: #ffffff !important;
+  }
+  .print-only .bg-black * {
+    color: #ffffff !important;
+  }
+  .print-only .text-white {
+    color: #ffffff !important;
+  }
+}
+
+/* Default CSS Variables for feed and pb heights */
+:root {
+  --feed-viewport-height: 288px;
+  --feed-item-height: 64px;
+  --pb-viewport-height: 288px;
+  --pb-item-height: 64px;
+}
+
+/* Tablet Portrait optimization (768px to 1024px) */
+@media (min-width: 768px) and (max-width: 1024px) {
+  :root {
+    --feed-viewport-height: 150px;
+    --feed-item-height: 52px;
+    --pb-viewport-height: 150px;
+    --pb-item-height: 52px;
+  }
+
+  /* Prevent scrolling on the page on tablets */
+  .tablet-no-scroll {
+    overflow-y: hidden !important;
+  }
+
+  /* Compact Header padding and margins on tablets */
+  .tablet-compact-header {
+    margin-bottom: 0.5rem !important;
+    padding-top: 0.25rem !important;
+  }
+
+  /* Grid margin bottom adjustment on tablets */
+  .tablet-grid-container {
+    margin-bottom: 0.5rem !important;
+  }
+
+  /* Tablet bottom dashboard height constraints */
+  .tablet-bottom-dashboard {
+    height: 24vh !important;
+    min-height: 200px !important;
+    max-height: 250px !important;
+    margin-top: auto !important;
+    margin-bottom: 0.75rem !important;
+    gap: 1rem !important;
+  }
+
+  /* Tablet MenuCard overrides - 5 cols (both enabled: compact) */
+  .grid-cols-5 .menu-card-button {
+    padding: 0.75rem !important; /* p-3 */
+  }
+  /* Reduce gap inside button layout */
+  .grid-cols-5 .menu-card-button .gap-2 {
+    gap: 0.25rem !important;
+  }
+  /* Icon container inside button */
+  .grid-cols-5 .menu-card-button .bg-white\/15, .grid-cols-5 .menu-card-button .w-fit {
+    padding: 0.375rem !important; /* p-1.5 */
+    margin-bottom: 0.25rem !important;
+  }
+  /* Icon sizes inside MenuCard buttons on tablet */
+  .grid-cols-5 .menu-card-button svg {
+    width: 1.25rem !important; /* w-5 */
+    height: 1.25rem !important; /* h-5 */
+  }
+  /* Lock icon inside MenuCard buttons on tablet */
+  .grid-cols-5 .menu-card-button .w-4.h-4 {
+    width: 0.875rem !important;
+    height: 0.875rem !important;
+  }
+  /* Emoji icon size inside MenuCard buttons on tablet */
+  .grid-cols-5 .menu-card-button .text-2xl {
+    font-size: 1.25rem !important;
+  }
+  .grid-cols-5 .menu-card-button h3 {
+    font-size: 11px !important;
+    line-height: 1.1 !important;
+  }
+
+  /* Tablet MenuCard overrides - 4 cols (one enabled: slightly larger) */
+  .grid-cols-4 .menu-card-button {
+    padding: 1.25rem !important; /* p-5 */
+  }
+  .grid-cols-4 .menu-card-button .gap-2 {
+    gap: 0.5rem !important;
+  }
+  .grid-cols-4 .menu-card-button .bg-white\/15, .grid-cols-4 .menu-card-button .w-fit {
+    padding: 0.625rem !important; /* p-2.5 */
+    margin-bottom: 0.5rem !important;
+  }
+  .grid-cols-4 .menu-card-button svg {
+    width: 1.75rem !important; /* w-7 */
+    height: 1.75rem !important; /* h-7 */
+  }
+  .grid-cols-4 .menu-card-button .w-4.h-4 {
+    width: 1.125rem !important;
+    height: 1.125rem !important;
+  }
+  .grid-cols-4 .menu-card-button .text-2xl {
+    font-size: 1.75rem !important;
+  }
+  .grid-cols-4 .menu-card-button h3 {
+    font-size: 14px !important;
+    line-height: 1.2 !important;
+    font-weight: 900 !important;
+  }
+
+  /* InfoCarouselBanner Tablet Specific overrides (Compact to fit screen alongside gymflödet) */
+  html body .info-banner-container {
+    height: 16vh !important;
+    min-height: 140px !important;
+    max-height: 170px !important;
+  }
+  html body .info-carousel-wrapper {
+    padding: 0.5rem 1.25rem !important;
+  }
+  html body .info-carousel-inner {
+    gap: 1rem !important;
+  }
+  html body .info-carousel-image {
+    width: 120px !important;
+    height: 120px !important;
+  }
+  html body .info-carousel-headline {
+    font-size: 1.15rem !important;
+    margin-bottom: 0.125rem !important;
+    line-height: 1.2 !important;
+  }
+  html body .info-carousel-body {
+    font-size: 0.8rem !important;
+    line-height: 1.3 !important;
+    -webkit-line-clamp: 4 !important;
+    line-clamp: 4 !important;
+  }
+
+  /* CommunityFeed & WeeklyPBList padding and header sizes on tablet */
+  .tablet-bottom-dashboard > div > div {
+    padding: 1rem !important; /* reduce padding inside widgets from p-6 to p-4 */
+    border-radius: 1.5rem !important; /* reduce border radius from 2.5rem to 1.5rem */
+  }
+  .tablet-bottom-dashboard h3.text-xl {
+    font-size: 1rem !important; /* text-base */
+  }
+  .tablet-bottom-dashboard .mb-4, .tablet-bottom-dashboard .mb-5 {
+    margin-bottom: 0.5rem !important; /* mb-2 */
+  }
+  /* List padding in widgets */
+  .tablet-bottom-dashboard .space-y-2 {
+    font-size: 0.875rem !important;
+  }
+  /* User image inside lists on tablet */
+  .tablet-bottom-dashboard .w-10.h-10 {
+    width: 2rem !important; /* w-8 */
+    height: 2rem !important; /* h-8 */
+    border-radius: 0.5rem !important;
+  }
+  /* User names/texts inside lists on tablet */
+  .tablet-bottom-dashboard .text-sm {
+    font-size: 0.75rem !important; /* text-xs */
+  }
+  .tablet-bottom-dashboard .text-xs {
+    font-size: 0.7rem !important;
+  }
+  .tablet-bottom-dashboard .text-\[10px\] {
+    font-size: 9px !important;
+  }
+  /* Date / time texts in feeds on tablet */
+  .tablet-bottom-dashboard .text-\[10px\].text-gray-400 {
+    font-size: 9px !important;
+  }
+}
+
+/* Studio Mode Performance Optimization: Replace expensive backdrop-blur filters with crisp solid/opaque backgrounds */
+.studio-mode .backdrop-blur-sm,
+.studio-mode .backdrop-blur-md,
+.studio-mode .backdrop-blur-lg,
+.studio-mode .backdrop-blur-xl,
+.studio-mode .backdrop-blur-2xl,
+.studio-mode .backdrop-blur-xs,
+.studio-mode .backdrop-blur {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+/* Light theme white surfaces in Studio Mode keep crisp solid white backgrounds (only in light mode) */
+html:not(.dark) .studio-mode .bg-white\/80,
+html:not(.dark) .studio-mode .bg-white\/90,
+html:not(.dark) .studio-mode .bg-white\/70,
+html:not(.dark) .studio-mode .bg-white\/60,
+html:not(.dark).studio-mode .bg-white\/80,
+html:not(.dark).studio-mode .bg-white\/90,
+html:not(.dark).studio-mode .bg-white\/70,
+html:not(.dark).studio-mode .bg-white\/60 {
+  background-color: rgba(255, 255, 255, 0.98) !important;
+}
+
+/* Dark mode surface overrides in Studio Mode */
+.dark.studio-mode .bg-gray-900\/80,
+.dark.studio-mode .bg-gray-900\/50,
+.dark.studio-mode .bg-gray-900\/90,
+.studio-mode .dark .bg-gray-900\/80,
+.studio-mode .dark .bg-gray-900\/50,
+.studio-mode .dark .bg-gray-900\/90 {
+  background-color: rgba(17, 24, 39, 0.96) !important;
+}
+
+.dark.studio-mode .bg-slate-900\/60,
+.dark.studio-mode .bg-slate-900\/40,
+.studio-mode .dark .bg-slate-900\/60,
+.studio-mode .dark .bg-slate-900\/40 {
+  background-color: rgba(15, 23, 42, 0.95) !important;
+}
+
+.dark.studio-mode .bg-slate-950\/98,
+.studio-mode .dark .bg-slate-950\/98 {
+  background-color: rgba(2, 6, 23, 0.99) !important;
+}
+
+/* Dark theme translucent overlays */
+.dark.studio-mode .bg-white\/10,
+.studio-mode .dark .bg-white\/10 {
+  background-color: rgba(255, 255, 255, 0.12) !important;
+}
+
+.dark.studio-mode .bg-white\/20,
+.studio-mode .dark .bg-white\/20 {
+  background-color: rgba(255, 255, 255, 0.22) !important;
+}
+
+/* Modal dark backdrops remain semi-transparent dimmed overlays in both modes */
+.studio-mode .fixed.inset-0.bg-black\/60,
+.studio-mode .fixed.inset-0.bg-black\/70,
+.studio-mode .fixed.inset-0.bg-black\/40 {
+  background-color: rgba(0, 0, 0, 0.65) !important;
+}
+

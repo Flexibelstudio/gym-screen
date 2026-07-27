@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { registerMemberWithCode } from '../services/firebaseService';
+import { registerMemberWithCode, getInviteCodeInfo, InviteCodeDetails } from '../services/firebaseService';
 import { resizeImage } from '../utils/imageUtils';
 import { CloseIcon, EyeIcon, EyeOffIcon } from './icons';
 import { motion } from 'framer-motion';
@@ -38,6 +38,9 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onClose, onRegisterGym
     const [regPassword, setRegPassword] = useState('');
     const [regConfirmPassword, setRegConfirmPassword] = useState('');
     const [inviteCode, setInviteCode] = useState('');
+    const [inviteDetails, setInviteDetails] = useState<InviteCodeDetails | null>(null);
+    const [isCheckingCode, setIsCheckingCode] = useState(false);
+    const [existingAccountError, setExistingAccountError] = useState(false);
     
     // Profile Fields
     const [firstName, setFirstName] = useState('');
@@ -57,11 +60,32 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onClose, onRegisterGym
         const invite = params.get('invite') || params.get('coach');
         const locationParam = params.get('location');
         if (invite) {
-            setInviteCode(invite.toUpperCase());
+            const upper = invite.toUpperCase().trim();
+            setInviteCode(upper);
             setView('register');
             if (locationParam) {
                 setInvitedLocationId(locationParam);
             }
+
+            setIsCheckingCode(true);
+            getInviteCodeInfo(upper)
+                .then(info => {
+                    setInviteDetails(info);
+                    if (info.isValid) {
+                        if (info.locationId) {
+                            setInvitedLocationId(info.locationId);
+                        } else if (info.locations && info.locations.length === 1) {
+                            setInvitedLocationId(info.locations[0].id);
+                        }
+                    }
+                })
+                .catch(() => {
+                    setInviteDetails({ isValid: false, code: upper, error: "Länken är ogiltig — be gymmet om en ny" });
+                })
+                .finally(() => {
+                    setIsCheckingCode(false);
+                });
+
             window.history.replaceState({}, document.title, window.location.pathname);
         }
     }, []);
@@ -130,7 +154,14 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onClose, onRegisterGym
             return;
         }
 
+        const effectiveLocationId = invitedLocationId || inviteDetails?.locationId || undefined;
+        if (inviteDetails?.isValid && !inviteDetails.locationId && inviteDetails.locations && inviteDetails.locations.length > 1 && !effectiveLocationId) {
+            setRegError("Vänligen välj din ort.");
+            return;
+        }
+
         setRegLoading(true);
+        setExistingAccountError(false);
         try {
             await registerMemberWithCode(
                 regEmail, 
@@ -142,12 +173,18 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onClose, onRegisterGym
                     birthDate: birthDate || undefined,
                     gender: gender as any,
                     photoBase64: profileImage,
-                    locationId: invitedLocationId || undefined
+                    locationId: effectiveLocationId
                 }
             );
             if (onClose) onClose();
         } catch (err: any) {
-            setRegError(err.message || "Registrering misslyckades. Kontrollera koden och försök igen.");
+            const errStr = (err.code || err.message || '').toString().toLowerCase();
+            if (errStr.includes('email-already-in-use') || errStr.includes('används redan')) {
+                setExistingAccountError(true);
+                setRegError(null);
+            } else {
+                setRegError(err.message || "Registrering misslyckades. Kontrollera koden och försök igen.");
+            }
         } finally {
             setRegLoading(false);
         }
@@ -298,6 +335,63 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onClose, onRegisterGym
             </div>
             <div className="space-y-4 flex-1 min-h-0 overflow-y-auto pr-1 pb-1 custom-scrollbar" onKeyDown={(e) => { if (e.key === 'Enter') handleRegister(e); }}>
                 
+                {/* Invite Confirmation Banner or Error */}
+                {isCheckingCode ? (
+                    <div className="bg-gray-800/80 border border-gray-700 rounded-2xl p-4 flex items-center justify-center gap-3 animate-pulse">
+                        <div className="w-5 h-5 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
+                        <span className="text-xs font-bold text-gray-300">Kontrollerar inbjudningskod...</span>
+                    </div>
+                ) : inviteDetails?.isValid ? (
+                    <div className="space-y-3">
+                        <div className="bg-primary/10 border border-primary/30 rounded-2xl p-4 flex items-center gap-4 animate-fade-in">
+                            {inviteDetails.logoUrl ? (
+                                <img src={inviteDetails.logoUrl} alt={inviteDetails.organizationName} className="w-12 h-12 object-contain rounded-xl bg-black/40 p-1 flex-shrink-0" />
+                            ) : (
+                                <div className="w-12 h-12 rounded-xl bg-primary/20 flex items-center justify-center text-primary font-black text-xl flex-shrink-0">
+                                    🏋️
+                                </div>
+                            )}
+                            <div className="min-w-0">
+                                <span className="text-[10px] font-black tracking-widest uppercase text-primary block">Inbjudan bekräftad</span>
+                                <h3 className="text-sm sm:text-base font-black text-white tracking-tight truncate">
+                                    Du går med i {inviteDetails.organizationName}
+                                    {inviteDetails.locationName ? ` — ${inviteDetails.locationName}` : ''}
+                                </h3>
+                            </div>
+                        </div>
+
+                        {/* Ort-väljare om org-övergripande kod har flera orter */}
+                        {!inviteDetails.locationId && inviteDetails.locations && inviteDetails.locations.length > 1 && (
+                            <div className="bg-gray-800/80 border border-gray-700 rounded-2xl p-4 space-y-1.5 animate-fade-in">
+                                <label htmlFor="select-location" className="block text-[10px] font-black text-gray-300 uppercase tracking-widest">
+                                    Välj din ort <span className="text-primary">*</span>
+                                </label>
+                                <select
+                                    id="select-location"
+                                    value={invitedLocationId || ''}
+                                    onChange={(e) => setInvitedLocationId(e.target.value)}
+                                    required
+                                    className="w-full bg-black text-white p-3 rounded-xl border border-gray-700 focus:ring-2 focus:ring-primary focus:outline-none transition text-sm font-bold"
+                                >
+                                    <option value="" disabled>-- Välj din ort --</option>
+                                    {inviteDetails.locations.map(loc => (
+                                        <option key={loc.id} value={loc.id}>
+                                            {loc.name}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+                        )}
+                    </div>
+                ) : inviteDetails?.isValid === false ? (
+                    <div className="bg-red-500/10 border border-red-500/30 rounded-2xl p-4 flex items-center gap-3 animate-fade-in">
+                        <span className="text-xl">⚠️</span>
+                        <p className="text-xs font-bold text-red-400">
+                            Länken är ogiltig — be gymmet om en ny
+                        </p>
+                    </div>
+                ) : null}
+
                 <div className="flex flex-col items-center mb-4">
                     <div 
                         className="w-24 h-24 rounded-full bg-gray-800 border-2 border-gray-700 flex items-center justify-center overflow-hidden cursor-pointer hover:border-primary transition-colors relative group"
@@ -393,21 +487,25 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onClose, onRegisterGym
                     </div>
                 </div>
 
-                <div>
-                    <label htmlFor="invite-code" className="block text-[10px] font-black text-gray-500 uppercase mb-1 tracking-widest">
-                        Ange kod (Inbjudnings- eller coachkod)
-                    </label>
-                    <input
-                        id="invite-code"
-                        type="text"
-                        value={inviteCode}
-                        onChange={(e) => setInviteCode(e.target.value.toUpperCase())}
-                        placeholder="KOD (6 tecken)"
-                        required
-                        className="w-full bg-black text-white p-3 rounded-xl border border-gray-700 focus:ring-2 focus:ring-primary focus:outline-none transition text-center font-black tracking-widest text-lg uppercase"
-                        maxLength={6}
-                    />
-                </div>
+                {/* Show manual code field ONLY if no valid invite details exist */}
+                {!inviteDetails?.isValid && (
+                    <div>
+                        <label htmlFor="invite-code" className="block text-[10px] font-black text-gray-500 uppercase mb-1 tracking-widest">
+                            Ange kod (Inbjudnings- eller coachkod)
+                        </label>
+                        <input
+                            id="invite-code"
+                            type="text"
+                            value={inviteCode}
+                            onChange={(e) => setInviteCode(e.target.value.toUpperCase())}
+                            placeholder="KOD (6 tecken)"
+                            required
+                            className="w-full bg-black text-white p-3 rounded-xl border border-gray-700 focus:ring-2 focus:ring-primary focus:outline-none transition text-center font-black tracking-widest text-lg uppercase"
+                            maxLength={6}
+                        />
+                    </div>
+                )}
+
                 <div>
                     <label htmlFor="reg-email" className="block text-[10px] font-black text-gray-500 uppercase mb-1 tracking-widest">E-post</label>
                     <input
@@ -457,7 +555,24 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onClose, onRegisterGym
                     </div>
                 </div>
 
-                {regError && <p className="text-red-400 text-sm text-center font-bold">{regError}</p>}
+                {existingAccountError ? (
+                    <div className="bg-amber-500/10 border border-amber-500/30 rounded-2xl p-4 text-center space-y-2 animate-fade-in">
+                        <p className="text-amber-400 font-bold text-sm">Du har redan ett konto — logga in</p>
+                        <button
+                            type="button"
+                            onClick={() => {
+                                setEmail(regEmail);
+                                setView('login');
+                                setExistingAccountError(false);
+                            }}
+                            className="bg-amber-500 hover:bg-amber-400 text-black font-black text-xs px-4 py-2 rounded-xl uppercase tracking-wider transition-all shadow-md"
+                        >
+                            Gå till inloggning
+                        </button>
+                    </div>
+                ) : (
+                    regError && <p className="text-red-400 text-sm text-center font-bold">{regError}</p>
+                )}
 
                 <div className="py-2 text-center">
                     <p className="text-[10px] text-gray-500 leading-relaxed">

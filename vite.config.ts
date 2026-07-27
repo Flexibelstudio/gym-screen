@@ -17,6 +17,9 @@ export default defineConfig(({ mode }) => {
       plugins: [
         react(),
         VitePWA({
+          devOptions: {
+            enabled: false
+          },
           registerType: 'autoUpdate',
           includeAssets: ['favicon.png', 'robots.txt', 'apple-touch-icon.png'],
           manifest: {
@@ -94,6 +97,40 @@ export default defineConfig(({ mode }) => {
       resolve: {
         alias: {
           '@': path.resolve(__dirname, '.'),
+        }
+      },
+      build: {
+        rollupOptions: {
+          output: {
+            manualChunks(id) {
+              if (id.includes('node_modules')) {
+                if (id.includes('firebase')) {
+                  return 'vendor-firebase';
+                }
+                if (id.includes('recharts') || id.includes('victory-vendor') || id.includes('d3-') || id.includes('react-smooth')) {
+                  return 'vendor-charts';
+                }
+                if (id.includes('framer-motion')) {
+                  return 'vendor-framer';
+                }
+                if (id.includes('lucide-react') || id.includes('@heroicons')) {
+                  return 'vendor-icons';
+                }
+                if (id.includes('@dnd-kit')) {
+                  return 'vendor-dnd';
+                }
+                if (id.includes('react-markdown') || id.includes('roughjs')) {
+                  return 'vendor-ui-helpers';
+                }
+                // Catch-all: react, react-dom, scheduler och ALLA övriga småpaket
+                // hamnar i EN gemensam vendor-chunk. Utan denna läcker t.ex.
+                // scheduler (react-doms beroende) till index-chunken och skapar
+                // en cirkulär laddkedja => "Cannot read properties of undefined
+                // (reading 'forwardRef')" i vendor-charts vid sidladdning.
+                return 'vendor';
+              }
+            }
+          }
         }
       }
     };

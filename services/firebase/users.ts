@@ -32,7 +32,7 @@ import { getToken } from 'firebase/messaging';
 import { auth, db, functions, isOffline, messaging, sanitizeData, generateInviteCode } from './init';
 import { uploadImage } from './misc';
 import { 
-  UserData, Member, UserRole, MemberGoals, Organization 
+  UserData, Member, UserRole, MemberGoals, Organization, Location as OrgLocation 
 } from '../../types';
 import { MOCK_ORG_ADMIN, MOCK_MEMBERS } from '../../data/mockData';
 
@@ -229,6 +229,115 @@ export const approveCoach = async (uid: string) => {
 export const updateMemberEndDate = async (uid: string, date: string | null) => {
     if (isOffline || !db || !uid) return;
     await updateDoc(doc(db, 'users', uid), { endDate: date });
+};
+
+export interface InviteCodeDetails {
+    isValid: boolean;
+    code: string;
+    organizationId?: string;
+    organizationName?: string;
+    logoUrl?: string;
+    locationId?: string;
+    locationName?: string;
+    locations?: { id: string; name: string }[];
+    isCoach?: boolean;
+    error?: string;
+}
+
+export const getInviteCodeInfo = async (code: string): Promise<InviteCodeDetails> => {
+    if (isOffline || !db || !code) {
+        return { isValid: false, code: code || '', error: "Länken är ogiltig — be gymmet om en ny" };
+    }
+
+    const upperCode = code.trim().toUpperCase();
+
+    try {
+        let q = query(collection(db, 'organizations'), where('inviteCode', '==', upperCode));
+        let snap = await getDocs(q);
+
+        let isCoach = false;
+        if (snap.empty) {
+            q = query(collection(db, 'organizations'), where('coachCode', '==', upperCode));
+            snap = await getDocs(q);
+            if (!snap.empty) {
+                isCoach = true;
+            }
+        }
+
+        if (!snap.empty) {
+            const orgDoc = snap.docs[0];
+            const orgData = orgDoc.data() as Organization;
+            const orgLocations = orgData.locations || [];
+            const mappedLocations = orgLocations.map((l: OrgLocation) => ({ id: l.id, name: l.name }));
+
+            const specificLoc = orgLocations.find((l: OrgLocation) => 
+                l.inviteCode?.toUpperCase() === upperCode || 
+                l.coachCode?.toUpperCase() === upperCode
+            );
+
+            let locationId: string | undefined = undefined;
+            let locationName: string | undefined = undefined;
+
+            if (specificLoc) {
+                locationId = specificLoc.id;
+                locationName = specificLoc.name;
+            } else if (orgLocations.length === 1) {
+                locationId = orgLocations[0].id;
+                locationName = orgLocations[0].name;
+            } else {
+                // Flera orter på org-nivå: sätt ej tyst locations[0]
+                locationId = undefined;
+                locationName = undefined;
+            }
+
+            return {
+                isValid: true,
+                code: upperCode,
+                organizationId: orgDoc.id,
+                organizationName: orgData.name,
+                logoUrl: orgData.logoUrlLight || orgData.logoUrlDark,
+                locationId,
+                locationName,
+                locations: mappedLocations.length > 0 ? mappedLocations : undefined,
+                isCoach
+            };
+        }
+
+        q = query(collection(db, 'organizations'), where('inviteCodes', 'array-contains', upperCode));
+        snap = await getDocs(q);
+
+        if (!snap.empty) {
+            const orgDoc = snap.docs[0];
+            const orgData = orgDoc.data() as Organization;
+            const orgLocations = orgData.locations || [];
+            const mappedLocations = orgLocations.map((l: OrgLocation) => ({ id: l.id, name: l.name }));
+
+            const matchedLoc = orgLocations.find((l: OrgLocation) => 
+                l.inviteCode?.toUpperCase() === upperCode || 
+                l.coachCode?.toUpperCase() === upperCode
+            );
+
+            if (matchedLoc) {
+                const locCoach = matchedLoc.coachCode?.toUpperCase() === upperCode;
+                return {
+                    isValid: true,
+                    code: upperCode,
+                    organizationId: orgDoc.id,
+                    organizationName: orgData.name,
+                    logoUrl: orgData.logoUrlLight || orgData.logoUrlDark,
+                    locationId: matchedLoc.id,
+                    locationName: matchedLoc.name,
+                    locations: mappedLocations.length > 0 ? mappedLocations : undefined,
+                    isCoach: locCoach
+                };
+            }
+        }
+
+        return { isValid: false, code: upperCode, error: "Länken är ogiltig — be gymmet om en ny" };
+    } catch (e) {
+        console.error("Kunde inte hämta inbjudningskodsinformation:", e);
+        return { isValid: false, code: upperCode, error: "Länken är ogiltig — be gymmet om en ny" };
+    }
 };
 
 export const registerMemberWithCode = async (email: string, pass: string, code: string, additionalData?: any) => {

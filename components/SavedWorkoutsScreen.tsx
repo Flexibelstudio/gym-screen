@@ -28,19 +28,19 @@ const SavedWorkoutsScreen: React.FC<SavedWorkoutsScreenProps> = ({ workouts, onS
         <div className="w-full max-w-6xl mx-auto animate-fade-in pb-12 px-4 sm:px-6">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-10 gap-4">
                 <div>
-                    <h1 className="text-4xl lg:text-5xl font-black text-gray-900 dark:text-white tracking-tight">Övriga Pass</h1>
+                    <h1 className="text-4xl lg:text-5xl font-black text-gray-900 dark:text-white tracking-tight uppercase leading-[1.2] pt-[0.1em]">Övriga Pass</h1>
                     <p className="text-gray-500 dark:text-gray-400 mt-2 text-lg">Dina sparade utkast, justeringar och favoriter.</p>
                 </div>
             </div>
 
-            <div className="flex items-start gap-4 p-6 mb-10 bg-yellow-50 dark:bg-yellow-900/20 rounded-2xl border border-yellow-100 dark:border-yellow-800/50 shadow-sm">
-                <div className="p-2 bg-yellow-100 dark:bg-yellow-800/40 rounded-full text-yellow-600 dark:text-yellow-400 flex-shrink-0">
+            <div className="flex items-start gap-4 p-6 mb-10 bg-record/10 dark:bg-record/15 rounded-2xl border border-record/20 shadow-sm">
+                <div className="p-2 bg-record/20 rounded-full text-record flex-shrink-0">
                     <InformationCircleIcon className="w-6 h-6" />
                 </div>
                 <div>
-                    <h3 className="font-bold text-yellow-800 dark:text-yellow-200 mb-1">Rensning av utkast</h3>
-                    <p className="text-yellow-700 dark:text-yellow-300 text-sm leading-relaxed">
-                        Här sparas dina utkast i 24 timmar. Klicka på stjärnan (<StarIcon filled className="w-3 h-3 inline" />) för att spara ett pass permanent.
+                    <h3 className="font-bold text-gray-900 dark:text-white mb-1 leading-[1.2] pt-[0.1em]">Rensning av utkast</h3>
+                    <p className="text-gray-700 dark:text-gray-300 text-sm leading-relaxed">
+                        Här sparas dina utkast i 24 timmar. Klicka på stjärnan (<StarIcon filled className="w-3 h-3 inline text-record" />) för att spara ett pass permanent.
                     </p>
                 </div>
             </div>
@@ -50,13 +50,13 @@ const SavedWorkoutsScreen: React.FC<SavedWorkoutsScreenProps> = ({ workouts, onS
                     {displayWorkouts.map(workout => (
                         <div 
                             key={workout.id} 
-                            className="group bg-white dark:bg-gray-800 rounded-3xl p-6 border border-gray-100 dark:border-gray-700 shadow-sm hover:shadow-xl hover:border-primary/30 dark:hover:border-primary/30 transition-all duration-300 flex flex-col h-full"
+                            className="group bg-white dark:bg-gray-800 rounded-3xl p-6 border border-gray-100 dark:border-white/10 shadow-sm hover:shadow-xl hover:border-primary/30 dark:hover:border-primary/30 transition-all duration-300 flex flex-col h-full"
                         >
                             {/* Header */}
                             <div className="flex justify-between items-start gap-4 mb-4">
                                 <div className="min-w-0">
                                     {!workout.isFavorite && !workout.isPublished && (
-                                        <span className="inline-flex items-center gap-1.5 text-[9px] font-black uppercase tracking-widest text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 px-2 py-1 rounded-md mb-2 animate-pulse">
+                                        <span className="inline-flex items-center gap-1.5 text-[9px] font-black uppercase tracking-widest text-danger bg-danger/10 px-2 py-1 rounded-md mb-2 animate-pulse motion-reduce:animate-none tabular-nums">
                                             <ClockIcon className="w-3 h-3" /> Raderas om {getTimeLeft(workout.createdAt)}
                                         </span>
                                     )}
@@ -71,7 +71,7 @@ const SavedWorkoutsScreen: React.FC<SavedWorkoutsScreenProps> = ({ workouts, onS
                                 </div>
                                 <button
                                     onClick={(e) => { e.stopPropagation(); onToggleFavorite(workout.id); }}
-                                    className={`p-2 rounded-full transition-all ${workout.isFavorite ? "bg-yellow-100 dark:bg-yellow-900/30 text-yellow-500" : "bg-gray-100 dark:bg-gray-700 text-gray-400 hover:text-yellow-500"}`}
+                                    className={`p-2 rounded-full transition-all ${workout.isFavorite ? "bg-record/10 text-record" : "bg-gray-100 dark:bg-gray-700 text-gray-400 hover:text-record"}`}
                                     aria-label={workout.isFavorite ? 'Ta bort från favoriter' : 'Lägg till som favorit'}
                                 >
                                     <StarIcon filled={!!workout.isFavorite} className="h-5 w-5" />

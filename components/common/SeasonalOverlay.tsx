@@ -658,7 +658,7 @@ interface SeasonalOverlayProps {
     isAdminView?: boolean;
 }
 
-export const SeasonalOverlay: React.FC<SeasonalOverlayProps> = ({ page, isStudioMode = false, isAdminView = false }) => {
+export const SeasonalOverlay: React.FC<SeasonalOverlayProps> = React.memo(({ page, isStudioMode = false, isAdminView = false }) => {
     const { studioConfig, selectedOrganization } = useStudio();
     const theme = useActiveTheme();
     const [globalChallenge, setGlobalChallenge] = useState<any>(null);
@@ -734,6 +734,6 @@ export const SeasonalOverlay: React.FC<SeasonalOverlayProps> = ({ page, isStudio
             )}
         </>
     );
-};
+});
 
 export const SeasonalLogoTopper: React.FC = () => null;

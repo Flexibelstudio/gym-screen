@@ -77,7 +77,7 @@ export function SupportChat(): React.ReactElement {
     useEffect(() => {
         if (isOpen && messages.length === 0) {
             const systemKnowledge = `
-Du är Smart Support, en expert på systemet "Smart Skärm". Du hjälper coacher och administratörer att använda plattformen. Svara kortfattat, trevligt och på svenska.
+Du är Smart Support, en expert på systemet "SmartStudio". Du hjälper coacher och administratörer att använda plattformen. Svara kortfattat, trevligt och på svenska.
 
 Här är din kunskapsbas om hur systemet fungerar:
 
@@ -154,7 +154,7 @@ Om användaren frågar om något tekniskt fel, be dem ladda om sidan eller konta
             const functions = getFunctions(getApp(), 'us-central1');
             const flexGeminiProxy = httpsCallable<any, any>(functions, 'flexGeminiProxy');
             
-            const systemKnowledge = `Du är Smart Support, en expert på systemet "Smart Skärm". Du hjälper coacher och administratörer att använda plattformen. Svara kortfattat, trevligt och på svenska. Fortsätt svara baserat på historiken.`;
+            const systemKnowledge = `Du är Smart Support, en expert på systemet "SmartStudio". Du hjälper coacher och administratörer att använda plattformen. Svara kortfattat, trevligt och på svenska. Fortsätt svara baserat på historiken.`;
 
             const contents = messages.slice(1).map(m => ({
                 role: m.role === 'model' ? 'model' : 'user',

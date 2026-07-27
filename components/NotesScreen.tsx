@@ -80,22 +80,60 @@ const getSnugTextSize = (text: string, fontSize: number) => {
     return { width: computedWidth, height: computedHeight };
 };
 
-// New modal component for the archive
-const ResizeHandle: React.FC<{ onResize: (dx: number, dy: number) => void, isArrow?: boolean }> = ({ onResize, isArrow }) => {
-    return (
-        <motion.div
-            drag
-            dragMomentum={false}
-            onDrag={(e, info) => {
-                e.stopPropagation();
-                onResize(info.delta.x, info.delta.y);
-            }}
-            onPointerDown={(e) => e.stopPropagation()}
-            className={`w-6 h-6 bg-white border-2 border-gray-400 rounded-full opacity-0 group-hover:opacity-100 transition-opacity z-30 shadow-md ${isArrow ? 'cursor-move' : 'absolute -bottom-2 -right-2 cursor-se-resize'}`}
-        />
-    );
+const clampSmartObject = (
+    obj: SmartObject,
+    containerWidth: number,
+    containerHeight: number
+): SmartObject => {
+    const maxW = Math.max(100, containerWidth * 0.9);
+    const maxH = Math.max(100, containerHeight * 0.9);
+
+    let { x, y, width, height, fontSize, endX, endY } = obj;
+
+    // 1. Begränsa storleken till max ~90% av ritytan och behåll proportioner
+    if (width > maxW || height > maxH) {
+        const scaleW = maxW / width;
+        const scaleH = maxH / height;
+        const scale = Math.min(scaleW, scaleH);
+
+        width = Math.max(50, Math.round(width * scale));
+        height = Math.max(50, Math.round(height * scale));
+        if (fontSize) {
+            fontSize = Math.max(12, Math.round(fontSize * scale));
+        }
+    }
+
+    // 2. Begränsa positionen så HELA ramen inkl. handtag, färgväljare och röda krysset är synliga
+    const minX = 20;
+    const minY = 50; // Plats för färgväljare ovanför
+    const maxX = Math.max(minX, containerWidth - width - 24); // Plats för röda krysset och handtag till höger
+    const maxY = Math.max(minY, containerHeight - height - 24); // Plats för handtag i botten
+
+    const clampedX = Math.max(minX, Math.min(x, maxX));
+    const clampedY = Math.max(minY, Math.min(y, maxY));
+
+    let newEndX = endX;
+    let newEndY = endY;
+    if (obj.type === 'arrow' && endX !== undefined && endY !== undefined) {
+        const dx = clampedX - x;
+        const dy = clampedY - y;
+        newEndX = endX + dx;
+        newEndY = endY + dy;
+    }
+
+    return {
+        ...obj,
+        x: clampedX,
+        y: clampedY,
+        width,
+        height,
+        fontSize,
+        ...(newEndX !== undefined ? { endX: newEndX } : {}),
+        ...(newEndY !== undefined ? { endY: newEndY } : {}),
+    };
 };
 
+// New modal component for the archive
 const ColorPicker: React.FC<{ currentColor: string, onColorSelect: (color: string) => void }> = ({ currentColor, onColorSelect }) => {
     return (
         <div className="absolute -top-12 left-1/2 -translate-x-1/2 bg-white rounded-full shadow-lg p-1 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity z-30 pointer-events-auto">
@@ -116,7 +154,7 @@ interface IdeaBoardInfoModalProps {
     onClose: () => void;
 }
 
-const RoughShape: React.FC<{ type: string, width: number, height: number, color: string, arrowStartX?: number, arrowStartY?: number, arrowEndX?: number, arrowEndY?: number }> = ({ type, width, height, color, arrowStartX, arrowStartY, arrowEndX, arrowEndY }) => {
+const RoughShape: React.FC<{ type: string, width: number, height: number, color: string, arrowStartX?: number, arrowStartY?: number, arrowEndX?: number, arrowEndY?: number }> = React.memo(({ type, width, height, color, arrowStartX, arrowStartY, arrowEndX, arrowEndY }) => {
     const svgRef = useRef<SVGSVGElement>(null);
 
     useEffect(() => {
@@ -157,7 +195,201 @@ const RoughShape: React.FC<{ type: string, width: number, height: number, color:
     return (
         <svg ref={svgRef} width={width} height={height} className="absolute inset-0 pointer-events-none" style={{ overflow: 'visible' }} />
     );
-};
+});
+
+const SmartObjectItem: React.FC<{
+    obj: SmartObject;
+    onUpdate: (id: string, updates: Partial<SmartObject>) => void;
+    onRemove: (id: string) => void;
+    containerBounds: { width: number; height: number };
+}> = React.memo(({ obj, onUpdate, onRemove, containerBounds }) => {
+    const isArrow = obj.type === 'arrow';
+    const arrowX = isArrow ? Math.min(obj.x, obj.endX || obj.x) : obj.x;
+    const arrowY = isArrow ? Math.min(obj.y, obj.endY || obj.y) : obj.y;
+    const arrowWidth = isArrow ? Math.max(20, Math.abs((obj.endX || obj.x) - obj.x)) : obj.width;
+    const arrowHeight = isArrow ? Math.max(20, Math.abs((obj.endY || obj.y) - obj.y)) : obj.height;
+    
+    const arrowStartX = isArrow ? (obj.x < (obj.endX || obj.x) ? 2 : arrowWidth - 2) : undefined;
+    const arrowStartY = isArrow ? (obj.y < (obj.endY || obj.y) ? 2 : arrowHeight - 2) : undefined;
+    const arrowEndX = isArrow ? (obj.x < (obj.endX || obj.x) ? arrowWidth - 2 : 2) : undefined;
+    const arrowEndY = isArrow ? (obj.y < (obj.endY || obj.y) ? arrowHeight - 2 : 2) : undefined;
+
+    const containerRef = useRef<HTMLDivElement>(null);
+    const textareaRef = useRef<HTMLTextAreaElement>(null);
+    const rafId = useRef<number | null>(null);
+
+    const handleResizePointerDown = (e: React.PointerEvent) => {
+        e.stopPropagation();
+        e.preventDefault();
+
+        const startX = e.clientX;
+        const startY = e.clientY;
+        const startWidth = arrowWidth;
+        const startHeight = arrowHeight;
+        const startFontSize = obj.fontSize || (obj.type === 'text' ? 36 : 28);
+        const startEndX = obj.endX || obj.x;
+        const startEndY = obj.endY || obj.y;
+
+        // Max-gränser vid resize: max 90% av ritytan och begränsat till skärmkanten
+        const maxW = Math.max(50, Math.min(containerBounds.width * 0.9, containerBounds.width - arrowX - 24));
+        const maxH = Math.max(50, Math.min(containerBounds.height * 0.9, containerBounds.height - arrowY - 24));
+
+        let lastW = startWidth;
+        let lastH = startHeight;
+        let lastFS = startFontSize;
+        let lastEX = startEndX;
+        let lastEY = startEndY;
+
+        const onPointerMove = (moveEv: PointerEvent) => {
+            const dx = moveEv.clientX - startX;
+            const dy = moveEv.clientY - startY;
+
+            if (rafId.current !== null) return;
+            rafId.current = requestAnimationFrame(() => {
+                rafId.current = null;
+                if (!containerRef.current) return;
+
+                if (isArrow) {
+                    lastEX = Math.max(20, Math.min(startEndX + dx, containerBounds.width - 24));
+                    lastEY = Math.max(20, Math.min(startEndY + dy, containerBounds.height - 24));
+                    const newW = Math.max(20, Math.abs(lastEX - obj.x));
+                    const newH = Math.max(20, Math.abs(lastEY - obj.y));
+                    containerRef.current.style.width = `${newW}px`;
+                    containerRef.current.style.height = `${newH}px`;
+                } else {
+                    let candidateW = Math.max(50, startWidth + dx);
+                    let candidateH = Math.max(50, startHeight + dy);
+
+                    if (candidateW > maxW || candidateH > maxH) {
+                        const scale = Math.min(maxW / candidateW, maxH / candidateH, 1);
+                        candidateW = Math.max(50, candidateW * scale);
+                        candidateH = Math.max(50, candidateH * scale);
+                    }
+
+                    lastW = candidateW;
+                    lastH = candidateH;
+                    const heightRatio = lastH / startHeight;
+                    lastFS = Math.max(12, startFontSize * heightRatio);
+
+                    containerRef.current.style.width = `${lastW}px`;
+                    containerRef.current.style.height = `${lastH}px`;
+                    if (textareaRef.current) {
+                        textareaRef.current.style.fontSize = `${lastFS}px`;
+                    }
+                }
+            });
+        };
+
+        const onPointerUp = () => {
+            window.removeEventListener('pointermove', onPointerMove);
+            window.removeEventListener('pointerup', onPointerUp);
+            if (rafId.current !== null) {
+                cancelAnimationFrame(rafId.current);
+                rafId.current = null;
+            }
+
+            if (isArrow) {
+                onUpdate(obj.id, { endX: lastEX, endY: lastEY });
+            } else {
+                onUpdate(obj.id, {
+                    width: lastW,
+                    height: lastH,
+                    fontSize: lastFS,
+                });
+            }
+        };
+
+        window.addEventListener('pointermove', onPointerMove, { passive: true });
+        window.addEventListener('pointerup', onPointerUp);
+    };
+
+    return (
+        <motion.div
+            ref={containerRef as any}
+            drag
+            dragMomentum={false}
+            onDragEnd={(e, info) => {
+                const rawX = obj.x + info.offset.x;
+                const rawY = obj.y + info.offset.y;
+                const clamped = clampSmartObject({ ...obj, x: rawX, y: rawY }, containerBounds.width, containerBounds.height);
+                onUpdate(obj.id, { 
+                    x: clamped.x, 
+                    y: clamped.y,
+                    ...(isArrow ? { endX: (obj.endX || obj.x) + info.offset.x, endY: (obj.endY || obj.y) + info.offset.y } : {})
+                });
+            }}
+            initial={{ x: arrowX, y: arrowY }}
+            animate={{ x: arrowX, y: arrowY }}
+            style={{
+                position: 'absolute',
+                left: 0,
+                top: 0,
+                width: arrowWidth,
+                height: arrowHeight,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                zIndex: 20,
+                touchAction: 'none',
+            }}
+            className={`active:cursor-grabbing cursor-grab group ${obj.type !== 'arrow' ? 'border border-transparent hover:border-white/20 hover:border-dashed rounded-lg' : ''}`}
+        >
+            <ColorPicker currentColor={obj.color} onColorSelect={(c) => onUpdate(obj.id, { color: c })} />
+            
+            {obj.type !== 'text' && (
+                <RoughShape type={obj.type} width={arrowWidth} height={arrowHeight} color={obj.color} arrowStartX={arrowStartX} arrowStartY={arrowStartY} arrowEndX={arrowEndX} arrowEndY={arrowEndY} />
+            )}
+            
+            {obj.type === 'text' ? (
+                <textarea
+                    ref={textareaRef}
+                    value={obj.text || ''}
+                    onChange={(e) => onUpdate(obj.id, { text: e.target.value })}
+                    onPointerDown={(e) => e.stopPropagation()}
+                    rows={Math.max(1, (obj.text || '').split('\n').length)}
+                    className="bg-transparent border-none outline-none text-center w-full resize-none overflow-hidden"
+                    style={{ color: obj.color, fontFamily: 'Kalam, cursive', fontSize: `${obj.fontSize || 36}px`, lineHeight: '1.2' }}
+                    placeholder="Skriv här..."
+                />
+            ) : obj.type !== 'arrow' ? (
+                <textarea
+                    ref={textareaRef}
+                    value={obj.text || ''}
+                    onChange={(e) => onUpdate(obj.id, { text: e.target.value })}
+                    onPointerDown={(e) => e.stopPropagation()}
+                    rows={Math.max(1, (obj.text || '').split('\n').length)}
+                    className="bg-transparent border-none outline-none text-center w-full relative z-10 resize-none overflow-hidden"
+                    style={{ color: obj.color, fontFamily: 'Kalam, cursive', fontSize: `${obj.fontSize || 28}px`, lineHeight: '1.2' }}
+                    placeholder=""
+                />
+            ) : null}
+            
+            <button 
+                onClick={(e) => { e.stopPropagation(); onRemove(obj.id); }}
+                className="absolute -top-3 -right-3 bg-red-500 text-white rounded-full w-8 h-8 flex items-center justify-center text-sm opacity-0 group-hover:opacity-100 transition-opacity z-30 shadow-md pointer-events-auto"
+                title="Ta bort"
+            >
+                ✕
+            </button>
+
+            {isArrow ? (
+                <div style={{ position: 'absolute', left: arrowEndX, top: arrowEndY, transform: 'translate(-50%, -50%)', width: 24, height: 24 }}>
+                    <div 
+                        onPointerDown={handleResizePointerDown}
+                        className="w-6 h-6 bg-white border-2 border-gray-400 rounded-full opacity-0 group-hover:opacity-100 transition-opacity z-30 shadow-md cursor-move pointer-events-auto"
+                        style={{ touchAction: 'none' }}
+                    />
+                </div>
+            ) : (
+                <div 
+                    onPointerDown={handleResizePointerDown}
+                    className="w-6 h-6 bg-white border-2 border-gray-400 rounded-full opacity-0 group-hover:opacity-100 transition-opacity z-30 shadow-md absolute -bottom-2 -right-2 cursor-se-resize pointer-events-auto"
+                    style={{ touchAction: 'none' }}
+                />
+            )}
+        </motion.div>
+    );
+});
 
 const IdeaBoardInfoModal: React.FC<IdeaBoardInfoModalProps> = ({ onClose }) => (
     <Modal isOpen={true} onClose={onClose} title="Om AI Whiteboard" size="2xl">
@@ -173,120 +405,7 @@ const IdeaBoardInfoModal: React.FC<IdeaBoardInfoModalProps> = ({ onClose }) => (
     </Modal>
 );
 
-interface WorkoutActionChoiceModalProps {
-    workout: Workout;
-    onGoToBuilder: () => void;
-    onDrawCircuit: () => void;
-    onCancel: () => void;
-}
 
-const WorkoutActionChoiceModal: React.FC<WorkoutActionChoiceModalProps> = ({ workout, onGoToBuilder, onDrawCircuit, onCancel }) => (
-    <Modal isOpen={true} onClose={onCancel} title="Välj åtgärd" size="md">
-        <div className="space-y-6 text-center">
-            <div className="bg-indigo-100 dark:bg-indigo-900/30 p-4 rounded-full w-20 h-20 flex items-center justify-center mx-auto text-4xl">💪</div>
-            <div>
-                <h3 className="text-xl font-bold text-gray-900 dark:text-white">"{workout.title}"</h3>
-                <p className="text-gray-500 dark:text-gray-400 mt-2">Passet är laddat. Hur vill du fortsätta?</p>
-            </div>
-            <div className="grid grid-cols-1 gap-3">
-                <button onClick={onDrawCircuit} className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-4 px-6 rounded-xl shadow-md transition-all flex items-center justify-between group">
-                    <div className="text-left">
-                        <span className="block text-lg">Rita upp på tavlan</span>
-                        <span className="text-sm text-white/80 font-normal">AI:n ritar en stationskarta</span>
-                    </div>
-                    <span className="text-2xl group-hover:scale-110 transition-transform">✏️</span>
-                </button>
-                <button onClick={onGoToBuilder} className="bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-900 dark:text-white font-bold py-4 px-6 rounded-xl shadow-sm transition-all flex items-center justify-between group">
-                    <div className="text-left">
-                        <span className="block text-lg">Öppna i Passbyggaren</span>
-                        <span className="text-sm text-gray-600 dark:text-gray-400 font-normal">Redigera och kör med timer</span>
-                    </div>
-                    <span className="text-2xl group-hover:translate-x-1 transition-transform">→</span>
-                </button>
-            </div>
-        </div>
-    </Modal>
-);
-
-interface BlockSelectionModalProps {
-    workout: Workout;
-    onSelect: (blockIndex: number) => void;
-    onCancel: () => void;
-}
-
-const BlockSelectionModal: React.FC<BlockSelectionModalProps> = ({ workout, onSelect, onCancel }) => (
-    <Modal isOpen={true} onClose={onCancel} title="Välj block att rita" size="md">
-        <div className="space-y-2">
-            {workout.blocks.map((block, index) => (
-                <button key={block.id || index} onClick={() => onSelect(index)} className="w-full bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 border border-gray-300 dark:border-gray-600 p-4 rounded-lg text-left transition-colors flex justify-between items-center group">
-                    <div>
-                        <h4 className="font-bold text-gray-900 dark:text-white group-hover:text-primary transition-colors">{block.title || `Block ${index + 1}`}</h4>
-                        <span className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wider">{block.tag}</span>
-                    </div>
-                    <div className="text-sm text-gray-500 dark:text-gray-400">{block.exercises.length} övningar</div>
-                </button>
-            ))}
-        </div>
-    </Modal>
-);
-
-interface CircuitReorderModalProps {
-    block: WorkoutBlock;
-    onConfirm: (modifiedBlock: WorkoutBlock) => void;
-    onCancel: () => void;
-}
-
-const CircuitReorderModal: React.FC<CircuitReorderModalProps> = ({ block, onConfirm, onCancel }) => {
-    const [exercises, setExercises] = useState<Exercise[]>(block.exercises);
-
-    const moveExercise = (index: number, direction: 'up' | 'down') => {
-        setExercises(prev => {
-            const newExercises = [...prev];
-            if (direction === 'up' && index > 0) [newExercises[index], newExercises[index - 1]] = [newExercises[index - 1], newExercises[index]];
-            else if (direction === 'down' && index < newExercises.length - 1) [newExercises[index], newExercises[index + 1]] = [newExercises[index + 1], newExercises[index]];
-            return newExercises;
-        });
-    };
-
-    const handleUpdateExercise = (index: number, field: 'name' | 'reps', value: string) => {
-        setExercises(prev => {
-            const newExercises = [...prev];
-            newExercises[index] = { ...newExercises[index], [field]: value };
-            return newExercises;
-        });
-    };
-
-    const handleRemoveExercise = (index: number) => setExercises(prev => prev.filter((_, i) => i !== index));
-    const handleAddExercise = () => setExercises(prev => [...prev, { id: `ex-circuit-${Date.now()}-${Math.random()}`, name: '', reps: '' }]);
-
-    return (
-        <Modal isOpen={true} onClose={onCancel} title="Redigera Cirkel" size="lg">
-            <div className="flex flex-col h-full">
-                <div className="flex-grow overflow-y-auto space-y-2 max-h-[50vh] pr-2">
-                    {exercises.map((ex, index) => (
-                        <div key={ex.id} className="bg-gray-100 dark:bg-gray-800 p-3 rounded-lg flex items-center gap-4 border border-gray-200 dark:border-gray-700">
-                            <span className="font-bold text-gray-400 w-6 text-center">{index + 1}</span>
-                            <div className="flex flex-col gap-1">
-                                <button onClick={() => moveExercise(index, 'up')} disabled={index === 0} className="text-gray-500 hover:text-primary disabled:opacity-20"><ChevronUpIcon className="w-5 h-5" /></button>
-                                <button onClick={() => moveExercise(index, 'down')} disabled={index === exercises.length - 1} className="text-gray-500 hover:text-primary disabled:opacity-20"><ChevronDownIcon className="w-5 h-5" /></button>
-                            </div>
-                            <div className="flex-grow">
-                                <input type="text" value={ex.name} onChange={(e) => handleUpdateExercise(index, 'name', e.target.value)} className="font-bold text-gray-900 dark:text-white bg-transparent w-full border-b border-transparent focus:border-primary focus:outline-none" placeholder="Övningsnamn" />
-                                <input type="text" value={ex.reps || ''} onChange={(e) => handleUpdateExercise(index, 'reps', e.target.value)} className="text-sm text-gray-500 dark:text-gray-400 bg-transparent w-full border-b border-transparent focus:border-primary focus:outline-none" placeholder="Antal (valfritt)" />
-                            </div>
-                            <button onClick={() => handleRemoveExercise(index)} className="text-red-500 hover:text-red-700 p-2"><CloseIcon className="w-5 h-5" /></button>
-                        </div>
-                    ))}
-                </div>
-                <button onClick={handleAddExercise} className="w-full py-2 mt-2 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"> + Lägg till station </button>
-                <div className="mt-6 flex gap-4">
-                    <button onClick={onCancel} className="flex-1 bg-gray-200 dark:bg-gray-700 font-bold py-3 rounded-lg">Avbryt</button>
-                    <button onClick={() => onConfirm({ ...block, exercises: exercises.filter(ex => ex.name.trim() !== '') })} className="flex-1 bg-primary text-white font-bold py-3 rounded-lg">Rita upp cirkel</button>
-                </div>
-            </div>
-        </Modal>
-    );
-};
 
 const introWords = [
     { text: "Idéer", className: "text-6xl text-yellow-300 font-logo" },
@@ -628,18 +747,7 @@ const IdeaBoardTimerSetupModal: React.FC<IdeaBoardTimerSetupModalProps> = ({ onS
     );
 };
 
-const cleanExerciseName = (name: string) => name.split('(')[0].trim();
 
-// NYTT: Funktion för att filtrera bort tidsangivelser från reps-strängen
-const filterTimeFromReps = (reps: string): string => {
-    if (!reps) return '';
-    const lower = reps.toLowerCase();
-    // Om strängen innehåller "sek" eller "min", filtrera bort den
-    if (lower.includes('sek') || lower.includes('min') || lower.includes('minut')) {
-        return '';
-    }
-    return reps;
-};
 
 const getTimerHexColor = (status: TimerStatus, mode: TimerMode | string) => {
     if (status === TimerStatus.Idle) return '#1e293b';
@@ -813,10 +921,41 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
     const [savedNotes, setSavedNotes] = useState<Note[]>([]);
     const [smartObjects, setSmartObjects] = useState<SmartObject[]>([]);
     
-    const updateSmartObject = (id: string, updates: Partial<SmartObject>) => {
+    const getContainerBounds = useCallback(() => {
+        if (containerRef.current) {
+            return {
+                width: containerRef.current.clientWidth || (typeof window !== 'undefined' ? window.innerWidth : 1200),
+                height: containerRef.current.clientHeight || (typeof window !== 'undefined' ? window.innerHeight : 800),
+            };
+        }
+        return {
+            width: typeof window !== 'undefined' ? window.innerWidth : 1200,
+            height: typeof window !== 'undefined' ? window.innerHeight : 800,
+        };
+    }, []);
+
+    // Automatisk clamping vid inladdning / skärmstorleksändring för sparade anteckningar & smartObjects
+    useEffect(() => {
+        if (smartObjects.length === 0) return;
+        const bounds = getContainerBounds();
+        let needsClamp = false;
+        const clamped = smartObjects.map(obj => {
+            const c = clampSmartObject(obj, bounds.width, bounds.height);
+            if (c.x !== obj.x || c.y !== obj.y || c.width !== obj.width || c.height !== obj.height || c.fontSize !== obj.fontSize) {
+                needsClamp = true;
+            }
+            return c;
+        });
+        if (needsClamp) {
+            setSmartObjects(clamped);
+        }
+    }, [smartObjects, getContainerBounds]);
+
+    const updateSmartObject = useCallback((id: string, updates: Partial<SmartObject>) => {
+        const bounds = getContainerBounds();
         setSmartObjects(prev => prev.map(obj => {
             if (obj.id !== id) return obj;
-            const updated = { ...obj, ...updates };
+            let updated = { ...obj, ...updates };
             
             // Anpassa storleken dynamiskt om texten uppdateras i ett text-objekt
             if (obj.type === 'text' && updates.text !== undefined) {
@@ -831,13 +970,13 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
                 updated.width = size.width;
                 updated.height = size.height;
             }
-            return updated;
+            return clampSmartObject(updated, bounds.width, bounds.height);
         }));
-    };
+    }, [getContainerBounds]);
 
-    const removeSmartObject = (id: string) => {
+    const removeSmartObject = useCallback((id: string) => {
         setSmartObjects(prev => prev.filter(obj => obj.id !== id));
-    };
+    }, []);
 
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const containerRef = useRef<HTMLDivElement>(null);
@@ -857,10 +996,7 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
     const [activeNoteId, setActiveNoteId] = useState<string | null>(null);
     const [animationState, setAnimationState] = useState<'intro' | 'exiting' | 'finished'>(initialWorkoutToDraw ? 'finished' : 'intro');
     
-    const [interpretedWorkout, setInterpretedWorkout] = useState<Workout | null>(null);
-    const [showBlockSelector, setShowBlockSelector] = useState(false);
-    const [blockForCircuit, setBlockForCircuit] = useState<WorkoutBlock | null>(null);
-    const [lastDrawnBlock, setLastDrawnBlock] = useState<WorkoutBlock | null>(null);
+
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const [isConfirmClearOpen, setIsConfirmClearOpen] = useState(false);
     const [fullscreenImage, setFullscreenImage] = useState<string | null>(null);
@@ -888,7 +1024,8 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
             // Put text on canvas as a smart object
             const rawText = note.title ? `${note.title}\n\n${note.text}` : note.text;
             const size = getSnugTextSize(rawText, 36);
-            const newObj: SmartObject = {
+            const bounds = getContainerBounds();
+            const rawObj: SmartObject = {
                 id: `smart-text-${Date.now()}`,
                 type: 'text',
                 x: 150,
@@ -899,7 +1036,8 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
                 color: '#FFFFFF',
                 fontSize: 36
             };
-            setSmartObjects(prev => [...prev, newObj]);
+            const clampedObj = clampSmartObject(rawObj, bounds.width, bounds.height);
+            setSmartObjects(prev => [...prev, clampedObj]);
         }
     };
 
@@ -1006,10 +1144,23 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
     }, [isTimerActive, handleInteraction]);
 
     useEffect(() => {
-        if (initialWorkoutToDraw) {
-            setInterpretedWorkout(initialWorkoutToDraw);
+        if (initialWorkoutToDraw && selectedOrganization) {
+            setIsResolving(true);
+            resolveAndCreateExercises(selectedOrganization.id, initialWorkoutToDraw, false)
+                .then(resolved => {
+                    onWorkoutInterpreted(resolved);
+                    clearCanvas();
+                })
+                .catch(e => {
+                    console.error("Resolve error:", e);
+                    onWorkoutInterpreted(initialWorkoutToDraw);
+                    clearCanvas();
+                })
+                .finally(() => {
+                    setIsResolving(false);
+                });
         }
-    }, [initialWorkoutToDraw]);
+    }, [initialWorkoutToDraw, selectedOrganization]);
 
     useEffect(() => {
         try {
@@ -1109,12 +1260,7 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
                 canvas.width = newCanvasWidth;
                 canvas.height = newCanvasHeight;
                 
-                if (lastDrawnBlock) {
-                    setTimeout(() => {
-                         const color = timerBlock ? getTimerHexColor(timer.status, timerBlock.settings.mode) : undefined;
-                         drawCircuitOnCanvas(lastDrawnBlock, color);
-                    }, 50);
-                } else if (history.length > 0) {
+                if (history.length > 0) {
                      ctx.fillStyle = '#030712';
                      ctx.fillRect(0, 0, canvas.width, canvas.height); 
                      ctx.putImageData(history[history.length - 1], 0, 0);
@@ -1227,7 +1373,7 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
             canvas.removeEventListener('pointerup', stopDrawing);
             canvas.removeEventListener('pointerleave', stopDrawing);
         };
-    }, [animationState, lastDrawnBlock, drawingColor, isEraserActive]); 
+    }, [animationState, drawingColor, isEraserActive]); 
 
     const clearCanvas = () => { 
         const canvas = canvasRef.current;
@@ -1242,7 +1388,6 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
         setHistory([]);
         setSmartObjects([]);
         setActiveNoteId(null);
-        setLastDrawnBlock(null);
     };
     
     const handleUndo = () => { 
@@ -1402,12 +1547,10 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
                     const resolved = await resolveAndCreateExercises(selectedOrganization.id, workout, false);
                     onWorkoutInterpreted(resolved);
                     clearCanvas();
-                    setInterpretedWorkout(null);
                 } catch (e) {
                     console.error("Resolve error:", e);
                     onWorkoutInterpreted(workout);
                     clearCanvas();
-                    setInterpretedWorkout(null);
                 } finally {
                     setIsResolving(false);
                 }
@@ -1491,210 +1634,14 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
         }
     };
 
-    const handleGoToBuilder = async () => {
-        if (interpretedWorkout && selectedOrganization) {
-            setIsResolving(true);
-            try {
-                // VIKTIGT: createMissing = false för anteckningar/skisser.
-                // Vi matchar mot banken, men skapar inte nya övningar om de inte finns.
-                const resolved = await resolveAndCreateExercises(selectedOrganization.id, interpretedWorkout, false);
-                onWorkoutInterpreted(resolved);
-                clearCanvas();
-                setInterpretedWorkout(null);
-            } catch (e) {
-                console.error("Resolve error:", e);
-                // Fallback till otolkad om det kraschar (bör inte hända)
-                onWorkoutInterpreted(interpretedWorkout);
-                clearCanvas();
-                setInterpretedWorkout(null);
-            } finally {
-                setIsResolving(false);
-            }
-        }
-    };
 
-    const drawCircuitOnCanvas = useCallback((block: WorkoutBlock, overrideColor?: string) => {
-        const canvas = canvasRef.current;
-        if (!canvas) return;
-        const ctx = canvas.getContext('2d');
-        if (!ctx) return;
-        const dpr = window.devicePixelRatio || 1;
-
-        ctx.fillStyle = '#030712';
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-        setLastDrawnBlock(block);
-
-        const exercises = block.exercises || [];
-        if (exercises.length === 0) {
-            setInterpretedWorkout(null);
-            setShowBlockSelector(false);
-            setBlockForCircuit(null);
-            return;
-        }
-
-        const isTimerActive = !!timerBlock;
-        // VIKTIGT: Återställ marginalerna mot kanterna för att få största möjliga rityta inuti.
-        const sidePadding = canvas.width * 0.12; 
-        const timerSafeZone = isTimerActive ? canvas.height * 0.32 : canvas.height * 0.10; 
-        const bottomPadding = canvas.height * 0.15; 
-
-        const availableHeight = canvas.height - timerSafeZone - bottomPadding;
-        const availableWidth = canvas.width - (sidePadding * 2);
-
-        const w = availableWidth;
-        const h = availableHeight;
-        const x = sidePadding;
-        const y = timerSafeZone;
-        const radius = 60 * dpr; 
-
-        const textColor = '#FFFFFF';
-        const accentColor = overrideColor || '#14b8a6'; 
-
-        // RITA BANAN
-        ctx.beginPath();
-        ctx.roundRect(x, y, w, h, radius);
-        ctx.strokeStyle = '#374151';
-        ctx.lineWidth = 15 * dpr; 
-        ctx.stroke();
-        
-        const count = exercises.length;
-        const perimeter = 2 * (w + h);
-        const step = perimeter / count;
-
-        const getPointOnRect = (dist: number) => {
-            let d = dist % perimeter;
-            if (d < w) return { x: x + d, y: y, side: 'top' };
-            d -= w;
-            if (d < h) return { x: x + w, y: y + d, side: 'right' };
-            d -= h;
-            if (d < w) return { x: x + w - d, y: y + h, side: 'bottom' };
-            d -= w;
-            return { x: x, y: y + h - d, side: 'left' };
-        };
-
-        const splitTextIntoLines = (text: string): string[] => {
-            // Tillåt lite längre rader nu när banan är bredare
-            if (text.length <= 16) return [text];
-            const words = text.split(' ');
-            if (words.length === 1) return [text.substring(0, 16), text.substring(16)];
-            const lines: string[] = [];
-            let currentLine = words[0];
-            for (let i = 1; i < words.length; i++) {
-                if ((currentLine + " " + words[i]).length < 18) {
-                    currentLine += " " + words[i];
-                } else {
-                    lines.push(currentLine);
-                    currentLine = words[i];
-                }
-            }
-            lines.push(currentLine);
-            return lines;
-        };
-
-        exercises.forEach((ex, index) => {
-            const dist = index * step;
-            const pos = getPointOnRect(dist);
-            
-            // Station-cirkel
-            ctx.beginPath();
-            ctx.arc(pos.x, pos.y, 38 * dpr, 0, 2 * Math.PI); 
-            ctx.fillStyle = '#030712'; 
-            ctx.fill();
-
-            ctx.beginPath();
-            ctx.arc(pos.x, pos.y, 32 * dpr, 0, 2 * Math.PI); 
-            ctx.fillStyle = accentColor;
-            ctx.fill();
-            
-            ctx.fillStyle = '#FFFFFF'; 
-            ctx.font = `bold ${28 * dpr}px sans-serif`; 
-            ctx.textAlign = "center";
-            ctx.textBaseline = "middle";
-            ctx.fillText(String(index + 1), pos.x, pos.y);
-
-            // TEXTPLACERING - RITA INÅT MOT MITTEN
-            const textOffset = 75 * dpr;
-            let textX = pos.x;
-            let textY = pos.y;
-            let align: CanvasTextAlign = 'center';
-            let baseline: CanvasTextBaseline = 'middle';
-
-            if (pos.side === 'top') {
-                textY += textOffset;
-                baseline = 'top';
-            } else if (pos.side === 'right') {
-                textX -= textOffset;
-                align = 'right';
-            } else if (pos.side === 'bottom') {
-                textY -= textOffset;
-                baseline = 'bottom';
-            } else if (pos.side === 'left') {
-                textX += textOffset;
-                align = 'left';
-            }
-
-            const name = cleanExerciseName(ex.name);
-            const lines = splitTextIntoLines(name);
-            
-            // FILTRERA BORT TID FRÅN REPS
-            const repsRaw = filterTimeFromReps(ex.reps || '');
-            const repsStr = repsRaw.toLowerCase().includes('ej angivet') || repsRaw.trim() === '' ? '' : `(${repsRaw})`;
-            
-            let fontSize = 34 * dpr; 
-            ctx.font = `bold ${fontSize}px sans-serif`;
-            ctx.fillStyle = textColor;
-            ctx.textAlign = align;
-            ctx.textBaseline = baseline;
-            
-            const lineHeight = fontSize * 1.1;
-            const totalTextHeight = lines.length * lineHeight;
-            
-            lines.forEach((line, i) => {
-                let yPos = textY;
-                if (pos.side === 'top') {
-                    yPos = textY + (i * lineHeight);
-                } else if (pos.side === 'bottom') {
-                    yPos = textY - ((lines.length - 1 - i) * lineHeight);
-                    if (repsStr) yPos -= lineHeight;
-                } else {
-                    yPos = textY - (totalTextHeight/2) + (i * lineHeight) + (lineHeight/2);
-                }
-                ctx.fillText(line, textX, yPos);
-            });
-            
-            if (repsStr) {
-                ctx.font = `bold ${fontSize * 0.8}px sans-serif`;
-                ctx.fillStyle = accentColor;
-                let repsY = textY;
-                if (pos.side === 'top') {
-                    repsY = textY + (lines.length * lineHeight);
-                } else if (pos.side === 'bottom') {
-                    repsY = textY;
-                } else {
-                    repsY = textY + (totalTextHeight/2) + (lineHeight/2);
-                }
-                ctx.fillText(repsStr, textX, repsY);
-            }
-        });
-
-        setHistory([ctx.getImageData(0, 0, canvas.width, canvas.height)]);
-        setInterpretedWorkout(null);
-        setShowBlockSelector(false);
-        setBlockForCircuit(null);
-    }, [timerBlock]);
-
-    useEffect(() => {
-        if (lastDrawnBlock) {
-             const color = timerBlock ? getTimerHexColor(timer.status, timerBlock.settings.mode) : undefined;
-             drawCircuitOnCanvas(lastDrawnBlock, color);
-        }
-    }, [timer.status, timerBlock, lastDrawnBlock, drawCircuitOnCanvas]);
 
     const handleLoadNote = (note: Note) => { 
         const canvas = canvasRef.current;
         const ctx = canvas?.getContext('2d');
         if (!canvas || !ctx) return;
-        setIsArchiveVisible(false); 
+        setIsArchiveVisible(false);
+        setIsCoachNotesModalOpen(false);
         const img = new Image();
         img.crossOrigin = "anonymous";
         img.onload = () => {
@@ -1759,105 +1706,15 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
 
                 
                 {/* Render Smart Objects */}
-                {smartObjects.map(obj => {
-                    const isArrow = obj.type === 'arrow';
-                    const arrowX = isArrow ? Math.min(obj.x, obj.endX || obj.x) : obj.x;
-                    const arrowY = isArrow ? Math.min(obj.y, obj.endY || obj.y) : obj.y;
-                    const arrowWidth = isArrow ? Math.max(20, Math.abs((obj.endX || obj.x) - obj.x)) : obj.width;
-                    const arrowHeight = isArrow ? Math.max(20, Math.abs((obj.endY || obj.y) - obj.y)) : obj.height;
-                    
-                    const arrowStartX = isArrow ? (obj.x < (obj.endX || obj.x) ? 2 : arrowWidth - 2) : undefined;
-                    const arrowStartY = isArrow ? (obj.y < (obj.endY || obj.y) ? 2 : arrowHeight - 2) : undefined;
-                    const arrowEndX = isArrow ? (obj.x < (obj.endX || obj.x) ? arrowWidth - 2 : 2) : undefined;
-                    const arrowEndY = isArrow ? (obj.y < (obj.endY || obj.y) ? arrowHeight - 2 : 2) : undefined;
-
-                    return (
-                        <motion.div
-                            key={obj.id}
-                            drag
-                            dragMomentum={false}
-                            onDragEnd={(e, info) => updateSmartObject(obj.id, { 
-                                x: obj.x + info.offset.x, 
-                                y: obj.y + info.offset.y,
-                                ...(isArrow ? { endX: (obj.endX || obj.x) + info.offset.x, endY: (obj.endY || obj.y) + info.offset.y } : {})
-                            })}
-                            initial={{ x: arrowX, y: arrowY }}
-                            animate={{ x: arrowX, y: arrowY }}
-                            style={{
-                                position: 'absolute',
-                                left: 0,
-                                top: 0,
-                                width: arrowWidth,
-                                height: arrowHeight,
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                zIndex: 20,
-                            }}
-                            className={`active:cursor-grabbing cursor-grab group transition-all duration-150 ${obj.type !== 'arrow' ? 'border border-transparent hover:border-white/20 hover:border-dashed rounded-lg' : ''}`}
-                        >
-                            <ColorPicker currentColor={obj.color} onColorSelect={(c) => updateSmartObject(obj.id, { color: c })} />
-                            
-                            {obj.type !== 'text' && (
-                                <RoughShape type={obj.type} width={arrowWidth} height={arrowHeight} color={obj.color} arrowStartX={arrowStartX} arrowStartY={arrowStartY} arrowEndX={arrowEndX} arrowEndY={arrowEndY} />
-                            )}
-                            
-                            {obj.type === 'text' ? (
-                                <textarea
-                                    value={obj.text || ''}
-                                    onChange={(e) => updateSmartObject(obj.id, { text: e.target.value })}
-                                    onPointerDown={(e) => e.stopPropagation()}
-                                    rows={Math.max(1, (obj.text || '').split('\n').length)}
-                                    className="bg-transparent border-none outline-none text-center w-full resize-none overflow-hidden"
-                                    style={{ color: obj.color, fontFamily: 'Kalam, cursive', fontSize: `${obj.fontSize || 36}px`, lineHeight: '1.2' }}
-                                    placeholder="Skriv här..."
-                                />
-                            ) : obj.type !== 'arrow' ? (
-                                <textarea
-                                    value={obj.text || ''}
-                                    onChange={(e) => updateSmartObject(obj.id, { text: e.target.value })}
-                                    onPointerDown={(e) => e.stopPropagation()}
-                                    rows={Math.max(1, (obj.text || '').split('\n').length)}
-                                    className="bg-transparent border-none outline-none text-center w-full relative z-10 resize-none overflow-hidden"
-                                    style={{ color: obj.color, fontFamily: 'Kalam, cursive', fontSize: `${obj.fontSize || 28}px`, lineHeight: '1.2' }}
-                                    placeholder=""
-                                />
-                            ) : null}
-                            
-                            <button 
-                                onClick={(e) => { e.stopPropagation(); removeSmartObject(obj.id); }}
-                                className="absolute -top-3 -right-3 bg-red-500 text-white rounded-full w-8 h-8 flex items-center justify-center text-sm opacity-0 group-hover:opacity-100 transition-opacity z-30 shadow-md"
-                                title="Ta bort"
-                            >
-                                ✕
-                            </button>
-
-                            {isArrow ? (
-                                <div style={{ position: 'absolute', left: arrowEndX, top: arrowEndY, transform: 'translate(-50%, -50%)', width: 24, height: 24 }}>
-                                    <ResizeHandle onResize={(dx, dy) => {
-                                        updateSmartObject(obj.id, {
-                                            endX: (obj.endX || obj.x) + dx,
-                                            endY: (obj.endY || obj.y) + dy
-                                        });
-                                    }} isArrow />
-                                </div>
-                            ) : (
-                                <ResizeHandle onResize={(dx, dy) => {
-                                    const newWidth = Math.max(50, obj.width + dx);
-                                    const newHeight = Math.max(50, obj.height + dy);
-                                    const heightRatio = newHeight / obj.height;
-                                    const currentFontSize = obj.fontSize || (obj.type === 'text' ? 36 : 28);
-                                    
-                                    updateSmartObject(obj.id, { 
-                                        width: newWidth, 
-                                        height: newHeight,
-                                        fontSize: currentFontSize * heightRatio
-                                    });
-                                }} />
-                            )}
-                        </motion.div>
-                    );
-                })}
+                {smartObjects.map(obj => (
+                    <SmartObjectItem 
+                        key={obj.id} 
+                        obj={obj} 
+                        onUpdate={updateSmartObject} 
+                        onRemove={removeSmartObject} 
+                        containerBounds={getContainerBounds()}
+                    />
+                ))}
             </div>
             
             {/* Right Side Control Panel */}
@@ -1896,9 +1753,6 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
                                 <button onClick={() => { handleToggleTimer(); setIsMenuOpen(false); }} className="px-4 py-3 text-left text-white hover:bg-gray-700 font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
                                     {timerBlock ? 'Stoppa Timer' : 'Timer'}
                                 </button>
-                                {lastDrawnBlock && (
-                                    <button onClick={() => { setBlockForCircuit(lastDrawnBlock); setIsMenuOpen(false); }} className="px-4 py-3 text-left text-white hover:bg-gray-700 font-semibold transition-colors">Justera</button>
-                                )}
                                 <button onClick={() => { setIsConfirmClearOpen(true); setIsMenuOpen(false); }} className="px-4 py-3 text-left text-red-400 hover:bg-gray-700 font-semibold transition-colors border-t border-gray-700 mt-2 flex items-center gap-2">
                                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4 text-red-400">
                                         <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
@@ -1967,9 +1821,7 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
                 </div>
             )}
 
-            {interpretedWorkout && !showBlockSelector && !blockForCircuit && <WorkoutActionChoiceModal workout={interpretedWorkout} onGoToBuilder={handleGoToBuilder} onDrawCircuit={() => { if (interpretedWorkout.blocks.length > 1) setShowBlockSelector(true); else setBlockForCircuit(interpretedWorkout.blocks[0]); }} onCancel={() => setInterpretedWorkout(null)} />}
-            {interpretedWorkout && showBlockSelector && <BlockSelectionModal workout={interpretedWorkout} onSelect={(idx) => { setBlockForCircuit(interpretedWorkout.blocks[idx]); setShowBlockSelector(false); }} onCancel={() => setShowBlockSelector(false)} />}
-            {blockForCircuit && <CircuitReorderModal block={blockForCircuit} onConfirm={drawCircuitOnCanvas} onCancel={() => setBlockForCircuit(null)} />}
+
             {isInfoModalVisible && <IdeaBoardInfoModal onClose={() => setIsInfoModalVisible(false)} />}
             {isConfirmClearOpen && (
                 <div className="fixed inset-0 bg-gray-900/80 backdrop-blur-md flex flex-col items-center justify-center z-[9999] p-4 text-center animate-fade-in">
@@ -1997,7 +1849,7 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
                     </div>
                 </div>
             )}
-            {isTimerSetupVisible && <IdeaBoardTimerSetupModal onStart={handleStartTimerSetup} onClose={() => setIsTimerSetupVisible(false)} block={lastDrawnBlock || { exercises: [] } as any} />}
+            {isTimerSetupVisible && <IdeaBoardTimerSetupModal onStart={handleStartTimerSetup} onClose={() => setIsTimerSetupVisible(false)} block={{ exercises: [] } as any} />}
             {completionInfo && <WorkoutCompleteModal isOpen={!!completionInfo} onClose={() => { setCompletionInfo(null); handleCloseTimer(); }} workout={completionInfo.workout} isFinalBlock={completionInfo.isFinal} blockTag={completionInfo.blockTag} finishTime={completionInfo.finishTime} organizationId={selectedOrganization?.id || ''} />}
 
             {/* Draggable Active Image Note */}
@@ -2134,15 +1986,18 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
                         ) : (
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-2">
                                 {savedNotes.map(note => (
-                                    <div key={note.id} className="bg-gray-50 dark:bg-gray-800 p-4 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm flex flex-col gap-3">
+                                    <div 
+                                        key={note.id} 
+                                        className="bg-gray-50 dark:bg-gray-800 p-4 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm flex flex-col gap-3 cursor-pointer hover:border-primary transition-colors"
+                                        onClick={() => handleLoadNote(note)}
+                                    >
                                         <div 
-                                            className="w-full h-40 bg-gray-200 dark:bg-gray-900 rounded-lg overflow-hidden shrink-0 relative group cursor-pointer"
-                                            onClick={() => setFullscreenImage(note.imageUrl)}
-                                            title="Klicka för att förstora"
+                                            className="w-full h-40 bg-gray-200 dark:bg-gray-900 rounded-lg overflow-hidden shrink-0 relative group"
+                                            title="Klicka för att ladda till tavlan"
                                         >
                                             <img src={note.imageUrl} alt="Handskriven anteckning" className="w-full h-full object-contain transition-transform group-hover:scale-[1.02]" />
                                             <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center rounded-lg pointer-events-none">
-                                                <span className="text-white font-bold tracking-widest uppercase text-sm">Förstora bild</span>
+                                                <span className="text-white font-bold tracking-widest uppercase text-sm">Ladda till tavlan</span>
                                             </div>
                                         </div>
                                         <div className="flex flex-col flex-grow">
@@ -2152,11 +2007,8 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
                                                     {note.text}
                                                 </pre>
                                             )}
-                                            <div className="flex gap-2 mt-auto flex-wrap">
-                                                <button onClick={() => {
-                                                    handleLoadNote(note);
-                                                    setIsCoachNotesModalOpen(false);
-                                                }} className="bg-primary/90 hover:bg-primary text-white text-xs font-bold py-2 px-3 rounded-lg transition-colors flex-1">
+                                            <div className="flex gap-2 mt-auto flex-wrap" onClick={(e) => e.stopPropagation()}>
+                                                <button onClick={() => handleLoadNote(note)} className="bg-primary/90 hover:bg-primary text-white text-xs font-bold py-2 px-3 rounded-lg transition-colors flex-1">
                                                     Ladda till tavlan
                                                 </button>
                                                 {note.text ? (

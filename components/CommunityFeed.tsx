@@ -137,13 +137,13 @@ export const CommunityFeed: React.FC<CommunityFeedProps> = ({ onExpand, isExpand
         >
             <div className="flex items-center justify-between mb-4 relative z-10">
                 <div className="flex items-center gap-3">
-                    <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse shadow-[0_0_10px_rgba(34,197,94,0.8)]"></div>
-                    <h3 className="text-xl font-black text-gray-900 dark:text-white uppercase tracking-tight leading-none">Gymflödet</h3>
+                    <div className="w-3 h-3 bg-emerald-500 rounded-full animate-pulse shadow-[0_0_10px_rgba(16,185,129,0.8)] motion-reduce:animate-none"></div>
+                    <h3 className="text-xl font-black text-gray-900 dark:text-white uppercase tracking-tight leading-[1.2] pt-[0.1em]">Gymflödet</h3>
                 </div>
                 <div className="flex items-center gap-2">
-                    <div className="flex items-center gap-1.5 bg-green-500/10 px-2 py-1 rounded-lg border border-green-500/20">
-                        <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></div>
-                        <span className="text-[10px] font-black text-green-600 dark:text-green-400 uppercase tracking-[0.2em]">Live</span>
+                    <div className="flex items-center gap-1.5 bg-emerald-500/10 px-2 py-1 rounded-lg border border-emerald-500/20">
+                        <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse motion-reduce:animate-none"></div>
+                        <span className="text-[10px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-[0.2em]">Live</span>
                     </div>
                     {!isExpanded && <span className="text-[10px] font-black text-primary uppercase">Visa mer</span>}
                 </div>
@@ -168,7 +168,7 @@ export const CommunityFeed: React.FC<CommunityFeedProps> = ({ onExpand, isExpand
                                     damping: 30,
                                     opacity: { duration: 0.2 }
                                 }}
-                                className="bg-gray-50 dark:bg-black/30 hover:bg-gray-100 dark:hover:bg-black/40 transition-colors rounded-2xl flex items-center gap-4 border border-gray-100 dark:border-white/5 group px-4 shadow-sm"
+                                className="bg-gray-50 dark:bg-black/30 hover:bg-gray-100 dark:hover:bg-black/40 transition-colors duration-150 rounded-2xl flex items-center gap-4 border border-gray-100 dark:border-white/10 group px-4 shadow-sm"
                                 style={{ height: 'var(--feed-item-height, 64px)' }}
                             >
                                 <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-indigo-500 to-purple-500 flex items-center justify-center text-white font-black text-sm shadow-lg flex-shrink-0 overflow-hidden border border-white/10">
@@ -186,17 +186,17 @@ export const CommunityFeed: React.FC<CommunityFeedProps> = ({ onExpand, isExpand
                                                 {log.memberName || 'Anonym'}
                                             </p>
                                             {log.reachedSummerGoal && (
-                                                <span className="shrink-0 bg-gradient-to-r from-amber-500/15 to-orange-500/15 text-orange-700 dark:text-orange-400 border border-orange-500/20 px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-wider animate-bounce [animation-duration:2.5s]">
+                                                <span className="shrink-0 bg-record/15 text-record border border-record/30 px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-wider animate-bounce motion-reduce:animate-none [animation-duration:2.5s]">
                                                     Målet nått! ☀️
                                                 </span>
                                             )}
                                             {log.overDeliveredSummerGoal && (
-                                                <span className="shrink-0 bg-gradient-to-r from-orange-500/15 to-rose-500/15 text-rose-700 dark:text-rose-400 border border-rose-500/20 px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-wider animate-pulse">
+                                                <span className="shrink-0 bg-work/15 text-work border border-work/30 px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-wider animate-pulse motion-reduce:animate-none">
                                                     Överlevererat! 🔥
                                                 </span>
                                             )}
                                         </div>
-                                        <span className="text-[9px] text-gray-500 dark:text-white/30 font-bold uppercase whitespace-nowrap shrink-0">
+                                        <span className="text-[9px] text-gray-500 dark:text-white/40 font-bold uppercase whitespace-nowrap shrink-0 tabular-nums">
                                             {getRelativeTime(log.date)}
                                         </span>
                                     </div>

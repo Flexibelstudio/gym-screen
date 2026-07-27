@@ -399,7 +399,7 @@ const StartListPrintView: React.FC<{
 
             {/* Footer */}
             <div className="mt-8 border-t border-gray-400 pt-4 flex justify-between items-center text-[10px] text-gray-500 font-medium bg-white">
-                <div>Utskriven: {new Date().toLocaleDateString('sv-SE')} | Smart Skärm Event Management</div>
+                <div>Utskriven: {new Date().toLocaleDateString('sv-SE')} | SmartStudio Event Management</div>
                 <div className="print:hidden">Startlista</div>
             </div>
         </div>

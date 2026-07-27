@@ -807,7 +807,6 @@ app.post("/create-member-checkout", async (req, res) => {
       customer: customerId,
       payment_method_types: ['card'],
       mode: 'subscription',
-      allow_promotion_codes: true,
       automatic_tax: { enabled: true },
       customer_update: { address: 'auto' },
       line_items: [{
@@ -830,6 +829,10 @@ app.post("/create-member-checkout", async (req, res) => {
       metadata: { userId, organizationId, paymentType: 'member_subscription' }
     };
 
+    if (orgData.allowMemberPromotionCode === true && orgData.memberPromotionCode && orgData.memberPromotionCode.trim()) {
+      sessionParams.discounts = [{ promotion_code: orgData.memberPromotionCode.trim() }];
+    }
+
     if (connectedAccountId && !bypassStripe) {
       sessionParams.subscription_data = {
         transfer_data: {
@@ -849,9 +852,17 @@ app.post("/create-member-checkout", async (req, res) => {
       sessionParams.subscription_data.trial_end = trialEnd;
     }
 
-    const session = await stripe.checkout.sessions.create(sessionParams);
-
-    res.json({ url: session.url });
+    try {
+      const session = await stripe.checkout.sessions.create(sessionParams);
+      return res.json({ url: session.url });
+    } catch (checkoutErr) {
+      console.error("Error creating member checkout session:", checkoutErr);
+      if (orgData.allowMemberPromotionCode === true && orgData.memberPromotionCode && orgData.memberPromotionCode.trim()) {
+        console.error(`Stripe avvisade promotion_code '${orgData.memberPromotionCode}' för organisation ${organizationId}:`, checkoutErr.message);
+        return res.status(400).json({ error: "Gymmets rabattkod är ogiltig — kontakta gymmet" });
+      }
+      return res.status(500).json({ error: checkoutErr.message });
+    }
   } catch (error) {
     console.error("Error creating member checkout:", error);
     res.status(500).json({ error: error.message });

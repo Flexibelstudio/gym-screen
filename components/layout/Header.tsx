@@ -29,7 +29,7 @@ interface HeaderProps {
     hasBackgroundImage?: boolean;
 }
 
-export const Header: React.FC<HeaderProps> = ({ 
+export const Header: React.FC<HeaderProps> = React.memo(({ 
     page, 
     onBack, 
     theme, 
@@ -456,4 +456,4 @@ export const Header: React.FC<HeaderProps> = ({
         )}
     </>
   );
-};
+});

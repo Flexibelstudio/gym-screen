@@ -59,7 +59,7 @@ export const WelcomePaywall: React.FC<WelcomePaywallProps> = ({ onLogout, userDa
                     </div>
                     <h1 className="text-4xl font-black text-white mb-4 text-balance">Aktivera {userData?.organizationName || 'ditt gym'}</h1>
                     <p className="text-xl text-gray-400">
-                        Välkommen som partner! För att låsa upp din licens och aktivera Smart Skärm i din verksamhet behöver du bekräfta ditt abonnemang.
+                        Välkommen som partner! För att låsa upp din licens och aktivera SmartStudio i din verksamhet behöver du bekräfta ditt abonnemang.
                     </p>
                 </div>
 
@@ -106,7 +106,7 @@ export const WelcomePaywall: React.FC<WelcomePaywallProps> = ({ onLogout, userDa
                             </svg>
                         </div>
                         <span className="text-sm text-gray-300 group-hover:text-white leading-snug">
-                            Jag bekräftar beställningen av Smart Skärm och godkänner avtalsvillkoren om 12 månaders bindningstid, 995 kr/månad samt eventuella tilläggskostnader (19 kr/månad per extra coach, 995 kr/månad per extra skärm - löpande månadsvis utan bindningstid).
+                            Jag bekräftar beställningen av SmartStudio och godkänner avtalsvillkoren om 12 månaders bindningstid, 995 kr/månad samt eventuella tilläggskostnader (19 kr/månad per extra coach, 995 kr/månad per extra skärm - löpande månadsvis utan bindningstid).
                         </span>
                     </label>
                 </div>

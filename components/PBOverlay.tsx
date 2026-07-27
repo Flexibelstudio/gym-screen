@@ -54,7 +54,7 @@ interface PBOverlayProps {
   isGrattisOpen?: boolean;
 }
 
-export const PBOverlay: React.FC<PBOverlayProps> = ({ isGrattisOpen }) => {
+export const PBOverlay: React.FC<PBOverlayProps> = React.memo(({ isGrattisOpen }) => {
   const { selectedOrganization, selectedStudio } = useStudio();
 
   // State för den som visas just nu
@@ -236,17 +236,17 @@ export const PBOverlay: React.FC<PBOverlayProps> = ({ isGrattisOpen }) => {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -50, scale: 0.9 }}
             transition={{ duration: 0.5, ease: "backOut" }}
-            className="bg-gradient-to-br from-yellow-400 via-orange-500 to-red-500 p-2 rounded-[3.5rem] shadow-[0_50px_100px_-20px_rgba(0,0,0,0.6)] w-full max-w-xl relative"
+            className="bg-gradient-to-br from-record via-amber-500 to-work p-2 rounded-[3.5rem] shadow-[0_50px_100px_-20px_rgba(0,0,0,0.6)] w-full max-w-xl relative"
           >
             <Confetti />
             <div className="bg-white dark:bg-gray-900 rounded-[3.2rem] p-8 flex flex-col items-center border border-white/20 relative overflow-hidden min-h-[500px]">
-              <div className="absolute inset-0 bg-yellow-500/5 animate-pulse rounded-[3rem]"></div>
+              <div className="absolute inset-0 bg-record/5 animate-pulse motion-reduce:animate-none rounded-[3rem]"></div>
 
-              <div className="text-6xl sm:text-7xl mb-6 relative z-10 animate-bounce">
+              <div className="text-6xl sm:text-7xl mb-6 relative z-10 animate-bounce motion-reduce:animate-none">
                 🔔
               </div>
 
-              <h2 className="text-4xl sm:text-5xl font-black text-gray-900 dark:text-white uppercase tracking-tighter mb-4 relative z-10 leading-none text-center">
+              <h2 className="text-4xl sm:text-5xl font-black text-gray-900 dark:text-white uppercase tracking-tight mb-4 relative z-10 leading-[1.2] pt-[0.1em] text-center">
                 {currentEvent.data.records &&
                 currentEvent.data.records.length > 1
                   ? "PBREGN! 🌧️"
@@ -254,7 +254,7 @@ export const PBOverlay: React.FC<PBOverlayProps> = ({ isGrattisOpen }) => {
               </h2>
 
               <div className="relative z-10 mb-8 flex flex-col items-center shrink-0">
-                <div className="w-24 h-24 rounded-[2rem] bg-gray-100 dark:bg-gray-800 overflow-hidden mb-4 border-4 border-yellow-400 shadow-xl">
+                <div className="w-24 h-24 rounded-[2rem] bg-gray-100 dark:bg-gray-800 overflow-hidden mb-4 border-4 border-record shadow-xl">
                   {currentEvent.data.userPhotoUrl ? (
                     <img
                       src={currentEvent.data.userPhotoUrl}
@@ -269,7 +269,7 @@ export const PBOverlay: React.FC<PBOverlayProps> = ({ isGrattisOpen }) => {
                 </div>
                 <p className="text-2xl text-gray-600 dark:text-gray-300 font-medium text-center">
                   Grymt jobbat{" "}
-                  <span className="font-black text-yellow-600 dark:text-yellow-400">
+                  <span className="font-black text-record">
                     {currentEvent.data.userName}
                   </span>
                   !
@@ -286,28 +286,28 @@ export const PBOverlay: React.FC<PBOverlayProps> = ({ isGrattisOpen }) => {
                     className="bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/10 rounded-3xl p-4 flex justify-between items-center shadow-sm"
                   >
                     <div className="text-left min-w-0 flex-grow pr-4">
-                      <p className="text-gray-400 dark:text-gray-500 font-black uppercase text-[10px] tracking-widest mb-0.5">
+                      <p className="text-gray-400 dark:text-gray-500 font-black uppercase text-[10px] tracking-widest mb-0.5 leading-[1.2] pt-[0.1em]">
                         Övning
                       </p>
-                      <p className="text-xl font-black text-gray-900 dark:text-white tracking-tight truncate">
+                      <p className="text-xl font-black text-gray-900 dark:text-white tracking-tight truncate leading-[1.2] pt-[0.1em]">
                         {record.exerciseName}
                       </p>
                     </div>
                     <div className="text-right shrink-0">
                       {record.weight === 0 && record.reps !== undefined ? (
                         <>
-                          <p className="text-gray-400 dark:text-gray-500 font-black uppercase text-[10px] tracking-widest mb-0.5">
+                          <p className="text-gray-400 dark:text-gray-500 font-black uppercase text-[10px] tracking-widest mb-0.5 leading-[1.2] pt-[0.1em]">
                             Antal
                           </p>
                           <div className="flex items-baseline gap-1">
-                            <span className="text-3xl font-black text-primary">
+                            <span className="text-3xl font-black text-primary tabular-nums">
                               {record.reps}
                             </span>
                             <span className="text-xs font-bold text-gray-500">
                               st
                             </span>
                             {record.diff > 0 && (
-                              <span className="ml-2 text-[11px] font-black text-green-600 bg-green-100 dark:bg-green-900/40 px-2 py-0.5 rounded-full">
+                              <span className="ml-2 text-[11px] font-black text-green-600 bg-green-100 dark:bg-green-900/40 px-2 py-0.5 rounded-full tabular-nums">
                                 +{record.diff} st
                               </span>
                             )}
@@ -315,18 +315,18 @@ export const PBOverlay: React.FC<PBOverlayProps> = ({ isGrattisOpen }) => {
                         </>
                       ) : (
                         <>
-                          <p className="text-gray-400 dark:text-gray-500 font-black uppercase text-[10px] tracking-widest mb-0.5">
+                          <p className="text-gray-400 dark:text-gray-500 font-black uppercase text-[10px] tracking-widest mb-0.5 leading-[1.2] pt-[0.1em]">
                             Vikt
                           </p>
                           <div className="flex items-baseline gap-1">
-                            <span className="text-3xl font-black text-primary">
+                            <span className="text-3xl font-black text-primary tabular-nums">
                               {record.weight}
                             </span>
                             <span className="text-xs font-bold text-gray-500">
                               kg
                             </span>
                             {record.diff > 0 && (
-                              <span className="ml-2 text-[11px] font-black text-green-600 bg-green-100 dark:bg-green-900/40 px-2 py-0.5 rounded-full">
+                              <span className="ml-2 text-[11px] font-black text-green-600 bg-green-100 dark:bg-green-900/40 px-2 py-0.5 rounded-full tabular-nums">
                                 +{record.diff} kg
                               </span>
                             )}
@@ -346,7 +346,7 @@ export const PBOverlay: React.FC<PBOverlayProps> = ({ isGrattisOpen }) => {
                     duration: DISPLAY_DURATION / 1000,
                     ease: "linear",
                   }}
-                  className="h-full bg-gradient-to-r from-yellow-400 to-red-500"
+                  className="h-full bg-gradient-to-r from-record to-work"
                 />
               </div>
             </div>
@@ -355,4 +355,4 @@ export const PBOverlay: React.FC<PBOverlayProps> = ({ isGrattisOpen }) => {
       </AnimatePresence>
     </div>
   );
-};
+});
