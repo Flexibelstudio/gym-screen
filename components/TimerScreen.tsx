@@ -1157,7 +1157,7 @@ export const TimerScreen: React.FC<TimerScreenProps> = React.memo(({
         const wakeLock = await (navigator as any).wakeLock.request('screen');
         wakeLockRef.current = wakeLock;
         wakeLock.addEventListener('release', () => { wakeLockRef.current = null; });
-      } catch (err: any) { console.error(`${err.name}, ${err.message}`); }
+      } catch (err: any) { console.warn(`Wake Lock: ${err?.name}, ${err?.message}`); }
     }
   }, []);
 

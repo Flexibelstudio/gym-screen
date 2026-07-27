@@ -1,7 +1,10 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
+import { deleteField } from 'firebase/firestore';
 import { WorkoutLog, UserData, MemberGoals, Page, UserRole, SmartGoalDetail, WorkoutDiploma, StudioConfig, BenchmarkDefinition, PersonalBest } from '../types';
-import { listenToMemberLogs, listenToPersonalBests, updateUserGoals, updateUserProfile, uploadImage, updateWorkoutLog, deleteWorkoutLog, requestPushNotificationPermission, auth, getPastRaces, toggleWorkoutLogLike } from '../services/firebaseService';
+import { listenToMemberLogs, listenToPersonalBests, updateUserGoals, updateUserProfile, uploadImage, updateWorkoutLog, deleteWorkoutLog, requestPushNotificationPermission, auth, getPastRaces, toggleWorkoutLogLike, calculateBodyWeightHistory, saveWorkoutLog } from '../services/firebaseService';
+import { LEVEL_NAMES } from '../data/fitnessStandards';
+import { getAgeFromBirthDate, getRowingAssessment, formatRowingTime } from '../utils/fitnessBenchmarks';
 import { calculateMonthlyStats, MonthlyWrappedModal } from './MonthlyWrapped';
 import { ChartBarIcon, DumbbellIcon, PencilIcon, SparklesIcon, UserIcon, FireIcon, LightningIcon, TrashIcon, CloseIcon, TrophyIcon, ToggleSwitch, ClockIcon, HistoryIcon, FlagIcon, StarIcon, ChevronRightIcon, SunIcon } from './icons';
 import { Modal } from './ui/Modal';
@@ -289,12 +292,18 @@ const getYearWeek = (date: Date) => {
     d.setDate(d.getDate() + 4 - (d.getDay() || 7));
     const yearStart = new Date(d.getFullYear(), 0, 1);
     const weekNo = Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
-    return `${d.getFullYear()}-W${weekNo}`;
+    return `${d.getFullYear()}-W${weekNo < 10 ? '0' + weekNo : weekNo}`;
 };
 
 const calculateWeeklyStreak = (logs: WorkoutLog[], migratedStats?: { totalWorkouts: number; streakWeeks: number; migratedAtDate: string; }) => {
-    const activeWeeks = new Set(logs.map(log => getYearWeek(new Date(log.date))));
+    const activeWeeks = new Set<string>();
     
+    logs.forEach(log => {
+        if (log.date) {
+            activeWeeks.add(getYearWeek(new Date(log.date)));
+        }
+    });
+
     if (migratedStats?.streakWeeks && migratedStats?.migratedAtDate) {
         let migrationCheckDate = new Date(migratedStats.migratedAtDate);
         for (let i = 0; i < migratedStats.streakWeeks; i++) {
@@ -310,19 +319,34 @@ const calculateWeeklyStreak = (logs: WorkoutLog[], migratedStats?: { totalWorkou
     
     // Check if current week has a workout
     const currentWeekKey = getYearWeek(now);
-    if (activeWeeks.has(currentWeekKey)) {
-        streak++;
+    const hasTrainedCurrentWeek = activeWeeks.has(currentWeekKey);
+
+    let checkDate = new Date(now.getTime());
+    checkDate.setHours(0, 0, 0, 0);
+
+    if (hasTrainedCurrentWeek) {
+        streak = 1;
+        checkDate.setDate(checkDate.getDate() - 7);
+    } else {
+        // Current week is ongoing with no workout yet; check previous week
+        checkDate.setDate(checkDate.getDate() - 7);
+        const prevWeekKey = getYearWeek(checkDate);
+        if (!activeWeeks.has(prevWeekKey)) {
+            return 0; // Both current and previous week have no workout
+        }
     }
 
-    let checkDate = new Date(now);
-    checkDate.setDate(checkDate.getDate() - 7);
+    // Count consecutive preceding active weeks
     while (true) {
         const weekKey = getYearWeek(checkDate);
         if (activeWeeks.has(weekKey)) {
             streak++;
             checkDate.setDate(checkDate.getDate() - 7);
-        } else { break; }
+        } else {
+            break;
+        }
     }
+
     return streak;
 };
 
@@ -569,7 +593,237 @@ const BenchmarkDetailModal: React.FC<{
     );
 };
 
-const BenchmarksView: React.FC<{ logs: WorkoutLog[], definitions: BenchmarkDefinition[], onViewLog: (log: WorkoutLog) => void }> = ({ logs, definitions, onViewLog }) => {
+function parseRowingInputTime(input: string): number | null {
+    if (!input) return null;
+    const clean = input.trim().replace(',', '.');
+    const match = clean.match(/^(\d{1,2}):([0-5]?\d(?:\.\d)?)$/);
+    if (!match) return null;
+    const min = parseInt(match[1], 10);
+    const sec = parseFloat(match[2]);
+    if (isNaN(min) || isNaN(sec)) return null;
+    const totalSeconds = min * 60 + sec;
+    if (totalSeconds < 240 || totalSeconds > 1500) return null;
+    return totalSeconds;
+}
+
+const Rowing2000mCard: React.FC<{
+    logs: WorkoutLog[];
+    userData?: any;
+    onOpenProfileEdit?: () => void;
+}> = ({ logs, userData, onOpenProfileEdit }) => {
+    const [timeInput, setTimeInput] = useState('');
+    const [isSaving, setIsSaving] = useState(false);
+    const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+    const rowingLogs = useMemo(() => {
+        return logs
+            .filter(l => l.benchmarkId === 'platform_row_2000m' && typeof l.benchmarkValue === 'number' && l.benchmarkValue > 0)
+            .sort((a, b) => b.date - a.date);
+    }, [logs]);
+
+    const latestAttempt = rowingLogs[0];
+    const history = rowingLogs.slice(0, 10);
+
+    const age = getAgeFromBirthDate(userData?.birthDate);
+    const gender = userData?.gender;
+
+    const latestAssessment = latestAttempt && (gender === 'male' || gender === 'female') && age !== null
+        ? getRowingAssessment(gender, age, latestAttempt.benchmarkValue!)
+        : null;
+
+    const handleSave = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setErrorMsg(null);
+
+        const seconds = parseRowingInputTime(timeInput);
+        if (seconds === null) {
+            setErrorMsg('Ange en giltig tid mellan 4:00 och 25:00 (t.ex. 7:15 eller 07:15.3)');
+            return;
+        }
+
+        const orgId = userData?.organizationId;
+        if (!userData?.uid || !orgId) {
+            setErrorMsg('Medlemsuppgifter saknas.');
+            return;
+        }
+
+        setIsSaving(true);
+        try {
+            await saveWorkoutLog({
+                memberId: userData.uid,
+                organizationId: orgId,
+                date: Date.now(),
+                workoutTitle: '2000 m Rodd',
+                workoutId: 'manual',
+                benchmarkId: 'platform_row_2000m',
+                benchmarkValue: seconds,
+            });
+            setTimeInput('');
+        } catch (err) {
+            console.error('Failed to save rowing log', err);
+            setErrorMsg('Kunde inte spara resultatet. Försök igen.');
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    return (
+        <div className="bg-white dark:bg-gray-900 rounded-2xl p-6 shadow-sm border border-gray-100 dark:border-gray-800 space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-gray-100 dark:border-gray-800 pb-4">
+                <div>
+                    <h3 className="font-black text-gray-900 dark:text-white text-lg tracking-tight">2000 M RODD</h3>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">Konditionstest — Concept2</p>
+                </div>
+            </div>
+
+            <form onSubmit={handleSave} className="space-y-2">
+                <label className="block text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest">
+                    Logga nytt resultat
+                </label>
+                <div className="flex gap-2">
+                    <input
+                        type="text"
+                        value={timeInput}
+                        onChange={(e) => setTimeInput(e.target.value)}
+                        placeholder="mm:ss (t.ex. 7:15 eller 7:15.0)"
+                        className="flex-1 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-3 py-2 text-sm text-gray-900 dark:text-white font-mono placeholder:font-sans focus:outline-none focus:ring-2 focus:ring-primary"
+                    />
+                    <button
+                        type="submit"
+                        disabled={isSaving || !timeInput.trim()}
+                        className="bg-primary text-white font-bold text-xs px-4 py-2 rounded-xl hover:brightness-110 transition-all disabled:opacity-50 shrink-0"
+                    >
+                        {isSaving ? 'Sparar...' : 'Spara test'}
+                    </button>
+                </div>
+                {errorMsg && <p className="text-xs text-red-500 font-medium">{errorMsg}</p>}
+            </form>
+
+            {latestAttempt && (
+                <div className="bg-gray-50/50 dark:bg-gray-800/40 rounded-xl p-4 border border-gray-100 dark:border-gray-800 space-y-3">
+                    <div className="flex items-center justify-between">
+                        <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 dark:text-gray-500">
+                            Senaste test ({new Date(latestAttempt.date).toLocaleDateString('sv-SE')})
+                        </span>
+                        <span className="font-mono font-bold text-base text-primary tabular-nums">
+                            {formatRowingTime(latestAttempt.benchmarkValue!)}
+                        </span>
+                    </div>
+
+                    {(age === null || !userData?.birthDate) ? (
+                        <div className="space-y-1">
+                            <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">
+                                Ange födelsedatum i din profil för att se jämförelsen.
+                            </p>
+                            {onOpenProfileEdit && (
+                                <button
+                                    type="button"
+                                    onClick={onOpenProfileEdit}
+                                    className="inline-flex items-center gap-1 text-xs font-bold text-primary hover:underline"
+                                >
+                                    Till profilen →
+                                </button>
+                            )}
+                        </div>
+                    ) : (gender !== 'male' && gender !== 'female') ? (
+                        <div className="space-y-2">
+                            <div className="space-y-1.5">
+                                <div className="flex items-center justify-between gap-2">
+                                    <span className="text-[10px] font-black uppercase tracking-wider text-gray-400 dark:text-gray-500">
+                                        Nivå
+                                    </span>
+                                    <span className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-bold bg-primary/10 text-primary border border-primary/20">
+                                        På väg
+                                    </span>
+                                </div>
+                                <div className="grid grid-cols-5 gap-1.5 h-2">
+                                    {[1, 2, 3, 4, 5].map((seg) => (
+                                        <div key={seg} className="h-full rounded-full bg-gray-200 dark:bg-gray-800" />
+                                    ))}
+                                </div>
+                            </div>
+                            <p className="text-[11px] text-gray-400 dark:text-gray-500 italic">
+                                Jämförelser finns för man/kvinna. Din progression räknas ändå.
+                            </p>
+                        </div>
+                    ) : latestAssessment ? (
+                        <div className="space-y-3">
+                            <div className="space-y-1.5">
+                                <div className="flex items-center justify-between gap-2">
+                                    <span className="text-[10px] font-black uppercase tracking-wider text-gray-400 dark:text-gray-500">
+                                        Nivå
+                                    </span>
+                                    <span className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-bold bg-primary/10 text-primary border border-primary/20">
+                                        {latestAssessment.levelName}
+                                    </span>
+                                </div>
+                                <div className="grid grid-cols-5 gap-1.5 h-2">
+                                    {[1, 2, 3, 4, 5].map((seg) => (
+                                        <div
+                                            key={seg}
+                                            className={`h-full rounded-full transition-colors ${
+                                                seg <= latestAssessment.level ? 'bg-primary' : 'bg-gray-200 dark:bg-gray-800'
+                                            }`}
+                                        />
+                                    ))}
+                                </div>
+                            </div>
+                            <div className="space-y-1 pt-1 border-t border-gray-200/60 dark:border-gray-700/60 text-xs">
+                                <p className="text-gray-600 dark:text-gray-400">
+                                    <span className="font-medium">Snitt i din ålder & kön:</span>{' '}
+                                    <span className="font-bold text-gray-900 dark:text-white font-mono tabular-nums">
+                                        {formatRowingTime(latestAssessment.averageSec)}
+                                    </span>
+                                </p>
+                                {latestAssessment.level < 5 && latestAssessment.nextLevelSec !== null && (
+                                    <p className="text-gray-600 dark:text-gray-400">
+                                        <span className="font-medium">Nästa nivå:</span>{' '}
+                                        <span className="font-semibold text-gray-800 dark:text-gray-200">
+                                            {LEVEL_NAMES[latestAssessment.level + 1]}
+                                        </span>{' '}
+                                        vid{' '}
+                                        <span className="font-bold text-gray-900 dark:text-white font-mono tabular-nums">
+                                            {formatRowingTime(latestAssessment.nextLevelSec)}
+                                        </span>
+                                    </p>
+                                )}
+                            </div>
+                        </div>
+                    ) : null}
+                </div>
+            )}
+
+            {history.length > 0 && (
+                <div className="space-y-2 pt-2 border-t border-gray-100 dark:border-gray-800">
+                    <h4 className="text-[10px] font-black uppercase tracking-widest text-gray-400 dark:text-gray-500">
+                        Tidigare försök ({history.length})
+                    </h4>
+                    <div className="divide-y divide-gray-100 dark:divide-gray-800 text-xs">
+                        {history.map((item) => (
+                            <div key={item.id} className="py-2 flex items-center justify-between">
+                                <span className="text-gray-500 dark:text-gray-400">
+                                    {new Date(item.date).toLocaleDateString('sv-SE', { year: 'numeric', month: 'short', day: 'numeric' })}
+                                </span>
+                                <span className="font-mono font-bold text-gray-900 dark:text-white tabular-nums">
+                                    {formatRowingTime(item.benchmarkValue!)}
+                                </span>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+};
+
+const BenchmarksView: React.FC<{
+    logs: WorkoutLog[];
+    definitions: BenchmarkDefinition[];
+    onViewLog: (log: WorkoutLog) => void;
+    userData?: any;
+    onOpenProfileEdit?: () => void;
+    enableFitnessBenchmarks?: boolean;
+}> = ({ logs, definitions, onViewLog, userData, onOpenProfileEdit, enableFitnessBenchmarks }) => {
     const [selectedBenchmark, setSelectedBenchmark] = useState<any>(null);
 
     // Process data to find PBs for each benchmark definition and sort them
@@ -648,57 +902,64 @@ const BenchmarksView: React.FC<{ logs: WorkoutLog[], definitions: BenchmarkDefin
         return '';
     };
 
-    if (sortedBenchmarks.length === 0) {
-        return (
-            <div className="p-12 text-center bg-white dark:bg-gray-900 rounded-3xl border border-dashed border-gray-200 dark:border-gray-800 animate-fade-in">
-                <p className="text-gray-400 text-sm">Här visas dina resultat när du kört ett benchmark-pass.</p>
-            </div>
-        );
-    }
-
     return (
         <div className="space-y-6 animate-fade-in">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {sortedBenchmarks.map((benchmark) => {
-                    const { def, pb, attempts, trend } = benchmark;
-                    return (
-                        <div 
-                            key={def.id} 
-                            onClick={() => setSelectedBenchmark(benchmark)}
-                            className={`cursor-pointer relative overflow-hidden rounded-3xl p-6 transition-all bg-gradient-to-br from-yellow-50 to-orange-50 dark:from-gray-800 dark:to-gray-900 border-2 border-yellow-400/30 dark:border-yellow-500/20 hover:border-yellow-400 dark:hover:border-yellow-500 hover:shadow-lg`}
-                        >
-                            <div className="absolute top-0 right-0 w-24 h-24 bg-yellow-400/10 rounded-full blur-3xl -mr-6 -mt-6"></div>
-                            
-                            <div className="relative z-10">
-                                <div className="flex justify-between items-start mb-4">
-                                    <h4 className="font-bold truncate pr-2 text-lg text-gray-900 dark:text-white">
-                                        {def.title}
-                                    </h4>
-                                    <div className="bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400 px-2 py-1 rounded-lg">
-                                        <TrophyIcon className="w-4 h-4" />
-                                    </div>
-                                </div>
+            {enableFitnessBenchmarks && (
+                <Rowing2000mCard
+                    logs={logs}
+                    userData={userData}
+                    onOpenProfileEdit={onOpenProfileEdit}
+                />
+            )}
+
+            {sortedBenchmarks.length === 0 ? (
+                <div className="p-12 text-center bg-white dark:bg-gray-900 rounded-3xl border border-dashed border-gray-200 dark:border-gray-800">
+                    <p className="text-gray-400 text-sm">Här visas dina resultat när du kört ett benchmark-pass.</p>
+                </div>
+            ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {sortedBenchmarks.map((benchmark) => {
+                        const { def, pb, attempts, trend } = benchmark;
+                        return (
+                            <div 
+                                key={def.id} 
+                                onClick={() => setSelectedBenchmark(benchmark)}
+                                className={`cursor-pointer relative overflow-hidden rounded-3xl p-6 transition-all bg-gradient-to-br from-yellow-50 to-orange-50 dark:from-gray-800 dark:to-gray-900 border-2 border-yellow-400/30 dark:border-yellow-500/20 hover:border-yellow-400 dark:hover:border-yellow-500 hover:shadow-lg`}
+                            >
+                                <div className="absolute top-0 right-0 w-24 h-24 bg-yellow-400/10 rounded-full blur-3xl -mr-6 -mt-6"></div>
                                 
-                                <div className="flex justify-between items-end">
-                                    <div>
-                                        <p className="text-4xl font-black text-gray-900 dark:text-white tracking-tight">
-                                            {formatResult(pb!.benchmarkValue!, def.type)} <span className="text-sm text-gray-500 font-bold">{getUnit(def.type)}</span>
-                                        </p>
-                                        <p className="text-[10px] text-gray-500 dark:text-gray-400 mt-2 uppercase tracking-wider font-bold">
-                                            {new Date(pb!.date).toLocaleDateString('sv-SE')} • {attempts} försök
-                                        </p>
-                                    </div>
-                                    {trend && trend.hasChanged && (
-                                        <div className={`flex items-center gap-1 text-xs font-bold px-2 py-1 rounded-lg ${trend.isImprovement ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'}`}>
-                                            {trend.isImprovement ? '↑' : '↓'} {formatResult(trend.diff, def.type)}
+                                <div className="relative z-10">
+                                    <div className="flex justify-between items-start mb-4">
+                                        <h4 className="font-bold truncate pr-2 text-lg text-gray-900 dark:text-white">
+                                            {def.title}
+                                        </h4>
+                                        <div className="bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400 px-2 py-1 rounded-lg">
+                                            <TrophyIcon className="w-4 h-4" />
                                         </div>
-                                    )}
+                                    </div>
+                                    
+                                    <div className="flex justify-between items-end">
+                                        <div>
+                                            <p className="text-4xl font-black text-gray-900 dark:text-white tracking-tight">
+                                                {formatResult(pb!.benchmarkValue!, def.type)} <span className="text-sm text-gray-500 font-bold">{getUnit(def.type)}</span>
+                                            </p>
+                                            <p className="text-[10px] text-gray-500 dark:text-gray-400 mt-2 uppercase tracking-wider font-bold">
+                                                {new Date(pb!.date).toLocaleDateString('sv-SE')} • {attempts} försök
+                                            </p>
+                                        </div>
+                                        {trend && trend.hasChanged && (
+                                            <div className={`flex items-center gap-1 text-xs font-bold px-2 py-1 rounded-lg ${trend.isImprovement ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'}`}>
+                                                {trend.isImprovement ? '↑' : '↓'} {formatResult(trend.diff, def.type)}
+                                            </div>
+                                        )}
+                                    </div>
                                 </div>
                             </div>
-                        </div>
-                    );
-                })}
-            </div>
+                        );
+                    })}
+                </div>
+            )}
+
 
             {selectedBenchmark && (
                 <BenchmarkDetailModal 
@@ -1319,6 +1580,11 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
     const [lastName, setLastName] = useState(userData.lastName || '');
     const [birthDate, setBirthDate] = useState(userData.birthDate || '');
     const [gender, setGender] = useState(userData.gender || 'prefer_not_to_say');
+    const [bodyWeightInput, setBodyWeightInput] = useState<string>(
+        userData.bodyWeight !== undefined && userData.bodyWeight !== null
+            ? String(userData.bodyWeight).replace('.', ',')
+            : ''
+    );
     const [photoUrl, setPhotoUrl] = useState(userData.photoUrl || '');
     const [backgroundImageUrl, setBackgroundImageUrl] = useState(userData.backgroundImageUrl || '');
     const [backgroundOverlayOpacity, setBackgroundOverlayOpacity] = useState(userData.backgroundOverlayOpacity ?? 20);
@@ -1514,6 +1780,25 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
             alert("Vänligen ange ett fullständigt födelsedatum (ÅÅÅÅ-MM-DD).");
             return;
         }
+
+        let parsedBodyWeight: number | undefined = undefined;
+        let updatedBodyWeightHistory = userData.bodyWeightHistory || [];
+        let shouldDeleteWeight = false;
+
+        const trimmedWeight = bodyWeightInput.trim();
+        if (trimmedWeight !== '') {
+            const normalized = trimmedWeight.replace(',', '.');
+            const val = parseFloat(normalized);
+            if (isNaN(val) || val < 25 || val > 300) {
+                alert("Vänligen ange en giltig kroppsvikt mellan 25 och 300 kg.");
+                return;
+            }
+            parsedBodyWeight = val;
+            updatedBodyWeightHistory = calculateBodyWeightHistory(userData.bodyWeightHistory || [], val);
+        } else if (userData.bodyWeight !== undefined && userData.bodyWeight !== null) {
+            shouldDeleteWeight = true;
+        }
+
         setIsSaving(true);
         try {
             await updateUserProfile(userData.uid, {
@@ -1521,6 +1806,8 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                 lastName: lastName.trim(),
                 birthDate: birthDate || undefined,
                 gender: gender as any,
+                bodyWeight: shouldDeleteWeight ? deleteField() : (trimmedWeight !== '' ? parsedBodyWeight : undefined),
+                bodyWeightHistory: shouldDeleteWeight ? deleteField() : (trimmedWeight !== '' ? updatedBodyWeightHistory : undefined),
                 weeklyGoal: Number(weeklyGoal),
                 showOnLeaderboard,
                 backgroundOverlayOpacity: Number(backgroundOverlayOpacity)
@@ -1783,6 +2070,18 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                                 <option value="other">Annat</option>
                             </select>
                         </div>
+                        <div>
+                            <label className="block text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-2 ml-1">Kroppsvikt (kg)</label>
+                            <input 
+                                type="text" 
+                                inputMode="decimal" 
+                                placeholder="t.ex. 78,5" 
+                                value={bodyWeightInput} 
+                                onChange={e => setBodyWeightInput(e.target.value)} 
+                                className="w-full bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl p-4 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary outline-none transition-all shadow-sm font-bold" 
+                            />
+                            <p className="text-xs text-gray-400 dark:text-gray-500 mt-1.5 ml-1">Används för styrkejämförelser. Frivilligt.</p>
+                        </div>
                         {selectedOrganization?.locations && selectedOrganization.locations.length > 0 && (
                             <div>
                                 <label className="block text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-2 ml-1">Din Studio / Ort</label>
@@ -1857,7 +2156,7 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
     }
 
     return (
-        <div className="w-full max-w-4xl mx-auto px-0.5 sm:px-3 pt-2 pb-24 animate-fade-in relative z-0 overflow-x-hidden">
+        <div className="w-full max-w-4xl mx-auto px-0.5 sm:px-3 pt-2 pb-24 animate-fade-in relative z-0 overflow-x-clip">
             
             {/* 1. Monthly Wrapped Banner (Days 1-7 of new month - Top card) */}
             {showMonthlyBanner && (
@@ -2250,12 +2549,12 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                             <div className="absolute -left-2 -bottom-2 text-orange-200 dark:text-white opacity-20 transform -rotate-12 transition-transform group-hover:scale-110">
                                 <FireIcon className="w-16 h-16" />
                             </div>
-                            <span className="block text-[10px] font-black text-orange-600 dark:text-white/80 uppercase tracking-widest mb-1 relative z-10">Streak</span>
+                            <span className="block text-[10px] font-black text-orange-600 dark:text-white/80 uppercase tracking-widest mb-1 relative z-10">VECKOSVIT</span>
                             <div className="flex items-center justify-center relative z-10 min-h-[36px] gap-1">
-                                <p className="text-3xl sm:text-4xl font-black text-orange-500 dark:text-white leading-none tracking-tight">
-                                    {stats.weeklyStreak}
+                                <p className="text-xl sm:text-2xl font-black text-orange-500 dark:text-white leading-none tracking-tight">
+                                    {stats.weeklyStreak} {stats.weeklyStreak === 1 ? 'vecka' : 'veckor'}
                                 </p>
-                                <FireIcon className={`w-8 h-8 ${stats.hasTrainedThisWeek ? 'text-orange-500 dark:text-white animate-pulse' : 'text-gray-300 dark:text-gray-600 opacity-50'}`} />
+                                <FireIcon className={`w-6 h-6 ${stats.hasTrainedThisWeek ? 'text-orange-500 dark:text-white animate-pulse' : 'text-gray-300 dark:text-gray-600 opacity-50'}`} />
                             </div>
                         </div>
                     </div>
@@ -3273,18 +3572,26 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                         userData={userData} 
                         logs={logs} 
                         onClose={() => setActiveTab('overview')} 
+                        onOpenProfileEdit={() => {
+                            setActiveTab('overview');
+                            setIsEditing(true);
+                        }}
                     />
                 </div>
             )}
 
             {activeTab === 'benchmarks' && (
-                selectedOrganization && (
-                    <BenchmarksView 
-                        logs={logs} 
-                        definitions={selectedOrganization.benchmarkDefinitions || []} 
-                        onViewLog={setSelectedLog}
-                    />
-                )
+                <BenchmarksView 
+                    logs={logs} 
+                    definitions={selectedOrganization?.benchmarkDefinitions || []} 
+                    onViewLog={setSelectedLog}
+                    userData={userData}
+                    onOpenProfileEdit={() => {
+                        setActiveTab('overview');
+                        setIsEditing(true);
+                    }}
+                    enableFitnessBenchmarks={!!(selectedOrganization?.globalConfig?.enableFitnessBenchmarks ?? studioConfig?.enableFitnessBenchmarks)}
+                />
             )}
 
             {(isEditingGoals || isCreatingNewGoal) && (

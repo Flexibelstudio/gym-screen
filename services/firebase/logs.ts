@@ -1,5 +1,5 @@
 import { 
-  collection, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, query, where, or, orderBy, limit, onSnapshot, writeBatch, serverTimestamp, runTransaction, deleteField 
+  collection, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, query, where, or, orderBy, limit, onSnapshot, writeBatch, serverTimestamp, runTransaction, deleteField, getCountFromServer, increment 
 } from 'firebase/firestore';
 import { db, isOffline, sanitizeData, getPBId, getLeaderboardDocId } from './init';
 import { calculate1RM } from '../../utils/workoutUtils';
@@ -253,6 +253,32 @@ export const saveWorkoutLog = async (logData: any): Promise<{ log: any, newRecor
     batch.set(newLogRef, newLog);
     await batch.commit();
 
+    // Maintenance for Coach Radar user stats (lastWorkoutAt, lastPBAt, totalWorkoutsCount)
+    if (logData.memberId) {
+        try {
+            const userRef = doc(db, 'users', logData.memberId);
+            const userUpdates: Record<string, any> = {
+                lastWorkoutAt: newLog.date
+            };
+
+            if (newRecords.length > 0) {
+                userUpdates.lastPBAt = newLog.date;
+            }
+
+            if (typeof userData?.totalWorkoutsCount === 'number') {
+                userUpdates.totalWorkoutsCount = increment(1);
+            } else {
+                const qCount = query(collection(db, 'workoutLogs'), where("memberId", "==", logData.memberId));
+                const countSnap = await getCountFromServer(qCount);
+                userUpdates.totalWorkoutsCount = countSnap.data().count;
+            }
+
+            await updateDoc(userRef, userUpdates);
+        } catch (err) {
+            console.warn("Failed to update user stats for coach radar:", err);
+        }
+    }
+
     return { log: newLog, newRecords };
 };
 
@@ -266,7 +292,28 @@ export const updateWorkoutLog = async (logId: string, updates: Partial<WorkoutLo
 export const deleteWorkoutLog = async (logId: string) => {
     if (isOffline || !db || !logId) return;
     try {
+        const logSnap = await getDoc(doc(db, 'workoutLogs', logId));
+        const memberId = logSnap.exists() ? logSnap.data()?.memberId : null;
+
         await deleteDoc(doc(db, 'workoutLogs', logId));
+
+        if (memberId) {
+            try {
+                const userRef = doc(db, 'users', memberId);
+                const userSnap = await getDoc(userRef);
+                if (userSnap.exists()) {
+                    const currentCount = userSnap.data()?.totalWorkoutsCount;
+                    if (typeof currentCount === 'number') {
+                        const newCount = Math.max(0, currentCount - 1);
+                        // Note: lastWorkoutAt and lastPBAt are left untouched as documented in coach radar specification
+                        // (acceptable deviation if deleting the most recent workout log).
+                        await updateDoc(userRef, { totalWorkoutsCount: newCount });
+                    }
+                }
+            } catch (err) {
+                console.warn("Failed to decrement user totalWorkoutsCount on delete:", err);
+            }
+        }
     } catch (e) { console.error("deleteWorkoutLog failed", e); }
 };
 
@@ -458,4 +505,21 @@ export const getWorkoutResults = async (workoutId: string, orgId: string): Promi
         const snap = await getDocs(q);
         return snap.docs.map(d => d.data() as WorkoutResult);
     } catch (e) { return []; }
+};
+
+export const getOrganizationLogsSince = async (orgId: string, sinceMs: number): Promise<WorkoutLog[]> => {
+    if (isOffline || !db || !orgId) return [];
+    try {
+        const q = query(
+            collection(db, 'workoutLogs'),
+            where('organizationId', '==', orgId),
+            where('date', '>=', sinceMs),
+            orderBy('date', 'desc')
+        );
+        const snap = await getDocs(q);
+        return snap.docs.map(d => ({ id: d.id, ...d.data() }) as WorkoutLog);
+    } catch (error) {
+        console.warn("getOrganizationLogsSince failed (may require composite index):", error);
+        return [];
+    }
 };

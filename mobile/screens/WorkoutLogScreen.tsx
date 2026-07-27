@@ -1,7 +1,7 @@
 
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { getMemberLogs, getWorkoutsForOrganization, saveWorkoutLog, uploadImage, updateWorkoutLog, deleteWorkoutLog, getOrganizationExerciseBank, getMemberCustomExercises, addMemberCustomExercise, deleteMemberCustomExercise, updateMemberCustomExercise, listenToPersonalBests } from '../../services/firebaseService';
-import { generateSingleMemberInsight, InsightContent, MemberInsightResponse, generateWorkoutDiploma, generateImage, getExerciseDagsformAdvice, ExerciseDagsformAdvice } from '../../services/geminiService';
+import { generateWorkoutDiploma, generateImage } from '../../services/geminiService';
 import { useAuth } from '../../context/AuthContext'; 
 import { useWorkout } from '../../context/WorkoutContext'; 
 import { CloseIcon, SparklesIcon, FireIcon, InformationCircleIcon, LightningIcon, PlusIcon, TrashIcon, CheckIcon, ChartBarIcon, HistoryIcon, CalculatorIcon } from '../../components/icons'; 
@@ -14,7 +14,6 @@ import { saveCustomProgram, fetchCustomPrograms } from '../../services/firebaseS
 import { motion, AnimatePresence } from 'framer-motion';
 import { Confetti } from '../../components/WorkoutCompleteModal';
 import { useStudio } from '../../context/StudioContext';
-import { DailyFormInsightModal } from '../../components/DailyFormInsightModal';
 import { resizeImage } from '../../utils/imageUtils';
 
 // --- Local Storage Key ---
@@ -365,71 +364,88 @@ const isExerciseMatch = (targetName: string, targetId: string, candidateName: st
     return false;
 };
 
-// --- Mission Header Component (Koncept 2) ---
-const MissionHeader: React.FC<{ strategy: string; feeling: 'good' | 'neutral' | 'bad' }> = ({ strategy, feeling }) => {
-    let gradient = "from-indigo-500 to-purple-600";
-    let icon = "⚡";
-    let title = "Dagens Mission";
-
-    if (feeling === 'good') {
-        gradient = "from-orange-500 to-red-600";
-        icon = "🔥";
-        title = "Attack Mode";
-    } else if (feeling === 'bad') {
-        gradient = "from-teal-500 to-emerald-600";
-        icon = "🛡️";
-        title = "Smart & Stabilt";
-    }
-
-    return (
-        <motion.div 
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className={`relative overflow-hidden rounded-2xl bg-gradient-to-r ${gradient} p-5 text-white shadow-md mb-6`}
-        >
-            <div className="relative z-10 flex items-start gap-4">
-                <div className="text-3xl bg-white/20 rounded-xl p-2 h-12 w-12 flex items-center justify-center backdrop-blur-xs shrink-0">
-                    {icon}
-                </div>
-                <div>
-                    <h3 className="font-black uppercase tracking-wider text-xs text-white/90 mb-1 leading-[1.2] pt-[0.1em]">{title}</h3>
-                    <p className="font-bold text-lg leading-tight text-white">{strategy}</p>
-                </div>
-            </div>
-            
-            {/* Background decoration */}
-            <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full blur-2xl -mr-10 -mt-10"></div>
-        </motion.div>
-    );
-};
-
 // --- Pre-Game Strategy View ---
 
 const PreGameView: React.FC<{
     workoutTitle: string;
-    insight: InsightContent | null;
-    isGenerating: boolean;
+    exercises: { id: string; name: string; exerciseName?: string }[];
+    aiProgressionPrompt?: string;
+    history: Record<string, LastPerformanceRecord>;
+    personalBests: Record<string, PersonalBest>;
+    userId?: string;
     onStart: () => void;
     onCancel: () => void;
-    onFeelingChange: (feeling: 'good' | 'neutral' | 'bad') => void;
-    currentFeeling: 'good' | 'neutral' | 'bad' | null;
-}> = ({ workoutTitle, insight, isGenerating, onStart, onCancel, onFeelingChange, currentFeeling }) => {
-    
-    const displayStrategy = insight?.strategy || insight?.readiness?.message || "Laddar strategi...";
-    
-    let themeClass = "from-indigo-50 dark:from-indigo-900/20";
-    
-    if (currentFeeling === 'good') {
-        themeClass = "from-orange-100 dark:from-orange-900/20";
-    } else if (currentFeeling === 'bad') {
-        themeClass = "from-blue-100 dark:from-blue-900/20";
-    }
+}> = ({ workoutTitle, exercises, aiProgressionPrompt, history, personalBests, userId, onStart, onCancel }) => {
+    const [mode, setMode] = useState<'normal' | 'fatigued'>('normal');
+
+    const exerciseTargets = useMemo(() => {
+        return exercises.map(ex => {
+            const exName = ex.exerciseName || ex.name || '';
+            const cleanKey = exName.toLowerCase().trim();
+
+            const pb = personalBests[cleanKey];
+            let current1RM: number | undefined = undefined;
+            if (pb) {
+                if (pb.calculated1RM !== undefined && pb.calculated1RM > 0) {
+                    current1RM = Math.round(pb.calculated1RM);
+                } else if (pb.weight > 0) {
+                    current1RM = calculate1RM(pb.weight, pb.reps || 1) || undefined;
+                }
+            } else {
+                const lastPerf = history[exName];
+                if (lastPerf) {
+                    const lastWeight = typeof lastPerf.weight === 'number' ? lastPerf.weight : (parseFloat(String(lastPerf.weight)) || 0);
+                    const lastReps = typeof lastPerf.reps === 'number' ? lastPerf.reps : (parseFloat(String(lastPerf.reps)) || 0);
+                    if (lastWeight > 0 && lastReps > 0 && lastReps <= 10) {
+                        current1RM = calculate1RM(lastWeight, lastReps) || undefined;
+                    }
+                }
+            }
+
+            const storageKey = `target_pct_${userId || 'user'}_${cleanKey}`;
+            let targetPct: number | null = null;
+            try {
+                const saved = localStorage.getItem(storageKey);
+                if (saved) targetPct = parseInt(saved, 10);
+            } catch {}
+
+            let bas: number | null = null;
+            let basSource: 'targetPct' | 'history' | 'none' = 'none';
+
+            if (current1RM && current1RM > 0 && targetPct && targetPct > 0) {
+                bas = Math.round(current1RM * (targetPct / 100) * 2) / 2;
+                basSource = 'targetPct';
+            } else {
+                const lastPerf = history[exName];
+                const lastWeight = typeof lastPerf?.weight === 'number' ? lastPerf.weight : (parseFloat(String(lastPerf?.weight)) || 0);
+                if (lastWeight > 0) {
+                    bas = lastWeight;
+                    basSource = 'history';
+                }
+            }
+
+            let scaledWeight: number | null = null;
+            if (bas !== null) {
+                if (mode === 'normal') {
+                    scaledWeight = bas;
+                } else {
+                    scaledWeight = Math.round((bas * 0.9) / 2.5) * 2.5;
+                }
+            }
+
+            return {
+                exName,
+                bas,
+                scaledWeight,
+                targetPct,
+                current1RM,
+                basSource
+            };
+        });
+    }, [exercises, history, personalBests, userId, mode]);
 
     return (
         <div className="flex flex-col h-full bg-white dark:bg-gray-900 text-gray-900 dark:text-white relative overflow-hidden animate-fade-in">
-            {/* Background Gradient */}
-            <div className={`absolute inset-0 bg-gradient-to-b ${themeClass} via-white/50 dark:via-gray-900/50 to-white dark:to-gray-900 z-0 transition-colors duration-500 pointer-events-none`}></div>
-            
             {/* Scrollable Content Area */}
             <div className="relative z-10 flex-1 overflow-y-auto p-6 scrollbar-hide">
                 <div className="flex justify-between items-start mb-6">
@@ -439,82 +455,89 @@ const PreGameView: React.FC<{
                 <div className="text-center mb-8">
                     <span className="inline-block py-1.5 px-3.5 rounded-full bg-primary/10 dark:bg-white/10 border border-primary/20 dark:border-white/20 text-xs font-black uppercase tracking-wider text-primary mb-4 leading-[1.2] pt-[0.1em]">Pre-Game Strategy</span>
                     <h1 className="text-3xl font-black leading-[1.2] pt-[0.1em] mb-2 text-gray-900 dark:text-white uppercase tracking-tight">{workoutTitle}</h1>
-                    <p className="text-gray-500 dark:text-gray-400 text-sm font-medium">Din personliga plan för dagens pass</p>
                 </div>
-                
+
+                {/* 1. LÄGEN BUTTONS */}
                 <div className="mb-8">
-                    <p className="text-center text-xs font-black uppercase text-gray-400 dark:text-gray-500 mb-3 tracking-wider leading-[1.2] pt-[0.1em]">Hur känns kroppen?</p>
-                    <div className="flex gap-3 justify-center">
-                        {['good', 'neutral', 'bad'].map((f) => (
-                            <button 
-                                key={f} 
-                                onClick={() => onFeelingChange(f as any)} 
-                                disabled={isGenerating}
-                                className={`min-h-[52px] min-w-[52px] p-4 rounded-2xl border-2 transition-all active:scale-95 focus:outline-none focus:ring-2 focus:ring-primary ${currentFeeling === f ? 'bg-white dark:bg-gray-800 border-primary scale-105 shadow-md z-10' : 'bg-white/50 dark:bg-gray-800/50 border-gray-200 dark:border-gray-700 hover:bg-white dark:hover:bg-gray-800'} ${isGenerating ? 'opacity-50 cursor-not-allowed' : ''}`}
-                            >
-                                <span className="text-2xl block">{f === 'good' ? '🔥' : f === 'bad' ? '🤕' : '🙂'}</span>
-                            </button>
+                    <p className="text-center text-xs font-black uppercase text-gray-400 dark:text-gray-500 mb-3 tracking-wider leading-[1.2] pt-[0.1em]">Välj dagens känsla</p>
+                    <div className="grid grid-cols-2 gap-3">
+                        <button
+                            type="button"
+                            onClick={() => setMode('normal')}
+                            className={`min-h-[52px] p-4 rounded-2xl border-2 font-black transition-all active:scale-95 text-center ${mode === 'normal' ? 'bg-primary text-white border-primary shadow-md' : 'bg-white/50 dark:bg-gray-800/50 border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300'}`}
+                        >
+                            <span className="block text-sm uppercase tracking-wider">SOM VANLIGT</span>
+                            <span className={`block text-xs font-normal mt-0.5 opacity-90 ${mode === 'normal' ? 'text-white/90' : 'text-gray-500 dark:text-gray-400'}`}>följ planen</span>
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => setMode('fatigued')}
+                            className={`min-h-[52px] p-4 rounded-2xl border-2 font-black transition-all active:scale-95 text-center ${mode === 'fatigued' ? 'bg-amber-600 text-white border-amber-600 shadow-md' : 'bg-white/50 dark:bg-gray-800/50 border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300'}`}
+                        >
+                            <span className="block text-sm uppercase tracking-wider">SLITEN IDAG</span>
+                            <span className={`block text-xs font-normal mt-0.5 opacity-90 ${mode === 'fatigued' ? 'text-white/90' : 'text-gray-500 dark:text-gray-400'}`}>skala ner</span>
+                        </button>
+                    </div>
+                </div>
+
+                {/* 3. TEXTER */}
+                <div className="bg-gray-50 dark:bg-gray-800/60 border border-gray-200 dark:border-gray-700/80 rounded-2xl p-5 mb-6">
+                    {mode === 'normal' ? (
+                        <div>
+                            <h3 className="font-black text-base text-gray-900 dark:text-white mb-1 uppercase tracking-tight">Följ planen</h3>
+                            <p className="text-sm text-gray-600 dark:text-gray-300 font-medium">Dagens målvikter är baserade på dina senaste resultat.</p>
+                        </div>
+                    ) : (
+                        <div>
+                            <h3 className="font-black text-base text-amber-600 dark:text-amber-400 mb-1 uppercase tracking-tight">Vi tar det lite lugnare</h3>
+                            <p className="text-sm text-gray-600 dark:text-gray-300 font-medium">Vikterna är nedskalade ca 10 %. Kör tekniskt, ta längre vila och avsluta i tid.</p>
+                        </div>
+                    )}
+
+                    {aiProgressionPrompt && aiProgressionPrompt.trim().length > 0 && (
+                        <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+                            <h4 className="text-xs font-black text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-1">Coachens instruktion</h4>
+                            <p className="text-sm font-semibold text-gray-800 dark:text-gray-200 italic">{aiProgressionPrompt}</p>
+                        </div>
+                    )}
+                </div>
+
+                {/* 2. MÅLVIKT PER ÖVNING */}
+                <div className="mb-8">
+                    <h3 className="text-xs font-black uppercase text-gray-400 dark:text-gray-500 mb-3 tracking-wider">Målvikter för övningar</h3>
+                    <div className="space-y-2.5">
+                        {exerciseTargets.map((item, idx) => (
+                            <div key={idx} className="flex justify-between items-center bg-white dark:bg-gray-800/80 p-3.5 rounded-xl border border-gray-100 dark:border-gray-700/80 shadow-sm">
+                                <span className="text-sm font-bold text-gray-900 dark:text-white pr-2">{item.exName}</span>
+                                <div className="text-right whitespace-nowrap">
+                                    {item.bas !== null && item.scaledWeight !== null ? (
+                                        <div className="flex items-center gap-2">
+                                            {mode === 'fatigued' && item.bas !== item.scaledWeight && (
+                                                <span className="text-xs font-semibold text-gray-400 dark:text-gray-500 line-through tabular-nums">
+                                                    {String(item.bas).replace('.', ',')} kg
+                                                </span>
+                                            )}
+                                            <span className="text-sm font-black tabular-nums text-primary dark:text-primary">
+                                                {String(item.scaledWeight).replace('.', ',')} kg
+                                            </span>
+                                        </div>
+                                    ) : (
+                                        <span className="text-xs font-medium text-gray-400 dark:text-gray-500">
+                                            Ingen historik än
+                                        </span>
+                                    )}
+                                </div>
+                            </div>
                         ))}
                     </div>
-                    {!currentFeeling && !isGenerating && (
-                        <p className="text-center text-sm text-gray-400 dark:text-gray-500 mt-4 animate-pulse font-medium">Klicka på en emoji för att få din strategi</p>
-                    )}
-                    {isGenerating && (
-                        <p className="text-center text-sm text-primary mt-4 animate-pulse font-bold">Genererar din personliga strategi...</p>
-                    )}
                 </div>
 
-                {currentFeeling && insight && !isGenerating && (
-                    <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-xs border border-gray-100 dark:border-gray-700 rounded-2xl p-6 shadow-lg mb-6 transition-all animate-fade-in">
-                        <div className="flex items-start gap-4 mb-6">
-                            <div className={`w-12 h-12 rounded-xl bg-gradient-to-br flex items-center justify-center flex-shrink-0 shadow-md ${currentFeeling === 'good' ? 'from-orange-500 to-red-600' : currentFeeling === 'bad' ? 'from-green-500 to-blue-600' : 'from-indigo-500 to-purple-600'}`}>
-                                <SparklesIcon className="w-6 h-6 text-white" />
-                            </div>
-                            <div>
-                                <h3 className="font-black text-lg text-gray-900 dark:text-white mb-1 uppercase tracking-tight leading-[1.2] pt-[0.1em]">Dagens Fokus</h3>
-                                <p className="text-sm text-gray-600 dark:text-gray-300 leading-relaxed font-medium italic">"{displayStrategy}"</p>
-                            </div>
-                        </div>
-                        
-                        <div className="space-y-4">
-                            {insight?.suggestions && Object.keys(insight.suggestions).length > 0 && (
-                                <div className={`p-4 rounded-xl border ${currentFeeling === 'good' ? 'bg-orange-50 dark:bg-orange-900/10 border-orange-200 dark:border-orange-800/30' : 'bg-gray-50 dark:bg-gray-900/30 border-gray-100 dark:border-gray-700'}`}>
-                                    <h4 className={`text-xs font-black uppercase tracking-wider mb-3 flex items-center gap-2 leading-[1.2] pt-[0.1em] ${currentFeeling === 'good' ? 'text-orange-600 dark:text-orange-400' : 'text-gray-400 dark:text-gray-500'}`}>
-                                        {currentFeeling === 'good' && <FireIcon className="w-4 h-4" />}
-                                        Smart Load (Dina resultatmål)
-                                    </h4>
-                                    <div className="space-y-2">
-                                        {Object.entries(insight.suggestions).slice(0, 3).map(([exercise, suggestion]) => (
-                                            <div key={exercise} className="flex justify-between items-center bg-white dark:bg-black/20 p-2.5 rounded-lg border border-gray-100 dark:border-white/5">
-                                                <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">{exercise}</span>
-                                                <span className={`text-sm font-black tabular-nums ${currentFeeling === 'good' ? 'text-orange-600 dark:text-orange-400' : 'text-primary'}`}>{String(suggestion)}</span>
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
-                            )}
-                            
-                            {insight?.scaling && Object.keys(insight.scaling).length > 0 && (
-                                <div className="mt-4">
-                                    <h4 className="text-xs font-black text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-2 flex items-center gap-1 leading-[1.2] pt-[0.1em]">
-                                        <LightningIcon className="w-3 h-3" /> Alternativ / Skalning
-                                    </h4>
-                                    <div className="space-y-2">
-                                        {Object.entries(insight.scaling).map(([exercise, alternative]) => (
-                                            <div key={exercise} className="bg-white/50 dark:bg-white/5 p-3 rounded-xl border border-gray-100 dark:border-white/5">
-                                                <div className="text-xs text-gray-500 line-through mb-0.5">{exercise}</div>
-                                                <div className="text-sm font-bold text-gray-900 dark:text-white">👉 {String(alternative)}</div>
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
-                            )}
-                        </div>
-                    </div>
-                )}
+                <p className="text-center text-xs text-gray-400 dark:text-gray-500 mb-6 font-medium">
+                    Vid smärta eller skada — prata med din coach.
+                </p>
 
                 {/* --- START BUTTON IN SCROLL FLOW --- */}
-                <div className="mt-8 pb-12">
+                <div className="pb-12">
                     <button onClick={onStart} className="w-full min-h-[52px] bg-primary hover:brightness-110 text-white font-black text-lg py-4 rounded-xl shadow-lg shadow-primary/20 transition-all transform active:scale-95 flex items-center justify-center gap-2 focus:ring-2 focus:ring-primary uppercase tracking-tight">
                         <span className="leading-[1.2] pt-[0.1em]">Starta passet</span>
                         <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
@@ -548,14 +571,18 @@ export const ExerciseLogCard: React.FC<{
   result: LocalExerciseResult;
   onUpdate: (updates: Partial<LocalExerciseResult>) => void;
   onRemove?: () => void;
-  aiSuggestion?: string; // Koncept 1: Coach Whisper
-  scaling?: string;      // Koncept 1: Alternativ
   lastPerformance?: LastPerformanceRecord | null;
   personalBest?: PersonalBest | null;
   isLastInGroup?: boolean;
   onAddGroupSet?: () => void;
-  onOpenCalculator?: (context: { exerciseName: string, current1RM?: number }) => void;
-}> = ({ name, result, onUpdate, onRemove, aiSuggestion, scaling, lastPerformance, personalBest, isLastInGroup, onAddGroupSet, onOpenCalculator }) => {
+  userId?: string;
+  onOpenCalculator?: (context: { 
+      exerciseName: string, 
+      current1RM?: number, 
+      activeTargetPct?: number | null, 
+      onSelectTargetPct?: (pct: number | null) => void 
+  }) => void;
+}> = ({ name, result, onUpdate, onRemove, lastPerformance, personalBest, isLastInGroup, onAddGroupSet, userId, onOpenCalculator }) => {
     
     const trackingFields = result.trackingFields || ['reps', 'weight'];
     const showReps = trackingFields.includes('reps');
@@ -601,12 +628,50 @@ export const ExerciseLogCard: React.FC<{
         onUpdate({ setDetails: result.setDetails.filter((_, i) => i !== index) });
     };
 
-    const [showTip, setShowTip] = useState(true);
-    const [showScaling, setShowScaling] = useState(false);
     const [isEditingFields, setIsEditingFields] = useState(false);
     const [showMoreFields, setShowMoreFields] = useState(false);
     const [isNoteActive, setIsNoteActive] = useState(true);
     const [isNoteExpanded, setIsNoteExpanded] = useState(false);
+
+    // Calculate/Get current 1RM for this exercise
+    const current1RM = useMemo(() => {
+        if (personalBest) {
+            if (personalBest.calculated1RM !== undefined && personalBest.calculated1RM > 0) {
+                return Math.round(personalBest.calculated1RM);
+            } else if (personalBest.weight > 0) {
+                return calculate1RM(personalBest.weight, personalBest.reps || 1) || undefined;
+            }
+        } else if (lastPerformance) {
+            const lastWeight = parseFloat(lastPerformance.weight as any) || 0;
+            const lastReps = parseFloat(lastPerformance.reps as any) || 0;
+            if (lastWeight > 0 && lastReps > 0 && lastReps <= 10) {
+                return calculate1RM(lastWeight, lastReps) || undefined;
+            }
+        }
+        return undefined;
+    }, [personalBest, lastPerformance]);
+
+    // Local state for target percentage (persisted per member & exercise)
+    const storageKey = `target_pct_${userId || 'user'}_${name.toLowerCase().trim()}`;
+    const [targetPct, setTargetPct] = useState<number | null>(() => {
+        try {
+            const saved = localStorage.getItem(storageKey);
+            return saved ? parseInt(saved, 10) : null;
+        } catch {
+            return null;
+        }
+    });
+
+    const handleSetTargetPct = useCallback((pct: number | null) => {
+        setTargetPct(pct);
+        try {
+            if (pct === null) {
+                localStorage.removeItem(storageKey);
+            } else {
+                localStorage.setItem(storageKey, pct.toString());
+            }
+        } catch {}
+    }, [storageKey]);
 
     const ALL_TRACKING_FIELDS = [
         { id: 'reps', label: 'Reps' },
@@ -635,45 +700,56 @@ export const ExerciseLogCard: React.FC<{
                 <div className="flex justify-between items-center">
                     <div className="flex-1 min-w-0">
                         <h4 className="font-black text-gray-900 dark:text-white text-xl truncate leading-[1.2] pt-[0.1em]">{name}</h4>
-                        {(() => {
-                            const formatted = formatLastPerformance(lastPerformance);
-                            if (formatted) {
+                        <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
+                            {(() => {
+                                const formatted = formatLastPerformance(lastPerformance);
+                                if (formatted) {
+                                    return (
+                                        <div className="inline-flex items-center gap-1.5 bg-gray-100/80 dark:bg-gray-800/80 border border-gray-200/60 dark:border-gray-700/60 px-2.5 py-1 rounded-lg text-xs font-medium text-gray-500 dark:text-gray-400">
+                                            <span className="text-[10px] font-black uppercase tracking-wider text-gray-400 dark:text-gray-500 leading-[1.2] pt-[0.1em]">Senast:</span>
+                                            <span className="text-gray-900 dark:text-white font-black tabular-nums">
+                                                {formatted}
+                                            </span>
+                                        </div>
+                                    );
+                                }
                                 return (
-                                    <div className="inline-flex items-center gap-1.5 bg-gray-100/80 dark:bg-gray-800/80 border border-gray-200/60 dark:border-gray-700/60 px-2.5 py-1 rounded-lg mt-1.5 text-xs font-medium text-gray-500 dark:text-gray-400">
-                                        <span className="text-[10px] font-black uppercase tracking-wider text-gray-400 dark:text-gray-500 leading-[1.2] pt-[0.1em]">Senast:</span>
-                                        <span className="text-gray-900 dark:text-white font-black tabular-nums">
-                                            {formatted}
-                                        </span>
+                                    <p className="text-[11px] text-gray-400 dark:text-gray-500 uppercase font-black tracking-wider leading-[1.2] pt-[0.1em]">
+                                       Ingen historik
+                                    </p>
+                                );
+                            })()}
+
+                            {/* 1RM Badge (Current 1RM integer) */}
+                            {current1RM ? (
+                                <div className="inline-flex items-center gap-1 bg-amber-500/10 dark:bg-amber-400/10 text-amber-700 dark:text-amber-300 border border-amber-500/20 px-2.5 py-1 rounded-lg text-xs font-black tracking-wide font-mono tabular-nums">
+                                    <span>1RM: {current1RM} kg</span>
+                                </div>
+                            ) : null}
+
+                            {/* Target Weight Badge */}
+                            {targetPct && current1RM ? (() => {
+                                const targetWeight = Math.round(current1RM * (targetPct / 100) * 2) / 2;
+                                const formattedTargetWeight = targetWeight.toString().replace('.', ',');
+                                return (
+                                    <div className="inline-flex items-center gap-1 bg-primary/10 dark:bg-primary/20 text-primary border border-primary/30 px-2.5 py-1 rounded-lg text-xs font-black tracking-wide font-mono tabular-nums">
+                                        <span>MÅL: {formattedTargetWeight} kg ({targetPct} % av 1RM)</span>
                                     </div>
                                 );
-                            }
-                            return (
-                                <p className="text-[11px] text-gray-400 dark:text-gray-500 uppercase font-black tracking-wider mt-1.5 leading-[1.2] pt-[0.1em]">
-                                   Ingen historik
-                                </p>
-                            );
-                        })()}
+                            })() : null}
+                        </div>
                     </div>
                     {/* Gear / Edit / Delete buttons */}
                     <div className="flex items-center gap-2">
                         {onOpenCalculator && (
                             <button 
                                 onClick={() => {
-                                    let estimatedOneRM: number | undefined = undefined;
-                                    if (personalBest) {
-                                        if (personalBest.calculated1RM !== undefined) {
-                                            estimatedOneRM = personalBest.calculated1RM > 0 ? personalBest.calculated1RM : undefined;
-                                        } else if (personalBest.weight > 0) {
-                                            estimatedOneRM = calculate1RM(personalBest.weight, personalBest.reps || 1) || undefined;
-                                        }
-                                    } else if (lastPerformance) {
-                                        const lastWeight = parseFloat(lastPerformance.weight as any) || 0;
-                                        const lastReps = parseFloat(lastPerformance.reps as any) || 0;
-                                        if (lastWeight > 0 && lastReps > 0 && lastReps <= 10) {
-                                            estimatedOneRM = calculate1RM(lastWeight, lastReps) || undefined;
-                                        }
-                                    }
-                                    onOpenCalculator({ exerciseName: name, current1RM: estimatedOneRM });
+                                    onOpenCalculator({ 
+                                        exerciseName: name, 
+                                        current1RM: current1RM,
+                                        activeTargetPct: targetPct,
+                                        onSelectTargetPct: handleSetTargetPct
+                                    });
                                 }}
                                 className="p-3 rounded-2xl transition-all active:scale-90 bg-gray-50 dark:bg-gray-800 text-primary hover:bg-primary/20 dark:hover:bg-primary/20 shadow-sm"
                             >
@@ -768,66 +844,6 @@ export const ExerciseLogCard: React.FC<{
                         ))}
                     </div>
                 )}
-
-                {/* Koncept 1: Coach Whisper & Scaling */}
-                {(aiSuggestion || scaling) && (
-                    <div className="flex flex-col gap-2">
-                        {scaling && (
-                            <div className="relative">
-                                <button 
-                                    onClick={() => setShowScaling(!showScaling)}
-                                    className="flex items-center gap-2 text-yellow-700 dark:text-yellow-400 text-xs font-bold bg-yellow-50/70 dark:bg-yellow-950/20 px-3 py-1.5 rounded-lg hover:bg-yellow-100 dark:hover:bg-yellow-900/40 transition-colors w-full sm:w-auto"
-                                >
-                                    <LightningIcon className="w-3.5 h-3.5" />
-                                    <span>{showScaling ? 'Dölj alternativ' : 'Visa alternativ'}</span>
-                                </button>
-                                <AnimatePresence>
-                                    {showScaling && (
-                                        <motion.div 
-                                            initial={{ opacity: 0, height: 0 }}
-                                            animate={{ opacity: 1, height: 'auto' }}
-                                            exit={{ opacity: 0, height: 0 }}
-                                            className="overflow-hidden"
-                                        >
-                                            <div className="mt-2 flex items-center gap-2 bg-yellow-50 dark:bg-yellow-900/20 px-3 py-2 rounded-lg border border-yellow-100 dark:border-yellow-800/30">
-                                                <LightningIcon className="w-4 h-4 text-yellow-600 dark:text-yellow-400 flex-shrink-0" />
-                                                <p className="text-xs text-yellow-800 dark:text-yellow-200 font-medium leading-tight">
-                                                    <span className="font-bold">Alternativ:</span> {scaling}
-                                                </p>
-                                            </div>
-                                        </motion.div>
-                                    )}
-                                </AnimatePresence>
-                            </div>
-                        )}
-                        
-                        {aiSuggestion && (
-                            <div className="relative">
-                                <button 
-                                    onClick={() => setShowTip(!showTip)}
-                                    className="flex items-center gap-2 text-indigo-600 dark:text-indigo-400 text-xs font-bold bg-indigo-50 dark:bg-indigo-900/20 px-3 py-1.5 rounded-lg hover:bg-indigo-100 dark:hover:bg-indigo-900/40 transition-colors w-full sm:w-auto"
-                                >
-                                    <SparklesIcon className="w-3.5 h-3.5" />
-                                    <span>{showTip ? 'Dölj coachtips' : 'Visa coachtips'}</span>
-                                </button>
-                                <AnimatePresence>
-                                    {showTip && (
-                                        <motion.div 
-                                            initial={{ opacity: 0, height: 0 }}
-                                            animate={{ opacity: 1, height: 'auto' }}
-                                            exit={{ opacity: 0, height: 0 }}
-                                            className="overflow-hidden"
-                                        >
-                                            <div className="mt-2 bg-white dark:bg-black/20 p-3 rounded-lg border border-indigo-100 dark:border-indigo-800/30 text-xs text-gray-700 dark:text-gray-300 italic shadow-sm">
-                                                "{aiSuggestion}"
-                                            </div>
-                                        </motion.div>
-                                    )}
-                                </AnimatePresence>
-                            </div>
-                        )}
-                    </div>
-                )}
             </div>
 
             <div className="space-y-4">
@@ -844,7 +860,6 @@ export const ExerciseLogCard: React.FC<{
                     </div>
 
                     {result.setDetails.map((set, index) => {
-                        const oneRm = (showWeight && showReps) ? calculate1RM(set.weight, set.reps) : null;
                         return (
                             <div key={index} className={`grid ${gridColsClass} gap-2 items-center transition-all ${set.completed ? 'opacity-50' : 'opacity-100'}`}>
                                 <div className="flex justify-center items-center">
@@ -862,16 +877,6 @@ export const ExerciseLogCard: React.FC<{
                                         <div className="bg-gray-50 dark:bg-gray-800 rounded-xl p-3.5 border border-gray-100 dark:border-gray-700 shadow-inner">
                                             <input type="number" value={set.weight} onChange={(e) => handleSetChange(index, 'weight', e.target.value)} placeholder="0" className="w-full bg-transparent text-gray-900 dark:text-white font-black text-xl focus:outline-none text-center" disabled={set.completed} />
                                         </div>
-                                        {oneRm && !set.completed && (
-                                            <motion.div 
-                                                initial={{ scale: 0.8, opacity: 0, y: 5 }}
-                                                animate={{ scale: 1, opacity: 1, y: 0 }}
-                                                exit={{ scale: 0.8, opacity: 0 }}
-                                                className="absolute -top-9 left-1/2 -translate-x-1/2 bg-gray-900 text-white text-xs font-black px-3 py-1.5 rounded-xl shadow-xl border border-gray-700 whitespace-nowrap z-20 pointer-events-none"
-                                            >
-                                                🔥 1RM: <span className="text-yellow-400">{oneRm}</span>
-                                            </motion.div>
-                                        )}
                                     </div>
                                 )}
 
@@ -1234,7 +1239,13 @@ const cleanForFirestore = (obj: any): any => {
 const OneRMCalculatorModal: React.FC<{
     isOpen: boolean;
     onClose: () => void;
-    context: { exerciseName?: string, current1RM?: number, onSelectWeight?: (w: number) => void } | null;
+    context: { 
+        exerciseName?: string; 
+        current1RM?: number; 
+        activeTargetPct?: number | null;
+        onSelectTargetPct?: (pct: number | null) => void;
+        onSelectWeight?: (w: number) => void; 
+    } | null;
 }> = ({ isOpen, onClose, context }) => {
     const [calcWeight, setCalcWeight] = useState<string>('');
     const [calcReps, setCalcReps] = useState<string>('');
@@ -1287,31 +1298,66 @@ const OneRMCalculatorModal: React.FC<{
 
                 {calculated1RM && (
                     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 ml-1 text-center">Procent av 1RM</p>
+                        <div className="flex items-center justify-between mb-2 px-1">
+                            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
+                                {context?.onSelectTargetPct ? "Välj arbets-procent (% av 1RM)" : "Procent av 1RM"}
+                            </p>
+                            {context?.activeTargetPct ? (
+                                <span className="text-[10px] font-black text-primary uppercase">
+                                    Aktivt: {context.activeTargetPct}%
+                                </span>
+                            ) : null}
+                        </div>
                         <div className="grid grid-cols-2 gap-2">
                             {percentages.map(p => {
                                 const weight = Math.round((calculated1RM as number) * (p / 100) * 2) / 2;
+                                const formattedWeight = weight.toString().replace('.', ',');
+                                const isActive = context?.activeTargetPct === p;
+                                const isClickable = !!(context?.onSelectTargetPct || context?.onSelectWeight);
                                 return (
                                     <button 
                                         key={p} 
                                         onClick={() => {
-                                            if (context?.onSelectWeight) {
+                                            if (context?.onSelectTargetPct) {
+                                                context.onSelectTargetPct(p);
+                                                onClose();
+                                            } else if (context?.onSelectWeight) {
                                                 context.onSelectWeight(weight);
                                                 onClose();
                                             }
                                         }}
-                                        disabled={!context?.onSelectWeight}
-                                        className={`p-3 rounded-xl flex justify-between items-center transition-all ${context?.onSelectWeight ? 'bg-primary/5 border border-primary/20 hover:bg-primary/10 active:scale-[0.98]' : 'bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 shadow-sm'}`}
+                                        disabled={!isClickable}
+                                        className={`p-3 rounded-xl flex justify-between items-center transition-all ${
+                                            isActive
+                                                ? 'bg-primary text-white shadow-md ring-2 ring-primary ring-offset-2 dark:ring-offset-gray-900'
+                                                : isClickable
+                                                    ? 'bg-primary/5 border border-primary/20 hover:bg-primary/10 active:scale-[0.98]'
+                                                    : 'bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 shadow-sm'
+                                        }`}
                                     >
                                         <div className="flex items-center justify-between w-full">
-                                            <span className={`text-sm font-black ${context?.onSelectWeight ? 'text-primary' : 'text-gray-400'}`}>{p}%</span>
-                                            <span className="text-lg font-black text-gray-900 dark:text-white">{weight} <span className="text-xs opacity-50">kg</span></span>
+                                            <span className={`text-sm font-black ${isActive ? 'text-white' : isClickable ? 'text-primary' : 'text-gray-400'}`}>{p}%</span>
+                                            <span className={`text-lg font-black ${isActive ? 'text-white' : 'text-gray-900 dark:text-white'}`}>{formattedWeight} <span className="text-xs opacity-70">kg</span></span>
                                         </div>
                                     </button>
                                 );
                             })}
                         </div>
                     </motion.div>
+                )}
+
+                {context?.activeTargetPct && context?.onSelectTargetPct && (
+                    <div>
+                        <button 
+                            onClick={() => {
+                                context.onSelectTargetPct?.(null);
+                                onClose();
+                            }}
+                            className="w-full py-3 rounded-xl bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 font-bold hover:bg-red-100 dark:hover:bg-red-900/40 transition text-sm"
+                        >
+                            Ta bort mål ({context.activeTargetPct} %)
+                        </button>
+                    </div>
                 )}
                 
                 <div className="pt-2">
@@ -1401,7 +1447,6 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
   const [logDate, setLogDate] = useState(getLocalDateString(new Date()));
   const [allLogs, setAllLogs] = useState<WorkoutLog[]>([]);
   const [viewMode, setViewMode] = useState<'pre-game' | 'logging'>(isManualMode ? 'logging' : 'pre-game');
-  const [dailyFeeling, setDailyFeeling] = useState<'good' | 'neutral' | 'bad' | null>(null);
   const [customActivity, setCustomActivity] = useState({ name: '', duration: '', distance: '', calories: '' });
   const [sessionStats, setSessionStats] = useState({ distance: '', calories: '', time: '', rounds: '' });
   const [activeSummaryFields, setActiveSummaryFields] = useState<string[]>([]);
@@ -1442,8 +1487,6 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
       }
   }, [userId]);
 
-  const [aiInsight, setAiInsight] = useState<InsightContent | null>(null);
-  const [isGeneratingInsight, setIsGeneratingInsight] = useState(false);
   const [exerciseBank, setExerciseBank] = useState<BankExercise[]>(MOCK_EXERCISE_BANK);
   
   const [showCalculator, setShowCalculator] = useState(false);
@@ -1568,7 +1611,11 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
         wakeLockRef.current = await (navigator as any).wakeLock.request('screen');
       }
     } catch (err: any) {
-      console.error(`Wake Lock error: ${err.name}, ${err.message}`);
+      if (err?.name === 'NotAllowedError' || err?.name === 'SecurityError') {
+        console.warn(`Wake Lock not allowed: ${err.name}, ${err.message}`);
+      } else {
+        console.warn(`Wake Lock error: ${err?.name}, ${err?.message}`);
+      }
     }
   };
 
@@ -1612,10 +1659,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
 
     const init = async () => {
         // Reset state for new workout
-        setAiInsight(null);
-        setIsGeneratingInsight(false);
         setViewMode(isManualMode ? 'logging' : 'pre-game');
-        setDailyFeeling(null);
         setLogStep('exercises');
         
         try {
@@ -1847,31 +1891,6 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
     
     init();
 }, [wId, finalOrgId, userId, isManualMode]);
-
-  const handleFeelingChange = async (feeling: 'good' | 'neutral' | 'bad') => {
-      setDailyFeeling(feeling);
-      setIsGeneratingInsight(true);
-      
-      try {
-          const exercises = workout?.blocks.flatMap(b => b.exercises) || [];
-          const exerciseNames = exercises.map(e => e.exerciseName || e.name || '');
-          const logs = await getMemberLogs(userId!);
-          
-          const insight = await generateSingleMemberInsight(
-              logs, 
-              workout?.title || 'Träningspass', 
-              exerciseNames, 
-              feeling, 
-              workout?.aiProgressionPrompt, 
-              history
-          );
-          setAiInsight(insight);
-      } catch (error) {
-          console.error("AI Insight Error", error);
-      } finally {
-          setIsGeneratingInsight(false);
-      }
-  };
 
   // --- AUTO-SAVE LOGIC ---
   useEffect(() => {
@@ -2327,19 +2346,16 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
       return (
           <PreGameView 
               workoutTitle={workout?.title || 'Träningspass'}
-              insight={aiInsight}
-              isGenerating={isGeneratingInsight}
+              exercises={exerciseResults.map(e => ({ id: e.exerciseId, name: e.exerciseName, exerciseName: e.exerciseName }))}
+              aiProgressionPrompt={workout?.aiProgressionPrompt}
+              history={history}
+              personalBests={personalBests}
+              userId={userId}
               onStart={handleStartWorkout}
               onCancel={() => handleCancel(false)}
-              onFeelingChange={handleFeelingChange}
-              currentFeeling={dailyFeeling}
           />
       );
   }
-
-  // --- KONCEPT 2: MISSION BANNER (Sticky Header) ---
-  const activeInsight = aiInsight || undefined;
-  const missionTitle = dailyFeeling === 'good' ? 'Attack Mode' : dailyFeeling === 'bad' ? 'Rehab Mode' : 'Maintenance Mode';
 
   return (
     <div className="bg-gray-5 dark:bg-black text-gray-900 dark:text-white flex flex-col relative h-full">
@@ -2466,14 +2482,6 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
                               />
                           </div>
                       </div>
-
-                      {/* MISSION BANNER (KONCEPT 2) */}
-                      {!isManualMode && activeInsight && dailyFeeling && (
-                          <MissionHeader 
-                              strategy={activeInsight.strategy || activeInsight.readiness.message} 
-                              feeling={dailyFeeling} 
-                          />
-                      )}
                       
                       {isManualMode && (
                           <CustomActivityForm 
@@ -2526,10 +2534,9 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
                                                 key={result.exerciseId}
                                                 name={result.exerciseName}
                                                 result={result}
+                                                userId={currentUser?.uid}
                                                 onUpdate={(updates) => handleUpdateResult(index, updates)}
                                                 onRemove={() => setExerciseResults(prev => prev.filter((_, i) => i !== index))}
-                                                aiSuggestion={activeInsight?.suggestions?.[result.exerciseName]} 
-                                                scaling={activeInsight?.scaling?.[result.exerciseName]} 
                                                 lastPerformance={history[result.exerciseName]} 
                                                 personalBest={personalBests[result.exerciseName.toLowerCase().trim()]}
                                                 isLastInGroup={isLastInGroup}
@@ -2775,8 +2782,6 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
                                                                                                     name={result.exerciseName}
                                                                                                     result={result}
                                                                                                     onUpdate={(updates) => handleUpdateResult(originalIndex, updates)}
-                                                                                                    aiSuggestion={activeInsight?.suggestions?.[result.exerciseName]} 
-                                                                                                    scaling={activeInsight?.scaling?.[result.exerciseName]} 
                                                                                                     lastPerformance={history[result.exerciseName]} 
                                                                                                     personalBest={personalBests[result.exerciseName.toLowerCase().trim()]}
                                                                                                     isLastInGroup={isLastInGroup}
@@ -2821,8 +2826,6 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
                                                                             name={result.exerciseName}
                                                                             result={result}
                                                                             onUpdate={(updates) => handleUpdateResult(originalIndex, updates)}
-                                                                            aiSuggestion={activeInsight?.suggestions?.[result.exerciseName]} 
-                                                                            scaling={activeInsight?.scaling?.[result.exerciseName]} 
                                                                             lastPerformance={history[result.exerciseName]} 
                                                                             personalBest={personalBests[result.exerciseName.toLowerCase().trim()]}
                                                                             isLastInGroup={false}

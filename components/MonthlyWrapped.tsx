@@ -550,7 +550,7 @@ export const MonthlyWrappedModal: React.FC<MonthlyWrappedProps> = ({
 
                                         <div className="p-4 bg-white/5 border border-white/10 rounded-2xl">
                                             <div className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">
-                                                Aktivitetssvit
+                                                Längsta dagssvit
                                             </div>
                                             <div className="text-xl font-black text-white leading-[1.2] pt-[0.1em] tabular-nums">
                                                 {stats.streakDays > 1 ? `${stats.streakDays} dagar i rad 🔥` : `1 aktiv månad 💪`}

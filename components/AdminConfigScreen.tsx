@@ -8,7 +8,7 @@ import { CategoryPromptManager } from './CategoryPromptManager';
 import { Toast } from './ui/ToastNotification';
 
 // Define a type for keys that have boolean values in StudioConfig
-type BooleanStudioConfigKeys = 'checkInImageEnabled' | 'enableNotes' | 'enableScreensaver' | 'enableExerciseBank' | 'enableHyrox' | 'enableWorkoutLogging';
+type BooleanStudioConfigKeys = 'checkInImageEnabled' | 'enableNotes' | 'enableScreensaver' | 'enableExerciseBank' | 'enableHyrox' | 'enableWorkoutLogging' | 'enableFitnessBenchmarks';
 type ConfigTab = 'modules' | 'categories' | 'checkin';
 
 // ... (ImageUploader component remains unchanged) ...
@@ -206,17 +206,6 @@ export const StudioConfigModal: React.FC<StudioConfigModalProps> = ({ isOpen, on
         }
         setOverrides(prev => ({ ...prev, [key]: value }));
     };
-    
-    // ... (handleAiConfigChange and resetFieldToGlobal) ...
-    const handleAiConfigChange = (field: 'instructions' | 'tone', value: string) => {
-        setOverrides(prev => ({
-            ...prev,
-            aiSettings: {
-                ...(prev.aiSettings || effectiveConfig.aiSettings || {}),
-                [field]: value
-            }
-        }));
-    };
 
     const resetFieldToGlobal = <K extends keyof StudioConfig>(key: K) => {
         setOverrides(prev => {
@@ -296,39 +285,9 @@ export const StudioConfigModal: React.FC<StudioConfigModalProps> = ({ isOpen, on
                     <div className="space-y-4 animate-fade-in">
                         <h3 className="font-semibold text-gray-900 dark:text-white mb-2 px-2">Funktioner</h3>
                         {renderToggle('enableWorkoutLogging', "Aktivera Passloggning", "Låt medlemmar logga sina resultat via QR-kod.", () => setShowPricingModal(true))}
-                        
-                        {effectiveConfig.enableWorkoutLogging && (
-                            <div className="ml-14 mr-4 mb-6 p-4 bg-gray-50 dark:bg-gray-800/50 rounded-lg border-l-4 border-primary animate-fade-in">
-                                <h4 className="font-bold text-sm text-gray-900 dark:text-white mb-3">🤖 AI-Coach Inställningar</h4>
-                                <div className="space-y-4">
-                                    <div>
-                                        <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Tonläge</label>
-                                        <select 
-                                            value={effectiveConfig.aiSettings?.tone || 'neutral'}
-                                            onChange={(e) => handleAiConfigChange('tone', e.target.value)}
-                                            className="w-full p-2 text-sm rounded bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 focus:ring-2 focus:ring-primary outline-none"
-                                        >
-                                            <option value="neutral">Neutral & Professionell</option>
-                                            <option value="enthusiastic">Peppande & Entusiastisk</option>
-                                            <option value="strict">Sträng & Militärisk</option>
-                                            <option value="sales">Säljande & Serviceinriktad</option>
-                                        </select>
-                                    </div>
-                                    <div>
-                                        <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Systeminstruktioner</label>
-                                        <textarea 
-                                            rows={3}
-                                            value={effectiveConfig.aiSettings?.instructions || ''}
-                                            onChange={(e) => handleAiConfigChange('instructions', e.target.value)}
-                                            placeholder="T.ex: Påminn alltid om att boka PT om resultaten planar ut..."
-                                            className="w-full p-2 text-sm rounded bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 focus:ring-2 focus:ring-primary outline-none resize-none"
-                                        />
-                                    </div>
-                                </div>
-                            </div>
-                        )}
                         {renderToggle('enableNotes', "Aktivera AI Whiteboard", "Digital whiteboard för att skissa upp pass och spara anteckningar.")}
                         {renderToggle('enableExerciseBank', "Aktivera Övningsbank", "Tillgång till globala övningar.")}
+                        {renderToggle('enableFitnessBenchmarks', "Styrka & Kondition (jämförelser)", "Aktiverar jämförelser för styrka och kondition för medlemmar.")}
                         {organization.globalConfig?.enableEventsModule && renderToggle('enableHyrox', "Visa Event & Tävlingar", "Visa planerade event/tävlingar och tillhörande tidtagning i studiovyn.")}
                     </div>
                 );

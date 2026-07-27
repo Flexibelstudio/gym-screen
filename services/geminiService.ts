@@ -13,22 +13,6 @@ const PRO_MODEL = 'gemini-3-pro-preview';
 
 // TYPER
 
-export interface InsightContent {
-    readiness: {
-        status: 'high' | 'moderate' | 'low';
-        message: string;
-    };
-    strategy: string;
-    suggestions: Record<string, string>;
-    scaling: Record<string, string>;
-}
-
-export interface MemberInsightResponse {
-    good: InsightContent;
-    neutral: InsightContent;
-    bad: InsightContent;
-}
-
 export interface MemberProgressAnalysis {
     strengths: string;
     improvements: string;
@@ -38,13 +22,6 @@ export interface MemberProgressAnalysis {
         endurance: number;
         frequency: number;
     };
-}
-
-export interface ExerciseDagsformAdvice {
-    suggestion: string;        // "45 kg"
-    suggestedWeight: number;   // 45
-    reasoning: string;         // "Baserat på din pigga dagsform..."
-    history: any[];
 }
 
 // --- KLIENTER & PROXYS ---
@@ -159,54 +136,6 @@ const workoutSchema = {
                 }
             }
         }
-    }
-};
-
-const singleInsightSchema = {
-    type: Type.OBJECT,
-    required: ['readiness', 'strategy', 'suggestions', 'scaling'],
-    properties: {
-        readiness: {
-            type: Type.OBJECT,
-            required: ['status', 'message'],
-            properties: {
-                status: { type: Type.STRING }, 
-                message: { type: Type.STRING }
-            }
-        },
-        strategy: { type: Type.STRING },
-        suggestions: {
-            type: Type.ARRAY,
-            items: {
-                type: Type.OBJECT,
-                required: ['exerciseName', 'advice'],
-                properties: {
-                    exerciseName: { type: Type.STRING },
-                    advice: { type: Type.STRING }
-                }
-            }
-        },
-        scaling: {
-            type: Type.ARRAY,
-            items: {
-                type: Type.OBJECT,
-                required: ['exerciseName', 'advice'],
-                properties: {
-                    exerciseName: { type: Type.STRING },
-                    advice: { type: Type.STRING }
-                }
-            }
-        }
-    }
-};
-
-const fullMemberInsightSchema = {
-    type: Type.OBJECT,
-    required: ['good', 'neutral', 'bad'],
-    properties: {
-        good: singleInsightSchema,
-        neutral: singleInsightSchema,
-        bad: singleInsightSchema
     }
 };
 
@@ -555,7 +484,7 @@ export async function parseWorkoutFromImage(base64Image: string, additionalText?
     const strictJSONTemplate = `
     VIKTIGT: Du MÅSTE svara med ett giltigt JSON-objekt exakt enligt denna struktur. Returnera INGENTING annat än JSON. Inga förklaringar.
     {
-      "title": "Passets namn",
+      "title": "En säljande, fängslande och beskrivande passtitel på svenska baserad på innehållet (t.ex. 'Puls & Power Explosion' — ALDRIG datum i titeln!)",
       "coachTips": "Ett peppande tips från coachen",
       "aiCoachSummary": "Kort sammanfattning av passet",
       "blocks": [
@@ -739,81 +668,6 @@ export async function interpretHandwriting(base64Image: string): Promise<string>
 }
 
 // --- INSIGHT & DATA HANDLERS ---
-
-const transformInsightContent = (data: any): InsightContent => {
-    const suggestions: Record<string, string> = {};
-    if (Array.isArray(data.suggestions)) {
-        data.suggestions.forEach((s: any) => suggestions[s.exerciseName] = s.advice);
-    }
-    const scaling: Record<string, string> = {};
-    if (Array.isArray(data.scaling)) {
-        data.scaling.forEach((s: any) => scaling[s.exerciseName] = s.advice);
-    }
-    return { ...data, suggestions, scaling };
-}
-
-export async function generateSingleMemberInsight(
-    logs: WorkoutLog[], 
-    title: string, 
-    exercises: string[],
-    feeling: 'good' | 'neutral' | 'bad',
-    aiProgressionPrompt?: string,
-    specificHistory?: Record<string, { weight: number, reps: string }>
-): Promise<InsightContent> {
-    const logStr = JSON.stringify(logs.slice(0, 5));
-    const specificHistoryStr = specificHistory && Object.keys(specificHistory).length > 0 ? JSON.stringify(specificHistory) : undefined;
-    
-    const data = await _callGeminiJSON<any>(
-        TEXT_MODEL, 
-        Prompts.SINGLE_MEMBER_INSIGHT_PROMPT(title, exercises, logStr, feeling, specificHistoryStr, aiProgressionPrompt), 
-        singleInsightSchema
-    );
-    
-    return transformInsightContent(data);
-}
-
-export async function generateMemberInsights(
-    logs: WorkoutLog[], 
-    title: string, 
-    exercises: string[],
-    aiProgressionPrompt?: string,
-    specificHistory?: Record<string, { weight: number, reps: string }>
-): Promise<MemberInsightResponse> {
-    const logStr = JSON.stringify(logs.slice(0, 5));
-    const specificHistoryStr = specificHistory && Object.keys(specificHistory).length > 0 ? JSON.stringify(specificHistory) : undefined;
-    const data = await _callGeminiJSON<any>(
-        TEXT_MODEL, 
-        Prompts.MEMBER_INSIGHTS_PROMPT(title, exercises, logStr, specificHistoryStr, aiProgressionPrompt), 
-        fullMemberInsightSchema
-    );
-    
-    return {
-        good: transformInsightContent(data.good),
-        neutral: transformInsightContent(data.neutral),
-        bad: transformInsightContent(data.bad)
-    };
-}
-
-export async function getExerciseDagsformAdvice(exerciseName: string, feeling: string, logs: WorkoutLog[]): Promise<ExerciseDagsformAdvice> {
-    const history = logs.flatMap(log => 
-        (log.exerciseResults || [])
-            .filter(ex => ex.exerciseName.toLowerCase().includes(exerciseName.toLowerCase()))
-            .map(ex => ({ date: new Date(log.date).toLocaleDateString('sv-SE'), weight: ex.weight, reps: ex.reps }))
-    ).slice(0, 5);
-
-    const schema = {
-        type: Type.OBJECT,
-        required: ['suggestion', 'suggestedWeight', 'reasoning'],
-        properties: { 
-            suggestion: { type: Type.STRING, description: "Textrepresentation, t.ex '45 kg'" }, 
-            suggestedWeight: { type: Type.NUMBER, description: "Den numeriska vikten att fylla i" },
-            reasoning: { type: Type.STRING, description: "Varför föreslås denna vikt? Basera på dagsform och historik." } 
-        }
-    };
-
-    const data = await _callGeminiJSON<any>(TEXT_MODEL, `Ge dagsform-råd för ${exerciseName}. Känsla: ${feeling}. Historik: ${JSON.stringify(history)}. VIKTIGT: Returnera en numerisk suggestedWeight som är rimlig för progression.`, schema);
-    return { ...data, history };
-}
 
 export async function analyzeMemberProgress(logs: WorkoutLog[], name: string, goals?: MemberGoals): Promise<MemberProgressAnalysis> {
     const logStr = JSON.stringify(logs.slice(0, 15));

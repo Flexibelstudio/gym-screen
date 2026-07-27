@@ -191,6 +191,7 @@ export interface StudioConfig {
   enableEventsModule?: boolean;
   enableNotes?: boolean;
   enableWorkoutLogging?: boolean;
+  enableFitnessBenchmarks?: boolean; // NYTT: Styrka & Kondition (jämförelser)
   enableWorkoutGames?: boolean; // NYTT: Träningslekar
   enableTimer?: boolean; // NYTT: Fristående timer
   enableOtherWorkouts?: boolean; // NYTT: Övriga pass
@@ -203,6 +204,7 @@ export interface StudioConfig {
   soundProfile?: TimerSoundProfile; 
   navigationControlPosition?: 'top' | 'bottom'; // NYTT: Position för navigationsknappar
   commonActivities?: string[]; // NYTT: Vanliga aktiviteter i loggningen
+  /** @deprecated – användes av borttagen medlemschatt, läses inte längre */
   aiSettings?: {
       tone?: string;
       instructions?: string;
@@ -408,6 +410,8 @@ export interface UserData {
   age?: number;
   birthDate?: string;
   gender?: string;
+  bodyWeight?: number;
+  bodyWeightHistory?: { date: string; weight: number }[];
   goals?: MemberGoals;
   backgroundImageUrl?: string;
   backgroundOverlayOpacity?: number; // 0 to 100
@@ -427,6 +431,11 @@ export interface UserData {
   nextSummerChallengeGoal?: number;
   summerChallengeGoals?: Record<number, number>;
   createdAt?: any;
+
+  // Coach Radar stats
+  totalWorkoutsCount?: number;
+  lastWorkoutAt?: number;
+  lastPBAt?: number;
 
   migratedStats?: {
     totalWorkouts: number;

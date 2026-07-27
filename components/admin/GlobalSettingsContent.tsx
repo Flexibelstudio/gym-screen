@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { StudioConfig, Organization, ThemeOption, TimerSoundProfile } from '../../types';
-import { ToggleSwitch, SparklesIcon, InformationCircleIcon, SpeakerphoneIcon } from '../icons';
+import { ToggleSwitch, InformationCircleIcon, SpeakerphoneIcon } from '../icons';
 import { SelectField } from './AdminShared';
 import { CategoryPromptManager } from '../CategoryPromptManager';
 import { FeatureInfoModal } from './AdminModals';
@@ -24,13 +24,6 @@ export const GlobalSettingsContent: React.FC<GlobalSettingsContentProps> = ({
 }) => {
     const { userData } = useAuth();
     const [showFeatureInfo, setShowFeatureInfo] = useState(false);
-
-    const handleAiChange = (field: 'instructions' | 'tone', value: string) => {
-        handleUpdateConfigField('aiSettings', {
-            ...(config.aiSettings || {}),
-            [field]: value
-        });
-    };
 
     const handleTestSound = () => {
         const sound = config.soundProfile || 'airhorn';
@@ -91,6 +84,15 @@ export const GlobalSettingsContent: React.FC<GlobalSettingsContentProps> = ({
 
                         <div className="bg-gray-5 dark:bg-gray-900/50 p-4 rounded-xl border border-gray-100 dark:border-gray-700">
                             <ToggleSwitch 
+                                label="Styrka & Kondition (jämförelser)" 
+                                checked={!!config.enableFitnessBenchmarks} 
+                                onChange={(checked) => handleUpdateConfigField('enableFitnessBenchmarks', checked)} 
+                            />
+                            <p className="text-xs text-gray-500 mt-2 pl-2">Aktiverar jämförelser för styrka och kondition för medlemmar.</p>
+                        </div>
+
+                        <div className="bg-gray-5 dark:bg-gray-900/50 p-4 rounded-xl border border-gray-100 dark:border-gray-700">
+                            <ToggleSwitch 
                                 label="Sommarutmaning (Sommar-Sisu)" 
                                 checked={!!config.enableSummerChallenge} 
                                 onChange={(checked) => handleUpdateConfigField('enableSummerChallenge', checked)} 
@@ -137,36 +139,10 @@ export const GlobalSettingsContent: React.FC<GlobalSettingsContentProps> = ({
                         {config.enableWorkoutLogging && (
                             <div className="ml-8 p-4 bg-white dark:bg-black/20 rounded-xl border border-blue-100 dark:border-blue-900/30 animate-fade-in">
                                 <h4 className="font-bold text-sm text-gray-900 dark:text-white mb-3 flex items-center gap-2">
-                                    <SparklesIcon className="w-4 h-4 text-purple-500" />
-                                    AI-Coach & Loggning
+                                    Loggning
                                 </h4>
-                                <div className="space-y-6">
-                                    <div>
-                                        <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Systeminstruktioner</label>
-                                        <textarea 
-                                            rows={3}
-                                            value={config.aiSettings?.instructions || ''}
-                                            onChange={(e) => handleAiChange('instructions', e.target.value)}
-                                            placeholder="T.ex: Påminn alltid om att boka PT om resultaten planar ut..."
-                                            className="w-full p-2 text-sm rounded bg-gray-5 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 focus:ring-2 focus:ring-primary outline-none resize-none"
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Tonläge</label>
-                                        <select 
-                                            value={config.aiSettings?.tone || 'neutral'}
-                                            onChange={(e) => handleAiChange('tone', e.target.value)}
-                                            className="w-full p-2 text-sm rounded bg-gray-5 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 focus:ring-2 focus:ring-primary outline-none"
-                                        >
-                                            <option value="neutral">Neutral & Professionell</option>
-                                            <option value="enthusiastic">Peppande & Entusiastisk</option>
-                                            <option value="strict">Sträng & Militärisk</option>
-                                            <option value="sales">Säljande & Serviceinriktad</option>
-                                        </select>
-                                    </div>
-
-                                    <div className="pt-4 border-t border-blue-100 dark:border-blue-900/30">
-                                        <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Pass för egen loggning (Vanliga val)</label>
+                                <div>
+                                    <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Pass för egen loggning (Vanliga val)</label>
                                         <p className="text-xs text-gray-400 mb-3">Dessa aktiviteter visas som snabbval när medlemmen loggar egenträning.</p>
                                         
                                         <div className="flex flex-wrap gap-2 mb-3">
@@ -217,7 +193,6 @@ export const GlobalSettingsContent: React.FC<GlobalSettingsContentProps> = ({
                                         </div>
                                     </div>
                                 </div>
-                            </div>
                         )}
 
                         <div className="bg-gray-5 dark:bg-gray-900/50 p-4 rounded-xl border border-gray-100 dark:border-gray-700">

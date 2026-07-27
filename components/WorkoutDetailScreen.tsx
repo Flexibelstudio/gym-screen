@@ -1018,7 +1018,7 @@ const WorkoutDetailScreen: React.FC<WorkoutDetailScreenProps> = ({
     });
   };
 
-  const handleUpdateSettings = (blockId: string, newSettings: Partial<TimerSettings> & { autoAdvance?: boolean; transitionTime?: number }) => {
+  const handleUpdateSettings = (blockId: string, newSettings: Partial<TimerSettings> & { autoAdvance?: boolean; transitionTime?: number; followMe?: boolean }) => {
       setSessionWorkout(prevWorkout => {
           if (!prevWorkout) return null as any;
           
@@ -1026,10 +1026,11 @@ const WorkoutDetailScreen: React.FC<WorkoutDetailScreenProps> = ({
           
           const blockIndex = newWorkout.blocks.findIndex(b => b.id === blockId);
           if (blockIndex !== -1) {
-              const { autoAdvance, transitionTime, ...settingsUpdates } = newSettings;
+              const { autoAdvance, transitionTime, followMe, ...settingsUpdates } = newSettings;
               
               if (autoAdvance !== undefined) newWorkout.blocks[blockIndex].autoAdvance = autoAdvance;
               if (transitionTime !== undefined) newWorkout.blocks[blockIndex].transitionTime = transitionTime;
+              if (followMe !== undefined) newWorkout.blocks[blockIndex].followMe = followMe;
               
               newWorkout.blocks[blockIndex].settings = { 
                   ...newWorkout.blocks[blockIndex].settings, 

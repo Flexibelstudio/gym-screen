@@ -119,7 +119,7 @@ export const DisplayWindowScreen: React.FC<DisplayWindowScreenProps> = ({ onBack
                     wakeLockSentinelRef.current = null;
                 });
             } catch (err: any) {
-                console.error(`Failed to acquire wake lock: ${err.name}, ${err.message}`);
+                console.warn(`Wake Lock: ${err?.name}, ${err?.message}`);
             }
         }
     }, []);

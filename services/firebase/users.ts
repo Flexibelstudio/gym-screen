@@ -25,7 +25,8 @@ import {
   onSnapshot, 
   writeBatch, 
   serverTimestamp,
-  runTransaction
+  runTransaction,
+  deleteField
 } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import { getToken } from 'firebase/messaging';
@@ -143,14 +144,50 @@ export const listenToMembers = (orgId: string, onUpdate: (members: Member[]) => 
     }, (err) => console.error("listenToMembers failed", err));
 };
 
+export const calculateBodyWeightHistory = (
+    currentHistory: { date: string; weight: number }[] = [],
+    newWeight: number,
+    customDateStr?: string
+): { date: string; weight: number }[] => {
+    const d = new Date();
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    const today = customDateStr || `${year}-${month}-${day}`;
+
+    const history = [...currentHistory];
+    if (history.length > 0 && history[history.length - 1].date === today) {
+        history[history.length - 1] = { date: today, weight: newWeight };
+    } else {
+        history.push({ date: today, weight: newWeight });
+    }
+    return history;
+};
+
 export const updateUserGoals = async (uid: string, goals: MemberGoals) => {
     if (isOffline || !db || !uid) return;
     await updateDoc(doc(db, 'users', uid), { goals: sanitizeData(goals) });
 };
 
-export const updateUserProfile = async (uid: string, data: Partial<UserData>) => {
+export const updateUserProfile = async (uid: string, data: Partial<UserData> | Record<string, any>) => {
     if (isOffline || !db || !uid) return;
-    await updateDoc(doc(db, 'users', uid), sanitizeData(data));
+
+    const plainData: Record<string, any> = {};
+    const fieldValues: Record<string, any> = {};
+
+    Object.keys(data).forEach(key => {
+        const val = (data as Record<string, any>)[key];
+        if (val && typeof val === 'object' && (val._methodName === 'deleteField' || val.constructor?.name === 'FieldValue' || val.constructor?.name === 'FieldValueSentinel')) {
+            fieldValues[key] = val;
+        } else if (val !== undefined) {
+            plainData[key] = val;
+        }
+    });
+
+    const sanitized = sanitizeData(plainData);
+    const finalPayload = { ...sanitized, ...fieldValues };
+
+    await updateDoc(doc(db, 'users', uid), finalPayload);
     
     // If showOnLeaderboard preference changed, update recent workout logs so they disappear/appear immediately
     if (data.showOnLeaderboard !== undefined) {

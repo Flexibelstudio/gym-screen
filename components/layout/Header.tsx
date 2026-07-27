@@ -55,26 +55,8 @@ export const Header: React.FC<HeaderProps> = React.memo(({
   const { userData, stopImpersonation } = useAuth();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
-  const [isExiting, setIsExiting] = useState(false);
-
-  // Reset isExiting when page changes
-  useEffect(() => {
-      setIsExiting(false);
-  }, [page]);
-
   const handleBackClick = () => {
-      if (isExiting) return;
-      
-      if (hasCustomBack) {
-          onBack();
-          return;
-      }
-
-      setIsExiting(true);
-      // Short delay to allow the UI to paint the exiting state (overlay fade out)
-      setTimeout(() => {
-          onBack();
-      }, 50);
+      onBack();
   };
   
   // Hämta positionering från config (default 'top')
@@ -356,17 +338,19 @@ export const Header: React.FC<HeaderProps> = React.memo(({
 
   if (isMemberAppView) {
       return (
-        <header className="w-full max-w-6xl mx-auto flex justify-between items-center pt-6 pb-6 px-4 sm:px-6 z-30 relative">
-            <div className="flex items-center gap-4">
-                <div className="flex-shrink-0 cursor-default">
-                    {page !== Page.Home && renderHeaderBranding()}
+        <header className="sticky top-0 z-40 w-full bg-white/95 dark:bg-gray-950/95 border-b border-gray-100 dark:border-white/10 pt-[env(safe-area-inset-top)]">
+            <div className="max-w-6xl mx-auto flex justify-between items-center py-4 px-4 sm:px-6">
+                <div className="flex items-center gap-4">
+                    <div className="flex-shrink-0 cursor-default">
+                        {page !== Page.Home && renderHeaderBranding()}
+                    </div>
                 </div>
-            </div>
 
-            <div id="member-header-tabs" className="flex-1 flex justify-end items-center mx-2 mr-4"></div>
+                <div id="member-header-tabs" className="flex-1 flex justify-end items-center mx-2 mr-4"></div>
 
-            <div className="flex items-center gap-3 md:gap-4">
-                {renderProfileMenu()}
+                <div className="flex items-center gap-3 md:gap-4">
+                    {renderProfileMenu()}
+                </div>
             </div>
         </header>
       );
@@ -447,13 +431,6 @@ export const Header: React.FC<HeaderProps> = React.memo(({
         
         {/* Render fixed bottom back button if configured */}
         {navPosition === 'bottom' && renderBackButton()}
-        
-        {/* Exiting overlay for immediate visual feedback */}
-        {isExiting && (
-            <div className="fixed inset-0 z-[9999] bg-black/40 backdrop-blur-sm transition-opacity duration-100 flex items-center justify-center">
-                <div className="w-12 h-12 border-4 border-white/20 border-t-white rounded-full animate-spin"></div>
-            </div>
-        )}
     </>
   );
 });

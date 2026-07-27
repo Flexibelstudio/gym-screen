@@ -52,10 +52,10 @@ export const useNavigation = (deps: UseNavigationDeps) => {
 
   // Scrolla alltid till toppen när vi byter sida
   useEffect(() => {
-    const timer = setTimeout(() => {
+    const frameId = requestAnimationFrame(() => {
       window.scrollTo({ top: 0, left: 0, behavior: 'instant' as ScrollBehavior });
-    }, 10);
-    return () => clearTimeout(timer);
+    });
+    return () => cancelAnimationFrame(frameId);
   }, [page]);
 
   // --- FIXEN: Vi tillåter denna effekt att köras även i StudioMode! ---
