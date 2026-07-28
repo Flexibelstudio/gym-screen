@@ -180,8 +180,34 @@ export function isWorkoutVisibleNow(w: Workout, now: number = Date.now()): boole
     return true;
 }
 
+export function getMemberLocationIds(user?: { locationId?: string; locationIds?: string[] } | null): string[] {
+    if (!user) return [];
+    const set = new Set<string>();
+    if (user.locationId && user.locationId.trim()) set.add(user.locationId.trim());
+    if (user.locationIds && Array.isArray(user.locationIds)) {
+        user.locationIds.forEach(id => {
+            if (id && id.trim()) set.add(id.trim());
+        });
+    }
+    return Array.from(set);
+}
+
+export function isWorkoutVisibleForLocations(w: Workout, memberLocationIds: string[], now: number = Date.now()): boolean {
+    if (!isWorkoutVisibleNow(w, now)) return false;
+    if (!w.locationIds || w.locationIds.length === 0) return true;
+    if (!memberLocationIds || memberLocationIds.length === 0) return false;
+    return w.locationIds.some(id => memberLocationIds.includes(id));
+}
+
 export function getWorkoutStatusInfo(w: Workout, now: number = Date.now()): { label: string; styleClass: string } {
     if (!w.isPublished) {
+        if (w.publishAt && w.publishAt > now) {
+            const dateStr = new Date(w.publishAt).toLocaleDateString('sv-SE');
+            return {
+                label: `Utkast · ${dateStr}`,
+                styleClass: 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300'
+            };
+        }
         return {
             label: 'Utkast',
             styleClass: 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400'

@@ -377,6 +377,9 @@ export const saveWorkoutLog = async (logData: any): Promise<{ log: any, newRecor
             const finalBenchmarkVal = typeof newLog.benchmarkValue === 'number' && newLog.benchmarkValue > 0 
                 ? newLog.benchmarkValue 
                 : (typeof logData.benchmarkValue === 'number' && logData.benchmarkValue > 0 ? logData.benchmarkValue : undefined);
+            const finalBenchmarkDist = typeof newLog.benchmarkDistance === 'number' && newLog.benchmarkDistance > 0
+                ? newLog.benchmarkDistance
+                : (typeof logData.benchmarkDistance === 'number' && logData.benchmarkDistance > 0 ? logData.benchmarkDistance : 2000);
 
             if (finalBenchmarkId && finalBenchmarkVal !== undefined && finalBenchmarkVal > 0 && showOnLeaderboard) {
                 try {
@@ -393,7 +396,8 @@ export const saveWorkoutLog = async (logData: any): Promise<{ log: any, newRecor
                         prevSnap.docs.forEach(docSnap => {
                             if (docSnap.id !== newLog.id) {
                                 const data = docSnap.data() as WorkoutLog;
-                                if (typeof data.benchmarkValue === 'number' && data.benchmarkValue > 0) {
+                                const prevDist = typeof data.benchmarkDistance === 'number' && data.benchmarkDistance > 0 ? data.benchmarkDistance : 2000;
+                                if (prevDist === finalBenchmarkDist && typeof data.benchmarkValue === 'number' && data.benchmarkValue > 0) {
                                     prevValues.push(data.benchmarkValue);
                                 }
                             }
@@ -418,6 +422,7 @@ export const saveWorkoutLog = async (logData: any): Promise<{ log: any, newRecor
                             userPhotoUrl: newLog.memberPhotoUrl || null,
                             benchmarkId: finalBenchmarkId,
                             benchmarkValue: finalBenchmarkVal,
+                            benchmarkDistance: finalBenchmarkDist,
                             benchmarkTitle: newLog.workoutTitle || undefined,
                             ...(improvedBySec !== undefined ? { improvedBySec } : {})
                         }

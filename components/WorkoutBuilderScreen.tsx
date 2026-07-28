@@ -3,6 +3,7 @@ import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import { Workout, WorkoutBlock, Exercise, TimerMode, TimerSettings, StudioConfig, UserRole, BankExercise, Organization, BenchmarkDefinition } from '../types';
 import { TimerSetupModal } from './TimerSetupModal';
 import { getExerciseBank, getOrganizationExerciseBank, deleteImageByUrl, saveAdminActivity, updateOrganizationBenchmarks, deleteExerciseFromBank } from '../services/firebaseService';
+import { buildChangeList } from '../utils/adminDiff';
 import { useStudio } from '../context/StudioContext';
 import { useAuth } from '../context/AuthContext';
 import { parseSettingsFromTitle } from '../hooks/useWorkoutTimer';
@@ -202,6 +203,11 @@ export const WorkoutBuilderScreen: React.FC<WorkoutBuilderScreenProps> = ({ init
   const { selectedOrganization } = useStudio();
   const { userData } = useAuth();
   const [workout, setWorkout] = useState<Workout>(() => initialWorkout ? JSON.parse(JSON.stringify(initialWorkout)) : createNewWorkout());
+
+  const wasVisibleToday = useMemo(() => {
+    return Boolean(initialWorkout && initialWorkout.isPublished && (!initialWorkout.publishAt || initialWorkout.publishAt <= Date.now()));
+  }, [initialWorkout]);
+  const isFutureDate = Boolean(workout.publishAt && workout.publishAt > Date.now());
   const [initialSnapshot, setInitialSnapshot] = useState<string>('');
   const [editingBlockId, setEditingBlockId] = useState<string | null>(null);
   const [blockToDelete, setBlockToDelete] = useState<string | null>(null);
@@ -641,15 +647,26 @@ export const WorkoutBuilderScreen: React.FC<WorkoutBuilderScreenProps> = ({ init
 
     // LOG ACTIVITY
     if (selectedOrganization && userData) {
-        saveAdminActivity({
-            organizationId: selectedOrganization.id,
-            userId: userData.uid,
-            userName: userData.firstName || 'Coach',
-            type: 'WORKOUT',
-            action: initialWorkout ? 'UPDATE' : 'CREATE',
-            description: `${initialWorkout ? 'Uppdaterade' : 'Skapade'} passet "${finalWorkout.title}"`,
-            timestamp: Date.now()
-        });
+        try {
+            const changes = initialWorkout ? buildChangeList(initialWorkout, finalWorkout, {
+                title: 'Titel',
+                category: 'Kategori',
+                description: 'Beskrivning',
+                isPublished: 'Publicerad'
+            }) : undefined;
+            saveAdminActivity({
+                organizationId: selectedOrganization.id,
+                userId: userData.uid,
+                userName: userData.firstName || 'Coach',
+                type: 'WORKOUT',
+                action: initialWorkout ? 'UPDATE' : 'CREATE',
+                description: `${initialWorkout ? 'Uppdaterade' : 'Skapade'} passet "${finalWorkout.title}"`,
+                timestamp: Date.now(),
+                changes
+            });
+        } catch (e) {
+            console.warn("Failed to log activity:", e);
+        }
     }
     if (setCustomBackHandler) setCustomBackHandler(null);
     onSave(finalWorkout);
@@ -903,7 +920,7 @@ export const WorkoutBuilderScreen: React.FC<WorkoutBuilderScreenProps> = ({ init
                                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                                         <div>
                                             <label className="text-xs font-bold text-gray-700 dark:text-gray-300">Publiceras (valfritt)</label>
-                                            <p className="text-[11px] text-gray-400">Publiceras direkt om tom, eller kl. 00:00 på valt datum</p>
+                                            <p className="text-[11px] text-gray-400">För publicerade pass: syns från kl. 00:00 på valt datum. Tomt fält = syns direkt.</p>
                                         </div>
                                         <input 
                                             type="date"
@@ -918,12 +935,36 @@ export const WorkoutBuilderScreen: React.FC<WorkoutBuilderScreenProps> = ({ init
                                                 } else {
                                                     const [y, m, d] = val.split('-').map(Number);
                                                     const ts = new Date(y, m - 1, d, 0, 0, 0, 0).getTime();
-                                                    setWorkout(prev => ({ ...prev, publishAt: ts }));
+                                                    const isFuture = ts > Date.now();
+                                                    const isNew = isNewDraft || !initialWorkout || !initialWorkout.id;
+                                                    setWorkout(prev => ({
+                                                        ...prev,
+                                                        publishAt: ts,
+                                                        isPublished: isFuture && isNew ? true : prev.isPublished
+                                                    }));
                                                 }
                                             }}
                                             className="bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white p-2 text-sm rounded-md border border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-primary outline-none font-semibold"
                                         />
                                     </div>
+                                    {isFutureDate && (
+                                        <ToggleSwitch 
+                                            label="Publicera automatiskt detta datum" 
+                                            checked={workout.isPublished} 
+                                            onChange={(val) => setWorkout(prev => ({ ...prev, isPublished: val }))} 
+                                            description="Passet blir synligt för medlemmarna kl. 00:00 på valt datum. Ingen notis skickas i förväg."
+                                        />
+                                    )}
+                                    {wasVisibleToday && isFutureDate && workout.isPublished && (
+                                        <div className="p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-md text-xs text-amber-800 dark:text-amber-300 font-medium">
+                                            Passet är publicerat och syns idag. Med detta datum döljs det för medlemmarna fram till {workout.publishAt ? new Date(workout.publishAt).toLocaleDateString('sv-SE') : ''}.
+                                        </div>
+                                    )}
+                                    {!workout.isPublished && isFutureDate && (
+                                        <div className="p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-md text-xs text-amber-800 dark:text-amber-300 font-medium">
+                                            Passet är ett utkast och publiceras INTE automatiskt. Publicera passet för att datumet ska gälla.
+                                        </div>
+                                    )}
 
                                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                                         <div>
@@ -950,6 +991,51 @@ export const WorkoutBuilderScreen: React.FC<WorkoutBuilderScreenProps> = ({ init
                                             className="bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white p-2 text-sm rounded-md border border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-primary outline-none font-semibold"
                                         />
                                     </div>
+
+                                    {selectedOrganization?.locations && selectedOrganization.locations.length > 1 && (
+                                        <div className="pt-3 border-t border-gray-200 dark:border-gray-700 mt-3 space-y-2">
+                                            <label className="text-xs font-bold text-gray-700 dark:text-gray-300">Visas på orter</label>
+                                            <p className="text-[11px] text-gray-400">
+                                                Välj vilka anläggningar passet ska vara synligt för. Inget valt = syns på alla orter.
+                                            </p>
+                                            <div className="flex flex-wrap gap-2 pt-1">
+                                                {selectedOrganization.locations.map((loc) => {
+                                                    const isLocSelected = workout.locationIds?.includes(loc.id) ?? false;
+                                                    return (
+                                                        <button
+                                                            key={loc.id}
+                                                            type="button"
+                                                            onClick={() => {
+                                                                setWorkout(prev => {
+                                                                    const current = prev.locationIds || [];
+                                                                    const updated = isLocSelected
+                                                                        ? current.filter(id => id !== loc.id)
+                                                                        : [...current, loc.id];
+                                                                    return {
+                                                                        ...prev,
+                                                                        locationIds: updated
+                                                                    };
+                                                                });
+                                                            }}
+                                                            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 border ${
+                                                                isLocSelected
+                                                                    ? 'bg-primary/10 text-primary border-primary/30 dark:bg-primary/20 dark:border-primary/50'
+                                                                    : 'bg-gray-100 text-gray-600 border-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:border-gray-600'
+                                                            }`}
+                                                        >
+                                                            <span className={`w-2 h-2 rounded-full ${isLocSelected ? 'bg-primary' : 'bg-gray-300 dark:bg-gray-500'}`} />
+                                                            {loc.name}
+                                                        </button>
+                                                    );
+                                                })}
+                                            </div>
+                                            {(!workout.locationIds || workout.locationIds.length === 0) && (
+                                                <p className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 mt-1">
+                                                    ✓ Visas på alla orter (Standard)
+                                                </p>
+                                            )}
+                                        </div>
+                                    )}
                                 </div>
 
                                 <div className="pt-2 border-t border-gray-200 dark:border-gray-700 mt-2">

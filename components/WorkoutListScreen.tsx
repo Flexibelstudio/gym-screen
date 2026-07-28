@@ -10,7 +10,7 @@ import WorkoutDetailScreen from './WorkoutDetailScreen';
 import { LineChart, Line, XAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import { Modal } from './ui/Modal';
 import { PasswordModal } from './PasswordModal';
-import { isWorkoutVisibleNow } from '../utils/workoutUtils';
+import { isWorkoutVisibleNow, getMemberLocationIds, isWorkoutVisibleForLocations } from '../utils/workoutUtils';
 
 interface WorkoutListScreenProps {
     passkategori?: string;
@@ -20,7 +20,7 @@ interface WorkoutListScreenProps {
 export const WorkoutListScreen: React.FC<WorkoutListScreenProps> = React.memo(({ passkategori, onSelectWorkout }) => {
     const { workouts } = useWorkout();
     const { isStudioMode, currentUser, userData } = useAuth();
-    const { studioConfig, selectedOrganization } = useStudio();
+    const { studioConfig, selectedOrganization, selectedStudio } = useStudio();
     const [searchTerm, setSearchTerm] = useState('');
     const [activeTab, setActiveTab] = useState<'alla' | 'mina'>('alla');
     const [customPrograms, setCustomPrograms] = useState<Workout[]>([]);
@@ -60,6 +60,13 @@ export const WorkoutListScreen: React.FC<WorkoutListScreenProps> = React.memo(({
         return () => window.removeEventListener('customProgramsUpdated', load);
     }, [currentUser?.uid, activeTab]);
 
+    const activeLocationIds = useMemo(() => {
+        if (isStudioMode) {
+            return getMemberLocationIds({ locationId: selectedStudio?.locationId });
+        }
+        return getMemberLocationIds(userData);
+    }, [isStudioMode, selectedStudio?.locationId, userData]);
+
     const filteredWorkouts = useMemo(() => {
         const sourceWorkouts = (!selectedCategory && activeTab === 'mina') ? customPrograms : workouts;
         const now = Date.now();
@@ -69,12 +76,12 @@ export const WorkoutListScreen: React.FC<WorkoutListScreenProps> = React.memo(({
                 const matchesCategory = !selectedCategory || w.category === selectedCategory;
                 const matchesSearch = (w.title || '').toLowerCase().includes(searchTerm.toLowerCase()) || 
                                     (w.coachTips && (w.coachTips || '').toLowerCase().includes(searchTerm.toLowerCase()));
-                return isWorkoutVisibleNow(w, now) && matchesCategory && matchesSearch;
+                return isWorkoutVisibleForLocations(w, activeLocationIds, now) && matchesCategory && matchesSearch;
             });
         }
 
         let visible = sourceWorkouts.filter(w => {
-            if (!isWorkoutVisibleNow(w, now)) return false;
+            if (!isWorkoutVisibleForLocations(w, activeLocationIds, now)) return false;
 
             const categoryConfig = studioConfig.customCategories.find(c => c.name === w.category);
             const isCategoryLocked = categoryConfig?.isLocked === true;
@@ -223,7 +230,7 @@ export const WorkoutListScreen: React.FC<WorkoutListScreenProps> = React.memo(({
                                  <p className="text-2xl sm:text-3xl leading-none font-black text-gray-300 dark:text-gray-700 tracking-tight">
                                      -
                                  </p>
-                                 <p className="text-[10px] text-gray-400 dark:text-gray-650 mt-1 uppercase tracking-widest font-black">
+                                 <p className="text-[10px] text-gray-400 dark:text-gray-600 mt-1 uppercase tracking-widest font-black">
                                      INGA FÖRSÖK ÄN
                                  </p>
                             </div>
@@ -274,7 +281,7 @@ export const WorkoutListScreen: React.FC<WorkoutListScreenProps> = React.memo(({
                             className={`flex-1 py-3 px-3 rounded-full font-black uppercase tracking-wide text-sm transition-all shadow-sm ${
                                 activeTab === 'alla'
                                     ? 'bg-gray-900 dark:bg-white text-white dark:text-gray-900 shadow-md'
-                                    : 'bg-gray-100 dark:bg-gray-800 text-gray-500 hover:bg-gray-250 dark:hover:bg-gray-700'
+                                    : 'bg-gray-100 dark:bg-gray-800 text-gray-500 hover:bg-gray-300 dark:hover:bg-gray-700'
                             }`}
                         >
                             Alla Pass
@@ -284,7 +291,7 @@ export const WorkoutListScreen: React.FC<WorkoutListScreenProps> = React.memo(({
                             className={`flex-1 py-3 px-3 rounded-full font-black uppercase tracking-wide text-sm transition-all shadow-sm ${
                                 activeTab === 'mina'
                                     ? 'bg-primary text-white shadow-md'
-                                    : 'bg-gray-100 dark:bg-gray-800 text-gray-500 hover:bg-gray-250 dark:hover:bg-gray-700'
+                                    : 'bg-gray-100 dark:bg-gray-800 text-gray-500 hover:bg-gray-300 dark:hover:bg-gray-700'
                             }`}
                         >
                             Mina ({customPrograms.length})

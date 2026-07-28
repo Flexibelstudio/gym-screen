@@ -751,7 +751,7 @@ const OrgChallengeStatsRow: React.FC<{ org: Organization; challengeId: string }>
     });
 
     return (
-        <div className="mt-2.5 max-w-lg grid grid-cols-3 gap-3 bg-white/60 dark:bg-black/15 p-3 rounded-2xl border border-slate-200/50 dark:border-gray-750 text-xs text-slate-600 dark:text-slate-300 font-medium">
+        <div className="mt-2.5 max-w-lg grid grid-cols-3 gap-3 bg-white/60 dark:bg-black/15 p-3 rounded-2xl border border-slate-200/50 dark:border-gray-700 text-xs text-slate-600 dark:text-slate-300 font-medium">
             <div>
                 <span className="block text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-0.5">Deltagare</span>
                 <strong className="text-gray-900 dark:text-white text-xs font-black">{participantsCount} st</strong>
@@ -855,7 +855,7 @@ const ChallengesTab: React.FC<{
         <div className="space-y-8 text-left">
             {/* 1. Övergripande inställningar */}
             <div className="bg-slate-100 dark:bg-gray-800 p-6 md:p-8 rounded-[2rem] space-y-6 border border-slate-200 dark:border-gray-700 shadow-sm">
-                <div className="border-b border-slate-300 dark:border-gray-750 pb-4">
+                <div className="border-b border-slate-300 dark:border-gray-700 pb-4">
                     <h3 className="text-2xl font-black text-gray-900 dark:text-white flex items-center gap-2">
                         <span>☀️</span> Övergripande Utmaning
                     </h3>
@@ -911,7 +911,7 @@ const ChallengesTab: React.FC<{
                             </div>
                         </div>
 
-                        <div className="bg-white dark:bg-gray-900/40 p-4 rounded-3xl border border-slate-200/60 dark:border-gray-750 flex items-center justify-between gap-4">
+                        <div className="bg-white dark:bg-gray-900/40 p-4 rounded-3xl border border-slate-200/60 dark:border-gray-700 flex items-center justify-between gap-4">
                             <div>
                                 <h4 className="font-bold text-sm text-gray-900 dark:text-white">Publicera utmaningen på gymmen</h4>
                                 <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5">När utmaningen publiceras visas en snygg presentation på anslutna gymmens dashboards.</p>
@@ -938,14 +938,14 @@ const ChallengesTab: React.FC<{
 
             {/* 2. Gymmens status och aktivering */}
             <div className="bg-slate-100 dark:bg-gray-800 p-6 md:p-8 rounded-[2rem] space-y-4 border border-slate-200 dark:border-gray-700 shadow-sm">
-                <div className="border-b border-slate-300 dark:border-gray-750 pb-4">
+                <div className="border-b border-slate-300 dark:border-gray-700 pb-4">
                     <h3 className="text-xl font-bold text-gray-900 dark:text-white">Anslutna Gyms Status och Aktivering</h3>
                     <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                         Varje gym (organisation) kan själva välja att slå på utmaningen under Inställningar, eller så kan du slå på/av det åt dem direkt här.
                     </p>
                 </div>
 
-                <div className="divide-y divide-slate-200/60 dark:divide-gray-750">
+                <div className="divide-y divide-slate-200/60 dark:divide-gray-700">
                     {activeOrgs.map(org => {
                         const isOrgEnabled = !!org.globalConfig?.enableSummerChallenge;
                         return (

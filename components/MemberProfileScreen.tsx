@@ -150,7 +150,7 @@ interface SummerChallengeDiplomaCardProps {
 
 const getSisuAchievementTitle = (points: number) => {
     if (points >= 20) return { title: "Superhjälte 🌟", desc: "Nivå Sisu-Elit", color: "text-yellow-300" };
-    if (points >= 10) return { title: "Sisu-Kämpe 💪", desc: "Stark hängivenhet", color: "text-amber-250" };
+    if (points >= 10) return { title: "Sisu-Kämpe 💪", desc: "Stark hängivenhet", color: "text-amber-200" };
     if (points > 0) return { title: "Deltagare 🎯", desc: "Aktiv lagspelare", color: "text-orange-200" };
     return { title: "Hejaklack 📣", desc: "Tillsammans är vi starkast", color: "text-amber-100" };
 };
@@ -594,7 +594,7 @@ function parseRowingInputTime(input: string): number | null {
     const sec = parseFloat(match[2]);
     if (isNaN(min) || isNaN(sec)) return null;
     const totalSeconds = min * 60 + sec;
-    if (totalSeconds < 240 || totalSeconds > 1500) return null;
+    if (totalSeconds < 60 || totalSeconds > 3600) return null;
     return totalSeconds;
 }
 
@@ -604,6 +604,8 @@ const Rowing2000mCard: React.FC<{
     onOpenProfileEdit?: () => void;
 }> = ({ logs, userData, onOpenProfileEdit }) => {
     const [timeInput, setTimeInput] = useState('');
+    const [showCustomDistance, setShowCustomDistance] = useState(false);
+    const [distanceInput, setDistanceInput] = useState('');
     const [isSaving, setIsSaving] = useState(false);
     const [errorMsg, setErrorMsg] = useState<string | null>(null);
     const [showInfoModal, setShowInfoModal] = useState(false);
@@ -620,7 +622,10 @@ const Rowing2000mCard: React.FC<{
     const age = getAgeFromBirthDate(userData?.birthDate);
     const gender = userData?.gender;
 
-    const latestAssessment = latestAttempt && (gender === 'male' || gender === 'female') && age !== null
+    const latestDistance = latestAttempt ? (latestAttempt.benchmarkDistance ?? 2000) : 2000;
+    const isFullTest = latestDistance === 2000;
+
+    const latestAssessment = latestAttempt && isFullTest && (gender === 'male' || gender === 'female') && age !== null
         ? getRowingAssessment(gender, age, latestAttempt.benchmarkValue!)
         : null;
 
@@ -628,9 +633,19 @@ const Rowing2000mCard: React.FC<{
         e.preventDefault();
         setErrorMsg(null);
 
+        let targetDistance = 2000;
+        if (showCustomDistance && distanceInput.trim()) {
+            const parsedDist = parseInt(distanceInput.trim(), 10);
+            if (isNaN(parsedDist) || parsedDist < 100 || parsedDist > 10000) {
+                setErrorMsg('Ange en giltig sträcka mellan 100 och 10 000 m.');
+                return;
+            }
+            targetDistance = parsedDist;
+        }
+
         const seconds = parseRowingInputTime(timeInput);
         if (seconds === null) {
-            setErrorMsg('Ange en giltig tid mellan 4:00 och 25:00 (t.ex. 7:15 eller 07:15.3)');
+            setErrorMsg('Ange en giltig tid mellan 1:00 och 60:00 (t.ex. 7:15 eller 07:15.3)');
             return;
         }
 
@@ -646,12 +661,15 @@ const Rowing2000mCard: React.FC<{
                 memberId: userData.uid,
                 organizationId: orgId,
                 date: Date.now(),
-                workoutTitle: '2000 m Rodd',
+                workoutTitle: targetDistance === 2000 ? '2000 m Rodd' : `${targetDistance} m Rodd`,
                 workoutId: 'manual',
                 benchmarkId: 'platform_row_2000m',
                 benchmarkValue: seconds,
+                benchmarkDistance: targetDistance,
             });
             setTimeInput('');
+            setDistanceInput('');
+            setShowCustomDistance(false);
         } catch (err) {
             console.error('Failed to save rowing log', err);
             setErrorMsg('Kunde inte spara resultatet. Försök igen.');
@@ -681,10 +699,28 @@ const Rowing2000mCard: React.FC<{
                 </div>
             </div>
 
-            <form onSubmit={handleSave} className="space-y-2">
+            <form onSubmit={handleSave} className="space-y-3">
                 <label className="block text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest">
                     Logga nytt resultat
                 </label>
+
+                {showCustomDistance && (
+                    <div className="space-y-1">
+                        <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300">
+                            Sträcka (meter)
+                        </label>
+                        <input
+                            type="number"
+                            value={distanceInput}
+                            onChange={(e) => setDistanceInput(e.target.value)}
+                            placeholder="t.ex. 500"
+                            min={100}
+                            max={10000}
+                            className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-3 py-2 text-sm text-gray-900 dark:text-white font-mono focus:outline-none focus:ring-2 focus:ring-primary"
+                        />
+                    </div>
+                )}
+
                 <div className="flex gap-2">
                     <input
                         type="text"
@@ -701,6 +737,20 @@ const Rowing2000mCard: React.FC<{
                         {isSaving ? 'Sparar...' : 'Spara test'}
                     </button>
                 </div>
+
+                <div>
+                    <button
+                        type="button"
+                        onClick={() => {
+                            setShowCustomDistance(!showCustomDistance);
+                            if (showCustomDistance) setDistanceInput('');
+                        }}
+                        className="text-xs font-semibold text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors underline"
+                    >
+                        {showCustomDistance ? 'Standard 2000 m' : 'Jag rodde en kortare sträcka'}
+                    </button>
+                </div>
+
                 {errorMsg && <p className="text-xs text-red-500 font-medium">{errorMsg}</p>}
             </form>
 
@@ -711,11 +761,15 @@ const Rowing2000mCard: React.FC<{
                             Senaste test ({new Date(latestAttempt.date).toLocaleDateString('sv-SE')})
                         </span>
                         <span className="font-mono font-bold text-base text-primary tabular-nums">
-                            {formatRowingTime(latestAttempt.benchmarkValue!)}
+                            {isFullTest ? formatRowingTime(latestAttempt.benchmarkValue!) : `${latestDistance} m · ${formatRowingTime(latestAttempt.benchmarkValue!)}`}
                         </span>
                     </div>
 
-                    {(age === null || !userData?.birthDate) ? (
+                    {!isFullTest ? (
+                        <p className="text-xs text-gray-600 dark:text-gray-300 font-medium pt-1">
+                            Jämförelse görs på 2000 m. Kör hela sträckan för att se din nivå.
+                        </p>
+                    ) : (age === null || !userData?.birthDate) ? (
                         <div className="space-y-1">
                             <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">
                                 Ange födelsedatum i din profil för att se jämförelsen.
@@ -804,16 +858,19 @@ const Rowing2000mCard: React.FC<{
                         Tidigare försök ({history.length})
                     </h4>
                     <div className="divide-y divide-gray-100 dark:divide-gray-800 text-xs">
-                        {history.map((item) => (
-                            <div key={item.id} className="py-2 flex items-center justify-between">
-                                <span className="text-gray-500 dark:text-gray-400">
-                                    {new Date(item.date).toLocaleDateString('sv-SE', { year: 'numeric', month: 'short', day: 'numeric' })}
-                                </span>
-                                <span className="font-mono font-bold text-gray-900 dark:text-white tabular-nums">
-                                    {formatRowingTime(item.benchmarkValue!)}
-                                </span>
-                            </div>
-                        ))}
+                        {history.map((item) => {
+                            const itemDist = item.benchmarkDistance ?? 2000;
+                            return (
+                                <div key={item.id} className="py-2 flex items-center justify-between">
+                                    <span className="text-gray-500 dark:text-gray-400">
+                                        {new Date(item.date).toLocaleDateString('sv-SE', { year: 'numeric', month: 'short', day: 'numeric' })}
+                                    </span>
+                                    <span className="font-mono font-bold text-gray-900 dark:text-white tabular-nums">
+                                        {itemDist === 2000 ? formatRowingTime(item.benchmarkValue!) : `${itemDist} m · ${formatRowingTime(item.benchmarkValue!)}`}
+                                    </span>
+                                </div>
+                            );
+                        })}
                     </div>
                 </div>
             )}
@@ -823,7 +880,7 @@ const Rowing2000mCard: React.FC<{
                     <div>
                         <h4 className="font-bold text-gray-900 dark:text-white text-base mb-1">Så gör du testet</h4>
                         <p>
-                            Ro 2000 meter så snabbt du kan på en Concept2-maskin. Värm upp ordentligt, håll ett jämnt tempo och spara lite till slutet. Orkar du inte hela sträckan — logga ändå det du gjorde. Ett utgångsvärde är värt mer än inget värde.
+                            Ro 2000 meter så snabbt du kan på en Concept2-maskin. Värm upp ordentligt, håll ett jämnt tempo och spara lite till slutet. Orkar du inte hela sträckan — logga ändå det du gjorde och ange hur långt du rodde. Kortare distanser sparas i din historik så att du kan slå dem nästa gång, men jämförelsen mot andra görs bara på hela 2000 meter.
                         </p>
                     </div>
 
@@ -1438,7 +1495,7 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
             label = 'ÖVERHETTNING';
             emoji = '🌋';
             colorClass = 'text-red-500 dark:text-red-400 font-extrabold';
-            bannerBgClass = 'from-red-650/20 to-slate-950';
+            bannerBgClass = 'from-red-600/20 to-slate-950';
             scale = 'overhettning';
         } else if (completedPercentage >= 100) {
             label = 'HET';
@@ -1449,19 +1506,19 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
         } else if (completedPercentage >= 70) {
             label = 'VARM';
             emoji = '☀️';
-            colorClass = 'text-yellow-600 dark:text-yellow-450 font-extrabold';
+            colorClass = 'text-yellow-600 dark:text-yellow-400 font-extrabold';
             bannerBgClass = 'from-yellow-400/20 to-slate-950';
             scale = 'varmt';
         } else if (completedPercentage >= 40) {
             label = 'LJUMMEN';
             emoji = '🌤️';
-            colorClass = 'text-amber-550 dark:text-amber-450 font-extrabold';
-            bannerBgClass = 'from-amber-450/20 to-slate-950';
+            colorClass = 'text-amber-500 dark:text-amber-400 font-extrabold';
+            bannerBgClass = 'from-amber-400/20 to-slate-950';
             scale = 'ljummen';
         } else {
             label = 'SVALT';
             emoji = '❄️';
-            colorClass = 'text-sky-450 dark:text-sky-400 font-extrabold';
+            colorClass = 'text-sky-400 dark:text-sky-400 font-extrabold';
             bannerBgClass = 'from-sky-500/10 to-slate-900';
             scale = 'svalt';
         }
@@ -2353,7 +2410,7 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                     title="📸 Sommarfeeden - Alla bilder"
                     size="lg"
                 >
-                    <div className="space-y-4 max-h-[70vh] overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-gray-250 dark:scrollbar-thumb-gray-800 text-left text-gray-900 dark:text-white pb-4">
+                    <div className="space-y-4 max-h-[70vh] overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-gray-800 text-left text-gray-900 dark:text-white pb-4">
                         <p className="text-xs text-gray-500 font-bold mb-4">
                             Klicka på en bild för att läsa meddelandet och se mer detaljer.
                         </p>
@@ -2368,7 +2425,7 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                                             setIsShowingAllPhotos(false);
                                             setSelectedPhoto(log);
                                         }}
-                                        className="group flex flex-col bg-gray-50 dark:bg-slate-905/20 dark:bg-slate-900 rounded-2xl p-1.5 border border-gray-100 dark:border-white/5 transition-all hover:scale-[1.03] hover:border-primary/30 text-left"
+                                        className="group flex flex-col bg-gray-50 dark:bg-slate-900/20 dark:bg-slate-900 rounded-2xl p-1.5 border border-gray-100 dark:border-white/5 transition-all hover:scale-[1.03] hover:border-primary/30 text-left"
                                     >
                                         <div className="relative w-full aspect-square rounded-xl overflow-hidden mb-2 bg-black/10">
                                             <img 
@@ -2474,10 +2531,10 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                                                     +
                                                 </button>
                                             </div>
-                                            <p className="text-[10px] sm:text-[11px] text-amber-955 font-black mt-2.5 leading-normal bg-white/85 p-2.5 rounded-2xl border border-amber-250/50">
+                                            <p className="text-[10px] sm:text-[11px] text-amber-950 font-black mt-2.5 leading-normal bg-white/85 p-2.5 rounded-2xl border border-amber-200/50">
                                                 💡 <strong>Träningspoäng:</strong> 1 pass i gymmet ger <strong>2 poäng</strong>, och utomhus-/gruppträning ger <strong>1 poäng</strong> (minst 30 min). Sätt ett veckomål som peppar dig att klara utmaningen!
                                             </p>
-                                            <div className="mt-2.5 text-[10px] sm:text-[11px] text-red-950 font-black leading-normal bg-white/95 p-2.5 rounded-2xl border border-red-350 flex items-start gap-1.5 shadow-sm">
+                                            <div className="mt-2.5 text-[10px] sm:text-[11px] text-red-950 font-black leading-normal bg-white/95 p-2.5 rounded-2xl border border-red-300 flex items-start gap-1.5 shadow-sm">
                                                 <span>⚠️</span>
                                                 <span><strong>Satt mål gäller:</strong> Du kan inte ändra ditt veckomål efter att du har gått med i utmaningen. Välj ett mål du vet att du vill och kan hålla!</span>
                                             </div>
@@ -2692,7 +2749,7 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                                     </p>
 
                                     {/* Mini Grid results - Optimized for both light and dark mode visibility */}
-                                    <div className="grid grid-cols-3 gap-3 max-w-sm bg-slate-150 dark:bg-black/35 p-4 rounded-2xl border border-gray-200/60 dark:border-gray-800">
+                                    <div className="grid grid-cols-3 gap-3 max-w-sm bg-slate-100 dark:bg-black/35 p-4 rounded-2xl border border-gray-200/60 dark:border-gray-800">
                                         <div className="text-center space-y-0.5">
                                             <span className="block text-[8px] font-black uppercase text-gray-500 dark:text-gray-400 tracking-wider">Ditt Bidrag</span>
                                             <span className="block text-base font-black text-gray-900 dark:text-white font-mono">{stats.summerTotalPoints} p</span>
@@ -3028,7 +3085,7 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
 
                                                                 <p className={`text-xs sm:text-sm tracking-tight leading-relaxed font-black text-center ${
                                                                     personalFeedback.includes('Överhettning')
-                                                                        ? 'text-red-650 dark:text-red-400'
+                                                                        ? 'text-red-600 dark:text-red-400'
                                                                         : personalFeedback.includes('Målet')
                                                                         ? 'text-amber-950 dark:text-amber-300'
                                                                         : 'text-amber-900/80 dark:text-amber-400 font-bold'
@@ -3323,10 +3380,10 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                                             className="overflow-hidden"
                                         >
                                             <div className="flex items-center justify-between mb-4 mt-4">
-                                                <span className="text-[10px] text-indigo-600 dark:text-indigo-450 font-bold">Kopplad via e-post</span>
+                                                <span className="text-[10px] text-indigo-600 dark:text-indigo-400 font-bold">Kopplad via e-post</span>
                                             </div>
                                             
-                                            <p className="text-xs text-slate-550 dark:text-slate-300 mb-5 leading-relaxed">
+                                            <p className="text-xs text-slate-500 dark:text-slate-300 mb-5 leading-relaxed">
                                                 Här presenteras dina officiella tider och placeringar från alla genomförda utmaningar och event du deltagit i hos oss.
                                             </p>
                                             
@@ -3334,12 +3391,12 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                                                 {personalHyroxResults.map(res => (
                                                     <div 
                                                         key={res.id}
-                                                        className="p-4 rounded-2xl bg-white/60 dark:bg-white/5 border border-slate-150 dark:border-white/10 flex flex-col sm:flex-row justify-between sm:items-center gap-3 hover:bg-white dark:hover:bg-white/10 shadow-sm dark:shadow-none transition-all duration-150"
+                                                        className="p-4 rounded-2xl bg-white/60 dark:bg-white/5 border border-slate-100 dark:border-white/10 flex flex-col sm:flex-row justify-between sm:items-center gap-3 hover:bg-white dark:hover:bg-white/10 shadow-sm dark:shadow-none transition-all duration-150"
                                                     >
                                                         <div>
                                                             <div className="flex items-center gap-2">
                                                                 <span className="font-extrabold text-xs text-indigo-600 dark:text-amber-400">Plats #{res.placement}</span>
-                                                                <h4 className="font-bold text-sm text-slate-800 dark:text-slate-150">{res.raceName}</h4>
+                                                                <h4 className="font-bold text-sm text-slate-800 dark:text-slate-100">{res.raceName}</h4>
                                                             </div>
                                                             <div className="flex items-center gap-2 mt-1">
                                                                 <span className="text-[9px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded bg-indigo-50 dark:bg-indigo-500/20 text-indigo-600 dark:text-indigo-300 border border-indigo-100 dark:border-indigo-500/30">

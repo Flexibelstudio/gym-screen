@@ -759,7 +759,7 @@ export const ExerciseLogCard: React.FC<{
                         )}
                         <button 
                             onClick={() => setIsEditingFields(!isEditingFields)}
-                            className={`p-3 rounded-2xl transition-all active:scale-90 shadow-sm ${isEditingFields ? 'bg-primary/10 text-primary' : 'bg-gray-50 dark:bg-gray-800 text-gray-400 hover:text-gray-650 dark:hover:text-gray-200'}`}
+                            className={`p-3 rounded-2xl transition-all active:scale-90 shadow-sm ${isEditingFields ? 'bg-primary/10 text-primary' : 'bg-gray-50 dark:bg-gray-800 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200'}`}
                         
                         >
                             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -784,13 +784,13 @@ export const ExerciseLogCard: React.FC<{
                             <button
                                 type="button"
                                 onClick={() => setShowMoreFields(true)}
-                                className="inline-flex items-center gap-1 text-[11px] font-extrabold text-gray-400 dark:text-gray-500 hover:text-primary dark:hover:text-primary-light bg-gray-50/80 dark:bg-gray-800/80 hover:bg-primary/10 px-2.5 py-1 rounded-full transition-all border border-gray-150 dark:border-gray-700/60 active:scale-95"
+                                className="inline-flex items-center gap-1 text-[11px] font-extrabold text-gray-400 dark:text-gray-500 hover:text-primary dark:hover:text-primary-light bg-gray-50/80 dark:bg-gray-800/80 hover:bg-primary/10 px-2.5 py-1 rounded-full transition-all border border-gray-200 dark:border-gray-700/60 active:scale-95"
                             >
                                 <PlusIcon className="w-3 h-3" />
                                 <span>+ fler fält</span>
                             </button>
                         ) : (
-                            <div className="flex items-center gap-1.5 flex-wrap p-2 bg-gray-50 dark:bg-gray-800/60 rounded-xl border border-gray-150 dark:border-gray-700/80 animate-fade-in">
+                            <div className="flex items-center gap-1.5 flex-wrap p-2 bg-gray-50 dark:bg-gray-800/60 rounded-xl border border-gray-200 dark:border-gray-700/80 animate-fade-in">
                                 <span className="text-[10px] font-extrabold uppercase tracking-widest text-gray-400 mr-1">Lägg till:</span>
                                 {inactiveFields.map(f => (
                                     <button
@@ -954,10 +954,10 @@ export const ExerciseLogCard: React.FC<{
                                     </div>
                                 )}
                                 <div className="flex justify-between items-center pl-1 mb-2">
-                                    <label className="block text-xs font-bold text-gray-550 dark:text-gray-400 uppercase tracking-widest">Din anteckning</label>
+                                    <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest">Din anteckning</label>
                                     <button 
                                         onClick={() => setIsNoteExpanded(false)}
-                                        className="text-gray-400 hover:text-gray-650 dark:hover:text-gray-200 p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-850 transition-all flex items-center justify-center active:scale-95"
+                                        className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-all flex items-center justify-center active:scale-95"
                                         title="Fäll ihop"
                                     >
                                         <span className="transform rotate-180 block text-gray-400 dark:text-gray-500">
@@ -984,11 +984,11 @@ export const ExerciseLogCard: React.FC<{
                                     onClick={() => setIsNoteExpanded(true)}
                                     className="w-full flex justify-between items-center pl-1 group focus:outline-none"
                                 >
-                                    <span className="text-xs font-bold text-gray-550 dark:text-gray-400 uppercase tracking-widest group-hover:text-primary transition-colors flex items-center gap-1.5">
+                                    <span className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest group-hover:text-primary transition-colors flex items-center gap-1.5">
                                         Anteckning
                                         {result.note && <span className="w-2 h-2 bg-amber-500 rounded-full" />}
                                     </span>
-                                    <span className="text-gray-400 dark:text-gray-500 group-hover:text-primary transition-colors p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-850 flex items-center justify-center active:scale-95 transition-all">
+                                    <span className="text-gray-400 dark:text-gray-500 group-hover:text-primary transition-colors p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center justify-center active:scale-95 transition-all">
                                         <ChevronDownIcon className="w-5 h-5 stroke-[2.5]" />
                                     </span>
                                 </button>
@@ -1043,7 +1043,7 @@ const CustomActivityForm: React.FC<{
                 {hasExercises && (
                     <button 
                         onClick={() => setIsExpanded(false)}
-                        className="absolute top-4 right-4 w-8 h-8 rounded-full bg-gray-50 dark:bg-gray-800 flex items-center justify-center text-gray-400 hover:text-gray-650 dark:hover:text-gray-200 transition-colors"
+                        className="absolute top-4 right-4 w-8 h-8 rounded-full bg-gray-50 dark:bg-gray-800 flex items-center justify-center text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors"
                     >
                         <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
@@ -2399,7 +2399,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
   }
 
   return (
-    <div className="bg-gray-5 dark:bg-black text-gray-900 dark:text-white flex flex-col relative h-full">
+    <div className="bg-gray-50 dark:bg-black text-gray-900 dark:text-white flex flex-col relative h-full">
       {isSubmitting && (
           <div className="absolute inset-0 z-[1000] bg-white/10 dark:bg-black/10 pointer-events-auto" />
       )}
@@ -2465,7 +2465,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
         </div>
       </div>
 
-      <div ref={scrollContainerRef} className="flex-1 overflow-y-auto bg-gray-5 dark:bg-black scrollbar-hide">
+      <div ref={scrollContainerRef} className="flex-1 overflow-y-auto bg-gray-50 dark:bg-black scrollbar-hide">
           <div className="p-2 sm:p-4 max-w-2xl mx-auto w-full">
               
               {/* Steg-indikator */}
@@ -2478,7 +2478,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
                               scrollContainerRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
                           }, 50);
                       }}
-                      className={`flex-1 p-3.5 rounded-2xl text-xs font-black uppercase tracking-wider border transition-all flex items-center justify-center gap-2 ${logStep === 'exercises' ? 'bg-primary/15 text-primary border-primary/25 shadow-sm' : 'bg-white dark:bg-gray-900 text-gray-400 dark:text-gray-500 border-gray-150 dark:border-gray-800'}`}
+                      className={`flex-1 p-3.5 rounded-2xl text-xs font-black uppercase tracking-wider border transition-all flex items-center justify-center gap-2 ${logStep === 'exercises' ? 'bg-primary/15 text-primary border-primary/25 shadow-sm' : 'bg-white dark:bg-gray-900 text-gray-400 dark:text-gray-500 border-gray-200 dark:border-gray-800'}`}
                   >
                       <span className={`flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-bold ${logStep === 'exercises' ? 'bg-primary text-white' : 'bg-gray-100 dark:bg-gray-800 text-gray-400'}`}>1</span>
                       <span>Övningar ({exerciseResults.length})</span>
@@ -2491,7 +2491,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
                               scrollContainerRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
                           }, 50);
                       }}
-                      className={`flex-1 p-3.5 rounded-2xl text-xs font-black uppercase tracking-wider border transition-all flex items-center justify-center gap-2 ${logStep === 'summary' ? 'bg-primary/15 text-primary border-primary/25 shadow-sm' : 'bg-white dark:bg-gray-900 text-gray-400 dark:text-gray-500 border-gray-150 dark:border-gray-800'}`}
+                      className={`flex-1 p-3.5 rounded-2xl text-xs font-black uppercase tracking-wider border transition-all flex items-center justify-center gap-2 ${logStep === 'summary' ? 'bg-primary/15 text-primary border-primary/25 shadow-sm' : 'bg-white dark:bg-gray-900 text-gray-400 dark:text-gray-500 border-gray-200 dark:border-gray-800'}`}
                   >
                       <span className={`flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-bold ${logStep === 'summary' ? 'bg-primary text-white' : 'bg-gray-100 dark:bg-gray-800 text-gray-400'}`}>2</span>
                       <span>Sammanfattning</span>
@@ -2637,15 +2637,15 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
                                         lineClass = 'bg-green-500';
                                         statusTextClass = 'text-green-600 dark:text-green-400 font-bold';
                                     } else if (isStarted) {
-                                        headerBgClass = 'bg-amber-50/30 hover:bg-amber-100/40 dark:bg-amber-955/5 dark:hover:bg-amber-955/10 border-amber-200/40 dark:border-amber-900/30 shadow-sm';
+                                        headerBgClass = 'bg-amber-50/30 hover:bg-amber-100/40 dark:bg-amber-950/5 dark:hover:bg-amber-950/10 border-amber-200/40 dark:border-amber-900/30 shadow-sm';
                                         lineClass = 'bg-amber-500';
                                         statusTextClass = 'text-amber-600 dark:text-amber-400 font-bold';
                                     } else {
                                         headerBgClass = isExpanded
-                                            ? 'bg-gray-100/75 hover:bg-gray-100 dark:bg-slate-900/90 dark:hover:bg-slate-900 border-gray-200/50 dark:border-gray-850/40 shadow-sm'
-                                            : 'bg-white hover:bg-gray-50 dark:bg-gray-900 dark:hover:bg-slate-900/60 border-gray-150 dark:border-gray-800/40 shadow-sm';
-                                        lineClass = 'bg-gray-300 dark:bg-gray-750';
-                                        statusTextClass = 'text-gray-500 dark:text-gray-450';
+                                            ? 'bg-gray-100/75 hover:bg-gray-100 dark:bg-slate-900/90 dark:hover:bg-slate-900 border-gray-200/50 dark:border-gray-800/40 shadow-sm'
+                                            : 'bg-white hover:bg-gray-50 dark:bg-gray-900 dark:hover:bg-slate-900/60 border-gray-200 dark:border-gray-800/40 shadow-sm';
+                                        lineClass = 'bg-gray-300 dark:bg-gray-700';
+                                        statusTextClass = 'text-gray-500 dark:text-gray-400';
                                     }
 
                                     return (
@@ -2691,7 +2691,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
                                                         </span>
                                                     )}
                                                     {isStarted && (
-                                                        <span className="text-[10px] bg-amber-100 dark:bg-amber-955/45 text-amber-700 dark:text-amber-400 font-extrabold px-2.5 py-0.5 rounded-full uppercase tracking-wider">
+                                                        <span className="text-[10px] bg-amber-100 dark:bg-amber-950/45 text-amber-700 dark:text-amber-400 font-extrabold px-2.5 py-0.5 rounded-full uppercase tracking-wider">
                                                             Pågår ⚡
                                                         </span>
                                                     )}
@@ -3068,13 +3068,13 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
                                               <button
                                                   type="button"
                                                   onClick={() => setShowSummaryMoreFields(true)}
-                                                  className="inline-flex items-center gap-1 text-[11px] font-extrabold text-gray-400 dark:text-gray-500 hover:text-primary dark:hover:text-primary-light bg-gray-50/80 dark:bg-gray-800/80 hover:bg-primary/10 px-2.5 py-1 rounded-full transition-all border border-gray-150 dark:border-gray-700/60 active:scale-95"
+                                                  className="inline-flex items-center gap-1 text-[11px] font-extrabold text-gray-400 dark:text-gray-500 hover:text-primary dark:hover:text-primary-light bg-gray-50/80 dark:bg-gray-800/80 hover:bg-primary/10 px-2.5 py-1 rounded-full transition-all border border-gray-200 dark:border-gray-700/60 active:scale-95"
                                               >
                                                   <PlusIcon className="w-3 h-3" />
                                                   <span>+ fler fält</span>
                                               </button>
                                           ) : (
-                                              <div className="flex items-center gap-1.5 flex-wrap p-2 bg-gray-50 dark:bg-gray-800/60 rounded-xl border border-gray-150 dark:border-gray-700/80 animate-fade-in">
+                                              <div className="flex items-center gap-1.5 flex-wrap p-2 bg-gray-50 dark:bg-gray-800/60 rounded-xl border border-gray-200 dark:border-gray-700/80 animate-fade-in">
                                                   <span className="text-[10px] font-extrabold uppercase tracking-widest text-gray-400 mr-1">Lägg till:</span>
                                                   {inactiveSummaryFields.map(f => (
                                                       <button
@@ -3144,7 +3144,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
                                        </svg>
                                        Kvar att fylla i innan du kan spara:
                                    </p>
-                                   <ul className="list-disc pl-5 space-y-1 text-xs font-bold text-red-650 dark:text-red-350">
+                                   <ul className="list-disc pl-5 space-y-1 text-xs font-bold text-red-600 dark:text-red-300">
                                        {getValidationErrors().map((err, idx) => (
                                            <li key={idx}>{err}</li>
                                        ))}

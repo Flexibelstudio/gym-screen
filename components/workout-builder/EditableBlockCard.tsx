@@ -268,7 +268,7 @@ const ExerciseItem: React.FC<ExerciseItemProps> = ({ exercise, onUpdate, onRemov
                             className={`px-2 py-1 text-[10px] font-black rounded-md transition-all h-full flex items-center justify-center ${
                                 exercise.side === 'V'
                                 ? 'bg-orange-500 text-white shadow-sm'
-                                : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-150 dark:hover:bg-gray-700'
+                                : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
                             }`}
                             title="Vänster"
                         >
@@ -280,7 +280,7 @@ const ExerciseItem: React.FC<ExerciseItemProps> = ({ exercise, onUpdate, onRemov
                             className={`px-2 py-1 text-[10px] font-black rounded-md transition-all h-full flex items-center justify-center ${
                                 exercise.side === 'H'
                                 ? 'bg-orange-500 text-white shadow-sm'
-                                : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-150 dark:hover:bg-gray-700'
+                                : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
                             }`}
                             title="Höger"
                         >
@@ -292,7 +292,7 @@ const ExerciseItem: React.FC<ExerciseItemProps> = ({ exercise, onUpdate, onRemov
                             className={`px-1.5 py-1 text-[9px] font-black rounded-md transition-all h-full flex items-center justify-center ${
                                 exercise.side === 'V/H'
                                 ? 'bg-orange-500 text-white shadow-sm'
-                                : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-150 dark:hover:bg-gray-700'
+                                : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
                             }`}
                             title="Per sida (alla reps på ena sidan, sedan andra)"
                         >
@@ -304,7 +304,7 @@ const ExerciseItem: React.FC<ExerciseItemProps> = ({ exercise, onUpdate, onRemov
                             className={`px-1.5 py-1 text-[9px] font-black rounded-md transition-all h-full flex items-center justify-center ${
                                 exercise.side === 'ALT'
                                 ? 'bg-orange-500 text-white shadow-sm'
-                                : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-150 dark:hover:bg-gray-700'
+                                : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
                             }`}
                             title="Alternerande (växla sida varje rep)"
                         >
@@ -327,7 +327,7 @@ const ExerciseItem: React.FC<ExerciseItemProps> = ({ exercise, onUpdate, onRemov
                             placeholder={isGlobal ? exercise.name : "Sök eller skriv övningsnamn"}
                             className={`appearance-none w-full border border-gray-300 dark:border-gray-600 rounded-lg p-2 focus:ring-2 focus:ring-primary focus:outline-none transition-all font-semibold placeholder-gray-400 dark:placeholder-gray-500 pr-8 ${
                                 isGlobal 
-                                ? 'bg-gray-150 dark:bg-gray-800/80 cursor-not-allowed text-gray-500 dark:text-gray-400 select-none' 
+                                ? 'bg-gray-200 dark:bg-gray-800/80 cursor-not-allowed text-gray-500 dark:text-gray-400 select-none' 
                                 : '!bg-white dark:!bg-gray-700 !text-gray-900 dark:!text-white'
                             }`}
                         />

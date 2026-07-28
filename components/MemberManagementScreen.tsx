@@ -1,11 +1,11 @@
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Member, UserRole, WorkoutLog } from '../types';
 import { UsersIcon, PencilIcon, ChartBarIcon, SearchIcon, ChevronDownIcon, ChevronLeftIcon, ChevronRightIcon, CloseIcon, QrCodeIcon, CopyIcon } from './icons';
 import { MemberDetailModal } from './MemberDetailModal';
 import { PrintablePoster } from './PrintablePoster';
 import { useStudio } from '../context/StudioContext';
-import { listenToMembers, updateMemberEndDate, updateUserRoleCloud, approveCoach, updateOrganization, updateUserProfile, getOrganizationLogsSince } from '../services/firebaseService';
+import { listenToMembers, updateMemberEndDate, updateUserRoleCloud, approveCoach, updateOrganization, updateUserProfile, getOrganizationLogsSince, saveAdminActivity } from '../services/firebaseService';
 import QRCode from 'react-qr-code';
 import QRCodePNG from 'qrcode';
 import { Modal } from './ui/Modal';
@@ -13,6 +13,7 @@ import { useAuth } from '../context/AuthContext';
 import { Toast } from './ui/ToastNotification';
 import { calculateAge, formatBirthday, isBirthdayToday } from '../utils/dateUtils';
 import { buildRadar, RadarFlag, MemberRadarResult, RadarResultItem } from '../utils/coachRadar';
+import { getMemberLocationIds } from '../utils/workoutUtils';
 
 const LocationInviteCard: React.FC<{
     locationName: string;
@@ -170,25 +171,50 @@ const RoleSwitcher: React.FC<{
 
 const LocationSwitcher: React.FC<{ 
     currentLocationId?: string; 
+    currentLocationIds?: string[];
     memberId: string; 
     isUpdating: boolean;
     locations: { id: string, name: string }[];
-    onUpdate: (locationId: string) => void;
+    onUpdate: (locationIds: string[]) => void;
     canEdit: boolean;
-}> = ({ currentLocationId, memberId, isUpdating, locations, onUpdate, canEdit }) => {
-    const handleClick = (e: React.MouseEvent) => e.stopPropagation();
+}> = ({ currentLocationId, currentLocationIds, memberId, isUpdating, locations, onUpdate, canEdit }) => {
+    const [isOpen, setIsOpen] = useState(false);
+    const dropdownRef = useRef<HTMLDivElement>(null);
 
-    const handleChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-        e.stopPropagation();
-        onUpdate(e.target.value);
-    };
+    const activeLocIds = useMemo(() => {
+        return getMemberLocationIds({ locationId: currentLocationId, locationIds: currentLocationIds });
+    }, [currentLocationId, currentLocationIds]);
+
+    const activeNames = useMemo(() => {
+        return activeLocIds.map(id => locations.find(l => l.id === id)?.name || id);
+    }, [activeLocIds, locations]);
+
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+                setIsOpen(false);
+            }
+        };
+        if (isOpen) {
+            document.addEventListener('mousedown', handleClickOutside);
+        }
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside);
+        };
+    }, [isOpen]);
 
     if (locations.length === 0) return null;
 
-    const currentLoc = locations.find(l => l.id === currentLocationId);
-    const resolvedLocId = currentLoc ? currentLoc.id : (locations.length > 0 ? locations[0].id : '');
-    const label = currentLoc ? currentLoc.name : (locations.length > 0 ? locations[0].name : "Saknar Ort");
-    const labelClass = currentLoc ? "bg-blue-100 text-blue-700 border-blue-200" : "bg-gray-100 text-gray-500 border-gray-200";
+    let label = "Saknar Ort";
+    if (activeNames.length === 1) {
+        label = activeNames[0];
+    } else if (activeNames.length > 1) {
+        label = `${activeNames.length} Orter`;
+    }
+
+    const labelClass = activeNames.length > 0 
+        ? "bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-800" 
+        : "bg-gray-100 text-gray-500 border-gray-200 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-700";
 
     if (!canEdit) {
         return (
@@ -199,25 +225,52 @@ const LocationSwitcher: React.FC<{
     }
 
     return (
-        <div className="relative inline-block" onClick={handleClick}>
-            <div className={`flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full font-black uppercase tracking-wider border shadow-sm cursor-pointer transition-all hover:brightness-95 ${labelClass}`}>
+        <div className="relative inline-block" ref={dropdownRef} onClick={(e) => e.stopPropagation()}>
+            <button
+                type="button"
+                onClick={() => setIsOpen(!isOpen)}
+                disabled={isUpdating}
+                className={`flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full font-black uppercase tracking-wider border shadow-sm transition-all hover:brightness-95 ${labelClass}`}
+            >
                 {isUpdating ? (
-                    <div className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin mr-1"></div>
+                    <div className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin mr-1" />
                 ) : (
-                    <span className="max-w-[100px] truncate">{label}</span>
+                    <span className="max-w-[120px] truncate">{label}</span>
                 )}
                 {!isUpdating && <ChevronDownIcon className="w-3 h-3 opacity-70" />}
-            </div>
-            <select
-                value={resolvedLocId}
-                onChange={handleChange}
-                disabled={isUpdating}
-                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer appearance-none bg-transparent text-black"
-            >
-                {locations.map(loc => (
-                    <option key={loc.id} value={loc.id} className="text-black bg-white">{loc.name}</option>
-                ))}
-            </select>
+            </button>
+
+            {isOpen && (
+                <div className="absolute left-0 mt-1 w-48 bg-white dark:bg-gray-800 rounded-xl shadow-xl border border-gray-100 dark:border-gray-700 p-2 z-50 text-xs">
+                    <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider px-2 py-1 border-b border-gray-100 dark:border-gray-700 mb-1">
+                        Välj Orter
+                    </div>
+                    <div className="space-y-1 max-h-48 overflow-y-auto">
+                        {locations.map(loc => {
+                            const isChecked = activeLocIds.includes(loc.id);
+                            return (
+                                <label 
+                                    key={loc.id} 
+                                    className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700/50 cursor-pointer text-gray-800 dark:text-gray-200 font-medium"
+                                >
+                                    <input 
+                                        type="checkbox"
+                                        checked={isChecked}
+                                        onChange={() => {
+                                            const updated = isChecked
+                                                ? activeLocIds.filter(id => id !== loc.id)
+                                                : [...activeLocIds, loc.id];
+                                            onUpdate(updated);
+                                        }}
+                                        className="rounded border-gray-300 text-primary focus:ring-primary"
+                                    />
+                                    <span className="truncate">{loc.name}</span>
+                                </label>
+                            );
+                        })}
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
@@ -486,12 +539,13 @@ export const MemberManagementScreen: React.FC<MemberManagementScreenProps> = ({ 
 
   const radarMembers = useMemo(() => {
       return members.filter(m => {
+          const locIds = getMemberLocationIds(m);
           if (currentUserRole === 'coach' && currentUser?.locationId) {
-              return m.locationId === currentUser.locationId;
+              return locIds.includes(currentUser.locationId);
           } else if (locationFilter === 'none') {
-              return !m.locationId;
+              return locIds.length === 0;
           } else if (locationFilter !== 'all') {
-              return m.locationId === locationFilter;
+              return locIds.includes(locationFilter);
           }
           return true;
       });
@@ -510,19 +564,20 @@ export const MemberManagementScreen: React.FC<MemberManagementScreenProps> = ({ 
           else if (roleFilter === 'admin') matchesRole = m.role === 'organizationadmin' || m.role === 'systemowner';
 
           let matchesLocation = true;
+          const locIds = getMemberLocationIds(m);
           
           // Coach kan bara se de i sin egen studio (om de har en studio)
           if (currentUserRole === 'coach' && currentUser?.locationId) {
-              matchesLocation = m.locationId === currentUser.locationId;
+              matchesLocation = locIds.includes(currentUser.locationId);
           } else if (locationFilter === 'none') {
-              matchesLocation = !m.locationId;
+              matchesLocation = locIds.length === 0;
           } else if (locationFilter !== 'all') {
-              matchesLocation = m.locationId === locationFilter;
+              matchesLocation = locIds.includes(locationFilter);
           }
 
           return matchesSearch && matchesRole && matchesLocation;
       });
-  }, [members, searchTerm, roleFilter, locationFilter]);
+  }, [members, searchTerm, roleFilter, locationFilter, currentUserRole, currentUser?.locationId]);
 
   const totalPages = Math.ceil(filteredMembers.length / ITEMS_PER_PAGE);
   const paginatedMembers = useMemo(() => {
@@ -546,9 +601,26 @@ export const MemberManagementScreen: React.FC<MemberManagementScreenProps> = ({ 
 
   const handleSaveDate = async () => {
       if (!editingDateMember) return;
+      const memberName = `${editingDateMember.firstName || ''} ${editingDateMember.lastName || ''}`.trim() || 'Medlem';
+      const oldDateStr = editingDateMember.endDate || 'inget';
       try {
           await updateMemberEndDate(editingDateMember.id, newDateValue);
           setEditingDateMember(null);
+          if (selectedOrganization) {
+              try {
+                  saveAdminActivity({
+                      organizationId: selectedOrganization.id,
+                      userId: currentUser?.uid || 'unknown',
+                      userName: (currentUser as any)?.firstName || 'Admin',
+                      type: 'MEMBER',
+                      action: 'UPDATE',
+                      description: `Ändrade slutdatum för ${memberName}: ${oldDateStr} → ${newDateValue}`,
+                      timestamp: Date.now()
+                  });
+              } catch (logErr) {
+                  console.warn("Failed to log activity:", logErr);
+              }
+          }
       } catch (e) {
           alert("Kunde inte spara datum.");
       }
@@ -556,9 +628,25 @@ export const MemberManagementScreen: React.FC<MemberManagementScreenProps> = ({ 
 
   const handleClearDate = async () => {
       if (!editingDateMember) return;
+      const memberName = `${editingDateMember.firstName || ''} ${editingDateMember.lastName || ''}`.trim() || 'Medlem';
       try {
           await updateMemberEndDate(editingDateMember.id, null);
           setEditingDateMember(null);
+          if (selectedOrganization) {
+              try {
+                  saveAdminActivity({
+                      organizationId: selectedOrganization.id,
+                      userId: currentUser?.uid || 'unknown',
+                      userName: (currentUser as any)?.firstName || 'Admin',
+                      type: 'MEMBER',
+                      action: 'UPDATE',
+                      description: `Borttog slutdatum för ${memberName}`,
+                      timestamp: Date.now()
+                  });
+              } catch (logErr) {
+                  console.warn("Failed to log activity:", logErr);
+              }
+          }
       } catch (e) {
           alert("Kunde inte ta bort datum.");
       }
@@ -566,8 +654,26 @@ export const MemberManagementScreen: React.FC<MemberManagementScreenProps> = ({ 
 
   const handleQuickRoleUpdate = async (memberId: string, newRole: UserRole) => {
       setUpdatingMembers(prev => ({ ...prev, [memberId]: true }));
+      const targetMember = members.find(m => m.id === memberId || m.uid === memberId);
+      const memberName = targetMember ? `${targetMember.firstName || ''} ${targetMember.lastName || ''}`.trim() : 'Medlem';
+      const oldRole = targetMember?.role || 'member';
       try {
           await updateUserRoleCloud(memberId, newRole);
+          if (selectedOrganization) {
+              try {
+                  saveAdminActivity({
+                      organizationId: selectedOrganization.id,
+                      userId: currentUser?.uid || 'unknown',
+                      userName: (currentUser as any)?.firstName || 'Admin',
+                      type: 'MEMBER',
+                      action: 'UPDATE',
+                      description: `Ändrade roll för ${memberName}: ${oldRole} → ${newRole}`,
+                      timestamp: Date.now()
+                  });
+              } catch (logErr) {
+                  console.warn("Failed to log activity:", logErr);
+              }
+          }
       } catch (e) {
           console.error("Failed to update role", e);
           alert(e instanceof Error ? e.message : "Kunde inte uppdatera rollen.");
@@ -576,10 +682,15 @@ export const MemberManagementScreen: React.FC<MemberManagementScreenProps> = ({ 
       }
   };
 
-  const handleQuickLocationUpdate = async (memberId: string, newLocationId: string) => {
+  const handleQuickLocationUpdate = async (memberId: string, selectedLocIds: string[]) => {
       setUpdatingMembers(prev => ({ ...prev, [memberId]: true }));
       try {
-          await updateUserProfile(memberId, { locationId: newLocationId });
+          const primaryLocId = selectedLocIds[0] || '';
+          const locIdsToSave = selectedLocIds.length > 1 ? selectedLocIds : [];
+          await updateUserProfile(memberId, { 
+              locationId: primaryLocId,
+              locationIds: locIdsToSave
+          });
       } catch (e) {
           console.error("Failed to update location", e);
           alert(e instanceof Error ? e.message : "Kunde inte uppdatera ort.");
@@ -591,8 +702,25 @@ export const MemberManagementScreen: React.FC<MemberManagementScreenProps> = ({ 
   const handleApproveCoach = async (e: React.MouseEvent, memberId: string) => {
       e.stopPropagation();
       setUpdatingMembers(prev => ({ ...prev, [memberId]: true }));
+      const targetMember = members.find(m => m.id === memberId || m.uid === memberId);
+      const memberName = targetMember ? `${targetMember.firstName || ''} ${targetMember.lastName || ''}`.trim() : 'Medlem';
       try {
           await approveCoach(memberId);
+          if (selectedOrganization) {
+              try {
+                  saveAdminActivity({
+                      organizationId: selectedOrganization.id,
+                      userId: currentUser?.uid || 'unknown',
+                      userName: (currentUser as any)?.firstName || 'Admin',
+                      type: 'MEMBER',
+                      action: 'UPDATE',
+                      description: `Godkände ${memberName} som coach`,
+                      timestamp: Date.now()
+                  });
+              } catch (logErr) {
+                  console.warn("Failed to log activity:", logErr);
+              }
+          }
       } catch (e) {
           console.error("Failed to approve coach", e);
           alert(e instanceof Error ? e.message : "Kunde inte godkänna coachen.");
@@ -813,10 +941,11 @@ export const MemberManagementScreen: React.FC<MemberManagementScreenProps> = ({ 
                               {selectedOrganization?.locations && selectedOrganization.locations.length > 0 && (
                                   <LocationSwitcher
                                       currentLocationId={member.locationId}
+                                      currentLocationIds={member.locationIds}
                                       memberId={member.id}
                                       isUpdating={!!updatingMembers[member.id]}
                                       locations={selectedOrganization.locations}
-                                      onUpdate={(newLocId) => handleQuickLocationUpdate(member.id, newLocId)}
+                                      onUpdate={(selectedLocIds) => handleQuickLocationUpdate(member.id, selectedLocIds)}
                                       canEdit={canEditRoles}
                                   />
                               )}

@@ -353,7 +353,7 @@ export const RaceFinishAnimation: React.FC<{
                                 onClick={() => setSelectedDivision('all')}
                                 className={`px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${
                                     selectedDivision === 'all'
-                                        ? 'bg-gradient-to-r from-indigo-600 to-indigo-550 text-white shadow-md'
+                                        ? 'bg-gradient-to-r from-indigo-600 to-indigo-500 text-white shadow-md'
                                         : 'text-slate-400 hover:text-white hover:bg-slate-800/40'
                                 }`}
                             >
@@ -366,7 +366,7 @@ export const RaceFinishAnimation: React.FC<{
                                     onClick={() => setSelectedDivision(div)}
                                     className={`px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${
                                         selectedDivision === div
-                                            ? 'bg-gradient-to-r from-indigo-600 to-indigo-550 text-white shadow-md'
+                                            ? 'bg-gradient-to-r from-indigo-600 to-indigo-500 text-white shadow-md'
                                             : 'text-slate-400 hover:text-white hover:bg-slate-800/40'
                                     }`}
                                 >
@@ -376,10 +376,10 @@ export const RaceFinishAnimation: React.FC<{
                         </div>
 
                         {/* RESULT LIST TABLE */}
-                        <div className="bg-slate-950/45 border border-slate-850 rounded-3xl overflow-hidden max-h-[50vh] overflow-y-auto">
+                        <div className="bg-slate-950/45 border border-slate-800 rounded-3xl overflow-hidden max-h-[50vh] overflow-y-auto">
                             <table className="w-full text-left border-collapse">
                                 <thead>
-                                    <tr className="border-b border-slate-850 bg-slate-950/80 text-slate-400 font-bold text-[10px] uppercase tracking-wider">
+                                    <tr className="border-b border-slate-800 bg-slate-950/80 text-slate-400 font-bold text-[10px] uppercase tracking-wider">
                                         <th className="py-3 px-4 w-16 text-center">Plats</th>
                                         <th className="py-3 px-4 w-16 text-center">Startnr</th>
                                         <th className="py-3 px-4">Deltagare / Lagnamn</th>
@@ -422,7 +422,7 @@ export const RaceFinishAnimation: React.FC<{
                                                         ) : p.partnerName ? (
                                                             <div>
                                                                 <div className="font-extrabold text-white text-sm tracking-tight">{p.name} & {p.partnerName}</div>
-                                                                <div className="text-[10px] text-slate-450 uppercase tracking-wider text-[9px] font-bold">Dubbel</div>
+                                                                <div className="text-[10px] text-slate-400 uppercase tracking-wider text-[9px] font-bold">Dubbel</div>
                                                             </div>
                                                         ) : (
                                                             <div className="font-bold text-white text-sm tracking-tight">{p.name}</div>
@@ -475,7 +475,7 @@ export const RaceFinishAnimation: React.FC<{
                 </div>
 
                 {/* BOTTOM CLOSE BAR */}
-                <div className="mt-8 pt-6 border-t border-slate-850 flex flex-col sm:flex-row justify-between items-center gap-4 text-xs font-medium text-slate-400">
+                <div className="mt-8 pt-6 border-t border-slate-800 flex flex-col sm:flex-row justify-between items-center gap-4 text-xs font-medium text-slate-400">
                     <span className="flex items-center gap-2 text-slate-500">
                         <Sparkles className="w-4 h-4 text-[#CD7F32] animate-pulse" />
                         Officiella tider sparade av Flexibel Friskvård & Hälsa

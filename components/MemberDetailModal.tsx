@@ -8,7 +8,7 @@ import { ChartBarIcon, SparklesIcon, InformationCircleIcon, DumbbellIcon, FireIc
 import { useStudio } from '../context/StudioContext';
 import { MapPinIcon } from 'lucide-react';
 import { calculateAge } from '../utils/dateUtils';
-import { getYearWeek } from '../utils/workoutUtils';
+import { getYearWeek, getMemberLocationIds } from '../utils/workoutUtils';
 
 interface MemberDetailModalProps {
     visible: boolean;
@@ -135,13 +135,13 @@ export const MemberDetailModal: React.FC<MemberDetailModalProps> = ({ visible, m
                                 {member.role === 'coach' && <span className="bg-purple-100 text-purple-700 px-2 py-0.5 rounded text-xs font-bold">Coach</span>}
                                 {member.isTrainingMember && <span className="bg-green-100 text-green-700 px-2 py-0.5 rounded text-xs font-bold">Medlem</span>}
                                 {(() => {
-                                    const locId = member.locationId || (selectedOrganization?.locations?.[0]?.id);
-                                    const locName = selectedOrganization?.locations?.find(l => l.id === locId)?.name;
-                                    if (locName) {
+                                    const locIds = getMemberLocationIds(member);
+                                    if (locIds.length > 0 && selectedOrganization?.locations) {
+                                        const names = locIds.map(id => selectedOrganization.locations.find(l => l.id === id)?.name || id);
                                         return (
                                             <span className="bg-blue-100/80 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 px-2 py-0.5 rounded text-xs font-bold flex items-center gap-1 border border-blue-200 dark:border-blue-800">
                                                 <MapPinIcon className="w-3 h-3" />
-                                                {locName}
+                                                {names.join(', ')}
                                             </span>
                                         );
                                     }

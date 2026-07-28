@@ -4,9 +4,9 @@ import {
 import { db, isOffline, sanitizeData, normalizeString } from './init';
 import { getOrganizationExerciseBank } from './exercises';
 import { Workout, Exercise, BankExercise } from '../../types';
-import { isWorkoutVisibleNow } from '../../utils/workoutUtils';
+import { isWorkoutVisibleNow, isWorkoutVisibleForLocations } from '../../utils/workoutUtils';
 
-export const getFreshCategoryWorkouts = async (orgId: string, category: string): Promise<Workout[]> => {
+export const getFreshCategoryWorkouts = async (orgId: string, category: string, memberLocationIds?: string[]): Promise<Workout[]> => {
     if (isOffline || !db || !orgId) return [];
     try {
         const q = query(
@@ -32,14 +32,14 @@ export const getFreshCategoryWorkouts = async (orgId: string, category: string):
                 }
                 return data;
             })
-            .filter(w => isWorkoutVisibleNow(w));
+            .filter(w => memberLocationIds ? isWorkoutVisibleForLocations(w, memberLocationIds) : isWorkoutVisibleNow(w));
     } catch (error) {
         console.error("Error fetching fresh category workouts:", error);
         return [];
     }
 };
 
-export const getVisibleWorkoutsForMembers = async (orgId: string): Promise<Workout[]> => {
+export const getVisibleWorkoutsForMembers = async (orgId: string, memberLocationIds?: string[]): Promise<Workout[]> => {
     if (isOffline || !db || !orgId) return [];
     try {
         const q = query(
@@ -62,7 +62,7 @@ export const getVisibleWorkoutsForMembers = async (orgId: string): Promise<Worko
                 }));
             }
             return data;
-        }).filter(w => isWorkoutVisibleNow(w));
+        }).filter(w => memberLocationIds ? isWorkoutVisibleForLocations(w, memberLocationIds) : isWorkoutVisibleNow(w));
     } catch (e) { 
         console.error("getVisibleWorkoutsForMembers failed", e);
         return []; 

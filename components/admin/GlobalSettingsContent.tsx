@@ -46,7 +46,7 @@ export const GlobalSettingsContent: React.FC<GlobalSettingsContentProps> = ({
                 <section>
                     <h4 className="text-sm font-bold uppercase tracking-wider text-gray-400 mb-4">Funktioner & Moduler</h4>
                     <div className="space-y-4">
-                        <div className="bg-gray-5 dark:bg-gray-900/50 p-4 rounded-xl border border-gray-100 dark:border-gray-700">
+                        <div className="bg-gray-50 dark:bg-gray-900/50 p-4 rounded-xl border border-gray-100 dark:border-gray-700">
                             <ToggleSwitch 
                                 label="Fristående Timer" 
                                 checked={config.enableTimer !== false} // Default true
@@ -55,7 +55,7 @@ export const GlobalSettingsContent: React.FC<GlobalSettingsContentProps> = ({
                             <p className="text-xs text-gray-500 mt-2 pl-2">Aktiverar den fristående timern på startsidan.</p>
                         </div>
 
-                        <div className="bg-gray-5 dark:bg-gray-900/50 p-4 rounded-xl border border-gray-100 dark:border-gray-700">
+                        <div className="bg-gray-50 dark:bg-gray-900/50 p-4 rounded-xl border border-gray-100 dark:border-gray-700">
                             <ToggleSwitch 
                                 label="Övriga Pass" 
                                 checked={config.enableOtherWorkouts !== false} // Default true
@@ -64,7 +64,7 @@ export const GlobalSettingsContent: React.FC<GlobalSettingsContentProps> = ({
                             <p className="text-xs text-gray-500 mt-2 pl-2">Visar knappen för "Övriga Pass" på startsidan.</p>
                         </div>
 
-                        <div className="bg-gray-5 dark:bg-gray-900/50 p-4 rounded-xl border border-gray-100 dark:border-gray-700">
+                        <div className="bg-gray-50 dark:bg-gray-900/50 p-4 rounded-xl border border-gray-100 dark:border-gray-700">
                             <ToggleSwitch 
                                 label="Träningslekar (Smart Play)" 
                                 checked={!!config.enableWorkoutGames} 
@@ -73,7 +73,7 @@ export const GlobalSettingsContent: React.FC<GlobalSettingsContentProps> = ({
                             <p className="text-xs text-gray-500 mt-2 pl-2">Aktiverar kortlekar, tärningar och andra träningsspel på skärmen.</p>
                         </div>
 
-                        <div className="bg-gray-5 dark:bg-gray-900/50 p-4 rounded-xl border border-gray-100 dark:border-gray-700">
+                        <div className="bg-gray-50 dark:bg-gray-900/50 p-4 rounded-xl border border-gray-100 dark:border-gray-700">
                             <ToggleSwitch 
                                 label="HYROX-modul" 
                                 checked={!!config.enableHyrox} 
@@ -82,7 +82,7 @@ export const GlobalSettingsContent: React.FC<GlobalSettingsContentProps> = ({
                             <p className="text-xs text-gray-500 mt-2 pl-2">Aktiverat verktyg för tävlingar och HYROX-pass.</p>
                         </div>
 
-                        <div className="bg-gray-5 dark:bg-gray-900/50 p-4 rounded-xl border border-gray-100 dark:border-gray-700">
+                        <div className="bg-gray-50 dark:bg-gray-900/50 p-4 rounded-xl border border-gray-100 dark:border-gray-700">
                             <ToggleSwitch 
                                 label="Styrka & Kondition (jämförelser)" 
                                 checked={config.enableFitnessBenchmarks !== false} 
@@ -91,7 +91,7 @@ export const GlobalSettingsContent: React.FC<GlobalSettingsContentProps> = ({
                             <p className="text-xs text-gray-500 mt-2 pl-2">Visar medlemmarnas styrke- och konditionsnivåer jämfört med andra i samma ålder och kön. Påslaget som standard.</p>
                         </div>
 
-                        <div className="bg-gray-5 dark:bg-gray-900/50 p-4 rounded-xl border border-gray-100 dark:border-gray-700">
+                        <div className="bg-gray-50 dark:bg-gray-900/50 p-4 rounded-xl border border-gray-100 dark:border-gray-700">
                             <ToggleSwitch 
                                 label="Sommarutmaning (Sommar-Sisu)" 
                                 checked={!!config.enableSummerChallenge} 
@@ -164,7 +164,7 @@ export const GlobalSettingsContent: React.FC<GlobalSettingsContentProps> = ({
                                                 id="new-activity-input" 
                                                 type="text" 
                                                 placeholder="T.ex. Padel" 
-                                                className="flex-1 p-2 text-sm rounded bg-gray-5 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 focus:ring-2 focus:ring-primary outline-none" 
+                                                className="flex-1 p-2 text-sm rounded bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 focus:ring-2 focus:ring-primary outline-none" 
                                                 onKeyDown={(e) => {
                                                     if (e.key === 'Enter') {
                                                         e.preventDefault();
@@ -195,7 +195,7 @@ export const GlobalSettingsContent: React.FC<GlobalSettingsContentProps> = ({
                                 </div>
                         )}
 
-                        <div className="bg-gray-5 dark:bg-gray-900/50 p-4 rounded-xl border border-gray-100 dark:border-gray-700">
+                        <div className="bg-gray-50 dark:bg-gray-900/50 p-4 rounded-xl border border-gray-100 dark:border-gray-700">
                             <ToggleSwitch label="AI Whiteboard" checked={!!config.enableNotes} onChange={(checked) => handleUpdateConfigField('enableNotes', checked)} />
                             <p className="text-xs text-gray-500 mt-2 pl-2">Digital rityta för att skissa pass och idéer.</p>
                         </div>

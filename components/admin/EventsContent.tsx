@@ -321,12 +321,17 @@ const StartListPrintView: React.FC<{
                     let groupTimeStr = "";
                     if (scheduledDate) {
                         try {
-                            const baseDate = new Date(scheduledDate);
-                            if (!isNaN(baseDate.getTime())) {
-                                const intervalMs = (((startIntervalMinutes || 2) + (startIntervalSeconds || 0) / 60) * 60 * 1000);
-                                const heatTime = new Date(baseDate.getTime() + groupIdx * intervalMs);
-                                if (!isNaN(heatTime.getTime())) {
-                                    groupTimeStr = heatTime.toLocaleTimeString('sv-SE', { hour: '2-digit', minute: '2-digit' });
+                            const hasTime = typeof scheduledDate === 'string'
+                                ? scheduledDate.includes('T')
+                                : (typeof scheduledDate === 'number' && (new Date(scheduledDate).getUTCHours() !== 0 || new Date(scheduledDate).getUTCMinutes() !== 0));
+                            if (hasTime) {
+                                const baseDate = new Date(scheduledDate);
+                                if (!isNaN(baseDate.getTime())) {
+                                    const intervalMs = (((startIntervalMinutes || 2) + (startIntervalSeconds || 0) / 60) * 60 * 1000);
+                                    const heatTime = new Date(baseDate.getTime() + groupIdx * intervalMs);
+                                    if (!isNaN(heatTime.getTime())) {
+                                        groupTimeStr = heatTime.toLocaleTimeString('sv-SE', { hour: '2-digit', minute: '2-digit' });
+                                    }
                                 }
                             }
                         } catch (e) {
@@ -339,11 +344,11 @@ const StartListPrintView: React.FC<{
                         <div key={group.id || groupIdx} className="avoid-break border border-gray-300 rounded-xl p-4 bg-gray-50/40">
                             <h3 className="font-black text-xs text-gray-950 border-b border-gray-400 pb-1.5 mb-3 uppercase tracking-wider flex justify-between items-center bg-transparent">
                                 <span className="text-xs font-black text-gray-950">{group.name || `Heat ${groupIdx + 1}`}</span>
-                                {groupTimeStr && <span className="font-mono text-xs font-bold text-indigo-750">Starttid: {groupTimeStr}</span>}
+                                {groupTimeStr && <span className="font-mono text-xs font-bold text-indigo-700">Starttid: {groupTimeStr}</span>}
                             </h3>
                             <table className="w-full text-[11px] text-left border-collapse">
                                 <thead>
-                                    <tr className="border-b border-gray-300 bg-gray-150 text-gray-700 font-bold text-[9px] uppercase tracking-wider">
+                                    <tr className="border-b border-gray-300 bg-gray-200 text-gray-700 font-bold text-[9px] uppercase tracking-wider">
                                         <th className="py-1.5 px-2 border border-gray-200 w-12 text-center bg-gray-100 text-black">Startnr</th>
                                         <th className="py-1.5 px-2 border border-gray-200 bg-gray-100 text-black">Deltagare / Lagnamn</th>
                                         <th className="py-1.5 px-2 border border-gray-200 w-28 bg-gray-100 text-black">Klass/Division</th>
@@ -354,7 +359,7 @@ const StartListPrintView: React.FC<{
                                 <tbody>
                                     {pList.length === 0 ? (
                                         <tr>
-                                            <td colSpan={5} className="py-3 text-center text-gray-500 italic border border-gray-205 bg-white">
+                                            <td colSpan={5} className="py-3 text-center text-gray-500 italic border border-gray-200 bg-white">
                                                 Inga deltagare tilldelade till detta heat
                                             </td>
                                         </tr>
@@ -363,7 +368,7 @@ const StartListPrintView: React.FC<{
                                             if (!p) return null;
                                             const displayNames = p.partnerName ? `${p.name || ''} & ${p.partnerName}` : (p.name || '');
                                             return (
-                                                <tr key={p.id || pIdx} className="border-b border-gray-250 bg-white">
+                                                <tr key={p.id || pIdx} className="border-b border-gray-300 bg-white">
                                                     <td className="py-2.5 px-2 border border-gray-200 text-center font-bold text-xs text-gray-950">
                                                         {p.startNumber || '—'}
                                                     </td>
@@ -371,17 +376,17 @@ const StartListPrintView: React.FC<{
                                                         {p.teamName ? (
                                                             <div>
                                                                 <div className="font-black text-xs text-gray-950">{p.teamName}</div>
-                                                                <div className="text-[10px] text-gray-650 font-medium">{displayNames}</div>
+                                                                <div className="text-[10px] text-gray-600 font-medium">{displayNames}</div>
                                                             </div>
                                                         ) : (
                                                             <div className="font-bold text-gray-950 text-xs">{displayNames}</div>
                                                         )}
                                                     </td>
-                                                    <td className="py-2.5 px-2 border border-gray-200 text-[11px] font-semibold text-gray-750">
+                                                    <td className="py-2.5 px-2 border border-gray-200 text-[11px] font-semibold text-gray-700">
                                                         {p.division || '—'}
                                                     </td>
                                                     <td className="py-2.5 px-2 border border-gray-200 text-center">
-                                                        <div className="inline-block w-4 h-4 rounded border border-gray-450 bg-white" />
+                                                        <div className="inline-block w-4 h-4 rounded border border-gray-400 bg-white" />
                                                     </td>
                                                     <td className="py-2.5 px-2 border border-gray-200 text-gray-300 font-mono text-[10px] font-bold text-center">
                                                         ______ : ______ (m:s)
@@ -588,7 +593,7 @@ const EventEditor: React.FC<{
             partnerName: isDouble ? manualPartnerName.trim() : undefined,
             partnerEmail: (isDouble && manualPartnerEmail.trim()) ? manualPartnerEmail.trim() : undefined,
             teamName: (isDouble && manualTeamName.trim()) ? manualTeamName.trim() : undefined,
-            startNumber: participants.length + 1
+            startNumber: Math.max(0, ...participants.map(p => p.startNumber || 0)) + 1
         };
 
         setParticipants([...participants, newP]);
@@ -627,7 +632,7 @@ const EventEditor: React.FC<{
                 name: partName,
                 email: partEmail,
                 division: splitPartnerDivision,
-                startNumber: participants.length + 1
+                startNumber: Math.max(0, ...participants.map(p => p.startNumber || 0)) + 1
             };
         }
 
@@ -672,6 +677,8 @@ const EventEditor: React.FC<{
     const handleImportParticipants = () => {
         if (!participantsText.trim()) return;
         const lines = participantsText.split('\n').map(l => l.trim()).filter(Boolean);
+        const maxStartNum = Math.max(0, ...participants.map(p => p.startNumber || 0));
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         
         const newParticipants: RaceParticipant[] = lines.map((line, index) => {
             let teamName: string | undefined = undefined;
@@ -684,9 +691,9 @@ const EventEditor: React.FC<{
                 restOfLine = line.substring(colonIndex + 1).trim();
             }
 
-            const parts = restOfLine.split(/[-;,]/).map(p => p.trim());
-            const emails = parts.filter(p => p.includes('@'));
-            const nonEmails = parts.filter(p => !p.includes('@') && p !== '');
+            const parts = restOfLine.split(/[\t;,]|\s-\s/).map(p => p.trim());
+            const emails = parts.filter(p => emailRegex.test(p));
+            const nonEmails = parts.filter(p => !emailRegex.test(p) && p !== '');
 
             let name = 'Deltagare';
             let partnerName: string | undefined = undefined;
@@ -719,7 +726,7 @@ const EventEditor: React.FC<{
                 partnerEmail,
                 teamName,
                 division,
-                startNumber: participants.length + index + 1
+                startNumber: maxStartNum + index + 1
             };
         });
 
@@ -738,8 +745,15 @@ const EventEditor: React.FC<{
             return;
         }
 
-        const updatedGroups = [...startGroups];
-        if (updatedGroups.length > 0) {
+        let updatedGroups = [...startGroups];
+        if (updatedGroups.length === 0) {
+            updatedGroups = [{
+                id: `group-${Date.now()}`,
+                name: 'Heat 1',
+                participants: '',
+                participantList: [...participants]
+            }];
+        } else {
             const assignedIds = new Set(updatedGroups.flatMap(g => g.participantList?.map(p => p.id) || []));
             const unassigned = participants.filter(p => !assignedIds.has(p.id));
             if (unassigned.length > 0) {
@@ -750,10 +764,10 @@ const EventEditor: React.FC<{
         const newEvent: HyroxRace = {
             id: event?.id || `race-${Date.now()}`,
             organizationId,
-            studioId: studioId || undefined,
+            studioId: studioId || null as any,
             raceName,
             createdAt: event?.createdAt || Date.now(),
-            scheduledDate: scheduledDate ? new Date(scheduledDate).getTime() : undefined,
+            scheduledDate: scheduledDate ? new Date(scheduledDate).getTime() : null as any,
             status: event?.status || 'planned',
             exercises: event?.exercises || [], 
             startGroups: updatedGroups,
@@ -764,9 +778,9 @@ const EventEditor: React.FC<{
         onSave(newEvent);
     };
 
-    const handleSaveResult = (participantId: string) => {
+    const handleSaveResult = (targetId: string) => {
         setResults(prev => prev.map(r => 
-            (r.participantId === participantId || r.participant === participantId) 
+            (r.participantId ? r.participantId === targetId : r.participant === targetId) 
                 ? { ...r, time: editResultTime } 
                 : r
         ).sort((a, b) => a.time - b.time));
@@ -776,10 +790,34 @@ const EventEditor: React.FC<{
     const handleResetToPlanned = () => {
         if (!event) return;
         if (window.confirm('Är du säker på att du vill återställa detta event till planerat? Alla resultat kommer att raderas.')) {
+            let updatedGroups = [...startGroups];
+            if (updatedGroups.length === 0) {
+                updatedGroups = [{
+                    id: `group-${Date.now()}`,
+                    name: 'Heat 1',
+                    participants: '',
+                    participantList: [...participants]
+                }];
+            } else {
+                const assignedIds = new Set(updatedGroups.flatMap(g => g.participantList?.map(p => p.id) || []));
+                const unassigned = participants.filter(p => !assignedIds.has(p.id));
+                if (unassigned.length > 0) {
+                    updatedGroups[0].participantList = [...(updatedGroups[0].participantList || []), ...unassigned];
+                }
+            }
+
             const newEvent: HyroxRace = {
-                ...event,
+                id: event.id,
+                organizationId,
+                studioId: studioId || null as any,
+                raceName,
+                createdAt: event.createdAt || Date.now(),
+                scheduledDate: scheduledDate ? new Date(scheduledDate).getTime() : null as any,
                 status: 'planned',
-                results: []
+                exercises: event.exercises || [], 
+                startGroups: updatedGroups,
+                results: [],
+                startIntervalMinutes: startIntervalMinutes + (startIntervalSeconds / 60)
             };
             onSave(newEvent);
         }
@@ -869,9 +907,9 @@ const EventEditor: React.FC<{
                     <button 
                         type="button"
                         onClick={() => setShowPrintModal(true)}
-                        className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-750 hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-800 dark:text-white font-bold py-2.5 px-4 rounded-xl flex items-center justify-center gap-2 text-xs shadow-sm transition-colors"
+                        className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-800 dark:text-white font-bold py-2.5 px-4 rounded-xl flex items-center justify-center gap-2 text-xs shadow-sm transition-colors"
                     >
-                        <Printer className="w-4 h-4 text-indigo-550 dark:text-indigo-400" />
+                        <Printer className="w-4 h-4 text-indigo-500 dark:text-indigo-400" />
                         <span>Skriv ut startlista (Manuell hantering)</span>
                     </button>
                 </div>
@@ -957,7 +995,7 @@ const EventEditor: React.FC<{
                                 })()}
 
                                 {(editingParticipant.division?.includes('Dubbel') || editingParticipant.division?.includes('Mix') || editingParticipant.division?.includes('Lag')) && (
-                                    <div className="pt-2 border-t border-gray-150 dark:border-gray-800 space-y-3">
+                                    <div className="pt-2 border-t border-gray-200 dark:border-gray-800 space-y-3">
                                         <p className="text-xs font-semibold text-gray-500">Lag- & Partneruppgifter</p>
                                         <div>
                                             <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">Lagnamn (T.ex. Team Flexibel)</label>
@@ -1008,7 +1046,7 @@ const EventEditor: React.FC<{
                                                     ))
                                                 }
                                             </select>
-                                            <p className="text-[10px] text-gray-500 dark:text-gray-450 mt-1">
+                                            <p className="text-[10px] text-gray-500 dark:text-gray-400 mt-1">
                                                 Välj en existerande deltagare för att automatiskt fylla i partneruppgifter. Den valda personen tas bort som enskild deltagare när du klickar på "Spara ändringar".
                                             </p>
                                         </div>
@@ -1066,7 +1104,7 @@ const EventEditor: React.FC<{
                                 </div>
 
                                 {addMethod === 'manual' ? (
-                                    <div className="bg-gray-50 dark:bg-gray-850 border border-gray-100 dark:border-gray-800 rounded-xl p-5 space-y-4">
+                                    <div className="bg-gray-50 dark:bg-gray-800 border border-gray-100 dark:border-gray-800 rounded-xl p-5 space-y-4">
                                         <h4 className="font-bold text-gray-900 dark:text-white text-sm">Registrera person eller lag</h4>
                                         <div>
                                             <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">Deltagarnamn / Lagmedlem 1 *</label>
@@ -1102,7 +1140,7 @@ const EventEditor: React.FC<{
                                         </div>
 
                                         {(manualDivision.includes('Dubbel') || manualDivision.includes('Mix') || manualDivision.includes('Lag')) && (
-                                            <div className="pt-2 border-t border-gray-150 dark:border-gray-800 space-y-3">
+                                            <div className="pt-2 border-t border-gray-200 dark:border-gray-800 space-y-3">
                                                 <p className="text-xs font-semibold text-gray-500">Lag- & Partneruppgifter</p>
                                                 <div>
                                                     <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">Lagnamn (Frivilligt)</label>
@@ -1145,7 +1183,7 @@ const EventEditor: React.FC<{
                                         </button>
                                     </div>
                                 ) : (
-                                    <div className="bg-gray-50 dark:bg-gray-850 border border-gray-100 dark:border-gray-800 rounded-xl p-5 space-y-4">
+                                    <div className="bg-gray-50 dark:bg-gray-800 border border-gray-100 dark:border-gray-800 rounded-xl p-5 space-y-4">
                                         <div className="flex justify-between items-center">
                                             <h4 className="font-bold text-gray-900 dark:text-white text-sm">Massimport från Excel / Text</h4>
                                             <select 
@@ -1232,7 +1270,7 @@ const EventEditor: React.FC<{
                                         <div className="flex gap-1">
                                             <button 
                                                 onClick={() => handleStartEditParticipant(p)}
-                                                className="text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-850 p-1 rounded-lg"
+                                                className="text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 p-1 rounded-lg"
                                                 title="Redigera deltagare"
                                             >
                                                 <PencilIcon className="w-3.5 h-3.5" />
@@ -1326,6 +1364,7 @@ const EventEditor: React.FC<{
                             
                             const groupForParticipant = event?.startGroups?.find(g => g.id === result.groupId);
                             const matchedParticipant = groupForParticipant?.participantList?.find(p => 
+                                (result.participantId && p.id === result.participantId) ||
                                 p.name === result.participant || 
                                 (p.partnerName && `${p.name} & ${p.partnerName}` === result.participant)
                             );
@@ -1409,8 +1448,8 @@ const EventEditor: React.FC<{
                         <QrCodeIcon className="w-5 h-5 text-indigo-500" />
                         {event?.status === 'completed' ? 'Dela Resultat & QR-kod' : 'Dela Liveresultat & QR-kod'}
                     </h3>
-                    <div className="bg-gradient-to-br from-indigo-50/50 via-white to-amber-55/30 dark:from-slate-900/40 dark:via-slate-900/60 dark:to-indigo-950/20 border border-indigo-100 dark:border-slate-850 p-6 rounded-2xl flex flex-col md:flex-row items-center gap-6">
-                        <div className="bg-white p-3 rounded-2xl border border-gray-200 dark:border-gray-750 flex-shrink-0 shadow-lg dark:shadow-none share-qr-parent">
+                    <div className="bg-gradient-to-br from-indigo-50/50 via-white to-amber-50/30 dark:from-slate-900/40 dark:via-slate-900/60 dark:to-indigo-950/20 border border-indigo-100 dark:border-slate-800 p-6 rounded-2xl flex flex-col md:flex-row items-center gap-6">
+                        <div className="bg-white p-3 rounded-2xl border border-gray-200 dark:border-gray-700 flex-shrink-0 shadow-lg dark:shadow-none share-qr-parent">
                             <QRCode 
                                 value={`${window.location.origin}/live/${event.id}`} 
                                 size={120}
@@ -1434,7 +1473,7 @@ const EventEditor: React.FC<{
                                     <button
                                         type="button"
                                         onClick={() => handleCopyLink(`${window.location.origin}/live/${event.id}`)}
-                                        className="flex-1 bg-white dark:bg-gray-800 text-gray-800 dark:text-white font-bold px-4 py-2.5 rounded-xl border border-gray-250 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-750 transition-colors flex items-center justify-center gap-2 text-sm shadow-sm"
+                                        className="flex-1 bg-white dark:bg-gray-800 text-gray-800 dark:text-white font-bold px-4 py-2.5 rounded-xl border border-gray-300 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors flex items-center justify-center gap-2 text-sm shadow-sm"
                                     >
                                         {copied ? (
                                             <>
@@ -1463,7 +1502,7 @@ const EventEditor: React.FC<{
                                             href={`/live/${event.id}`}
                                             target="_blank"
                                             rel="noreferrer"
-                                            className="flex-1 bg-indigo-650 hover:bg-indigo-600 dark:bg-indigo-600 dark:hover:bg-indigo-500 text-white font-bold px-4 py-2.5 rounded-xl transition-colors flex items-center justify-center gap-2 text-sm shadow-sm shadow-indigo-500/20 text-center"
+                                            className="flex-1 bg-indigo-600 hover:bg-indigo-600 dark:bg-indigo-600 dark:hover:bg-indigo-500 text-white font-bold px-4 py-2.5 rounded-xl transition-colors flex items-center justify-center gap-2 text-sm shadow-sm shadow-indigo-500/20 text-center"
                                         >
                                             <LinkIcon className="w-4 h-4" />
                                             <span>{event?.status === 'completed' ? 'Öppna resultat' : 'Öppna live-vy'}</span>
@@ -1564,7 +1603,7 @@ const EventEditor: React.FC<{
                                     {/* HEADING BANNER - SCREEN ONLY */}
                                     <div className="p-6 bg-gray-50 dark:bg-gray-950 border-b border-gray-200 dark:border-gray-800 flex justify-between items-center select-none">
                                         <div className="flex items-center gap-3">
-                                            <div className="p-2 bg-indigo-50 dark:bg-indigo-950/40 text-indigo-650 dark:text-indigo-400 rounded-lg">
+                                            <div className="p-2 bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 rounded-lg">
                                                 <Printer className="w-5 h-5 flex-shrink-0" />
                                             </div>
                                             <div>
@@ -1576,7 +1615,7 @@ const EventEditor: React.FC<{
                                             <button
                                                 type="button"
                                                 onClick={() => window.print()}
-                                                className="bg-indigo-650 hover:bg-indigo-600 dark:bg-indigo-600 dark:hover:bg-indigo-500 text-white font-bold py-2 px-4 rounded-xl text-xs flex items-center gap-1.5 shadow-sm shadow-indigo-500/25 cursor-pointer"
+                                                className="bg-indigo-600 hover:bg-indigo-600 dark:bg-indigo-600 dark:hover:bg-indigo-500 text-white font-bold py-2 px-4 rounded-xl text-xs flex items-center gap-1.5 shadow-sm shadow-indigo-500/25 cursor-pointer"
                                             >
                                                 <Printer className="w-4 h-4 flex-shrink-0" />
                                                 Skriv ut nu
@@ -1593,7 +1632,7 @@ const EventEditor: React.FC<{
 
                                     {/* SCREEN PREVIEW SCROLL CONTAINER */}
                                     <div className="flex-1 overflow-y-auto p-8 bg-gray-100 dark:bg-gray-950 flex justify-center">
-                                        <div className="bg-white text-gray-900 shadow-lg border border-gray-250 p-6 max-w-[210mm] w-full min-h-[297mm]">
+                                        <div className="bg-white text-gray-900 shadow-lg border border-gray-300 p-6 max-w-[210mm] w-full min-h-[297mm]">
                                             <StartListPrintView
                                                 raceName={raceName}
                                                 scheduledDate={scheduledDate}
@@ -1994,7 +2033,7 @@ export const EventsContent: React.FC<EventsContentProps> = ({ organization }) =>
                                 animate={{ opacity: 1, scale: 1, y: 0 }}
                                 exit={{ opacity: 0, scale: 0.95, y: 15 }}
                                 transition={{ type: "spring", duration: 0.35 }}
-                                className="bg-white dark:bg-gray-900 border border-gray-150 dark:border-gray-800 rounded-[2rem] shadow-2xl overflow-hidden w-full max-w-md relative z-10 p-6 text-gray-900 dark:text-white"
+                                className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-[2rem] shadow-2xl overflow-hidden w-full max-w-md relative z-10 p-6 text-gray-900 dark:text-white"
                             >
                                 <button
                                     onClick={() => { setShareEvent(null); setCopiedShare(false); }}
@@ -2050,9 +2089,9 @@ export const EventsContent: React.FC<EventsContentProps> = ({ organization }) =>
                                                         <div key={idx} className="flex justify-between items-center text-xs">
                                                             <div className="flex items-center gap-2 truncate mr-2">
                                                                 <span className="font-extrabold text-amber-600 dark:text-amber-400 w-4">#{idx + 1}</span>
-                                                                <span className="font-bold text-gray-800 dark:text-slate-150 truncate">{finalName}</span>
+                                                                <span className="font-bold text-gray-800 dark:text-slate-100 truncate">{finalName}</span>
                                                             </div>
-                                                            <span className="font-mono font-bold text-gray-900 dark:text-white bg-white/80 dark:bg-black/35 px-1.5 py-0.5 rounded border border-gray-150 dark:border-gray-800">
+                                                            <span className="font-mono font-bold text-gray-900 dark:text-white bg-white/80 dark:bg-black/35 px-1.5 py-0.5 rounded border border-gray-200 dark:border-gray-800">
                                                                 {Math.floor(res.time / 60)}:{String(res.time % 60).padStart(2, '0')}
                                                             </span>
                                                         </div>
@@ -2067,7 +2106,7 @@ export const EventsContent: React.FC<EventsContentProps> = ({ organization }) =>
                                                         setView('edit');
                                                         setShareEvent(null);
                                                     }}
-                                                    className="text-[10px] uppercase font-extrabold text-indigo-650 hover:text-indigo-800 dark:text-indigo-400 dark:hover:text-indigo-300 transition-colors"
+                                                    className="text-[10px] uppercase font-extrabold text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 dark:hover:text-indigo-300 transition-colors"
                                                 >
                                                     Visa alla {shareEvent.results.length} resultat &rarr;
                                                 </button>
@@ -2077,8 +2116,8 @@ export const EventsContent: React.FC<EventsContentProps> = ({ organization }) =>
                                 )}
                                 
                                 {/* QR CODE BOX */}
-                                <div className="flex flex-col items-center justify-center p-4 bg-gray-50 dark:bg-gray-950 border border-gray-150 dark:border-gray-850 rounded-2xl mb-4 shadow-inner share-qr-parent">
-                                    <div className="bg-white p-3 rounded-xl shadow-md border border-gray-250 flex items-center justify-center">
+                                <div className="flex flex-col items-center justify-center p-4 bg-gray-50 dark:bg-gray-950 border border-gray-200 dark:border-gray-800 rounded-2xl mb-4 shadow-inner share-qr-parent">
+                                    <div className="bg-white p-3 rounded-xl shadow-md border border-gray-300 flex items-center justify-center">
                                         <QRCode 
                                             value={`${window.location.origin}/live/${shareEvent.id}`} 
                                             size={140}
@@ -2108,7 +2147,7 @@ export const EventsContent: React.FC<EventsContentProps> = ({ organization }) =>
                                                 setTimeout(() => setCopiedShare(false), 2000);
                                             }
                                         }}
-                                        className="w-full bg-white dark:bg-gray-800 text-gray-800 dark:text-white font-bold py-2.5 px-4 rounded-xl border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-750 transition-colors flex items-center justify-center gap-2 text-sm shadow-sm"
+                                        className="w-full bg-white dark:bg-gray-800 text-gray-800 dark:text-white font-bold py-2.5 px-4 rounded-xl border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors flex items-center justify-center gap-2 text-sm shadow-sm"
                                     >
                                         {copiedShare ? (
                                             <>
@@ -2144,7 +2183,7 @@ export const EventsContent: React.FC<EventsContentProps> = ({ organization }) =>
                                             href={`/live/${shareEvent.id}`}
                                             target="_blank"
                                             rel="noreferrer"
-                                            className="w-full bg-indigo-650 hover:bg-indigo-600 dark:bg-indigo-600 dark:hover:bg-indigo-500 text-white font-bold py-2.5 px-4 rounded-xl transition-colors flex items-center justify-center gap-2 text-sm text-center block"
+                                            className="w-full bg-indigo-600 hover:bg-indigo-600 dark:bg-indigo-600 dark:hover:bg-indigo-500 text-white font-bold py-2.5 px-4 rounded-xl transition-colors flex items-center justify-center gap-2 text-sm text-center block"
                                         >
                                             <LinkIcon className="w-4 h-4" />
                                             <span>{shareEvent.status === 'completed' ? 'Öppna resultat' : 'Öppna live-vy'}</span>
@@ -2175,7 +2214,7 @@ export const EventsContent: React.FC<EventsContentProps> = ({ organization }) =>
                                 animate={{ opacity: 1, scale: 1, y: 0 }}
                                 exit={{ opacity: 0, scale: 0.95, y: 15 }}
                                 transition={{ type: "spring", duration: 0.4 }}
-                                className="bg-white dark:bg-gray-900 border border-gray-150 dark:border-gray-800 rounded-[2rem] shadow-2xl overflow-hidden w-full max-w-lg relative z-10 p-8 text-gray-900 dark:text-white"
+                                className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-[2rem] shadow-2xl overflow-hidden w-full max-w-lg relative z-10 p-8 text-gray-900 dark:text-white"
                             >
                                 <button
                                     onClick={() => setShowDemoSuccessModal(false)}
@@ -2207,26 +2246,26 @@ export const EventsContent: React.FC<EventsContentProps> = ({ organization }) =>
                                 </div>
 
                                 {/* Event structure breakdown */}
-                                <div className="mt-6 p-5 bg-gray-50 dark:bg-gray-950 border border-gray-150 dark:border-gray-850 rounded-2xl space-y-3.5">
+                                <div className="mt-6 p-5 bg-gray-50 dark:bg-gray-950 border border-gray-200 dark:border-gray-800 rounded-2xl space-y-3.5">
                                     <div className="flex justify-between items-center text-xs">
-                                        <span className="font-bold text-gray-500 dark:text-gray-450 uppercase tracking-wider text-[10px]">Struktur</span>
+                                        <span className="font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider text-[10px]">Struktur</span>
                                         <span className="font-extrabold text-indigo-600 dark:text-indigo-400">5 Heat (1 per division)</span>
                                     </div>
-                                    <div className="border-t border-gray-200 dark:border-gray-850 my-2" />
+                                    <div className="border-t border-gray-200 dark:border-gray-800 my-2" />
                                     <div className="flex justify-between items-center text-xs">
-                                        <span className="font-bold text-gray-500 dark:text-gray-450 uppercase tracking-wider text-[10px]">Deltagare</span>
+                                        <span className="font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider text-[10px]">Deltagare</span>
                                         <span className="font-extrabold text-gray-900 dark:text-white">25 st (5 per heat)</span>
                                     </div>
-                                    <div className="border-t border-gray-200 dark:border-gray-850 my-2" />
+                                    <div className="border-t border-gray-200 dark:border-gray-800 my-2" />
                                     <div className="flex justify-between items-start text-xs">
-                                        <span className="font-bold text-gray-500 dark:text-gray-450 uppercase tracking-wider text-[10px] mt-0.5">Dubbelklasserna</span>
+                                        <span className="font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider text-[10px] mt-0.5">Dubbelklasserna</span>
                                         <span className="font-semibold text-gray-700 dark:text-gray-300 text-right max-w-[200px]">
                                             Tilldelade med <span className="font-black text-indigo-600 dark:text-indigo-400">Lagnamn</span>, partners och startnummer.
                                         </span>
                                     </div>
                                 </div>
 
-                                <p className="text-[11px] text-gray-400 dark:text-gray-550 text-center mt-5 leading-normal max-w-xs mx-auto">
+                                <p className="text-[11px] text-gray-400 dark:text-gray-500 text-center mt-5 leading-normal max-w-xs mx-auto">
                                     Du kan nu skriva ut startlistor, starta live-klockor eller lägga till tider för att se liveresultaten uppdateras i realtid!
                                 </p>
 

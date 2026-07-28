@@ -24,7 +24,7 @@ export const SwitchToStudioView: React.FC<SwitchToStudioViewProps> = ({ organiza
                     <button
                         key={studio.id}
                         onClick={() => onSwitchToStudioView(studio)}
-                        className="bg-gray-5 dark:bg-gray-700 hover:bg-primary/10 dark:hover:bg-primary/20 hover:border-primary/50 border border-gray-200 dark:border-gray-600 text-gray-700 dark:text-white font-medium py-4 px-6 rounded-xl transition-all text-left flex items-center justify-between group"
+                        className="bg-gray-50 dark:bg-gray-700 hover:bg-primary/10 dark:hover:bg-primary/20 hover:border-primary/50 border border-gray-200 dark:border-gray-600 text-gray-700 dark:text-white font-medium py-4 px-6 rounded-xl transition-all text-left flex items-center justify-between group"
                     >
                         <span>{studio.name}</span>
                         <span className="text-gray-400 group-hover:text-primary transition-colors">→</span>

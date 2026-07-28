@@ -3,6 +3,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { StudioConfig, Studio, Organization, CustomPage, UserData, UserRole, InfoCarousel, DisplayWindow, Workout, CompanyDetails } from '../types';
 import { HomeIcon, DocumentTextIcon, SpeakerphoneIcon, UsersIcon, DumbbellIcon, BriefcaseIcon, BuildingIcon, SettingsIcon, ChartBarIcon, CopyIcon, CloseIcon, SparklesIcon, HistoryIcon, QrCodeIcon, FlagIcon, ChevronLeftIcon, MapIcon } from './icons';
 import { getAdminsForOrganization, getCoachesForOrganization, saveAdminActivity } from '../services/firebaseService';
+import { buildChangeList } from '../utils/adminDiff';
 import { OvningsbankContent } from './OvningsbankContent';
 import { PrintablePoster } from './PrintablePoster';
 import { useStudio } from '../context/StudioContext';
@@ -231,15 +232,21 @@ export const SuperAdminScreen: React.FC<SuperAdminScreenProps> = (props) => {
             setToast({ message: "Inställningar sparade!", visible: true });
 
             // LOG
-            saveAdminActivity({
-                organizationId: organization.id,
-                userId: userData?.uid || 'unknown',
-                userName: userData?.firstName || 'Admin',
-                type: 'SYSTEM',
-                action: 'UPDATE',
-                description: 'Uppdaterade globala inställningar',
-                timestamp: Date.now()
-            });
+            try {
+                const changes = buildChangeList(organization.globalConfig, configOverride || config);
+                saveAdminActivity({
+                    organizationId: organization.id,
+                    userId: userData?.uid || 'unknown',
+                    userName: userData?.firstName || 'Admin',
+                    type: 'SYSTEM',
+                    action: 'UPDATE',
+                    description: 'Uppdaterade globala inställningar',
+                    timestamp: Date.now(),
+                    changes
+                });
+            } catch (err) {
+                console.warn("Failed to log admin activity:", err);
+            }
         } catch (error) {
             console.error(error);
             setToast({ message: "Kunde inte spara inställningar.", visible: true });

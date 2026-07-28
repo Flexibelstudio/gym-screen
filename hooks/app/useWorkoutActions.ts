@@ -1,12 +1,14 @@
 import { Page, Workout, WorkoutBlock, Passkategori, UserRole, Organization, StudioConfig } from '../../types';
-import { deepCopyAndPrepareAsNew, isWorkoutVisibleNow } from '../../utils/workoutUtils';
-import { saveCustomProgram } from '../../services/firebaseService';
+import { deepCopyAndPrepareAsNew, isWorkoutVisibleNow, getMemberLocationIds, isWorkoutVisibleForLocations } from '../../utils/workoutUtils';
+import { saveCustomProgram, saveAdminActivity } from '../../services/firebaseService';
 
 export interface UseWorkoutActionsDeps {
   sessionRole: UserRole;
   isStudioMode: boolean;
   currentUser: { uid: string } | null;
   selectedOrganization: Organization | null;
+  selectedStudio?: { locationId?: string } | null;
+  userData?: { locationId?: string; locationIds?: string[] } | null;
   workouts: Workout[];
   activeWorkout: Workout | null;
   page: Page;
@@ -149,7 +151,24 @@ export function useWorkoutActions(deps: UseWorkoutActionsDeps) {
 
   const handleTogglePublishStatus = async (workoutId: string, isPublished: boolean, silentPublish?: boolean) => {
     const workoutToToggle = workouts.find((w) => w.id === workoutId);
-    if (workoutToToggle) await saveWorkout({ ...workoutToToggle, isPublished, silentPublish });
+    if (workoutToToggle) {
+      await saveWorkout({ ...workoutToToggle, isPublished, silentPublish });
+      if (selectedOrganization) {
+        try {
+          saveAdminActivity({
+            organizationId: selectedOrganization.id,
+            userId: currentUser?.uid || 'unknown',
+            userName: (currentUser as any)?.firstName || 'Coach',
+            type: 'WORKOUT',
+            action: isPublished ? 'PUBLISH' : 'UNPUBLISH',
+            description: `${isPublished ? 'Publicerade' : 'Avpublicerade'} passet "${workoutToToggle.title}"`,
+            timestamp: Date.now()
+          });
+        } catch (logErr) {
+          console.warn("Failed to log activity:", logErr);
+        }
+      }
+    }
   };
 
   const handleToggleFavoriteStatus = async (workoutId: string) => {
@@ -158,7 +177,24 @@ export function useWorkoutActions(deps: UseWorkoutActionsDeps) {
   };
 
   const handleDeleteWorkout = async (workoutId: string) => {
+    const workoutToDelete = workouts.find((w) => w.id === workoutId);
+    const title = workoutToDelete?.title || 'Pass';
     await deleteWorkout(workoutId);
+    if (selectedOrganization) {
+      try {
+        saveAdminActivity({
+          organizationId: selectedOrganization.id,
+          userId: currentUser?.uid || 'unknown',
+          userName: (currentUser as any)?.firstName || 'Coach',
+          type: 'WORKOUT',
+          action: 'DELETE',
+          description: `Raderade passet "${title}"`,
+          timestamp: Date.now()
+        });
+      } catch (logErr) {
+        console.warn("Failed to log activity:", logErr);
+      }
+    }
     if (activeWorkout?.id === workoutId && page === Page.WorkoutDetail) {
       handleBack();
     }
@@ -209,7 +245,15 @@ export function useWorkoutActions(deps: UseWorkoutActionsDeps) {
 
   const handleSelectPasskategori = (passkategori: Passkategori) => {
     const now = Date.now();
-    let categoryWorkouts = workouts.filter((w) => w.category === passkategori && isWorkoutVisibleNow(w, now) && !w.isMemberDraft);
+    const activeLocationIds = deps.isStudioMode
+      ? getMemberLocationIds({ locationId: deps.selectedStudio?.locationId })
+      : getMemberLocationIds(deps.userData);
+
+    let categoryWorkouts = workouts.filter((w) => 
+      w.category === passkategori && 
+      isWorkoutVisibleForLocations(w, activeLocationIds, now) && 
+      !w.isMemberDraft
+    );
 
     const catConfig = deps.studioConfig?.customCategories?.find(c => c.name === passkategori);
     if (catConfig?.showOnlyLatestPublished && categoryWorkouts.length > 1) {

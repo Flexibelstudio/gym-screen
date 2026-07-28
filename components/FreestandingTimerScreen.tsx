@@ -531,7 +531,7 @@ export const FreestandingTimerScreen: React.FC<FreestandingTimerScreenProps> = (
                                     restMinutes === t.restMinutes && 
                                     restSeconds === t.restSeconds
                                         ? 'border-primary ring-1 ring-primary/30' 
-                                        : 'border-gray-250 dark:border-gray-800 hover:bg-gray-100 dark:hover:bg-gray-900'
+                                        : 'border-gray-300 dark:border-gray-800 hover:bg-gray-100 dark:hover:bg-gray-900'
                                 }`}
                             >
                                 <div className="flex flex-col min-w-0 pr-2">

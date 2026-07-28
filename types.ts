@@ -10,6 +10,13 @@ export interface AdminActivity {
   action: 'CREATE' | 'UPDATE' | 'DELETE' | 'PUBLISH' | 'UNPUBLISH';
   description: string;
   timestamp: number;
+  changes?: {
+    field: string;
+    label: string;
+    from?: string;
+    to?: string;
+    valueHidden?: boolean;
+  }[];
 }
 
 export interface ExerciseOverride {
@@ -160,6 +167,7 @@ export interface Workout {
   durationMinutes?: number; // NYTT: Planerad passlängd i minuter
   publishAt?: number; // timestamp; passet är osynligt för medlemmar före denna tidpunkt
   expiresAt?: number; // timestamp; passet är osynligt för medlemmar från och med denna tidpunkt
+  locationIds?: string[]; // tom eller saknas = syns för ALLA orter
 }
 
 export type Passkategori = string;
@@ -405,6 +413,7 @@ export interface UserData {
   adminRole?: 'superadmin' | 'admin';
   organizationId?: string;
   locationId?: string;
+  locationIds?: string[];
   firstName?: string;
   lastName?: string;
   photoUrl?: string;
@@ -580,6 +589,7 @@ export interface WorkoutLog {
     newPBs?: PBRecord[]; 
     benchmarkId?: string; // NYTT: För att enkelt gruppera benchmarks
     benchmarkValue?: number; // NYTT: Resultatet (tid i sekunder, antal reps, eller vikt)
+    benchmarkDistance?: number; // NYTT: Distans i meter för konditionstester (t.ex. 2000 m rodd)
     showOnLeaderboard?: boolean; // NYTT: För att dölja i flöden och topplistor
     totalVolume?: number; // NYTT: Total vikt x reps under passet
     inStudio?: boolean; // NYTT: Indikerar om träningspasset genomfördes på plats på gymmet
@@ -618,6 +628,7 @@ export interface StudioEvent {
         milestone?: number;
         benchmarkId?: string;
         benchmarkValue?: number;
+        benchmarkDistance?: number;
         benchmarkTitle?: string;
         improvedBySec?: number;
         years?: number;

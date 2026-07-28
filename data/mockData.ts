@@ -247,10 +247,15 @@ export const MOCK_ORGANIZATIONS: Organization[] = [
             checkInImageUrl: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNTYgMjU2Ij48cGF0aCBmaWxsPSIjRkZGRkZGIiBkPSJNMjA4IDMySDQ4YTggOCAwIDAgMC04IDh2NTZhOCA4IDAgMCAwIDggOGg0YTY4IDY4IDAgMCAxIDY4IDY4djRhOCA4IDAgMCAwIDggOGg1NmE4IDggMCAwIDAgOC04di04YTQwIDQwIDAgMCAwLTI4Ljc5LTM4LjEybDYuNDUtMS44NWE4IDggMCAwIDAgNS4xMy05LjI5VjQwYTggOCAwIDAgMC04LThabS04IDY0di4xNmwtOS4zNCAyLjY3YTU2IDU2IDAgMCAxLTIuNjYtMjMuNzlWNDBoNTZ2NDhhOCA4IDAgMCAxLTggOFpNNTIgNDBoNDB2NDhBNDAgNDAgMCAwIDAgODAgMTI0LjQzVjE2OEg1MlpNNjggNzZhOCA4IDAgMSAxLTggOGE4IDggMCAwIDEgOC04Wm0xMTIgOGE4IDggMCAxIDEtOCA4YTggOCAwIDAgMSA4LThabS00MCA3MmgtNDhhOCA4IDAgMCAwLTggOHY0OGE4IDggMCAwIDAgOCA4aDQ4YTggOCAwIDAgMCA4LTh2LTQ4YTggOCAwIDAgMC04LThabS04IDQ4aC0zMnYtMzJoMzJaTTk2IDEyMGE4IDggMCAxIDEtOCA4YTggOCAwIDAgMSA4LThabTQ4IDU2YTggOCAwIDEgMS04IDhhOCA4IDAgMCAxIDgtOFoiLz48L3N2Zz4=',
             seasonalTheme: 'none'
         },
+        locations: [
+            { id: 'loc_salem_mock', name: 'Salem', createdAt: 1727784000000 },
+            { id: 'loc_karra_mock', name: 'Kärra', createdAt: 1726392000000 }
+        ],
         studios: [
             {
                 id: 'studio_salem_mock',
                 name: 'Salem Centrum',
+                locationId: 'loc_salem_mock',
                 createdAt: 1727784000000, // 2024-10-01
                 configOverrides: {
                 }
@@ -258,6 +263,7 @@ export const MOCK_ORGANIZATIONS: Organization[] = [
             {
                 id: 'studio_karra_mock',
                 name: 'Kärra Centrum',
+                locationId: 'loc_karra_mock',
                 createdAt: 1726392000000, // 2024-09-15
                 configOverrides: {
                     checkInImageEnabled: true,

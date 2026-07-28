@@ -253,7 +253,8 @@ export const CommunityFeed: React.FC<CommunityFeedProps> = ({ onExpand, isExpand
                                 let testTitle = 'Benchmark';
 
                                 if (benchmarkId === 'platform_row_2000m') {
-                                    testTitle = '2000 m rodd';
+                                    const dist = event.data.benchmarkDistance ?? 2000;
+                                    testTitle = dist === 2000 ? '2000 m rodd' : `${dist} m rodd`;
                                 } else if (benchmarkId && selectedOrganization?.benchmarkDefinitions) {
                                     const def = selectedOrganization.benchmarkDefinitions.find((b: any) => b.id === benchmarkId);
                                     if (def?.title) {

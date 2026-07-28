@@ -596,6 +596,8 @@ const App: React.FC = () => {
     isStudioMode,
     currentUser,
     selectedOrganization,
+    selectedStudio,
+    userData,
     workouts,
     activeWorkout,
     page,

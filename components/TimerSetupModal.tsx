@@ -647,7 +647,7 @@ export const TimerSetupModal: React.FC<TimerSetupModalProps> = ({ isOpen, onClos
 
         <div className="mt-8 flex gap-4">
           <button type="button" onClick={handleSave} className="flex-1 bg-primary hover:brightness-95 text-white font-bold py-3.5 rounded-xl transition-colors shadow-md">Spara</button>
-          <button type="button" onClick={() => { if (!hasUnsavedChanges || window.confirm("Avbryt och kasta ändringar?")) onClose(); }} className="flex-1 bg-gray-650 hover:bg-gray-500 dark:bg-gray-700 text-white font-bold py-3.5 rounded-xl transition-colors">Avbryt</button>
+          <button type="button" onClick={() => { if (!hasUnsavedChanges || window.confirm("Avbryt och kasta ändringar?")) onClose(); }} className="flex-1 bg-gray-600 hover:bg-gray-500 dark:bg-gray-700 text-white font-bold py-3.5 rounded-xl transition-colors">Avbryt</button>
         </div>
       </div>
     </div>,

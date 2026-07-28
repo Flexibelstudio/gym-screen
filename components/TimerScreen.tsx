@@ -1525,6 +1525,7 @@ export const TimerScreen: React.FC<TimerScreenProps> = React.memo(({
           }
           
           return { 
+              participantId,
               participant: partnerName ? `${displayName} & ${partnerName}` : displayName, 
               time: (data as FinishData).time, 
               groupId: group?.id || 'unknown',
@@ -2198,7 +2199,7 @@ export const TimerScreen: React.FC<TimerScreenProps> = React.memo(({
                                     <h3 className="text-3xl font-black text-slate-800 dark:text-white uppercase tracking-tight">{groupForCountdownDisplay.name}</h3>
                                     <p className={`text-sm ${textMuted} mt-1`}>{remainingGroupsCount} av {startGroups.length} startgrupper kvar att starta.</p>
                                 </div>
-                                <div className="font-mono text-6xl sm:text-7xl font-black text-orange-550 dark:text-orange-400 bg-orange-500/10 px-8 py-5 rounded-2xl border border-orange-500/20">
+                                <div className="font-mono text-6xl sm:text-7xl font-black text-orange-500 dark:text-orange-400 bg-orange-500/10 px-8 py-5 rounded-2xl border border-orange-500/20">
                                     {Math.floor(timeForCountdownDisplay / 60)}:{String(timeForCountdownDisplay % 60).padStart(2, '0')}
                                 </div>
                             </div>
@@ -2264,7 +2265,7 @@ export const TimerScreen: React.FC<TimerScreenProps> = React.memo(({
                                                                 ))
                                                             )}
                                                             {participantNames.length === 0 && (
-                                                                <p className="text-[10px] text-slate-550 italic">Inga deltagare registrerade.</p>
+                                                                <p className="text-[10px] text-slate-500 italic">Inga deltagare registrerade.</p>
                                                             )}
                                                         </div>
                                                     </div>

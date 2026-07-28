@@ -1949,7 +1949,7 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
                         <div className="flex gap-4">
                             <button 
                                 onClick={() => setIsConfirmClearOpen(false)} 
-                                className="flex-1 bg-gray-700 hover:bg-gray-650 text-white font-bold py-3 rounded-xl transition-colors text-sm"
+                                className="flex-1 bg-gray-700 hover:bg-gray-600 text-white font-bold py-3 rounded-xl transition-colors text-sm"
                             >
                                 Avbryt
                             </button>

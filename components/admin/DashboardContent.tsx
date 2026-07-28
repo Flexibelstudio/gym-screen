@@ -579,13 +579,14 @@ const PassProgramModule: React.FC<{
 
 const ManageWorkoutsView: React.FC<{
     workouts: Workout[];
+    locations?: { id: string; name: string }[];
     onEdit: (workout: Workout) => void;
     onDelete: (id: string) => void;
     onDuplicate: (workout: Workout, origin?: string) => void;
     onTogglePublish: (id: string, isPublished: boolean, silentPublish?: boolean) => void;
     onCopyToLibrary: (workout: Workout) => void;
     onBack: () => void;
-}> = ({ workouts, onEdit, onDelete, onDuplicate, onTogglePublish, onCopyToLibrary, onBack }) => {
+}> = ({ workouts, locations, onEdit, onDelete, onDuplicate, onTogglePublish, onCopyToLibrary, onBack }) => {
     
     const [activeTab, setActiveTab] = useState<'official' | 'drafts'>('official');
     const [searchTerm, setSearchTerm] = useState('');
@@ -757,7 +758,26 @@ const ManageWorkoutsView: React.FC<{
                                     >
                                         <td className="p-5">
                                             <p className="font-bold text-gray-900 dark:text-white text-base truncate max-w-xs">{workout.title}</p>
-                                            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 truncate max-w-xs">{workout.coachTips}</p>
+                                            {workout.coachTips && (
+                                                <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 truncate max-w-xs">{workout.coachTips}</p>
+                                            )}
+                                            {(() => {
+                                                const locIds = workout.locationIds || [];
+                                                let locLabel = "Alla orter";
+                                                if (locIds.length > 0 && locations && locations.length > 0) {
+                                                    const names = locIds.map(id => locations.find(l => l.id === id)?.name || id);
+                                                    locLabel = names.join(', ');
+                                                }
+                                                return (
+                                                    <div className="inline-flex items-center gap-1 text-[11px] font-medium text-gray-500 dark:text-gray-400 mt-1">
+                                                        <svg xmlns="http://www.w3.org/2000/svg" className="w-3 h-3 text-gray-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                                            <path strokeLinecap="round" strokeLinejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                                                            <path strokeLinecap="round" strokeLinejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                                                        </svg>
+                                                        <span className="truncate max-w-xs">{locLabel}</span>
+                                                    </div>
+                                                );
+                                            })()}
                                         </td>
                                         <td className="p-5">
                                             <div className="flex flex-wrap items-center gap-2">
@@ -1137,6 +1157,7 @@ const PassProgramContent: React.FC<DashboardContentProps & {
         return (
             <ManageWorkoutsView 
                 workouts={workouts}
+                locations={organization?.locations}
                 onEdit={handleEditWorkout}
                 onDelete={onDeleteWorkout}
                 onDuplicate={onDuplicateWorkout}
