@@ -161,6 +161,7 @@ interface MonthlyWrappedProps {
     personalBests?: PersonalBest[];
     userName: string;
     gymName?: string;
+    gymLogoUrl?: string;
     referenceDate?: Date;
 }
 
@@ -171,11 +172,17 @@ export const MonthlyWrappedModal: React.FC<MonthlyWrappedProps> = ({
     personalBests = [],
     userName,
     gymName = 'Mitt gym',
+    gymLogoUrl,
     referenceDate
 }) => {
     const stats = useMemo(() => calculateMonthlyStats(logs, personalBests, referenceDate), [logs, personalBests, referenceDate]);
     const [currentStep, setCurrentStep] = useState(0);
     const [isPaused, setIsPaused] = useState(false);
+    const [logoError, setLogoError] = useState(false);
+
+    useEffect(() => {
+        setLogoError(false);
+    }, [gymLogoUrl, isOpen]);
 
     // Check if user prefers reduced motion
     const prefersReducedMotion = typeof window !== 'undefined'
@@ -613,8 +620,17 @@ export const MonthlyWrappedModal: React.FC<MonthlyWrappedProps> = ({
                                         </div>
                                     )}
 
-                                    <div className="text-[10px] text-gray-500 text-center pt-1 border-t border-white/5">
-                                        Loggat i SmartStudio • {gymName}
+                                    <div className="text-[10px] text-gray-500 text-center pt-2 border-t border-white/5 flex flex-col items-center gap-1.5">
+                                        {gymLogoUrl && !logoError && (
+                                            <img
+                                                src={gymLogoUrl}
+                                                alt={gymName}
+                                                className="max-h-10 object-contain mx-auto"
+                                                crossOrigin="anonymous"
+                                                onError={() => setLogoError(true)}
+                                            />
+                                        )}
+                                        <span>Loggat i SmartStudio • {gymName}</span>
                                     </div>
                                 </div>
                             </div>

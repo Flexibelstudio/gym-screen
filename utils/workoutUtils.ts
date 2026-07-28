@@ -1,5 +1,36 @@
 
 import { Workout, WorkoutBlock, Exercise, BankExercise } from '../types';
+export { canonicalizeExerciseName } from '../data/exerciseAliases';
+
+/**
+ * Checks if a new exercise name conflicts with an existing exercise in the bank.
+ * Compares case-insensitively, trimmed, and also against names without trailing parentheses
+ * (e.g., "Bänkpress" matches "Bänkpress (Bench Press)").
+ */
+export function findDuplicateBankExercise<T extends { id: string; name: string }>(
+    inputName: string,
+    bank: T[]
+): T | undefined {
+    const rawInput = inputName.toLowerCase().trim();
+    if (!rawInput) return undefined;
+    const baseInput = rawInput.replace(/\s*\([^)]*\)$/, '').trim();
+
+    return bank.find(ex => {
+        const rawEx = ex.name.toLowerCase().trim();
+        const baseEx = rawEx.replace(/\s*\([^)]*\)$/, '').trim();
+
+        // Exact match
+        if (rawInput === rawEx) return true;
+        // Input matches exercise name without trailing parenthesis
+        if (rawInput === baseEx) return true;
+        // Exercise name matches input name without trailing parenthesis
+        if (baseInput === rawEx) return true;
+        // Both names without trailing parenthesis match
+        if (baseInput && baseEx && baseInput === baseEx) return true;
+
+        return false;
+    });
+}
 
 /**
  * Skapar en djup kopia av ett träningspass och förbereder det som ett nytt utkast
@@ -124,5 +155,55 @@ export const sanitizeWorkoutWithBank = (currentWorkout: Workout, currentBank: Ba
     if (!hasChanges) return currentWorkout;
     return { ...currentWorkout, blocks: newBlocks };
 };
+
+export function isWorkoutMilestone(total: number): boolean {
+  if (total <= 0) return false;
+  if ([1, 5, 10, 25, 50, 75].includes(total)) return true;
+  if (total <= 500) return total % 50 === 0;      // 100, 150, 200 ... 500
+  if (total <= 1000) return total % 100 === 0;    // 600, 700 ... 1000
+  return total % 250 === 0;                        // 1250, 1500 ...
+}
+
+export const getYearWeek = (date: Date) => {
+    const d = new Date(date.getTime());
+    d.setHours(0, 0, 0, 0);
+    d.setDate(d.getDate() + 4 - (d.getDay() || 7));
+    const yearStart = new Date(d.getFullYear(), 0, 1);
+    const weekNo = Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
+    return `${d.getFullYear()}-W${weekNo < 10 ? '0' + weekNo : weekNo}`;
+};
+
+export function isWorkoutVisibleNow(w: Workout, now: number = Date.now()): boolean {
+    if (!w.isPublished) return false;
+    if (w.publishAt && w.publishAt > now) return false;
+    if (w.expiresAt && w.expiresAt <= now) return false;
+    return true;
+}
+
+export function getWorkoutStatusInfo(w: Workout, now: number = Date.now()): { label: string; styleClass: string } {
+    if (!w.isPublished) {
+        return {
+            label: 'Utkast',
+            styleClass: 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400'
+        };
+    }
+    if (w.publishAt && w.publishAt > now) {
+        const dateStr = new Date(w.publishAt).toLocaleDateString('sv-SE');
+        return {
+            label: `Publiceras ${dateStr}`,
+            styleClass: 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300'
+        };
+    }
+    if (w.expiresAt && w.expiresAt <= now) {
+        return {
+            label: 'Visas inte längre',
+            styleClass: 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300'
+        };
+    }
+    return {
+        label: 'Publicerad',
+        styleClass: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300'
+    };
+}
 
 

@@ -1,5 +1,6 @@
 // Nivåer (percentiler bland tränande): 1 Nybörjare (5%), 2 Motionär (20%), 3 Stark (50%), 4 Mycket stark (80%), 5 Elit (95%). Under nivå 1 = nivå 0 ("På väg").
 export const LEVEL_NAMES = ['På väg', 'Nybörjare', 'Motionär', 'Stark', 'Mycket stark', 'Elit'];
+export const ROWING_LEVEL_NAMES = ['På väg', 'Nybörjare', 'Motionär', 'Vältränad', 'Mycket vältränad', 'Elit'];
 
 // Trösklar som andel av kroppsvikt (1RM / kroppsvikt), ordning [nivå1..nivå5]. Källa: Strength Level community standards.
 export const STRENGTH_RATIO_STANDARDS: Record<string, { male: number[]; female: number[] }> = {
@@ -15,11 +16,13 @@ export const STRENGTH_AGE_FACTORS: [number, number][] = [
   [75, 0.55], [80, 0.49], [85, 0.44], [90, 0.39],
 ];
 
+import { EXERCISE_ALIASES } from './exerciseAliases';
+
 // Vilka PB-namn (lowercase, trimmade) som räknas per lyft. OBS: "knäböj (air squat)" får ALDRIG matchas.
 export const LIFT_ALIASES: Record<string, string[]> = {
-  squat:    ['knäböj', 'knäböj (back squat)'],
-  bench:    ['bänkpress', 'bänkpress (bench press)'],
-  deadlift: ['marklyft', 'marklyft (deadlift)'],
+  squat:    EXERCISE_ALIASES['knäböj'] || ['knäböj', 'knäböj (back squat)'],
+  bench:    EXERCISE_ALIASES['bänkpress'] || ['bänkpress', 'bänkpress (bench press)'],
+  deadlift: EXERCISE_ALIASES['marklyft'] || ['marklyft', 'marklyft (deadlift)'],
 };
 
 // 2000 m rodd, sluttider "mm:ss.s", ordning [nivå1..nivå5]. Källa: Rowing Level standards. Linjär interpolation (i sekunder) mellan åldersstegen; klampa till [15, 90].

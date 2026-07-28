@@ -156,6 +156,27 @@ export const listenToWeeklyPBs = (orgId: string, onUpdate: (events: StudioEvent[
     });
 };
 
+export const listenToFeedEvents = (orgId: string, onUpdate: (events: StudioEvent[]) => void) => {
+    if (isOffline || !db || !orgId) { onUpdate([]); return () => {}; }
+    
+    const thirtyDaysAgo = Date.now() - 30 * 24 * 60 * 60 * 1000;
+    const q = query(
+        collection(db, 'studio_events'), 
+        where('organizationId', '==', orgId), 
+        orderBy('timestamp', 'desc'), 
+        limit(100)
+    );
+    return onSnapshot(q, (snap) => {
+        const allEvents = snap.docs.map(d => d.data() as StudioEvent);
+        const feedEvents = allEvents.filter(e => (e.type === 'milestone' || e.type === 'test' || e.type === 'anniversary' || e.type === 'streak') && (e.timestamp || 0) >= thirtyDaysAgo);
+        onUpdate(feedEvents.slice(0, 20));
+    }, (error) => {
+        console.error("Error listening to feed events:", error);
+    });
+};
+
+export const listenToMilestoneEvents = listenToFeedEvents;
+
 // --- COACH NOTES ---
 
 export const saveCoachNote = async (noteData: Omit<CoachNote, 'id' | 'createdAt'>): Promise<CoachNote | null> => {

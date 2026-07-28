@@ -1,5 +1,6 @@
 import {
   LEVEL_NAMES,
+  ROWING_LEVEL_NAMES,
   STRENGTH_RATIO_STANDARDS,
   STRENGTH_AGE_FACTORS,
   LIFT_ALIASES,
@@ -176,7 +177,7 @@ export function getRowingAssessment(
     }
   }
 
-  const levelName = LEVEL_NAMES[level] || LEVEL_NAMES[0];
+  const levelName = ROWING_LEVEL_NAMES[level] || ROWING_LEVEL_NAMES[0];
   const nextLevelSec = level === 5 ? null : thresholdsSec[level];
   const averageSec = thresholdsSec[2]; // Level 3 "Stark"
 

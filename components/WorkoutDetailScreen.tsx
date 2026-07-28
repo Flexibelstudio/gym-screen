@@ -10,7 +10,8 @@ import { WorkoutQRDisplay } from './WorkoutQRDisplay';
 import { useAuth } from '../context/AuthContext';
 import { useWorkout } from '../context/WorkoutContext';
 import { useConfirm } from './ConfirmContext';
-import { getSideLabel } from '../utils/workoutUtils';
+import { getSideLabel, findDuplicateBankExercise } from '../utils/workoutUtils';
+import { DuplicateExerciseModal } from './DuplicateExerciseModal';
 import { Modal } from './ui/Modal';
 
 // Helper to format time for results (00:00)
@@ -220,15 +221,41 @@ export function useCustomWorkoutExerciseEditor() {
         setAddModalBlockId(null);
     };
 
+    const [duplicateWarning, setDuplicateWarning] = useState<{
+        blockId: string;
+        exerciseName: string;
+        duplicate: BankExercise;
+        workout: Workout;
+        setWorkout: (w: Workout) => void;
+        userId?: string;
+    } | null>(null);
+
     const handleCreateAndAddCustomExercise = async (
         blockId: string,
         exerciseName: string,
         workout: Workout,
         setWorkout: (w: Workout) => void,
-        userId?: string
+        userId?: string,
+        forceCreateAnyway = false
     ) => {
         const trimmed = exerciseName.trim();
         if (!trimmed) return;
+
+        const duplicate = findDuplicateBankExercise(trimmed, exerciseBank);
+        if (duplicate && duplicate.name.toLowerCase().trim() === trimmed.toLowerCase()) {
+            await handleAddExerciseToBlock(blockId, duplicate, workout, setWorkout, userId);
+            return;
+        } else if (duplicate && !forceCreateAnyway) {
+            setDuplicateWarning({
+                blockId,
+                exerciseName: trimmed,
+                duplicate,
+                workout,
+                setWorkout,
+                userId
+            });
+            return;
+        }
 
         let bankEx: BankExercise;
         if (userId) {
@@ -357,10 +384,11 @@ export function useCustomWorkoutExerciseEditor() {
             !filteredBank.some(ex => (ex.name || '').toLowerCase() === exerciseSearchTerm.trim().toLowerCase());
 
         return (
-            <Modal 
-                isOpen={!!addModalBlockId} 
-                onClose={() => setAddModalBlockId(null)} 
-                size="lg"
+            <>
+                <Modal 
+                    isOpen={!!addModalBlockId} 
+                    onClose={() => setAddModalBlockId(null)} 
+                    size="lg"
             >
                 <div className="flex flex-col items-center w-full max-h-[85vh]">
                     <div className="w-full flex items-center justify-between mb-4 pb-2 border-b border-gray-100 dark:border-gray-800">
@@ -436,8 +464,27 @@ export function useCustomWorkoutExerciseEditor() {
                     </div>
                 </div>
             </Modal>
-        );
-    };
+            {duplicateWarning && (
+                <DuplicateExerciseModal
+                    isOpen={!!duplicateWarning}
+                    existingName={duplicateWarning.duplicate.name}
+                    inputName={duplicateWarning.exerciseName}
+                    onUseExisting={() => {
+                        const warning = duplicateWarning;
+                        setDuplicateWarning(null);
+                        handleAddExerciseToBlock(warning.blockId, warning.duplicate, warning.workout, warning.setWorkout, warning.userId);
+                    }}
+                    onCreateAnyway={() => {
+                        const warning = duplicateWarning;
+                        setDuplicateWarning(null);
+                        handleCreateAndAddCustomExercise(warning.blockId, warning.exerciseName, warning.workout, warning.setWorkout, warning.userId, true);
+                    }}
+                    onClose={() => setDuplicateWarning(null)}
+                />
+            )}
+        </>
+    );
+};
 
     return {
         exerciseToRename,

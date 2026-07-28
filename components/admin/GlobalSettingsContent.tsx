@@ -85,10 +85,10 @@ export const GlobalSettingsContent: React.FC<GlobalSettingsContentProps> = ({
                         <div className="bg-gray-5 dark:bg-gray-900/50 p-4 rounded-xl border border-gray-100 dark:border-gray-700">
                             <ToggleSwitch 
                                 label="Styrka & Kondition (jämförelser)" 
-                                checked={!!config.enableFitnessBenchmarks} 
+                                checked={config.enableFitnessBenchmarks !== false} 
                                 onChange={(checked) => handleUpdateConfigField('enableFitnessBenchmarks', checked)} 
                             />
-                            <p className="text-xs text-gray-500 mt-2 pl-2">Aktiverar jämförelser för styrka och kondition för medlemmar.</p>
+                            <p className="text-xs text-gray-500 mt-2 pl-2">Visar medlemmarnas styrke- och konditionsnivåer jämfört med andra i samma ålder och kön. Påslaget som standard.</p>
                         </div>
 
                         <div className="bg-gray-5 dark:bg-gray-900/50 p-4 rounded-xl border border-gray-100 dark:border-gray-700">

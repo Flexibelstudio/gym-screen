@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Workout } from '../types';
+import { getWorkoutStatusInfo } from '../utils/workoutUtils';
 
 interface CoachWorkoutPreviewModalProps {
     isOpen: boolean;
@@ -65,12 +66,8 @@ export const CoachWorkoutPreviewModal: React.FC<CoachWorkoutPreviewModalProps> =
                                             <span className="text-xs font-semibold text-gray-500 bg-white dark:bg-gray-800 px-2 py-1 rounded truncate shadow-sm border border-gray-100 dark:border-gray-700">
                                                 {workout.category || 'Okategoriserad'}
                                             </span>
-                                            <span className={`text-[10px] uppercase tracking-wider font-bold px-2 py-0.5 rounded ${
-                                                workout.isPublished 
-                                                ? 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300' 
-                                                : 'bg-gray-200 text-gray-500 dark:bg-gray-700 dark:text-gray-400'
-                                            }`}>
-                                                {workout.isPublished ? 'Publicerad' : 'Utkast'}
+                                            <span className={`text-[10px] uppercase tracking-wider font-bold px-2 py-0.5 rounded ${getWorkoutStatusInfo(workout).styleClass}`}>
+                                                {getWorkoutStatusInfo(workout).label}
                                             </span>
                                         </div>
                                     </div>

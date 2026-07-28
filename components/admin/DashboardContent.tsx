@@ -6,9 +6,9 @@ import { DumbbellIcon, BuildingIcon, UsersIcon, SpeakerphoneIcon, SparklesIcon, 
 import { motion, AnimatePresence } from 'framer-motion';
 import { AIGeneratorScreen } from '../AIGeneratorScreen';
 import { WorkoutBuilderScreen } from '../WorkoutBuilderScreen';
-import { deepCopyAndPrepareAsNew } from '../../utils/workoutUtils';
+import { deepCopyAndPrepareAsNew, getWorkoutStatusInfo } from '../../utils/workoutUtils';
 import { ManageBenchmarksModal } from './AdminModals';
-import { updateOrganizationBenchmarks, resolveAndCreateExercises, updateGlobalConfig, listenToGlobalSummerChallenge, listenToMembers, listenToCommunityLogs } from '../../services/firebaseService';
+import { updateOrganizationBenchmarks, resolveAndCreateExercises, updateGlobalConfig, listenToGlobalSummerChallenge, listenToMembers, listenToCommunityLogs, listenToCommunityLogsByLocations } from '../../services/firebaseService';
 import { WorkoutPresentationModal } from '../WorkoutDetailScreen';
 
 // ... (Types and Interfaces remain same)
@@ -173,7 +173,10 @@ const ChallengePromoWidget: React.FC<{ org: Organization }> = ({ org }) => {
     useEffect(() => {
         if (!org.id || !localEnabled) return;
         const unsubMembers = listenToMembers(org.id, (data) => setMembers(data));
-        const unsubLogs = listenToCommunityLogs(org.id, (data) => setLogs(data));
+        const locIds = org.locations?.map(l => l.id) || [];
+        const unsubLogs = locIds.length > 0 
+            ? listenToCommunityLogsByLocations(org.id, locIds, (data) => setLogs(data))
+            : listenToCommunityLogs(org.id, (data) => setLogs(data));
         return () => {
             unsubMembers();
             unsubLogs();
@@ -772,22 +775,23 @@ const ManageWorkoutsView: React.FC<{
                                             {new Date(workout.createdAt || 0).toLocaleDateString('sv-SE', { year: 'numeric', month: 'short', day: 'numeric' })}
                                         </td>
                                         <td className="p-5">
-                                            <button 
-                                                onClick={() => {
-                                                    if (!workout.isPublished) {
-                                                        setPublishConfirmWorkoutId(workout.id);
-                                                    } else {
-                                                        onTogglePublish(workout.id, false);
-                                                    }
-                                                }}
-                                                className={`text-xs font-bold px-2 py-1 rounded transition-colors uppercase tracking-wider ${
-                                                    workout.isPublished 
-                                                    ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300 hover:bg-green-200' 
-                                                    : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400 hover:bg-gray-200'
-                                                }`}
-                                            >
-                                                {workout.isPublished ? 'Publicerad' : 'Utkast'}
-                                            </button>
+                                            {(() => {
+                                                const statusInfo = getWorkoutStatusInfo(workout);
+                                                return (
+                                                    <button 
+                                                        onClick={() => {
+                                                            if (!workout.isPublished) {
+                                                                setPublishConfirmWorkoutId(workout.id);
+                                                            } else {
+                                                                onTogglePublish(workout.id, false);
+                                                            }
+                                                        }}
+                                                        className={`text-xs font-bold px-2 py-1 rounded transition-colors uppercase tracking-wider ${statusInfo.styleClass}`}
+                                                    >
+                                                        {statusInfo.label}
+                                                    </button>
+                                                );
+                                            })()}
                                         </td>
                                         <td className="p-5 text-right">
                                             <div className="flex justify-end gap-2">

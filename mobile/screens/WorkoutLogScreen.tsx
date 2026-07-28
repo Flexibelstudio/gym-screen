@@ -1,13 +1,14 @@
 
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
-import { getMemberLogs, getWorkoutsForOrganization, saveWorkoutLog, uploadImage, updateWorkoutLog, deleteWorkoutLog, getOrganizationExerciseBank, getMemberCustomExercises, addMemberCustomExercise, deleteMemberCustomExercise, updateMemberCustomExercise, listenToPersonalBests } from '../../services/firebaseService';
+import { getMemberLogs, getVisibleWorkoutsForMembers, saveWorkoutLog, uploadImage, updateWorkoutLog, deleteWorkoutLog, getOrganizationExerciseBank, getMemberCustomExercises, addMemberCustomExercise, deleteMemberCustomExercise, updateMemberCustomExercise, listenToPersonalBests } from '../../services/firebaseService';
 import { generateWorkoutDiploma, generateImage } from '../../services/geminiService';
 import { useAuth } from '../../context/AuthContext'; 
 import { useWorkout } from '../../context/WorkoutContext'; 
 import { CloseIcon, SparklesIcon, FireIcon, InformationCircleIcon, LightningIcon, PlusIcon, TrashIcon, CheckIcon, ChartBarIcon, HistoryIcon, CalculatorIcon } from '../../components/icons'; 
 import { Modal } from '../../components/ui/Modal';
 import { ConfirmModal } from '../../components/ui/ConfirmModal';
-import { calculate1RM } from '../../utils/workoutUtils';
+import { calculate1RM, findDuplicateBankExercise, canonicalizeExerciseName } from '../../utils/workoutUtils';
+import { DuplicateExerciseModal } from '../../components/DuplicateExerciseModal';
 import { ExerciseResult, MemberFeeling, WorkoutDiploma, WorkoutLog, BenchmarkDefinition, BankExercise, Workout, PersonalBest } from '../../types';
 import { MOCK_EXERCISE_BANK } from '../../data/mockData';
 import { saveCustomProgram, fetchCustomPrograms } from '../../services/firebaseService';
@@ -1472,7 +1473,27 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
                   const pbMap: Record<string, PersonalBest> = {};
                   data.forEach(pb => {
                       if (pb && pb.exerciseName) {
-                          pbMap[pb.exerciseName.toLowerCase().trim()] = pb;
+                          const canonicalKey = canonicalizeExerciseName(pb.exerciseName);
+                          const rawKey = pb.exerciseName.toLowerCase().trim();
+                          const existing = pbMap[canonicalKey];
+
+                          const pb1RM = (typeof pb.calculated1RM === 'number' && pb.calculated1RM > 0)
+                              ? pb.calculated1RM
+                              : (calculate1RM(pb.weight, pb.reps) || pb.weight || 0);
+
+                          if (!existing) {
+                              pbMap[canonicalKey] = pb;
+                              pbMap[rawKey] = pb;
+                          } else {
+                              const existing1RM = (typeof existing.calculated1RM === 'number' && existing.calculated1RM > 0)
+                                  ? existing.calculated1RM
+                                  : (calculate1RM(existing.weight, existing.reps) || existing.weight || 0);
+
+                              if (pb1RM > existing1RM) {
+                                  pbMap[canonicalKey] = pb;
+                                  pbMap[rawKey] = pb;
+                              }
+                          }
                       }
                   });
                   setPersonalBests(pbMap);
@@ -1666,7 +1687,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
             let foundWorkout: any = null;
 
             if (!isManualMode) {
-                const orgWorkouts = await getWorkoutsForOrganization(finalOrgId);
+                const orgWorkouts = await getVisibleWorkoutsForMembers(finalOrgId);
                 foundWorkout = orgWorkouts.find(w => w.id === wId);
                 
                 if (!foundWorkout) {
@@ -1919,15 +1940,34 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
     else if (navigation) navigation.goBack();
   };
 
-  const handleAddManualExercise = async (exerciseName: string) => {
+  const [duplicateWarning, setDuplicateWarning] = useState<{
+      inputName: string;
+      existing: BankExercise;
+  } | null>(null);
+
+  const handleAddManualExercise = async (exerciseName: string, forceCreateAnyway = false) => {
       if (!exerciseName.trim()) return;
+
+      const duplicate = findDuplicateBankExercise(exerciseName, exerciseBank);
+
+      if (duplicate && duplicate.name.toLowerCase().trim() === exerciseName.trim().toLowerCase()) {
+          forceCreateAnyway = false;
+          exerciseName = duplicate.name;
+      } else if (duplicate && !forceCreateAnyway) {
+          setDuplicateWarning({
+              inputName: exerciseName,
+              existing: duplicate
+          });
+          return;
+      }
 
       const existingInBank = exerciseBank.find(ex => ex.name.toLowerCase() === exerciseName.trim().toLowerCase());
       let newExerciseId = 'manual-' + Date.now();
+      let finalName = exerciseName.trim();
       
       if (!existingInBank && userId) {
           try {
-              const savedEx = await addMemberCustomExercise(userId, exerciseName.trim());
+              const savedEx = await addMemberCustomExercise(userId, finalName);
               setExerciseBank(prev => [...prev, savedEx].sort((a, b) => a.name.localeCompare(b.name, 'sv')));
               newExerciseId = savedEx.id;
           } catch (e) {
@@ -1935,11 +1975,12 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
           }
       } else if (existingInBank) {
           newExerciseId = existingInBank.id;
+          finalName = existingInBank.name;
       }
 
       const newEx: LocalExerciseResult = {
           exerciseId: newExerciseId,
-          exerciseName: exerciseName.trim(),
+          exerciseName: finalName,
           blockId: 'manual-block',
           blockTitle: 'Valda övningar',
           trackingFields: ['weight', 'reps'],
@@ -3319,6 +3360,25 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
                   />
               </div>
           </Modal>
+      )}
+
+      {duplicateWarning && (
+          <DuplicateExerciseModal
+              isOpen={!!duplicateWarning}
+              existingName={duplicateWarning.existing.name}
+              inputName={duplicateWarning.inputName}
+              onUseExisting={() => {
+                  const ex = duplicateWarning.existing;
+                  setDuplicateWarning(null);
+                  handleAddManualExercise(ex.name, true);
+              }}
+              onCreateAnyway={() => {
+                  const input = duplicateWarning.inputName;
+                  setDuplicateWarning(null);
+                  handleAddManualExercise(input, true);
+              }}
+              onClose={() => setDuplicateWarning(null)}
+          />
       )}
     </div>
   );

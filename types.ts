@@ -158,6 +158,8 @@ export interface Workout {
   aiProgressionPrompt?: string; // NYTT: Prompt för AI-progression
   openAsOfficial?: boolean; // NYTT: Öppna direkt i funktionärsläge
   durationMinutes?: number; // NYTT: Planerad passlängd i minuter
+  publishAt?: number; // timestamp; passet är osynligt för medlemmar före denna tidpunkt
+  expiresAt?: number; // timestamp; passet är osynligt för medlemmar från och med denna tidpunkt
 }
 
 export type Passkategori = string;
@@ -169,6 +171,7 @@ export interface CustomCategoryWithPrompt {
   icon?: string;
   isLocked?: boolean;
   durationMinutes?: number; // NYTT: Standard passlängd i minuter
+  showOnlyLatestPublished?: boolean; // NYTT: Visa endast det senast publicerade passet
 }
 
 // NYTT: Definition av ett Benchmark
@@ -436,6 +439,10 @@ export interface UserData {
   totalWorkoutsCount?: number;
   lastWorkoutAt?: number;
   lastPBAt?: number;
+  firstLogAt?: number;
+  lastAnniversaryYear?: number;
+  streakWeeks?: number;
+  streakWeekKey?: string;
 
   migratedStats?: {
     totalWorkouts: number;
@@ -601,13 +608,20 @@ export interface CheckInEvent {
 
 export interface StudioEvent {
     id: string;
-    type: 'pb' | 'pb_batch';
+    type: 'pb' | 'pb_batch' | 'milestone' | 'test' | 'anniversary' | 'streak';
     organizationId: string;
     locationId?: string;
     timestamp: number;
     data: {
         userName: string;
         userPhotoUrl?: string | null;
+        milestone?: number;
+        benchmarkId?: string;
+        benchmarkValue?: number;
+        benchmarkTitle?: string;
+        improvedBySec?: number;
+        years?: number;
+        streakWeeks?: number;
         // Updated to support multiple records (or single via array)
         records?: PBRecord[]; 
         

@@ -10,6 +10,7 @@ import WorkoutDetailScreen from './WorkoutDetailScreen';
 import { LineChart, Line, XAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import { Modal } from './ui/Modal';
 import { PasswordModal } from './PasswordModal';
+import { isWorkoutVisibleNow } from '../utils/workoutUtils';
 
 interface WorkoutListScreenProps {
     passkategori?: string;
@@ -61,28 +62,67 @@ export const WorkoutListScreen: React.FC<WorkoutListScreenProps> = React.memo(({
 
     const filteredWorkouts = useMemo(() => {
         const sourceWorkouts = (!selectedCategory && activeTab === 'mina') ? customPrograms : workouts;
+        const now = Date.now();
 
-        return sourceWorkouts.filter(w => {
-            const matchesCategory = !selectedCategory || w.category === selectedCategory;
-            const matchesSearch = (w.title || '').toLowerCase().includes(searchTerm.toLowerCase()) || 
-                                (w.coachTips && (w.coachTips || '').toLowerCase().includes(searchTerm.toLowerCase()));
-            
-            // Kolla om kategorin är låst
+        if (activeTab === 'mina') {
+            return sourceWorkouts.filter(w => {
+                const matchesCategory = !selectedCategory || w.category === selectedCategory;
+                const matchesSearch = (w.title || '').toLowerCase().includes(searchTerm.toLowerCase()) || 
+                                    (w.coachTips && (w.coachTips || '').toLowerCase().includes(searchTerm.toLowerCase()));
+                return isWorkoutVisibleNow(w, now) && matchesCategory && matchesSearch;
+            });
+        }
+
+        let visible = sourceWorkouts.filter(w => {
+            if (!isWorkoutVisibleNow(w, now)) return false;
+
             const categoryConfig = studioConfig.customCategories.find(c => c.name === w.category);
             const isCategoryLocked = categoryConfig?.isLocked === true;
 
-            // Filtreringslogik baserat på läge (gäller ej egna program)
-            if (activeTab !== 'mina') {
-                if (isStudioMode) {
-                    if (w.showInStudio === false) return false;
-                } else {
-                    if (w.showInApp === false) return false;
-                    // Dölj låsta kategorier om de inte är den valda kategorin
-                    if (isCategoryLocked && w.category !== selectedCategory) return false;
-                }
+            if (isStudioMode) {
+                if (w.showInStudio === false) return false;
+            } else {
+                if (w.showInApp === false) return false;
+                if (isCategoryLocked && w.category !== selectedCategory) return false;
             }
 
-            return w.isPublished && matchesCategory && matchesSearch;
+            return true;
+        });
+
+        const categoriesWithLatestOnly = studioConfig.customCategories.filter(c => c.showOnlyLatestPublished);
+        if (categoriesWithLatestOnly.length > 0) {
+            const latestOnlyNames = new Set(categoriesWithLatestOnly.map(c => c.name));
+            
+            const categoryMap = new Map<string, Workout[]>();
+            visible.forEach(w => {
+                if (latestOnlyNames.has(w.category)) {
+                    if (!categoryMap.has(w.category)) categoryMap.set(w.category, []);
+                    categoryMap.get(w.category)!.push(w);
+                }
+            });
+
+            const allowedWorkoutIds = new Set<string>();
+            categoryMap.forEach((catWorkouts) => {
+                let best = catWorkouts[0];
+                for (let i = 1; i < catWorkouts.length; i++) {
+                    const cur = catWorkouts[i];
+                    const curTime = cur.publishAt ?? cur.createdAt ?? 0;
+                    const bestTime = best.publishAt ?? best.createdAt ?? 0;
+                    if (curTime > bestTime) {
+                        best = cur;
+                    }
+                }
+                allowedWorkoutIds.add(best.id);
+            });
+
+            visible = visible.filter(w => !latestOnlyNames.has(w.category) || allowedWorkoutIds.has(w.id));
+        }
+
+        return visible.filter(w => {
+            const matchesCategory = !selectedCategory || w.category === selectedCategory;
+            const matchesSearch = (w.title || '').toLowerCase().includes(searchTerm.toLowerCase()) || 
+                                (w.coachTips && (w.coachTips || '').toLowerCase().includes(searchTerm.toLowerCase()));
+            return matchesCategory && matchesSearch;
         });
     }, [workouts, customPrograms, selectedCategory, searchTerm, isStudioMode, studioConfig, activeTab]);
     

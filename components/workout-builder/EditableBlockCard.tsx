@@ -7,6 +7,8 @@ import { generateExerciseDescription } from '../../services/geminiService';
 import { parseSettingsFromTitle } from '../../hooks/useWorkoutTimer';
 import { motion, AnimatePresence } from 'framer-motion';
 import { saveExerciseToBank } from '../../services/firebaseService';
+import { findDuplicateBankExercise } from '../../utils/workoutUtils';
+import { DuplicateExerciseModal } from '../DuplicateExerciseModal';
 import { useDroppable } from '@dnd-kit/core';
 import { SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
@@ -128,12 +130,29 @@ const ExerciseItem: React.FC<ExerciseItemProps> = ({ exercise, onUpdate, onRemov
         onUpdate(exercise.id, { loggingEnabled: !exercise.loggingEnabled });
     };
 
-    const handleSaveToBank = async () => {
+    const [duplicateWarning, setDuplicateWarning] = useState<BankExercise | null>(null);
+
+    const handleSaveToBank = async (forceAnyway = false) => {
         if (!organizationId) {
             alert("Ingen organisation vald. Kan inte spara lokalt.");
             return;
         }
         if (!exercise.name.trim()) return;
+
+        const duplicate = findDuplicateBankExercise(exercise.name, exerciseBank);
+        if (duplicate && duplicate.name.toLowerCase().trim() === exercise.name.trim().toLowerCase()) {
+            onUpdate(exercise.id, {
+                originalBankId: duplicate.id,
+                isFromBank: true,
+                name: duplicate.name,
+                loggingEnabled: false
+            });
+            onShowToast("Länkad till befintlig övning i banken!");
+            return;
+        } else if (duplicate && !forceAnyway) {
+            setDuplicateWarning(duplicate);
+            return;
+        }
 
         // 1. Skapa unikt ID för custom exercise
         const newId = `custom_${organizationId}_${Date.now()}`;
@@ -363,7 +382,7 @@ const ExerciseItem: React.FC<ExerciseItemProps> = ({ exercise, onUpdate, onRemov
                                         EGEN
                                     </div>
                                     <button
-                                        onClick={handleSaveToBank}
+                                        onClick={() => handleSaveToBank()}
                                         className="flex items-center gap-1 px-2 py-1.5 rounded-lg border border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400 hover:bg-green-100 dark:hover:bg-green-900/40 transition-colors text-[9px] font-black uppercase tracking-wider"
                                         title="Spara som lokal övning för att kunna logga"
                                     >
@@ -471,6 +490,28 @@ const ExerciseItem: React.FC<ExerciseItemProps> = ({ exercise, onUpdate, onRemov
                     </div>
                 )}
             </div>
+
+            {duplicateWarning && (
+                <DuplicateExerciseModal
+                    isOpen={!!duplicateWarning}
+                    existingName={duplicateWarning.name}
+                    onUseExisting={() => {
+                        onUpdate(exercise.id, {
+                            originalBankId: duplicateWarning.id,
+                            isFromBank: true,
+                            name: duplicateWarning.name,
+                            loggingEnabled: false
+                        });
+                        setDuplicateWarning(null);
+                        onShowToast("Länkad till befintlig övning i banken!");
+                    }}
+                    onCreateAnyway={() => {
+                        setDuplicateWarning(null);
+                        handleSaveToBank(true);
+                    }}
+                    onClose={() => setDuplicateWarning(null)}
+                />
+            )}
         </div>
     );
 };

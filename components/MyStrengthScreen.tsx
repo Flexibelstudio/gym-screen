@@ -3,10 +3,12 @@ import { PersonalBest, WorkoutLog } from '../types';
 import { listenToPersonalBests, updatePersonalBest, resetPersonalBest, db } from '../services/firebaseService';
 import { collection, query, where, getDocs, orderBy } from 'firebase/firestore';
 import { useAuth } from '../context/AuthContext';
-import { TrophyIcon, PencilIcon, SaveIcon, DumbbellIcon, CalculatorIcon, CloseIcon, ChevronDownIcon, ChevronUpIcon, TrashIcon } from './icons';
+import { TrophyIcon, PencilIcon, SaveIcon, DumbbellIcon, CalculatorIcon, CloseIcon, ChevronDownIcon, ChevronUpIcon, TrashIcon, InformationCircleIcon } from './icons';
 import { OneRepMaxModal } from './OneRepMaxModal';
+import { Modal } from './ui/Modal';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { calculate1RM } from '../utils/workoutUtils';
+import { canonicalizeExerciseName } from '../data/exerciseAliases';
 import { useConfirm } from './ConfirmContext';
 import { LEVEL_NAMES } from '../data/fitnessStandards';
 import { getAgeFromBirthDate, getStrengthAssessment, findLift1RM } from '../utils/fitnessBenchmarks';
@@ -49,12 +51,13 @@ export const MyStrengthScreen: React.FC<MyStrengthScreenProps> = ({ userData, lo
     const [pbs, setPbs] = useState<PersonalBest[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [showCalculator, setShowCalculator] = useState(false);
+    const [showInfoModal, setShowInfoModal] = useState(false);
     const [expandedExercise, setExpandedExercise] = useState<string | null>(null);
     const [searchTerm, setSearchTerm] = useState('');
     const [displayLimit, setDisplayLimit] = useState(10);
     const confirm = useConfirm();
     const { selectedOrganization, studioConfig } = useStudio();
-    const enableFitnessBenchmarks = !!(selectedOrganization?.globalConfig?.enableFitnessBenchmarks ?? studioConfig?.enableFitnessBenchmarks);
+    const enableFitnessBenchmarks = (selectedOrganization?.globalConfig?.enableFitnessBenchmarks ?? studioConfig?.enableFitnessBenchmarks) !== false;
 
     useEffect(() => {
         if (!userData?.uid) return;
@@ -75,42 +78,84 @@ export const MyStrengthScreen: React.FC<MyStrengthScreenProps> = ({ userData, lo
     }, [userData?.uid]);
 
     const sortedPbs = useMemo(() => {
-        // Collect all exercises from PB and logs
+        // Collect and group all exercises from PB and logs by canonical key
         const pbMap = new Map<string, PersonalBest>();
-        pbs.forEach(pb => pbMap.set(pb.exerciseName.toLowerCase().trim(), pb));
+
+        const addOrMergePB = (rawName: string, weight: number, reps: number, calc1RM: number, date?: number, id?: string) => {
+            const canonicalKey = canonicalizeExerciseName(rawName);
+            const calculated1RM = calc1RM || calculate1RM(weight, reps) || weight || 0;
+
+            if (!pbMap.has(canonicalKey)) {
+                pbMap.set(canonicalKey, {
+                    id: id || canonicalKey,
+                    exerciseName: rawName.trim(),
+                    weight,
+                    reps,
+                    calculated1RM,
+                    date
+                });
+            } else {
+                const existing = pbMap.get(canonicalKey)!;
+                const existing1RM = existing.calculated1RM || calculate1RM(existing.weight, existing.reps) || existing.weight || 0;
+
+                let newWeight = existing.weight;
+                let newReps = existing.reps;
+                let new1RM = existing1RM;
+                let newDate = Math.max(existing.date || 0, date || 0);
+
+                if (calculated1RM > existing1RM) {
+                    new1RM = calculated1RM;
+                    newWeight = weight;
+                    newReps = reps;
+                }
+
+                let nameToKeep = existing.exerciseName;
+                if (rawName.trim().length < nameToKeep.length && !rawName.includes('(')) {
+                    nameToKeep = rawName.trim();
+                }
+
+                pbMap.set(canonicalKey, {
+                    ...existing,
+                    exerciseName: nameToKeep,
+                    weight: newWeight,
+                    reps: newReps,
+                    calculated1RM: new1RM,
+                    date: newDate
+                });
+            }
+        };
+
+        pbs.forEach(pb => {
+            if (pb && pb.exerciseName) {
+                const w = pb.weight || 0;
+                const r = pb.reps || 0;
+                const c1rm = pb.calculated1RM || calculate1RM(w, r) || 0;
+                addOrMergePB(pb.exerciseName, w, r, c1rm, pb.date, pb.id);
+            }
+        });
 
         if (logs) {
             logs.forEach(log => {
                 if (log.exerciseResults) {
                     log.exerciseResults.forEach(ex => {
-                        const nameKey = ex.exerciseName.toLowerCase().trim();
-                        if (!pbMap.has(nameKey)) {
-                            // Find best set in this log textually just to have something
-                            let maxW = 0;
-                            let maxR = 0;
-                            if (ex.setDetails) {
-                                ex.setDetails.forEach(s => {
-                                    const w = parseFloat(s.weight as any) || 0;
-                                    const r = parseFloat(s.reps as any) || 0;
-                                    if (w > maxW || (w === maxW && r > maxR)) {
-                                        maxW = w;
-                                        maxR = r;
-                                    }
-                                });
-                            } else {
-                                maxW = parseFloat(ex.weight as any) || 0;
-                                maxR = parseFloat(ex.reps as any) || 0;
-                            }
-
-                            pbMap.set(nameKey, {
-                                id: nameKey,
-                                exerciseName: ex.exerciseName.trim(),
-                                weight: maxW,
-                                reps: maxR,
-                                calculated1RM: calculate1RM(maxW, maxR) || 0,
-                                date: log.date
+                        if (!ex.exerciseName) return;
+                        let maxW = 0;
+                        let maxR = 0;
+                        if (ex.setDetails) {
+                            ex.setDetails.forEach(s => {
+                                const w = parseFloat(s.weight as any) || 0;
+                                const r = parseFloat(s.reps as any) || 0;
+                                if (w > maxW || (w === maxW && r > maxR)) {
+                                    maxW = w;
+                                    maxR = r;
+                                }
                             });
+                        } else {
+                            maxW = parseFloat(ex.weight as any) || 0;
+                            maxR = parseFloat(ex.reps as any) || 0;
                         }
+                        const c1rm = calculate1RM(maxW, maxR) || maxW || 0;
+                        addOrMergePB(ex.exerciseName, maxW, maxR, c1rm, log.date);
                     });
                 }
             });
@@ -146,13 +191,14 @@ export const MyStrengthScreen: React.FC<MyStrengthScreenProps> = ({ userData, lo
 
         sortedPbs.forEach(pb => {
             const exerciseName = pb.exerciseName;
+            const canonicalKey = canonicalizeExerciseName(exerciseName);
             const dataPoints: any[] = [];
             let latestNote: string | undefined = undefined;
 
             sortedLogs.forEach(log => {
                 if (!log.exerciseResults) return;
                 
-                const exResult = log.exerciseResults.find(ex => ex.exerciseName.trim().toLowerCase() === exerciseName.trim().toLowerCase());
+                const exResult = log.exerciseResults.find(ex => canonicalizeExerciseName(ex.exerciseName) === canonicalKey);
                 if (!exResult) return;
                 
                 // Keep the latest note (since sortedLogs is chronological, the last one seen is the most recent)
@@ -184,8 +230,6 @@ export const MyStrengthScreen: React.FC<MyStrengthScreenProps> = ({ userData, lo
                     }
                 }
                 
-                // For reps-only exercises, we want to at least save the points for something, but here we just leave them out of the 1RM chart.
-                // However, we still have the latestNote!
                 if (best1RM > 0) {
                     dataPoints.push({
                         date: new Date(log.date).toLocaleDateString('sv-SE', { month: 'short', day: 'numeric' }),
@@ -240,9 +284,24 @@ export const MyStrengthScreen: React.FC<MyStrengthScreenProps> = ({ userData, lo
         <div className="w-full animate-fade-in">
             {enableFitnessBenchmarks && (
                 <div className="mb-8">
-                    <h3 className="text-xs font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest leading-[1.2] pt-[0.1em] mb-3">
-                        HUR STARK ÄR DU?
-                    </h3>
+                    <div className="flex items-center justify-between mb-1">
+                        <div className="flex items-center gap-2">
+                            <h3 className="text-xs font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest leading-[1.2] pt-[0.1em]">
+                                HUR STARK ÄR DU?
+                            </h3>
+                            <button
+                                type="button"
+                                onClick={() => setShowInfoModal(true)}
+                                className="w-11 h-11 min-w-[44px] min-h-[44px] flex items-center justify-center text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors"
+                                aria-label="Information om styrkenivåer"
+                            >
+                                <InformationCircleIcon className="w-5 h-5" />
+                            </button>
+                        </div>
+                    </div>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 font-medium mb-3">
+                        Din nivå jämförs med andra som tränar — i din ålder, ditt kön och din kroppsvikt.
+                    </p>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                         {liftsConfig.map((lift) => {
                             const oneRM = findLift1RM(sortedPbs, lift.key);
@@ -525,6 +584,47 @@ export const MyStrengthScreen: React.FC<MyStrengthScreenProps> = ({ userData, lo
             )}
 
             {showCalculator && <OneRepMaxModal onClose={() => setShowCalculator(false)} />}
+
+            <Modal isOpen={showInfoModal} onClose={() => setShowInfoModal(false)} title="Så funkar nivåerna">
+                <div className="space-y-4 text-sm text-gray-700 dark:text-gray-300 leading-relaxed">
+                    <p>
+                        Nivåerna bygger på hur mycket du lyfter i förhållande till din kroppsvikt, justerat för ålder och kön. En 45-årig kvinna på 68 kg och en 25-årig man på 90 kg kan alltså båda vara "Stark" — det är samma prestation, mätt rättvist.
+                    </p>
+
+                    <div>
+                        <h4 className="font-bold text-gray-900 dark:text-white text-base mb-1">Nivåerna</h4>
+                        <ul className="space-y-1">
+                            <li><strong className="font-bold text-gray-900 dark:text-white">Nybörjare</strong> — starkare än ungefär 5 % av dem som tränar</li>
+                            <li><strong className="font-bold text-gray-900 dark:text-white">Motionär</strong> — starkare än ungefär 20 %</li>
+                            <li><strong className="font-bold text-gray-900 dark:text-white">Stark</strong> — starkare än ungefär hälften. Det här är en riktigt bra nivå.</li>
+                            <li><strong className="font-bold text-gray-900 dark:text-white">Mycket stark</strong> — starkare än ungefär 80 %</li>
+                            <li><strong className="font-bold text-gray-900 dark:text-white">Elit</strong> — starkare än ungefär 95 %. Tävlingsnivå.</li>
+                        </ul>
+                    </div>
+
+                    <p>
+                        Ligger du under Nybörjare står det "På väg" — för det är precis vad du är.
+                    </p>
+
+                    <div>
+                        <h4 className="font-bold text-gray-900 dark:text-white text-base mb-1">Var kommer siffrorna ifrån?</h4>
+                        <p>
+                            Från en av världens största databaser över loggade lyft, med hundratals miljoner registrerade set. Det är alltså jämförelser mot andra som tränar — inte mot befolkningen i stort. Mot en genomsnittlig vuxen är även "Nybörjare" imponerande.
+                        </p>
+                    </div>
+
+                    <div>
+                        <h4 className="font-bold text-gray-900 dark:text-white text-base mb-1">Kom ihåg</h4>
+                        <p>
+                            Jämförelsen är krydda. Det som faktiskt spelar roll är din egen kurva över tid — att du lyfter mer i år än förra året. Nivåerna är till för att sätta ord på var du står, inte för att döma.
+                        </p>
+                    </div>
+
+                    <p>
+                        Jämförelser finns i dag för man och kvinna. Har du valt något annat visas din progression men ingen nivå.
+                    </p>
+                </div>
+            </Modal>
         </div>
     );
 };

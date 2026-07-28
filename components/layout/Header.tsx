@@ -338,7 +338,7 @@ export const Header: React.FC<HeaderProps> = React.memo(({
 
   if (isMemberAppView) {
       return (
-        <header className="sticky top-0 z-40 w-full bg-white/95 dark:bg-gray-950/95 border-b border-gray-100 dark:border-white/10 pt-[env(safe-area-inset-top)]">
+        <header className="sticky top-0 z-40 -mx-4 -mt-4 sm:-mx-6 sm:-mt-6 lg:-mx-8 lg:-mt-8 mb-4 sm:mb-6 lg:mb-8 bg-white/95 dark:bg-gray-950/95 border-b border-gray-100 dark:border-white/10 pt-[env(safe-area-inset-top)]">
             <div className="max-w-6xl mx-auto flex justify-between items-center py-4 px-4 sm:px-6">
                 <div className="flex items-center gap-4">
                     <div className="flex-shrink-0 cursor-default">

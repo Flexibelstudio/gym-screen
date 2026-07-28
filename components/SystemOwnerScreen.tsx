@@ -9,6 +9,7 @@ import { SystemDashboardContent } from './admin/SystemDashboardContent';
 import { GalleryManagementTab } from './admin/GalleryManagementTab';
 import { PartnerManagementTab } from './admin/PartnerManagementTab';
 import { LeadsManagementTab } from './admin/LeadsManagementTab';
+import { ExerciseMergeAnalysisCard } from './admin/ExerciseMergeAnalysisCard';
 import { motion, AnimatePresence } from 'framer-motion';
 
 interface SystemOwnerScreenProps {
@@ -1255,6 +1256,8 @@ export const SystemOwnerScreen: React.FC<SystemOwnerScreenProps> = ({ allOrganiz
                                 <h3 className="text-2xl font-bold text-gray-900 dark:text-white border-b border-slate-300 dark:border-gray-700 pb-3 mb-4">Systeminställningar & Prissättning</h3>
                                 <SmartScreenPricingCard />
                             </div>
+
+                            <ExerciseMergeAnalysisCard organizations={localOrgs} />
                         </>
                     )}
 

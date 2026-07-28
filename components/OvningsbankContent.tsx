@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { BankExercise } from '../types';
 import { getExerciseBank, saveExerciseToBank, deleteExerciseFromBank, mergeExercises } from '../services/firebaseService';
+import { findDuplicateBankExercise } from '../utils/workoutUtils';
+import { DuplicateExerciseModal } from './DuplicateExerciseModal';
 import { generateExerciseSuggestions } from '../services/geminiService';
 // FIX: Safer import for react-window to handle both Vite and CDN environments
 import { FixedSizeList as ReactWindowList } from 'react-window';
@@ -33,24 +35,26 @@ function useDebounce<T>(value: T, delay: number): T {
 
 interface ExerciseEditorModalProps {
     exercise: BankExercise | null;
+    bank: BankExercise[];
     onSave: (exercise: BankExercise) => Promise<void>;
     onClose: () => void;
 }
 
-const ExerciseEditorModal: React.FC<ExerciseEditorModalProps> = ({ exercise, onSave, onClose }) => {
+const ExerciseEditorModal: React.FC<ExerciseEditorModalProps> = ({ exercise, bank, onSave, onClose }) => {
     const [localExercise, setLocalExercise] = useState<Partial<BankExercise>>({});
     const [isSaving, setIsSaving] = useState(false);
+    const [duplicateWarning, setDuplicateWarning] = useState<BankExercise | null>(null);
 
     useEffect(() => {
         setLocalExercise(exercise ? { ...exercise } : { name: '', description: '' });
     }, [exercise]);
 
-    const handleSave = async () => {
+    const handleSave = async (forceAnyway = false) => {
         if (!localExercise.name) {
             alert("Namn är ett obligatoriskt fält.");
             return;
         }
-        setIsSaving(true);
+
         const exerciseToSave: BankExercise = {
             id: localExercise.id || `bank_${Date.now()}`,
             name: localExercise.name,
@@ -58,6 +62,17 @@ const ExerciseEditorModal: React.FC<ExerciseEditorModalProps> = ({ exercise, onS
             tags: localExercise.tags?.filter(t => t) || [],
             imageUrl: localExercise.imageUrl
         };
+
+        const duplicate = findDuplicateBankExercise(exerciseToSave.name, bank.filter(b => b.id !== exerciseToSave.id));
+        if (duplicate && duplicate.name.toLowerCase().trim() === exerciseToSave.name.toLowerCase().trim()) {
+            onClose();
+            return;
+        } else if (duplicate && !forceAnyway) {
+            setDuplicateWarning(duplicate);
+            return;
+        }
+
+        setIsSaving(true);
         await onSave(exerciseToSave);
         setIsSaving(false);
     };
@@ -76,9 +91,24 @@ const ExerciseEditorModal: React.FC<ExerciseEditorModalProps> = ({ exercise, onS
                 </div>
                 <div className="mt-6 flex gap-4">
                     <button onClick={onClose} disabled={isSaving} className="flex-1 bg-gray-600 font-bold py-3 rounded">Avbryt</button>
-                    <button onClick={handleSave} disabled={isSaving || !localExercise.name} className="flex-1 bg-primary font-bold py-3 rounded disabled:opacity-50">{isSaving ? 'Sparar...' : 'Spara'}</button>
+                    <button onClick={() => handleSave()} disabled={isSaving || !localExercise.name} className="flex-1 bg-primary font-bold py-3 rounded disabled:opacity-50">{isSaving ? 'Sparar...' : 'Spara'}</button>
                 </div>
             </div>
+            {duplicateWarning && (
+                <DuplicateExerciseModal
+                    isOpen={!!duplicateWarning}
+                    existingName={duplicateWarning.name}
+                    onUseExisting={() => {
+                        setDuplicateWarning(null);
+                        onClose();
+                    }}
+                    onCreateAnyway={() => {
+                        setDuplicateWarning(null);
+                        handleSave(true);
+                    }}
+                    onClose={() => setDuplicateWarning(null)}
+                />
+            )}
         </div>
     );
 };
@@ -311,7 +341,7 @@ export const OvningsbankContent: React.FC = () => {
                 )}
             </div>
 
-            {editingExercise && <ExerciseEditorModal exercise={editingExercise} onSave={handleSave} onClose={() => setEditingExercise(null)} />}
+            {editingExercise && <ExerciseEditorModal exercise={editingExercise} bank={bank} onSave={handleSave} onClose={() => setEditingExercise(null)} />}
             {mergingExercise && <MergeModal sourceExercise={mergingExercise} bank={bank} onMerge={handleMerge} onClose={() => setMergingExercise(null)} />}
         </div>
     );

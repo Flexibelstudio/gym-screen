@@ -185,7 +185,9 @@ export const StudioConfigModal: React.FC<StudioConfigModalProps> = ({ isOpen, on
 
         setOverrides(prev => {
             const newOverrides = { ...prev };
-            const globalValue = globalConfig[key] ?? false;
+            const globalValue = key === 'enableFitnessBenchmarks'
+                ? (globalConfig[key] !== false)
+                : (globalConfig[key] ?? false);
             
             // If checking matches global, remove override. Else set override.
             if (globalValue === value) {
@@ -226,7 +228,12 @@ export const StudioConfigModal: React.FC<StudioConfigModalProps> = ({ isOpen, on
 
     const renderToggle = (key: BooleanStudioConfigKeys, label: string, description: string, onInfoClick?: () => void) => {
         const isOverridden = overrides[key] !== undefined;
-        const currentValue = effectiveConfig[key] ?? false;
+        const globalValue = key === 'enableFitnessBenchmarks'
+            ? (globalConfig[key] !== false)
+            : (globalConfig[key] ?? false);
+        const currentValue = key === 'enableFitnessBenchmarks'
+            ? ((overrides[key] ?? globalValue) !== false)
+            : (effectiveConfig[key] ?? false);
 
         return (
              <div className="flex items-center justify-between p-3 rounded-lg hover:bg-slate-100 dark:hover:bg-gray-800/50 transition-colors">
@@ -255,7 +262,7 @@ export const StudioConfigModal: React.FC<StudioConfigModalProps> = ({ isOpen, on
                 {isOverridden ? (
                     <div className="flex flex-col items-end">
                         <span className="text-[10px] text-yellow-600 dark:text-yellow-500 font-semibold uppercase tracking-wide">Avviker från global</span>
-                        <button onClick={() => handleToggleChange(key, globalConfig[key] ?? false)} className="text-xs text-primary hover:underline">Återställ</button>
+                        <button onClick={() => resetFieldToGlobal(key)} className="text-xs text-primary hover:underline">Återställ</button>
                     </div>
                 ) : (
                     <span className="text-xs text-gray-400 italic">Ärvd från global</span>
@@ -287,7 +294,7 @@ export const StudioConfigModal: React.FC<StudioConfigModalProps> = ({ isOpen, on
                         {renderToggle('enableWorkoutLogging', "Aktivera Passloggning", "Låt medlemmar logga sina resultat via QR-kod.", () => setShowPricingModal(true))}
                         {renderToggle('enableNotes', "Aktivera AI Whiteboard", "Digital whiteboard för att skissa upp pass och spara anteckningar.")}
                         {renderToggle('enableExerciseBank', "Aktivera Övningsbank", "Tillgång till globala övningar.")}
-                        {renderToggle('enableFitnessBenchmarks', "Styrka & Kondition (jämförelser)", "Aktiverar jämförelser för styrka och kondition för medlemmar.")}
+                        {renderToggle('enableFitnessBenchmarks', "Styrka & Kondition (jämförelser)", "Visar medlemmarnas styrke- och konditionsnivåer jämfört med andra i samma ålder och kön. Påslaget som standard.")}
                         {organization.globalConfig?.enableEventsModule && renderToggle('enableHyrox', "Visa Event & Tävlingar", "Visa planerade event/tävlingar och tillhörande tidtagning i studiovyn.")}
                     </div>
                 );

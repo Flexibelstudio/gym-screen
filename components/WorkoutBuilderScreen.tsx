@@ -597,6 +597,11 @@ export const WorkoutBuilderScreen: React.FC<WorkoutBuilderScreenProps> = ({ init
       return;
     }
 
+    if (workout.publishAt && workout.expiresAt && workout.expiresAt <= workout.publishAt) {
+      alert("Slutdatumet ('Slutar visas') måste vara efter publiceringsdatumet.");
+      return;
+    }
+
     const finalWorkout = { ...workout };
 
     if (isBenchmark) {
@@ -893,6 +898,59 @@ export const WorkoutBuilderScreen: React.FC<WorkoutBuilderScreenProps> = ({ init
                                     onChange={(val) => handleUpdateWorkoutDetail('usePreGame', val)} 
                                     description="Låter medlemmen svara på dagsform och få en peppande strategi innan passet startar. Om avstängd kommer medlemmen direkt in till passets loggningslista."
                                 />
+
+                                <div className="pt-3 border-t border-gray-200 dark:border-gray-700 mt-3 space-y-3">
+                                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                                        <div>
+                                            <label className="text-xs font-bold text-gray-700 dark:text-gray-300">Publiceras (valfritt)</label>
+                                            <p className="text-[11px] text-gray-400">Publiceras direkt om tom, eller kl. 00:00 på valt datum</p>
+                                        </div>
+                                        <input 
+                                            type="date"
+                                            value={workout.publishAt ? new Date(workout.publishAt).toLocaleDateString('sv-SE') : ''}
+                                            onChange={(e) => {
+                                                const val = e.target.value;
+                                                if (!val) {
+                                                    setWorkout(prev => ({
+                                                        ...prev,
+                                                        publishAt: prev.createdAt || Date.now()
+                                                    }));
+                                                } else {
+                                                    const [y, m, d] = val.split('-').map(Number);
+                                                    const ts = new Date(y, m - 1, d, 0, 0, 0, 0).getTime();
+                                                    setWorkout(prev => ({ ...prev, publishAt: ts }));
+                                                }
+                                            }}
+                                            className="bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white p-2 text-sm rounded-md border border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-primary outline-none font-semibold"
+                                        />
+                                    </div>
+
+                                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                                        <div>
+                                            <label className="text-xs font-bold text-gray-700 dark:text-gray-300">Slutar visas (valfritt)</label>
+                                            <p className="text-[11px] text-gray-400">Passet syns hela den valda dagen fram till midnatt</p>
+                                        </div>
+                                        <input 
+                                            type="date"
+                                            value={workout.expiresAt ? new Date(workout.expiresAt - 24 * 60 * 60 * 1000).toLocaleDateString('sv-SE') : ''}
+                                            onChange={(e) => {
+                                                const val = e.target.value;
+                                                if (!val) {
+                                                    setWorkout(prev => {
+                                                        const copy = { ...prev };
+                                                        delete copy.expiresAt;
+                                                        return copy;
+                                                    });
+                                                } else {
+                                                    const [y, m, d] = val.split('-').map(Number);
+                                                    const ts = new Date(y, m - 1, d + 1, 0, 0, 0, 0).getTime();
+                                                    setWorkout(prev => ({ ...prev, expiresAt: ts }));
+                                                }
+                                            }}
+                                            className="bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white p-2 text-sm rounded-md border border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-primary outline-none font-semibold"
+                                        />
+                                    </div>
+                                </div>
 
                                 <div className="pt-2 border-t border-gray-200 dark:border-gray-700 mt-2">
                                     <div className="flex items-center gap-2 mb-2">

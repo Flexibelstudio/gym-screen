@@ -1,5 +1,5 @@
-import { Page, Workout, WorkoutBlock, Passkategori, UserRole, Organization } from '../../types';
-import { deepCopyAndPrepareAsNew } from '../../utils/workoutUtils';
+import { Page, Workout, WorkoutBlock, Passkategori, UserRole, Organization, StudioConfig } from '../../types';
+import { deepCopyAndPrepareAsNew, isWorkoutVisibleNow } from '../../utils/workoutUtils';
 import { saveCustomProgram } from '../../services/firebaseService';
 
 export interface UseWorkoutActionsDeps {
@@ -14,6 +14,7 @@ export interface UseWorkoutActionsDeps {
   returnToAdminOnSave: boolean;
   isSearchWorkoutOpen: boolean;
   isPickingForLog: boolean;
+  studioConfig?: StudioConfig;
 
   setActiveWorkout: (workout: Workout | null) => void;
   setFocusedBlockId: (id: string | null) => void;
@@ -207,7 +208,22 @@ export function useWorkoutActions(deps: UseWorkoutActionsDeps) {
   };
 
   const handleSelectPasskategori = (passkategori: Passkategori) => {
-    const categoryWorkouts = workouts.filter((w) => w.category === passkategori && w.isPublished && !w.isMemberDraft);
+    const now = Date.now();
+    let categoryWorkouts = workouts.filter((w) => w.category === passkategori && isWorkoutVisibleNow(w, now) && !w.isMemberDraft);
+
+    const catConfig = deps.studioConfig?.customCategories?.find(c => c.name === passkategori);
+    if (catConfig?.showOnlyLatestPublished && categoryWorkouts.length > 1) {
+      let best = categoryWorkouts[0];
+      for (let i = 1; i < categoryWorkouts.length; i++) {
+        const cur = categoryWorkouts[i];
+        const curTime = cur.publishAt ?? cur.createdAt ?? 0;
+        const bestTime = best.publishAt ?? best.createdAt ?? 0;
+        if (curTime > bestTime) {
+          best = cur;
+        }
+      }
+      categoryWorkouts = [best];
+    }
 
     if (categoryWorkouts.length === 1 && !isPickingForLog) {
       if (isStudioMode) {

@@ -3,13 +3,14 @@ import { createPortal } from 'react-dom';
 import { deleteField } from 'firebase/firestore';
 import { WorkoutLog, UserData, MemberGoals, Page, UserRole, SmartGoalDetail, WorkoutDiploma, StudioConfig, BenchmarkDefinition, PersonalBest } from '../types';
 import { listenToMemberLogs, listenToPersonalBests, updateUserGoals, updateUserProfile, uploadImage, updateWorkoutLog, deleteWorkoutLog, requestPushNotificationPermission, auth, getPastRaces, toggleWorkoutLogLike, calculateBodyWeightHistory, saveWorkoutLog } from '../services/firebaseService';
-import { LEVEL_NAMES } from '../data/fitnessStandards';
+import { LEVEL_NAMES, ROWING_LEVEL_NAMES } from '../data/fitnessStandards';
 import { getAgeFromBirthDate, getRowingAssessment, formatRowingTime } from '../utils/fitnessBenchmarks';
 import { calculateMonthlyStats, MonthlyWrappedModal } from './MonthlyWrapped';
-import { ChartBarIcon, DumbbellIcon, PencilIcon, SparklesIcon, UserIcon, FireIcon, LightningIcon, TrashIcon, CloseIcon, TrophyIcon, ToggleSwitch, ClockIcon, HistoryIcon, FlagIcon, StarIcon, ChevronRightIcon, SunIcon } from './icons';
+import { ChartBarIcon, DumbbellIcon, PencilIcon, SparklesIcon, UserIcon, FireIcon, LightningIcon, TrashIcon, CloseIcon, TrophyIcon, ToggleSwitch, ClockIcon, HistoryIcon, FlagIcon, StarIcon, ChevronRightIcon, SunIcon, InformationCircleIcon } from './icons';
 import { Modal } from './ui/Modal';
 import { useConfirm } from './ConfirmContext';
 import { resizeImage } from '../utils/imageUtils';
+import { getYearWeek } from '../utils/workoutUtils';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MyStrengthScreen } from './MyStrengthScreen';
 import { WorkoutDiplomaView } from './WorkoutDiplomaView';
@@ -285,15 +286,6 @@ const SummerChallengeDiplomaCard: React.FC<SummerChallengeDiplomaCardProps> = ({
 };
 
 // --- Helper Functions ---
-
-const getYearWeek = (date: Date) => {
-    const d = new Date(date.getTime());
-    d.setHours(0, 0, 0, 0);
-    d.setDate(d.getDate() + 4 - (d.getDay() || 7));
-    const yearStart = new Date(d.getFullYear(), 0, 1);
-    const weekNo = Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
-    return `${d.getFullYear()}-W${weekNo < 10 ? '0' + weekNo : weekNo}`;
-};
 
 const calculateWeeklyStreak = (logs: WorkoutLog[], migratedStats?: { totalWorkouts: number; streakWeeks: number; migratedAtDate: string; }) => {
     const activeWeeks = new Set<string>();
@@ -614,6 +606,7 @@ const Rowing2000mCard: React.FC<{
     const [timeInput, setTimeInput] = useState('');
     const [isSaving, setIsSaving] = useState(false);
     const [errorMsg, setErrorMsg] = useState<string | null>(null);
+    const [showInfoModal, setShowInfoModal] = useState(false);
 
     const rowingLogs = useMemo(() => {
         return logs
@@ -670,9 +663,21 @@ const Rowing2000mCard: React.FC<{
     return (
         <div className="bg-white dark:bg-gray-900 rounded-2xl p-6 shadow-sm border border-gray-100 dark:border-gray-800 space-y-6">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-gray-100 dark:border-gray-800 pb-4">
-                <div>
-                    <h3 className="font-black text-gray-900 dark:text-white text-lg tracking-tight">2000 M RODD</h3>
-                    <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">Konditionstest — Concept2</p>
+                <div className="flex items-center justify-between w-full sm:w-auto">
+                    <div>
+                        <div className="flex items-center gap-2">
+                            <h3 className="font-black text-gray-900 dark:text-white text-lg tracking-tight leading-[1.2] pt-[0.1em]">2000 M RODD</h3>
+                            <button
+                                type="button"
+                                onClick={() => setShowInfoModal(true)}
+                                className="w-11 h-11 min-w-[44px] min-h-[44px] flex items-center justify-center text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors"
+                                aria-label="Information om 2000 m rodd"
+                            >
+                                <InformationCircleIcon className="w-5 h-5" />
+                            </button>
+                        </div>
+                        <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">Konditionstest — Concept2</p>
+                    </div>
                 </div>
             </div>
 
@@ -779,7 +784,7 @@ const Rowing2000mCard: React.FC<{
                                     <p className="text-gray-600 dark:text-gray-400">
                                         <span className="font-medium">Nästa nivå:</span>{' '}
                                         <span className="font-semibold text-gray-800 dark:text-gray-200">
-                                            {LEVEL_NAMES[latestAssessment.level + 1]}
+                                            {ROWING_LEVEL_NAMES[latestAssessment.level + 1]}
                                         </span>{' '}
                                         vid{' '}
                                         <span className="font-bold text-gray-900 dark:text-white font-mono tabular-nums">
@@ -812,6 +817,29 @@ const Rowing2000mCard: React.FC<{
                     </div>
                 </div>
             )}
+
+            <Modal isOpen={showInfoModal} onClose={() => setShowInfoModal(false)} title="2000 m rodd">
+                <div className="space-y-4 text-sm text-gray-700 dark:text-gray-300 leading-relaxed">
+                    <div>
+                        <h4 className="font-bold text-gray-900 dark:text-white text-base mb-1">Så gör du testet</h4>
+                        <p>
+                            Ro 2000 meter så snabbt du kan på en Concept2-maskin. Värm upp ordentligt, håll ett jämnt tempo och spara lite till slutet. Orkar du inte hela sträckan — logga ändå det du gjorde. Ett utgångsvärde är värt mer än inget värde.
+                        </p>
+                    </div>
+
+                    <p>
+                        <strong className="font-bold text-gray-900 dark:text-white">Nivåerna</strong> följer samma skala som styrkan och är justerade för din ålder och ditt kön. En 60-årig man som ror på 8:00 presterar lika bra som en 30-åring på 7:04 — därför jämförs du med din egen åldersgrupp.
+                    </p>
+
+                    <p>
+                        <strong className="font-bold text-gray-900 dark:text-white">Snittet</strong> som visas är tiden för mittennivån i din åldersgrupp — alltså vad hälften klarar. Ligger du över är du i gott sällskap; ligger du under har du ett tydligt mål.
+                    </p>
+
+                    <p>
+                        Testa igen om 8–12 veckor. Det är då förändringen syns.
+                    </p>
+                </div>
+            </Modal>
         </div>
     );
 };
@@ -3590,7 +3618,7 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                         setActiveTab('overview');
                         setIsEditing(true);
                     }}
-                    enableFitnessBenchmarks={!!(selectedOrganization?.globalConfig?.enableFitnessBenchmarks ?? studioConfig?.enableFitnessBenchmarks)}
+                    enableFitnessBenchmarks={(selectedOrganization?.globalConfig?.enableFitnessBenchmarks ?? studioConfig?.enableFitnessBenchmarks) !== false}
                 />
             )}
 
@@ -3728,6 +3756,7 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                 personalBests={personalBests}
                 userName={loggedInMemberName}
                 gymName={selectedOrganization?.name || 'Mitt gym'}
+                gymLogoUrl={selectedOrganization?.logoUrlDark || selectedOrganization?.logoUrlLight}
                 referenceDate={selectedWrappedDate}
             />
         </div>

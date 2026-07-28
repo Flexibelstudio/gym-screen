@@ -8,21 +8,13 @@ import { ChartBarIcon, SparklesIcon, InformationCircleIcon, DumbbellIcon, FireIc
 import { useStudio } from '../context/StudioContext';
 import { MapPinIcon } from 'lucide-react';
 import { calculateAge } from '../utils/dateUtils';
+import { getYearWeek } from '../utils/workoutUtils';
 
 interface MemberDetailModalProps {
     visible: boolean;
     member: Member;
     onClose: () => void;
 }
-
-const getYearWeek = (date: Date) => {
-    const d = new Date(date.getTime());
-    d.setHours(0, 0, 0, 0);
-    d.setDate(d.getDate() + 4 - (d.getDay() || 7));
-    const yearStart = new Date(d.getFullYear(), 0, 1);
-    const weekNo = Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
-    return `${d.getFullYear()}-W${weekNo}`;
-};
 
 const calculateWeeklyStreak = (logs: WorkoutLog[]) => {
     if (logs.length === 0) return 0;

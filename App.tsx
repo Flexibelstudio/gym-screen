@@ -603,6 +603,7 @@ const App: React.FC = () => {
     returnToAdminOnSave,
     isSearchWorkoutOpen,
     isPickingForLog,
+    studioConfig,
     setActiveWorkout,
     setFocusedBlockId,
     setIsEditingNewDraft,

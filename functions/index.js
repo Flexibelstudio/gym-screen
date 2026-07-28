@@ -27,6 +27,10 @@ const {
   createKioskOrder
 } = require("./src/booking");
 
+const {
+  mergeDuplicateExerciseNames
+} = require("./src/maintenance");
+
 module.exports = {
   flexUpdateUserRole,
   flexApproveCoach,
@@ -50,5 +54,6 @@ module.exports = {
   selfCheckInByEmail,
   purchaseMembership,
   purchasePass,
-  createKioskOrder
+  createKioskOrder,
+  mergeDuplicateExerciseNames
 };
