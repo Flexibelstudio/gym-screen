@@ -311,9 +311,9 @@ export function getTargetWeightForExercise(params: {
   scaled: number | null;
   targetPct: number | null;
   source: 'targetPct' | 'history' | 'none';
-  pctSource: 'coach' | 'member' | 'session' | 'none';
+  pctSource: 'coach' | 'session' | 'none';
 } {
-  const { exerciseName, personalBests, history, userId, mode, prescribedPct, sessionPct } = params;
+  const { exerciseName, personalBests, history, mode, prescribedPct, sessionPct } = params;
   const canon = canonicalizeExerciseName(exerciseName);
 
   let pb: any = null;
@@ -340,7 +340,7 @@ export function getTargetWeightForExercise(params: {
   }
 
   let targetPct: number | null = null;
-  let pctSource: 'coach' | 'member' | 'session' | 'none' = 'none';
+  let pctSource: 'coach' | 'session' | 'none' = 'none';
 
   if (sessionPct !== undefined && sessionPct !== null && sessionPct > 0) {
     targetPct = sessionPct;
@@ -348,17 +348,6 @@ export function getTargetWeightForExercise(params: {
   } else if (prescribedPct !== undefined && prescribedPct !== null && prescribedPct > 0) {
     targetPct = prescribedPct;
     pctSource = 'coach';
-  } else {
-    try {
-      const saved = localStorage.getItem(`target_pct_${userId || 'user'}_${exerciseName.toLowerCase().trim()}`);
-      if (saved) {
-        const parsed = parseInt(saved, 10);
-        if (parsed > 0) {
-          targetPct = parsed;
-          pctSource = 'member';
-        }
-      }
-    } catch {}
   }
 
   let base: number | null = null;

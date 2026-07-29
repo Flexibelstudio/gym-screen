@@ -57,7 +57,7 @@ export interface StrengthAssessment {
 }
 
 export function getStrengthAssessment(
-  lift: 'squat' | 'bench' | 'deadlift' | 'press' | string,
+  lift: 'squat' | 'bench' | 'deadlift' | 'press' | 'clean' | 'frontsquat' | string,
   gender: string | undefined | null,
   age: number | undefined | null,
   bodyWeightKg: number | undefined | null,
@@ -192,7 +192,7 @@ export function getRowingAssessment(
 
 export function findLift1RM(
   personalBests: Record<string, any> | Array<any> | undefined | null,
-  lift: 'squat' | 'bench' | 'deadlift' | 'press' | string
+  lift: 'squat' | 'bench' | 'deadlift' | 'press' | 'clean' | 'frontsquat' | string
 ): number | null {
   if (!personalBests) return null;
 

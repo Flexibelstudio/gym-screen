@@ -585,9 +585,11 @@ export const ExerciseLogCard: React.FC<{
       exerciseName: string, 
       current1RM?: number, 
       activeTargetPct?: number | null, 
+      activePctSource?: 'coach' | 'session' | 'none',
       onSelectTargetPct?: (pct: number | null) => void 
   }) => void;
-}> = ({ name, result, onUpdate, onRemove, lastPerformance, personalBest, isLastInGroup, onAddGroupSet, userId, sessionMode = 'normal', history, personalBests, blockProfile, sessionPct, onSelectSessionPct, onStartRestTimer, onOpenCalculator }) => {
+  canEditFields: boolean;
+}> = ({ name, result, onUpdate, onRemove, lastPerformance, personalBest, isLastInGroup, onAddGroupSet, userId, sessionMode = 'normal', history, personalBests, blockProfile, sessionPct, onSelectSessionPct, onStartRestTimer, onOpenCalculator, canEditFields }) => {
     
     const trackingFields = result.trackingFields || ['reps', 'weight'];
     const showReps = trackingFields.includes('reps');
@@ -620,14 +622,36 @@ export const ExerciseLogCard: React.FC<{
     const lightBgClass = groupColorObj ? groupColorObj.lightBg : 'bg-primary/5';
     const lightBorderClass = groupColorObj ? groupColorObj.lightBorder : 'border-primary/20';
 
+    const FIELD_LABELS: Record<string, string> = {
+        reps: 'reps', weight: 'vikt', time: 'tid', distance: 'distans', kcal: 'kcal'
+    };
+
+    const getMissingFields = (set: LocalSetDetail): string[] => {
+        return trackingFields.filter(f => {
+            const raw = (set as any)[f];
+            return raw === undefined || raw === null || String(raw).trim() === '';
+        });
+    };
+
     const handleSetChange = (index: number, field: keyof LocalSetDetail, value: string) => {
         const newSets = [...result.setDetails];
         newSets[index] = { ...newSets[index], [field]: value };
         onUpdate({ setDetails: newSets });
+        if (invalidSetIdx === index) { setInvalidSetIdx(null); }
     };
 
     const handleToggleComplete = (index: number) => {
          const wasCompleted = result.setDetails[index].completed;
+         if (!wasCompleted) {
+             const missing = getMissingFields(result.setDetails[index]);
+             if (missing.length > 0) {
+                 setInvalidSetIdx(index);
+                 if (window.navigator.vibrate) { window.navigator.vibrate([40, 60, 40]); }
+                 return;
+             }
+         }
+         setInvalidSetIdx(null);
+
          if (window.navigator.vibrate) {
              window.navigator.vibrate(wasCompleted ? 5 : 15);
          }
@@ -668,6 +692,7 @@ export const ExerciseLogCard: React.FC<{
     const [showMoreFields, setShowMoreFields] = useState(false);
     const [isNoteActive, setIsNoteActive] = useState(true);
     const [isNoteExpanded, setIsNoteExpanded] = useState(false);
+    const [invalidSetIdx, setInvalidSetIdx] = useState<number | null>(null);
 
     // Calculate/Get current 1RM for this exercise
     const current1RM = useMemo(() => {
@@ -687,27 +712,9 @@ export const ExerciseLogCard: React.FC<{
         return undefined;
     }, [personalBest, lastPerformance]);
 
-    // Local state for target percentage (persisted per member & exercise)
-    const storageKey = `target_pct_${userId || 'user'}_${name.toLowerCase().trim()}`;
-    const [targetPct, setTargetPct] = useState<number | null>(() => {
-        try {
-            const saved = localStorage.getItem(storageKey);
-            return saved ? parseInt(saved, 10) : null;
-        } catch {
-            return null;
-        }
-    });
-
-    const handleSetTargetPct = useCallback((pct: number | null) => {
-        setTargetPct(pct);
-        try {
-            if (pct === null) {
-                localStorage.removeItem(storageKey);
-            } else {
-                localStorage.setItem(storageKey, pct.toString());
-            }
-        } catch {}
-    }, [storageKey]);
+    const handleTargetPctSelection = (pct: number | null) => {
+        if (onSelectSessionPct) onSelectSessionPct(pct);
+    };
 
     const ALL_TRACKING_FIELDS = [
         { id: 'reps', label: 'Reps' },
@@ -720,6 +727,7 @@ export const ExerciseLogCard: React.FC<{
     const inactiveFields = ALL_TRACKING_FIELDS.filter(f => !trackingFields.includes(f.id));
 
     const toggleField = (field: 'reps' | 'weight' | 'time' | 'distance' | 'kcal') => {
+        if (!canEditFields) return;
         const current = [...trackingFields];
         const has = current.includes(field);
         if (has) {
@@ -792,14 +800,6 @@ export const ExerciseLogCard: React.FC<{
 
                                 const showBadge = hasWeightMath && targetInfo.base !== null && targetInfo.scaled !== null && targetInfo.pctSource !== 'none';
 
-                                const handleTargetPctSelection = (pct: number | null) => {
-                                    if (prescribedPct && prescribedPct > 0) {
-                                        if (onSelectSessionPct) onSelectSessionPct(pct);
-                                    } else {
-                                        handleSetTargetPct(pct);
-                                    }
-                                };
-
                                 return (
                                     <>
                                         {showBadge && (() => {
@@ -817,6 +817,7 @@ export const ExerciseLogCard: React.FC<{
                                                                     exerciseName: name, 
                                                                     current1RM: current1RM,
                                                                     activeTargetPct: targetInfo.targetPct,
+                                                                    activePctSource: targetInfo.pctSource,
                                                                     onSelectTargetPct: handleTargetPctSelection
                                                                 });
                                                             }
@@ -843,6 +844,7 @@ export const ExerciseLogCard: React.FC<{
                                                                     exerciseName: name, 
                                                                     current1RM: current1RM,
                                                                     activeTargetPct: targetInfo.targetPct,
+                                                                    activePctSource: targetInfo.pctSource,
                                                                     onSelectTargetPct: handleTargetPctSelection
                                                                 });
                                                             }
@@ -887,13 +889,8 @@ export const ExerciseLogCard: React.FC<{
                                         exerciseName: name, 
                                         current1RM: current1RM,
                                         activeTargetPct: targetInfo.targetPct,
-                                        onSelectTargetPct: (pct) => {
-                                            if (prescribedPct && prescribedPct > 0) {
-                                                if (onSelectSessionPct) onSelectSessionPct(pct);
-                                            } else {
-                                                handleSetTargetPct(pct);
-                                            }
-                                        }
+                                        activePctSource: targetInfo.pctSource,
+                                        onSelectTargetPct: handleTargetPctSelection
                                     });
                                 }}
                                 className="p-3 rounded-2xl transition-all active:scale-90 bg-gray-50 dark:bg-gray-800 text-primary hover:bg-primary/20 dark:hover:bg-primary/20 shadow-sm"
@@ -901,16 +898,18 @@ export const ExerciseLogCard: React.FC<{
                                 <CalculatorIcon className="w-5 h-5" />
                             </button>
                         )}
-                        <button 
-                            onClick={() => setIsEditingFields(!isEditingFields)}
-                            className={`p-3 rounded-2xl transition-all active:scale-90 shadow-sm ${isEditingFields ? 'bg-primary/10 text-primary' : 'bg-gray-50 dark:bg-gray-800 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200'}`}
-                        
-                        >
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                            </svg>
-                        </button>
+                        {canEditFields && (
+                            <button 
+                                onClick={() => setIsEditingFields(!isEditingFields)}
+                                className={`p-3 rounded-2xl transition-all active:scale-90 shadow-sm ${isEditingFields ? 'bg-primary/10 text-primary' : 'bg-gray-50 dark:bg-gray-800 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200'}`}
+                            
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                </svg>
+                            </button>
+                        )}
                         {onRemove && (
                             <button 
                                 onClick={onRemove}
@@ -922,7 +921,7 @@ export const ExerciseLogCard: React.FC<{
                     </div>
                 </div>
 
-                {inactiveFields.length > 0 && !isEditingFields && (
+                {canEditFields && inactiveFields.length > 0 && !isEditingFields && (
                     <div className="mt-1">
                         {!showMoreFields ? (
                             <button
@@ -965,7 +964,7 @@ export const ExerciseLogCard: React.FC<{
                     </div>
                 )}
 
-                {isEditingFields && (
+                {canEditFields && isEditingFields && (
                     <div className="flex flex-wrap gap-2 mt-2 p-3 bg-gray-50 dark:bg-gray-800/50 rounded-xl border border-gray-100 dark:border-gray-800">
                         <div className="w-full text-[10px] font-black uppercase tracking-widest text-gray-500 mb-1">Välj fält att logga</div>
                         {[
@@ -1008,6 +1007,8 @@ export const ExerciseLogCard: React.FC<{
                         const isWeightAndRepsOnly = showWeight && showReps && !showTime && !showDistance && !showKcal;
                         const hasValidWeightAndReps = (parseFloat(set.weight) > 0) && (parseFloat(set.reps) > 0);
                         const showRirRow = Boolean(set.completed) && isWeightAndRepsOnly && hasValidWeightAndReps;
+                        const missingFields = getMissingFields(set);
+                        const canComplete = set.completed || missingFields.length === 0;
 
                         return (
                             <React.Fragment key={index}>
@@ -1062,16 +1063,23 @@ export const ExerciseLogCard: React.FC<{
                                     <div className="flex justify-center">
                                         <button 
                                             onClick={() => handleToggleComplete(index)} 
-                                            className={`w-11 h-11 rounded-xl flex items-center justify-center transition-all shadow-md transform active:scale-90 ${set.completed ? 'bg-green-600 text-white' : 'bg-gray-50 dark:bg-gray-800 text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'}`}
+                                            className={`w-11 h-11 rounded-xl flex items-center justify-center transition-all shadow-md transform active:scale-90 ${set.completed ? 'bg-green-600 text-white' : 'bg-gray-50 dark:bg-gray-800 text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'} ${canComplete ? '' : 'opacity-40'}`}
                                         >
                                             {set.completed ? <CheckIcon className="w-6 h-6" /> : <div className="w-3.5 h-3.5 rounded-full border-2 border-current opacity-45" />}
                                         </button>
                                     </div>
                                 </div>
+                                {invalidSetIdx === index && missingFields.length > 0 && (
+                                    <div className="mt-1.5 mb-1 px-3 py-2 rounded-xl bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800/60 animate-fade-in">
+                                        <span className="text-xs font-bold text-red-600 dark:text-red-400">
+                                            Fyll i {missingFields.map(f => FIELD_LABELS[f] || f).join(' och ')} innan du bockar av setet.
+                                        </span>
+                                    </div>
+                                )}
                                 {showRirRow && (
                                     <div className="mt-1.5 mb-2 p-2.5 bg-gray-50 dark:bg-gray-800/60 rounded-xl border border-gray-100 dark:border-gray-800 flex flex-wrap items-center justify-between gap-2 animate-fade-in">
                                         <span className="text-xs font-bold text-gray-600 dark:text-gray-300">
-                                            Hade du fler kvar?
+                                            Kvar i tanken?
                                         </span>
                                         <div className="flex items-center gap-1.5">
                                             {[
@@ -1428,6 +1436,7 @@ const OneRMCalculatorModal: React.FC<{
         exerciseName?: string; 
         current1RM?: number; 
         activeTargetPct?: number | null;
+        activePctSource?: 'coach' | 'session' | 'none';
         onSelectTargetPct?: (pct: number | null) => void;
         onSelectWeight?: (w: number) => void; 
     } | null;
@@ -1536,7 +1545,7 @@ const OneRMCalculatorModal: React.FC<{
                     </motion.div>
                 )}
 
-                {context?.activeTargetPct && context?.onSelectTargetPct && (
+                {context?.activeTargetPct && context?.onSelectTargetPct && context?.activePctSource === 'session' && (
                     <div>
                         <button 
                             onClick={() => {
@@ -1545,7 +1554,7 @@ const OneRMCalculatorModal: React.FC<{
                             }}
                             className="w-full py-3 rounded-xl bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 font-bold hover:bg-red-100 dark:hover:bg-red-900/40 transition text-sm"
                         >
-                            Ta bort mål ({context.activeTargetPct} %)
+                            Ta bort mitt val ({context.activeTargetPct} %)
                         </button>
                     </div>
                 )}
@@ -1651,6 +1660,12 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
       });
       return map;
   }, [workout]);
+
+  const canEditTrackingFields = useMemo(() => {
+      if (isManualMode) return true;
+      const id = workout?.id || wId;
+      return !!(id && typeof id === 'string' && id.startsWith('custom-'));
+  }, [isManualMode, workout, wId]);
 
   const handleSelectSessionPct = (exerciseName: string, pct: number | null) => {
       const canonKey = canonicalizeExerciseName(exerciseName);
@@ -1882,7 +1897,14 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
   const [exerciseBank, setExerciseBank] = useState<BankExercise[]>(MOCK_EXERCISE_BANK);
   
   const [showCalculator, setShowCalculator] = useState(false);
-  const [calculatorContext, setCalculatorContext] = useState<{ exerciseName?: string, current1RM?: number, onSelectWeight?: (w: number) => void } | null>(null);
+  const [calculatorContext, setCalculatorContext] = useState<{
+    exerciseName?: string,
+    current1RM?: number,
+    activeTargetPct?: number | null,
+    activePctSource?: 'coach' | 'session' | 'none',
+    onSelectTargetPct?: (pct: number | null) => void,
+    onSelectWeight?: (w: number) => void
+  } | null>(null);
   const [exerciseToEdit, setExerciseToEdit] = useState<BankExercise | null>(null);
   const [editExerciseName, setEditExerciseName] = useState("");
   const [exerciseToDelete, setExerciseToDelete] = useState<BankExercise | null>(null);
@@ -2999,6 +3021,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
                                                 key={result.exerciseId}
                                                 name={result.exerciseName}
                                                 result={result}
+                                                canEditFields={canEditTrackingFields || result.blockId === 'manual-block'}
                                                 userId={currentUser?.uid}
                                                 sessionMode={sessionMode}
                                                 history={history}
@@ -3255,6 +3278,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
                                                                                                     lastPerformance={history[result.exerciseName]} 
                                                                                                     personalBest={personalBests[result.exerciseName.toLowerCase().trim()]}
                                                                                                     isLastInGroup={isLastInGroup}
+                                                                                                    canEditFields={canEditTrackingFields || result.blockId === 'manual-block'}
                                                                                                     onAddGroupSet={() => handleAddGroupSet(result.groupId!)}
                                                                                                     userId={userId}
                                                                                                     history={history}
@@ -3306,6 +3330,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
                                                                             onUpdate={(updates) => handleUpdateResult(originalIndex, updates)}
                                                                             lastPerformance={history[result.exerciseName]} 
                                                                             personalBest={personalBests[result.exerciseName.toLowerCase().trim()]}
+                                                                             canEditFields={canEditTrackingFields || result.blockId === 'manual-block'}
                                                                             isLastInGroup={false}
                                                                             userId={userId}
                                                                             history={history}
