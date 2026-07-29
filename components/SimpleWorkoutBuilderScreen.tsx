@@ -11,7 +11,7 @@ import { useAuth } from '../context/AuthContext';
 import { parseSettingsFromTitle } from '../hooks/useWorkoutTimer';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Toast } from './ui/ToastNotification';
-import { sanitizeWorkoutWithBank } from '../utils/workoutUtils';
+import { sanitizeWorkoutWithBank, getDefaultLoggingForBlockTag } from '../utils/workoutUtils';
 
 // --- Helpers ---
 const parseExerciseLine = (line: string): { reps: string; name: string } => {
@@ -96,8 +96,9 @@ interface ExerciseItemProps {
     onMove: (direction: 'up' | 'down') => void;
     enableWorkoutLogging?: boolean;
     onShowToast: (message: string) => void;
+    blockTag?: string;
 }
-const ExerciseItem: React.FC<ExerciseItemProps> = ({ exercise, onUpdate, onRemove, exerciseBank, index, total, onMove, enableWorkoutLogging, onShowToast }) => {
+const ExerciseItem: React.FC<ExerciseItemProps> = ({ exercise, onUpdate, onRemove, exerciseBank, index, total, onMove, enableWorkoutLogging, onShowToast, blockTag }) => {
     const [searchQuery, setSearchQuery] = useState('');
     const [isSearchVisible, setIsSearchVisible] = useState(false);
     const searchContainerRef = useRef<HTMLDivElement>(null);
@@ -170,7 +171,7 @@ const ExerciseItem: React.FC<ExerciseItemProps> = ({ exercise, onUpdate, onRemov
             imageUrl: bankExercise.imageUrl,
             reps: exercise.reps,
             isFromBank: true,
-            loggingEnabled: false
+            loggingEnabled: getDefaultLoggingForBlockTag(blockTag)
         });
         setIsSearchVisible(false);
         setSearchQuery('');
@@ -581,6 +582,7 @@ const BlockCard: React.FC<BlockCardProps> = ({ block, index, totalBlocks, onUpda
                         exerciseBank={exerciseBank} index={i} total={block.exercises.length} onMove={dir => moveEx(i, dir)} organizationId=""
                         enableWorkoutLogging={enableWorkoutLogging}
                         onShowToast={onShowToast}
+                        blockTag={block.tag}
                     />
                 ))}
                 <button 

@@ -1,6 +1,7 @@
 import { Page, Workout, WorkoutBlock, Passkategori, UserRole, Organization, StudioConfig } from '../../types';
-import { deepCopyAndPrepareAsNew, isWorkoutVisibleNow, getMemberLocationIds, isWorkoutVisibleForLocations } from '../../utils/workoutUtils';
+import { deepCopyAndPrepareAsNew, isWorkoutVisibleNow, getMemberLocationIds, isWorkoutVisibleForLocations, getDefaultLoggingForBlockTag } from '../../utils/workoutUtils';
 import { saveCustomProgram, saveAdminActivity } from '../../services/firebaseService';
+import { useConfirm } from '../../components/ConfirmContext';
 
 export interface UseWorkoutActionsDeps {
   sessionRole: UserRole;
@@ -37,6 +38,7 @@ export interface UseWorkoutActionsDeps {
 }
 
 export function useWorkoutActions(deps: UseWorkoutActionsDeps) {
+  const confirm = useConfirm();
   const {
     sessionRole,
     isStudioMode,
@@ -152,6 +154,24 @@ export function useWorkoutActions(deps: UseWorkoutActionsDeps) {
   const handleTogglePublishStatus = async (workoutId: string, isPublished: boolean, silentPublish?: boolean) => {
     const workoutToToggle = workouts.find((w) => w.id === workoutId);
     if (workoutToToggle) {
+      if (isPublished) {
+        const hasLoggingEligibleBlock = workoutToToggle.blocks?.some(b => getDefaultLoggingForBlockTag(b.tag)) || false;
+        const hasAnyLoggingEnabled = workoutToToggle.blocks?.some(b => b.exercises?.some(e => e.loggingEnabled === true)) || false;
+
+        if (hasLoggingEligibleBlock && !hasAnyLoggingEnabled) {
+          const userConfirmed = await confirm({
+            title: "Inget går att logga",
+            message: "Det här passet innehåller styrke- eller konditionsblock, men ingen övning är markerad för loggning. Medlemmarna kommer inte kunna registrera några resultat. Vill du publicera ändå?",
+            confirmText: "Publicera ändå",
+            cancelText: "Gå tillbaka"
+          });
+
+          if (!userConfirmed) {
+            return;
+          }
+        }
+      }
+
       await saveWorkout({ ...workoutToToggle, isPublished, silentPublish });
       if (selectedOrganization) {
         try {

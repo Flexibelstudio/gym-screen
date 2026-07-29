@@ -169,7 +169,7 @@ export const MOCK_EXERCISE_BANK: BankExercise[] = [
     { id: 'bank_db_1', name: 'Hantelpress (Dumbbell Bench Press)', description: 'Bänkpress med hantlar för ett större rörelseomfång än med skivstång.', tags: ['bröst', 'axlar', 'triceps', 'hantlar'] },
     { id: 'bank_db_2', name: 'Hantelflyes (Dumbbell Flys)', description: 'Bröstövning där armarna rörs i en svepande rörelse, likt en fågels vingslag.', tags: ['bröst', 'hantlar'] },
     { id: 'bank_db_3', name: 'Hantelrodd (Dumbbell Row)', description: 'Ryggövning där en hantel dras mot sidan av kroppen, ofta med stöd av en bänk.', tags: ['rygg', 'biceps', 'hantlar'] },
-    { id: 'bank_db_4', name: 'Axelpress (Shoulder Press)', description: 'Pressa hantlar från axelhöjd till rakt över huvudet.', tags: ['axlar', 'triceps', 'hantlar'] },
+    { id: 'bank_db_4', name: 'Axelpress (Shoulder Press)', description: 'Pressa en skivstång från axelhöjd till rakt över huvudet.', tags: ['axlar', 'triceps', 'skivstång'] },
     { id: 'bank_db_5', name: 'Sidolyft (Lateral Raises)', description: 'Axelövning där hantlar lyfts rakt ut åt sidorna till axelhöjd.', tags: ['axlar', 'hantlar'] },
     { id: 'bank_db_6', name: 'Bicep Curls', description: 'Isolationsövning för biceps där hantlar curlas upp mot axlarna.', tags: ['biceps', 'armar', 'hantlar'] },
     { id: 'bank_db_7', name: 'Hammer Curls', description: 'Bicepsövning med neutralt grepp (som att hålla en hammare) som även tränar underarmarna.', tags: ['biceps', 'underarmar', 'armar', 'hantlar'] },

@@ -32,7 +32,7 @@ import {
 } from '@dnd-kit/core';
 import { snapCenterToCursor } from '@dnd-kit/modifiers';
 import { arrayMove, sortableKeyboardCoordinates } from '@dnd-kit/sortable';
-import { sanitizeWorkoutWithBank } from '../utils/workoutUtils';
+import { sanitizeWorkoutWithBank, getDefaultLoggingForBlockTag } from '../utils/workoutUtils';
 
 const createNewWorkout = (): Workout => ({
   id: `workout-${Date.now()}`,
@@ -353,6 +353,7 @@ export const WorkoutBuilderScreen: React.FC<WorkoutBuilderScreenProps> = ({ init
         const targetBlockId = overData.type === 'block' ? overData.blockId : workout.blocks.find(b => b.exercises.some(e => `exercise-${e.id}` === overId))?.id;
         
         if (targetBlockId) {
+            const targetBlock = workout.blocks.find(b => b.id === targetBlockId);
             const newExercise: Exercise = {
                 id: `ex-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
                 name: activeData.exercise.name,
@@ -360,7 +361,7 @@ export const WorkoutBuilderScreen: React.FC<WorkoutBuilderScreenProps> = ({ init
                 reps: '',
                 isFromBank: activeData.exercise.isFromBank || activeData.type === 'bank-exercise',
                 originalBankId: activeData.exercise.isFromBank || activeData.type === 'bank-exercise' ? activeData.exercise.id : undefined,
-                loggingEnabled: activeData.exercise.loggingEnabled,
+                loggingEnabled: getDefaultLoggingForBlockTag(targetBlock?.tag),
                 imageUrl: activeData.exercise.imageUrl
             };
 
@@ -787,7 +788,7 @@ export const WorkoutBuilderScreen: React.FC<WorkoutBuilderScreenProps> = ({ init
         imageUrl: bankExercise.imageUrl || '',
         reps: '',
         isFromBank: true,
-        loggingEnabled: false
+        loggingEnabled: getDefaultLoggingForBlockTag(targetBlock.tag)
     };
 
     setWorkout(prev => ({

@@ -98,6 +98,7 @@ module.exports = {
     'bg-gray-500',
     // Timer modes & status colors
     'bg-work',
+    'border-work',
     'text-work',
     'bg-work/10',
     'dark:bg-work/20',

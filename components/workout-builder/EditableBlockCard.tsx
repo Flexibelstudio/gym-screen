@@ -7,7 +7,7 @@ import { generateExerciseDescription } from '../../services/geminiService';
 import { parseSettingsFromTitle } from '../../hooks/useWorkoutTimer';
 import { motion, AnimatePresence } from 'framer-motion';
 import { saveExerciseToBank } from '../../services/firebaseService';
-import { findDuplicateBankExercise, getBlockProfile } from '../../utils/workoutUtils';
+import { findDuplicateBankExercise, getBlockProfile, getDefaultLoggingForBlockTag } from '../../utils/workoutUtils';
 import { DuplicateExerciseModal } from '../DuplicateExerciseModal';
 import { useDroppable } from '@dnd-kit/core';
 import { SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
@@ -27,6 +27,7 @@ interface ExerciseItemProps {
     onShowToast: (message: string) => void;
     onUpdateGroupColor?: (groupId: string, newColor: string) => void;
     blockId: string;
+    blockTag?: string;
 }
 
 export const GROUP_COLORS = [
@@ -38,7 +39,7 @@ export const GROUP_COLORS = [
     { bg: 'bg-yellow-400', border: 'border-yellow-400', lightBg: 'bg-yellow-50 dark:bg-yellow-900/20' }
 ];
 
-const ExerciseItem: React.FC<ExerciseItemProps> = ({ exercise, onUpdate, onRemove, exerciseBank, index, total, onMove, organizationId, onExerciseSavedToBank, enableWorkoutLogging, onShowToast, onUpdateGroupColor, blockId }) => {
+const ExerciseItem: React.FC<ExerciseItemProps> = ({ exercise, onUpdate, onRemove, exerciseBank, index, total, onMove, organizationId, onExerciseSavedToBank, enableWorkoutLogging, onShowToast, onUpdateGroupColor, blockId, blockTag }) => {
     const [searchQuery, setSearchQuery] = useState('');
     const [isSearchVisible, setIsSearchVisible] = useState(false);
     const searchContainerRef = useRef<HTMLDivElement>(null);
@@ -115,7 +116,7 @@ const ExerciseItem: React.FC<ExerciseItemProps> = ({ exercise, onUpdate, onRemov
             imageUrl: bankExercise.imageUrl,
             reps: exercise.reps, 
             isFromBank: true,
-            loggingEnabled: false // Default false
+            loggingEnabled: getDefaultLoggingForBlockTag(blockTag)
         });
         setIsSearchVisible(false);
         setSearchQuery('');
@@ -145,7 +146,7 @@ const ExerciseItem: React.FC<ExerciseItemProps> = ({ exercise, onUpdate, onRemov
                 originalBankId: duplicate.id,
                 isFromBank: true,
                 name: duplicate.name,
-                loggingEnabled: false
+                loggingEnabled: getDefaultLoggingForBlockTag(blockTag)
             });
             onShowToast("Länkad till befintlig övning i banken!");
             return;
@@ -179,7 +180,7 @@ const ExerciseItem: React.FC<ExerciseItemProps> = ({ exercise, onUpdate, onRemov
             onUpdate(exercise.id, { 
                 originalBankId: newId, 
                 isFromBank: true, 
-                loggingEnabled: false
+                loggingEnabled: getDefaultLoggingForBlockTag(blockTag)
             });
 
             onShowToast("Övningen sparades som en egen övning!");
@@ -421,7 +422,10 @@ const ExerciseItem: React.FC<ExerciseItemProps> = ({ exercise, onUpdate, onRemov
                                     <span className="opacity-70">Spara först</span>
                                 </>
                             ) : (
-                                <ChartBarIcon className={`w-3.5 h-3.5 ${exercise.loggingEnabled ? 'text-white' : 'text-current'}`} />
+                                <>
+                                    <ChartBarIcon className={`w-3.5 h-3.5 ${exercise.loggingEnabled ? 'text-white' : 'text-current'}`} />
+                                    <span>{exercise.loggingEnabled ? 'Loggas' : 'Loggas ej'}</span>
+                                </>
                             )}
                         </button>
                         
@@ -500,7 +504,7 @@ const ExerciseItem: React.FC<ExerciseItemProps> = ({ exercise, onUpdate, onRemov
                             originalBankId: duplicateWarning.id,
                             isFromBank: true,
                             name: duplicateWarning.name,
-                            loggingEnabled: false
+                            loggingEnabled: getDefaultLoggingForBlockTag(blockTag)
                         });
                         setDuplicateWarning(null);
                         onShowToast("Länkad till befintlig övning i banken!");
@@ -956,6 +960,7 @@ export const EditableBlockCard: React.FC<EditableBlockCardProps> = ({
                                             onShowToast={onShowToast}
                                             onUpdateGroupColor={updateGroupColor}
                                             blockId={block.id}
+                                            blockTag={block.tag}
                                         />
                                     </div>
                                     {i < block.exercises.length - 1 && (

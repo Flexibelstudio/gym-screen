@@ -274,6 +274,7 @@ export const MyStrengthScreen: React.FC<MyStrengthScreenProps> = ({ userData, lo
         { key: 'squat' as const, title: 'Knäböj', lowerName: 'knäböj' },
         { key: 'bench' as const, title: 'Bänkpress', lowerName: 'bänkpress' },
         { key: 'deadlift' as const, title: 'Marklyft', lowerName: 'marklyft' },
+        { key: 'press' as const, title: 'Axelpress', lowerName: 'axelpress' },
     ];
 
     const age = getAgeFromBirthDate(userData?.birthDate);
@@ -302,7 +303,7 @@ export const MyStrengthScreen: React.FC<MyStrengthScreenProps> = ({ userData, lo
                     <p className="text-xs text-gray-500 dark:text-gray-400 font-medium mb-3">
                         Din nivå jämförs med andra som tränar — i din ålder, ditt kön och din kroppsvikt.
                     </p>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                         {liftsConfig.map((lift) => {
                             const oneRM = findLift1RM(sortedPbs, lift.key);
                             const assessment = (gender === 'male' || gender === 'female') && age !== null && bodyWeight !== null && oneRM !== null

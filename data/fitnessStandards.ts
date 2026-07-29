@@ -7,6 +7,7 @@ export const STRENGTH_RATIO_STANDARDS: Record<string, { male: number[]; female: 
   squat:    { male: [0.75, 1.25, 1.75, 2.25, 2.75], female: [0.50, 0.75, 1.25, 1.75, 2.25] },
   bench:    { male: [0.50, 1.00, 1.25, 1.50, 2.00], female: [0.30, 0.50, 0.75, 1.10, 1.45] },
   deadlift: { male: [1.00, 1.50, 2.00, 2.50, 3.00], female: [0.50, 1.00, 1.25, 1.75, 2.50] },
+  press:    { male: [0.35, 0.55, 0.80, 1.05, 1.35], female: [0.20, 0.35, 0.50, 0.70, 0.95] },
 };
 
 // Åldersfaktor (multipliceras på trösklarna). Samma för alla lyft och kön. Linjär interpolation mellan stegen; klampa ålder till [15, 90].
@@ -23,6 +24,8 @@ export const LIFT_ALIASES: Record<string, string[]> = {
   squat:    EXERCISE_ALIASES['knäböj'] || ['knäböj', 'knäböj (back squat)'],
   bench:    EXERCISE_ALIASES['bänkpress'] || ['bänkpress', 'bänkpress (bench press)'],
   deadlift: EXERCISE_ALIASES['marklyft'] || ['marklyft', 'marklyft (deadlift)'],
+  press:    [...(EXERCISE_ALIASES['axelpress'] || ['axelpress', 'axelpress (shoulder press)']),
+             ...(EXERCISE_ALIASES['militärpress'] || ['militärpress', 'militärpress (strict press)'])],
 };
 
 // 2000 m rodd, sluttider "mm:ss.s", ordning [nivå1..nivå5]. Källa: Rowing Level standards. Linjär interpolation (i sekunder) mellan åldersstegen; klampa till [15, 90].

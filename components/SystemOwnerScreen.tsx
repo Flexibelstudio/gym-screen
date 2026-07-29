@@ -10,6 +10,7 @@ import { GalleryManagementTab } from './admin/GalleryManagementTab';
 import { PartnerManagementTab } from './admin/PartnerManagementTab';
 import { LeadsManagementTab } from './admin/LeadsManagementTab';
 import { ExerciseMergeAnalysisCard } from './admin/ExerciseMergeAnalysisCard';
+import { WorkoutFlagsBackfillCard } from './admin/WorkoutFlagsBackfillCard';
 import { motion, AnimatePresence } from 'framer-motion';
 
 interface SystemOwnerScreenProps {
@@ -1258,6 +1259,7 @@ export const SystemOwnerScreen: React.FC<SystemOwnerScreenProps> = ({ allOrganiz
                             </div>
 
                             <ExerciseMergeAnalysisCard organizations={localOrgs} />
+                            <WorkoutFlagsBackfillCard organizations={localOrgs} />
                         </>
                     )}
 

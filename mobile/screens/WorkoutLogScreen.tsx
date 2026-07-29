@@ -784,13 +784,13 @@ export const ExerciseLogCard: React.FC<{
                                     const parts = [`${targetInfo.targetPct} % av 1RM`];
                                     if (sourceSuffix) parts.push(sourceSuffix);
                                     if (restText) parts.push(`vila ${restText}`);
-                                    if (sessionMode === 'fatigued') parts.push('nedskalat');
+                                    if (sessionMode === 'fatigued') parts.push('sliten idag');
                                     underradText = parts.join(' · ');
                                 } else if (sessionMode === 'fatigued') {
-                                    underradText = 'nedskalat';
+                                    underradText = 'sliten idag';
                                 }
 
-                                const showBadge = hasWeightMath && targetInfo.base !== null && targetInfo.scaled !== null && (targetInfo.pctSource !== 'none' || sessionMode === 'fatigued');
+                                const showBadge = hasWeightMath && targetInfo.base !== null && targetInfo.scaled !== null && targetInfo.pctSource !== 'none';
 
                                 const handleTargetPctSelection = (pct: number | null) => {
                                     if (prescribedPct && prescribedPct > 0) {
@@ -855,6 +855,16 @@ export const ExerciseLogCard: React.FC<{
                                                 );
                                             }
                                             return null;
+                                        })()}
+
+                                        {/* Fatigued suggestion badge when no target percentage is selected */}
+                                        {sessionMode === 'fatigued' && targetInfo.pctSource === 'none' && targetInfo.scaled !== null && targetInfo.scaled > 0 && (() => {
+                                            const formattedScaled = String(targetInfo.scaled).replace('.', ',');
+                                            return (
+                                                <div className="inline-flex items-center gap-1 bg-amber-500/10 dark:bg-amber-400/10 text-amber-700 dark:text-amber-300 border border-amber-500/20 px-2.5 py-1 rounded-lg text-xs font-medium tabular-nums">
+                                                    <span>Sliten idag — ta ca {formattedScaled} kg</span>
+                                                </div>
+                                            );
                                         })()}
 
                                         {/* RIR Target Badge */}
@@ -1496,9 +1506,11 @@ const OneRMCalculatorModal: React.FC<{
                                         onClick={() => {
                                             if (context?.onSelectTargetPct) {
                                                 context.onSelectTargetPct(p);
-                                                onClose();
-                                            } else if (context?.onSelectWeight) {
+                                            }
+                                            if (context?.onSelectWeight) {
                                                 context.onSelectWeight(weight);
+                                            }
+                                            if (context?.onSelectTargetPct || context?.onSelectWeight) {
                                                 onClose();
                                             }
                                         }}
@@ -2867,7 +2879,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
                       <div className="flex items-center gap-2.5 min-w-0">
                           <span className="text-xl flex-shrink-0">⚡</span>
                           <span className="text-xs font-bold leading-snug">
-                              Nedskalat pass — vikterna är ca 10 % lägre idag.
+                              Sliten idag — vikterna är ca 10 % lägre idag.
                           </span>
                       </div>
                       <button
@@ -3655,8 +3667,8 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
                   }}
                   className={`flex items-center justify-between gap-3 px-4 py-3 rounded-2xl shadow-xl border backdrop-blur-md transition-all ${
                       restTimer.status === 'completed'
-                          ? 'bg-primary text-white border-primary cursor-pointer'
-                          : 'bg-gray-900/95 dark:bg-gray-800/95 text-white border-gray-700/50'
+                          ? 'bg-work text-white border-work cursor-pointer'
+                          : 'bg-rest text-white border-rest'
                   }`}
               >
                   {restTimer.status === 'running' ? (

@@ -6,6 +6,20 @@ export { canonicalizeExerciseName, TRAINING_PROFILES };
 export type { TrainingProfile };
 
 /**
+ * Returns default logging state for a bank-linked exercise based on block tag.
+ * Returns true for STYRKA, HYPERTROFI, KONDITION, FINISHER, false for all other tags or missing tag.
+ */
+export function getDefaultLoggingForBlockTag(tag?: string): boolean {
+  if (!tag) return false;
+  let tagKey = tag.trim().toUpperCase();
+  if (tagKey === 'CORE' || tagKey === 'BÅL') {
+    tagKey = 'CORE/BÅL';
+  }
+  const LOGGING_ENABLED_TAGS = ['STYRKA', 'HYPERTROFI', 'KONDITION', 'FINISHER'];
+  return LOGGING_ENABLED_TAGS.includes(tagKey);
+}
+
+/**
  * Returns the training profile for a given workout block, merging base profile defaults with profileOverrides.
  * Returns null if block.useTrainingProfile is not true.
  * Falls back to 'RÖRLIGHET' profile if the tag is missing or not found in TRAINING_PROFILES.
