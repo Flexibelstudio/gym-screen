@@ -28,7 +28,8 @@ const {
 } = require("./src/booking");
 
 const {
-  mergeDuplicateExerciseNames
+  mergeDuplicateExerciseNames,
+  backfillWorkoutFlags
 } = require("./src/maintenance");
 
 module.exports = {
@@ -55,5 +56,6 @@ module.exports = {
   purchaseMembership,
   purchasePass,
   createKioskOrder,
-  mergeDuplicateExerciseNames
+  mergeDuplicateExerciseNames,
+  backfillWorkoutFlags
 };

@@ -63,8 +63,12 @@ export const getVisibleWorkoutsForMembers = async (orgId: string, memberLocation
             }
             return data;
         }).filter(w => memberLocationIds ? isWorkoutVisibleForLocations(w, memberLocationIds) : isWorkoutVisibleNow(w));
-    } catch (e) { 
+    } catch (e: any) { 
         console.error("getVisibleWorkoutsForMembers failed", e);
+        const errMsg = e?.message || String(e);
+        if (errMsg.includes("requires an index")) {
+            console.warn("VARNING: Firestore-frågan kräver ett index!", errMsg);
+        }
         return []; 
     }
 };
@@ -155,6 +159,11 @@ export const saveWorkout = async (w: Workout): Promise<Workout> => {
         // publishAt ska alltid finnas som ett timestamp. Saknas det sätter vi det till createdAt eller nu.
         if (!workoutToSave.publishAt) {
             workoutToSave.publishAt = workoutToSave.createdAt || Date.now();
+        }
+
+        // isMemberDraft ska alltid ha ett boolean-värde (false som default)
+        if (workoutToSave.isMemberDraft === undefined) {
+            workoutToSave.isMemberDraft = false;
         }
 
         // Om publishAt är satt och ligger i framtiden sätter vi silentPublish till true.

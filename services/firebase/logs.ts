@@ -245,7 +245,7 @@ export const saveWorkoutLog = async (logData: any): Promise<{ log: any, newRecor
 
     if (!newLog.locationId) {
         const org = await getOrganizationById(logData.organizationId);
-        if (org && org.locations && org.locations.length > 0) {
+        if (org && org.locations && org.locations.length === 1) {
             newLog.locationId = org.locations[0].id;
         }
     }

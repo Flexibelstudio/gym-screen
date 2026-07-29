@@ -418,10 +418,11 @@ export const registerMemberWithCode = async (email: string, pass: string, code: 
         // If matched organization's general code, resolve a default locationId
         const orgData = snap.docs[0].data() as Organization;
         if (orgData.locations && orgData.locations.length > 0) {
-            const matchedLoc = orgData.locations.find(l => l.inviteCode?.toUpperCase() === upperCode || l.coachCode?.toUpperCase() === upperCode) 
-                || orgData.locations[0];
+            const matchedLoc = orgData.locations.find(l => l.inviteCode?.toUpperCase() === upperCode || l.coachCode?.toUpperCase() === upperCode);
             if (matchedLoc) {
                 targetLocationId = matchedLoc.id;
+            } else if (orgData.locations.length === 1) {
+                targetLocationId = orgData.locations[0].id;
             }
         }
     }

@@ -20,6 +20,7 @@ import { resizeImage } from '../../utils/imageUtils';
 
 // --- Local Storage Key ---
 const ACTIVE_LOG_STORAGE_KEY = 'smart-skarm-active-log';
+const DEFAULT_REST_SECONDS = 90;
 
 interface BlockGroup {
   blockId: string;
@@ -203,6 +204,7 @@ interface LocalExerciseResult {
   trackingFields?: ('time' | 'distance' | 'kcal' | 'reps' | 'weight')[];
   groupId?: string;
   groupColor?: string;
+  originalBankId?: string | null;
 }
 
 interface LogData {
@@ -641,6 +643,9 @@ export const ExerciseLogCard: React.FC<{
                  restSec = blockProfile.restSeconds;
              } else if (targetInfo && targetInfo.targetPct && targetInfo.targetPct > 0) {
                  restSec = getRestSecondsForPercentage(targetInfo.targetPct);
+             }
+             if (restSec <= 0 && showWeight) {
+                 restSec = DEFAULT_REST_SECONDS;
              }
              if (restSec > 0) {
                  onStartRestTimer(restSec);
@@ -2053,6 +2058,10 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
                      const customPrograms = await fetchCustomPrograms(userId);
                      foundWorkout = customPrograms.find(w => w.id === wId);
                 }
+
+                if (!foundWorkout && wId) {
+                    console.error("Passet kunde inte hämtas", wId);
+                }
             }
             
             // Fetch stuff independently of workout
@@ -2094,16 +2103,24 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
                     block.exercises.forEach(ex => {
                         if (ex.loggingEnabled === true) {
                             const savedRes = loadedResults?.find(lr => lr.exerciseId === ex.id);
-                            exercises.push(savedRes || {
-                                exerciseId: ex.id,
-                                exerciseName: ex.name,
-                                setDetails: [...defaultSets],
-                                blockId: block.id,
-                                blockTitle: block.title,
-                                trackingFields: ex.trackingFields,
-                                groupId: ex.groupId,
-                                groupColor: ex.groupColor
-                            });
+                            if (savedRes) {
+                                exercises.push({
+                                    ...savedRes,
+                                    originalBankId: savedRes.originalBankId ?? ex.originalBankId ?? null
+                                });
+                            } else {
+                                exercises.push({
+                                    exerciseId: ex.id,
+                                    exerciseName: ex.name,
+                                    setDetails: [...defaultSets],
+                                    blockId: block.id,
+                                    blockTitle: block.title,
+                                    trackingFields: ex.trackingFields,
+                                    groupId: ex.groupId,
+                                    groupColor: ex.groupColor,
+                                    originalBankId: ex.originalBankId ?? null
+                                });
+                            }
                         }
                     });
                 });
@@ -2319,6 +2336,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
 
       const existingInBank = exerciseBank.find(ex => ex.name.toLowerCase() === exerciseName.trim().toLowerCase());
       let newExerciseId = 'manual-' + Date.now();
+      let bankId: string | null = null;
       let finalName = exerciseName.trim();
       
       if (!existingInBank && userId) {
@@ -2326,11 +2344,13 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
               const savedEx = await addMemberCustomExercise(userId, finalName);
               setExerciseBank(prev => [...prev, savedEx].sort((a, b) => a.name.localeCompare(b.name, 'sv')));
               newExerciseId = savedEx.id;
+              bankId = savedEx.id;
           } catch (e) {
               console.error("Failed to add custom exercise", e);
           }
       } else if (existingInBank) {
           newExerciseId = existingInBank.id;
+          bankId = existingInBank.id;
           finalName = existingInBank.name;
       }
 
@@ -2340,7 +2360,8 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
           blockId: 'manual-block',
           blockTitle: 'Valda övningar',
           trackingFields: ['weight', 'reps'],
-          setDetails: [{ weight: '', reps: '', completed: false }]
+          setDetails: [{ weight: '', reps: '', completed: false }],
+          originalBankId: bankId
       };
 
       const match = allLogs.find(log => log.exerciseResults?.some(logEx => logEx.exerciseName.toLowerCase() === exerciseName.trim().toLowerCase()));
@@ -2487,6 +2508,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
               return {
                   exerciseId: r.exerciseId,
                   exerciseName: r.exerciseName,
+                  originalBankId: r.originalBankId ?? null,
                   trackingFields: r.trackingFields,
                   setDetails: r.setDetails.map(s => ({
                       weight: parseFloat(s.weight) || null,

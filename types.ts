@@ -566,6 +566,7 @@ export interface ExerciseResult {
     blockId?: string;
     coachAdvice?: string; // NYTT: Sparar AI-rådet direkt på övningen
     note?: string; // Användarens anteckning för denna övning
+    originalBankId?: string | null;
 }
 
 export type MemberFeeling = 'good' | 'neutral' | 'bad';

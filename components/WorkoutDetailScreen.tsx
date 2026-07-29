@@ -653,7 +653,7 @@ export const WorkoutPresentationModal: React.FC<{
                                                         {ex.description}
                                                     </p>
                                                 )}
-                                                {ex.loggingEnabled !== false && (
+                                                {ex.loggingEnabled === true && (
                                                     <div className="flex items-center gap-2 flex-wrap mt-2 sm:mt-3">
                                                         <span className="text-xs sm:text-sm md:text-lg font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">Logga:</span>
                                                         {(ex.trackingFields && ex.trackingFields.length > 0 ? ex.trackingFields : ['reps', 'weight']).map(field => {
@@ -852,7 +852,7 @@ const WorkoutBlockCard: React.FC<{
                                     )}
                                 </h4>
                                 {ex.description && <p className="text-sm text-gray-500 dark:text-gray-400 mt-1 leading-relaxed font-medium break-words whitespace-pre-wrap">{ex.description}</p>}
-                                {ex.loggingEnabled !== false && (
+                                {ex.loggingEnabled === true && (
                                     <div className="flex items-center gap-1.5 flex-wrap mt-1.5">
                                         <span className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">Logga:</span>
                                         {(ex.trackingFields && ex.trackingFields.length > 0 ? ex.trackingFields : ['reps', 'weight']).map(field => {

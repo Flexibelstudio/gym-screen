@@ -308,4 +308,120 @@ const mergeDuplicateExerciseNames = onCall(
   }
 );
 
-module.exports = { mergeDuplicateExerciseNames };
+/**
+ * backfillWorkoutFlags
+ * Kompletterar saknade fält (isMemberDraft och publishAt) på pass i en organisation.
+ */
+const backfillWorkoutFlags = onCall(
+  { timeoutSeconds: 540 },
+  async (request) => {
+    // 1. Systemägarkontroll
+    const caller = await getCallerData(request.auth);
+    if (caller.role !== "systemowner") {
+      throw new HttpsError(
+        "permission-denied",
+        "Endast systemägare har behörighet att köra denna funktion."
+      );
+    }
+
+    const db = admin.firestore();
+    const { orgId, dryRun = true } = request.data || {};
+
+    if (!orgId) {
+      throw new HttpsError("invalid-argument", "orgId krävs.");
+    }
+
+    let totalExamined = 0;
+    let missingIsMemberDraft = 0;
+    let missingPublishAt = 0;
+    let skippedNoCreatedAt = 0;
+    const skippedIds = [];
+    let updatedCount = 0;
+
+    let lastWorkoutDoc = null;
+    let hasMore = true;
+
+    let batch = db.batch();
+    let batchCount = 0;
+
+    while (hasMore) {
+      let wQuery = db
+        .collection("workouts")
+        .where("organizationId", "==", orgId)
+        .orderBy(admin.firestore.FieldPath.documentId())
+        .limit(500);
+
+      if (lastWorkoutDoc) {
+        wQuery = wQuery.startAfter(lastWorkoutDoc);
+      }
+
+      const workoutsSnap = await wQuery.get();
+      if (workoutsSnap.empty) {
+        hasMore = false;
+        break;
+      }
+
+      totalExamined += workoutsSnap.size;
+      lastWorkoutDoc = workoutsSnap.docs[workoutsSnap.docs.length - 1];
+
+      for (const workoutDoc of workoutsSnap.docs) {
+        const data = workoutDoc.data() || {};
+        const updatePayload = {};
+        let needsUpdate = false;
+
+        if (data.isMemberDraft === undefined) {
+          missingIsMemberDraft++;
+          updatePayload.isMemberDraft = false;
+          needsUpdate = true;
+        }
+
+        if (data.publishAt === undefined) {
+          missingPublishAt++;
+          if (typeof data.createdAt === "number" && Number.isFinite(data.createdAt) && data.createdAt > 0) {
+            updatePayload.publishAt = data.createdAt;
+            needsUpdate = true;
+          } else {
+            skippedNoCreatedAt++;
+            if (skippedIds.length < 50) {
+              skippedIds.push(workoutDoc.id);
+            }
+          }
+        }
+
+        if (needsUpdate) {
+          if (!dryRun) {
+            batch.update(workoutDoc.ref, updatePayload);
+            batchCount++;
+            updatedCount++;
+
+            if (batchCount >= 400) {
+              await batch.commit();
+              batch = db.batch();
+              batchCount = 0;
+            }
+          }
+        }
+      }
+
+      if (workoutsSnap.size < 500) {
+        hasMore = false;
+      }
+    }
+
+    if (!dryRun && batchCount > 0) {
+      await batch.commit();
+    }
+
+    return {
+      totalExamined,
+      missingIsMemberDraft,
+      missingPublishAt,
+      skippedNoCreatedAt,
+      skippedIds,
+      updatedCount
+    };
+  }
+);
+
+module.exports = { mergeDuplicateExerciseNames, backfillWorkoutFlags };
+

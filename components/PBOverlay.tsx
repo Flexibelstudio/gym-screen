@@ -104,15 +104,12 @@ export const PBOverlay: React.FC<PBOverlayProps> = React.memo(({ isGrattisOpen }
       (event) => {
         const now = Date.now();
 
-        // Om skärmen är låst till en specifik ort (locationId), visa bara matcher.
-        // Om händelsen saknar ort (null), visas den på alla skärmar.
-        const resolvedLocationId =
-          selectedStudio?.locationId ||
-          selectedOrganization?.locations?.[0]?.id;
-        const eventLocationId = event.locationId;
+        const resolvedLocationId = selectedStudio?.locationId ?? null;
+        const numLocations = selectedOrganization?.locations?.length ?? 0;
+        const shouldFilter = !!resolvedLocationId && numLocations >= 2;
 
-        if (resolvedLocationId && eventLocationId) {
-          if (resolvedLocationId !== eventLocationId) {
+        if (shouldFilter) {
+          if (event.locationId !== resolvedLocationId) {
             return; // Ignore - from another location
           }
         }

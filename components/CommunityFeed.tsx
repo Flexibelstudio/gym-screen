@@ -56,7 +56,9 @@ export const CommunityFeed: React.FC<CommunityFeedProps> = ({ onExpand, isExpand
         if (!selectedOrganization) return;
         setIsLoading(true);
 
-        const resolvedLocationId = selectedStudio?.locationId || selectedOrganization?.locations?.[0]?.id;
+        const resolvedLocationId = selectedStudio?.locationId ?? null;
+        const numLocations = selectedOrganization?.locations?.length ?? 0;
+        const shouldFilter = !!resolvedLocationId && numLocations >= 2;
 
         let latestLocationLogs: WorkoutLog[] = [];
         let latestOrgLogs: WorkoutLog[] = [];
@@ -64,23 +66,21 @@ export const CommunityFeed: React.FC<CommunityFeedProps> = ({ onExpand, isExpand
 
         const updateCombined = () => {
             const filteredOrgLogs = latestOrgLogs.filter(log => {
+                if (!shouldFilter) return true;
                 let logLocation = log.locationId;
                 
                 if (!logLocation || logLocation === '' || logLocation === 'undefined') {
                     const member = members.find(m => m.uid === log.memberId || m.id === log.memberId);
                     logLocation = member?.locationId;
                 }
-                
-                if (!logLocation || logLocation === '' || logLocation === 'undefined') {
-                    logLocation = selectedOrganization?.locations?.[0]?.id;
-                }
 
-                return !resolvedLocationId || logLocation === resolvedLocationId;
+                return logLocation === resolvedLocationId;
             });
 
             const filteredEvents = latestFeedEvents.filter(event => {
-                const eventLoc = event.locationId || selectedOrganization?.locations?.[0]?.id;
-                return !resolvedLocationId || !eventLoc || eventLoc === resolvedLocationId;
+                if (!shouldFilter) return true;
+                const eventLoc = event.locationId;
+                return eventLoc === resolvedLocationId;
             });
 
             const map = new Map<string, FeedItem>();
