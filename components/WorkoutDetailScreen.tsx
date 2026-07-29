@@ -22,15 +22,19 @@ const formatResultTime = (timeInSeconds: number) => {
 };
 
 // Helper to get color based on workout tag
-const getTagColor = (tag: string) => {
-  switch (tag.toLowerCase()) {
+const getTagColor = (tag: string | undefined) => {
+  if (!tag) return 'bg-gray-500 text-white';
+  switch (tag.toLowerCase().trim()) {
     case 'styrka': return 'bg-red-200 text-red-800 dark:bg-red-900/50 dark:text-red-200';
+    case 'hypertrofi': return 'bg-amber-200 text-amber-800 dark:bg-amber-900/50 dark:text-amber-200';
     case 'kondition': return 'bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-200';
     case 'rörlighet': return 'bg-teal-100 text-teal-900 dark:bg-teal-900/50 dark:text-teal-200';
     case 'teknik': return 'bg-purple-100 text-purple-900 dark:bg-purple-900/50 dark:text-purple-200';
     case 'core': case 'bål': case 'core/bål': return 'bg-yellow-200 text-yellow-800 dark:bg-yellow-900/50 dark:text-yellow-200';
     case 'balans': return 'bg-pink-100 text-pink-800 dark:bg-pink-900/50 dark:text-pink-200';
     case 'uppvärmning': return 'bg-orange-500 text-white';
+    case 'nedvarvning': return 'bg-slate-500 text-white';
+    case 'finisher': return 'bg-emerald-200 text-emerald-800 dark:bg-emerald-900/50 dark:text-emerald-200';
     default: return 'bg-gray-500 text-white';
   }
 };

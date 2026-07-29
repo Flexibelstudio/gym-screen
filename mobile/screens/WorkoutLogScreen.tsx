@@ -7,7 +7,8 @@ import { useWorkout } from '../../context/WorkoutContext';
 import { CloseIcon, SparklesIcon, FireIcon, InformationCircleIcon, LightningIcon, PlusIcon, TrashIcon, CheckIcon, ChartBarIcon, HistoryIcon, CalculatorIcon } from '../../components/icons'; 
 import { Modal } from '../../components/ui/Modal';
 import { ConfirmModal } from '../../components/ui/ConfirmModal';
-import { calculate1RM, findDuplicateBankExercise, canonicalizeExerciseName } from '../../utils/workoutUtils';
+import { calculate1RM, getRepsForPercentage, findDuplicateBankExercise, canonicalizeExerciseName, getTargetWeightForExercise, getBlockProfile, getRestGuidelineForPercentage, formatRestSeconds, getRestSecondsForPercentage, TrainingProfile } from '../../utils/workoutUtils';
+import { playTimerSound } from '../../hooks/useWorkoutTimer';
 import { DuplicateExerciseModal } from '../../components/DuplicateExerciseModal';
 import { ExerciseResult, MemberFeeling, WorkoutDiploma, WorkoutLog, BenchmarkDefinition, BankExercise, Workout, PersonalBest } from '../../types';
 import { MOCK_EXERCISE_BANK } from '../../data/mockData';
@@ -44,6 +45,7 @@ interface LocalSetDetail {
     distance?: string;
     kcal?: string;
     completed: boolean;
+    rir?: number | null;
 }
 
 interface LastPerformanceRecord {
@@ -52,6 +54,7 @@ interface LastPerformanceRecord {
     time?: string | number | null;
     distance?: string | number | null;
     kcal?: string | number | null;
+    rir?: number | null;
     note?: string;
     trackingFields?: string[];
 }
@@ -97,12 +100,21 @@ export function formatLastPerformance(perf: LastPerformanceRecord | null | undef
     const timeFormatted = formatTimeValue(timeStr);
     const hasTime = timeFormatted !== '';
 
+    let rirSuffix = '';
+    if (perf.rir != null && perf.rir > 0) {
+        if (perf.rir >= 3) {
+            rirSuffix = ' (3+ kvar)';
+        } else {
+            rirSuffix = ` (${perf.rir} kvar)`;
+        }
+    }
+
     if (hasReps && hasWeight) {
-        parts.push(`${repsStr} × ${weightNum} kg`);
+        parts.push(`${repsStr} × ${weightNum} kg${rirSuffix}`);
     } else if (hasReps) {
-        parts.push(`${repsStr} reps`);
+        parts.push(`${repsStr} reps${rirSuffix}`);
     } else if (hasWeight) {
-        parts.push(`${weightNum} kg`);
+        parts.push(`${weightNum} kg${rirSuffix}`);
     }
 
     if (hasKcal) {
@@ -127,6 +139,7 @@ function extractPerformanceFromLogEx(exMatch: any, note?: string): LastPerforman
     let bestTime: string | number = '';
     let bestDistance: string | number = '';
     let bestKcal: string | number = '';
+    let bestRir: number | null = null;
     const trackingFields: string[] = exMatch.trackingFields || [];
 
     if (exMatch.setDetails && exMatch.setDetails.length > 0) {
@@ -156,12 +169,14 @@ function extractPerformanceFromLogEx(exMatch: any, note?: string): LastPerforman
         bestTime = bestSet.time != null ? bestSet.time : '';
         bestDistance = bestSet.distance != null ? bestSet.distance : '';
         bestKcal = bestSet.kcal != null ? bestSet.kcal : (bestSet.calories != null ? bestSet.calories : '');
+        bestRir = bestSet.rir != null ? Number(bestSet.rir) : null;
     } else {
         bestWeight = parseFloat(String(exMatch.weight)) || 0;
         bestReps = exMatch.reps != null ? String(exMatch.reps) : '0';
         bestTime = exMatch.time != null ? exMatch.time : '';
         bestDistance = exMatch.distance != null ? exMatch.distance : '';
         bestKcal = exMatch.kcal != null ? exMatch.kcal : (exMatch.calories != null ? exMatch.calories : '');
+        bestRir = exMatch.rir != null ? Number(exMatch.rir) : null;
     }
 
     return {
@@ -170,6 +185,7 @@ function extractPerformanceFromLogEx(exMatch: any, note?: string): LastPerforman
         time: bestTime,
         distance: bestDistance,
         kcal: bestKcal,
+        rir: bestRir,
         note,
         trackingFields
     };
@@ -304,25 +320,38 @@ const WEIGHT_COMPARISONS = [
     { name: "Hamstrar", singular: "en Hamster", weight: 0.15, emoji: "🐹" },
     { name: "Fotbollar", singular: "en Fotboll", weight: 0.45, emoji: "⚽" },
     { name: "Ananasar", singular: "en Ananas", weight: 1, emoji: "🍍" },
+    { name: "Mjölkpaket", singular: "ett Mjölkpaket", weight: 1, emoji: "🥛" },
     { name: "Chihuahuas", singular: "en Chihuahua", weight: 2, emoji: "🐕" },
     { name: "Katter", singular: "en Katt", weight: 5, emoji: "🐈" },
+    { name: "Bowlingklot", singular: "ett Bowlingklot", weight: 7, emoji: "🎳" },
     { name: "Bildäck", singular: "ett Bildäck", weight: 10, emoji: "🛞" },
     { name: "Cyklar", singular: "en Cykel", weight: 15, emoji: "🚲" },
+    { name: "Resväskor", singular: "en Resväska", weight: 20, emoji: "🧳" },
     { name: "Golden Retrievers", singular: "en Golden Retriever", weight: 30, emoji: "🦮" },
     { name: "Diskmaskiner", singular: "en Diskmaskin", weight: 50, emoji: "🍽️" },
+    { name: "Tvättmaskiner", singular: "en Tvättmaskin", weight: 70, emoji: "🧺" },
     { name: "Vuxna Män", singular: "en Genomsnittlig Man", weight: 80, emoji: "👨" },
+    { name: "Renar", singular: "en Ren", weight: 100, emoji: "🦌" },
     { name: "Pandor", singular: "en Panda", weight: 120, emoji: "🐼" },
     { name: "Gorillor", singular: "en Gorilla", weight: 180, emoji: "🦍" },
+    { name: "Motorcyklar", singular: "en Motorcykel", weight: 200, emoji: "🏍️" },
     { name: "Lejon", singular: "ett Lejon", weight: 200, emoji: "🦁" },
+    { name: "Björnar", singular: "en Björn", weight: 300, emoji: "🐻" },
     { name: "Sibiriska Tigrar", singular: "en Sibirisk Tiger", weight: 300, emoji: "🐅" },
+    { name: "Krokodiler", singular: "en Krokodil", weight: 400, emoji: "🐊" },
     { name: "Konsertflyglar", singular: "en Konsertflygel", weight: 500, emoji: "🎹" },
     { name: "Hästar", singular: "en Häst", weight: 500, emoji: "🐎" },
+    { name: "Kor", singular: "en Ko", weight: 700, emoji: "🐄" },
     { name: "Giraffer", singular: "en Giraff", weight: 800, emoji: "🦒" },
+    { name: "Bufflar", singular: "en Buffel", weight: 900, emoji: "🐃" },
     { name: "Personbilar", singular: "en Personbil", weight: 1500, emoji: "🚘" },
     { name: "Noshörningar", singular: "en Noshörning", weight: 2000, emoji: "🦏" },
+    { name: "Traktorer", singular: "en Traktor", weight: 4000, emoji: "🚜" },
     { name: "Elefanter", singular: "en Elefant", weight: 5000, emoji: "🐘" },
+    { name: "Späckhuggare", singular: "en Späckhuggare", weight: 5500, emoji: "🐋" },
     { name: "T-Rex", singular: "en T-Rex", weight: 8000, emoji: "🦖" },
     { name: "Skolbussar", singular: "en Skolbuss", weight: 12000, emoji: "🚌" },
+    { name: "Lastbilar", singular: "en Lastbil", weight: 15000, emoji: "🚚" },
     { name: "Blåvalar", singular: "en Blåval", weight: 150000, emoji: "🐳" },
     { name: "Boeing 747", singular: "en Boeing 747", weight: 400000, emoji: "✈️" },
 ];
@@ -332,13 +361,21 @@ const getFunComparison = (totalWeight: number) => {
     const suitableComparisons = WEIGHT_COMPARISONS.filter(item => totalWeight >= item.weight);
     if (suitableComparisons.length === 0) {
         const item = WEIGHT_COMPARISONS[0];
-        return { count: (totalWeight / item.weight).toFixed(1), name: item.name, singular: item.singular, weight: item.weight, emoji: item.emoji };
+        return { count: (totalWeight / item.weight).toFixed(1), name: item.name, single: item.singular, weight: item.weight, emoji: item.emoji };
     }
+    const tightMatches = suitableComparisons.filter(item => {
+        const count = totalWeight / item.weight;
+        return count >= 1 && count <= 20;
+    });
     const niceMatches = suitableComparisons.filter(item => {
         const count = totalWeight / item.weight;
         return count >= 1 && count <= 50;
     });
-    let bestMatch = niceMatches.length > 0 ? niceMatches[Math.floor(Math.random() * niceMatches.length)] : suitableComparisons[suitableComparisons.length - 1];
+    let bestMatch = tightMatches.length > 0 
+        ? tightMatches[Math.floor(Math.random() * tightMatches.length)] 
+        : (niceMatches.length > 0 
+            ? niceMatches[Math.floor(Math.random() * niceMatches.length)] 
+            : suitableComparisons[suitableComparisons.length - 1]);
     const rawCount = totalWeight / bestMatch.weight;
     const formattedCount = rawCount < 10 ? rawCount.toFixed(1) : Math.round(rawCount).toString();
     return { count: formattedCount, name: bestMatch.name, single: bestMatch.singular, weight: bestMatch.weight, emoji: bestMatch.emoji };
@@ -374,7 +411,7 @@ const PreGameView: React.FC<{
     history: Record<string, LastPerformanceRecord>;
     personalBests: Record<string, PersonalBest>;
     userId?: string;
-    onStart: () => void;
+    onStart: (mode: 'normal' | 'fatigued') => void;
     onCancel: () => void;
 }> = ({ workoutTitle, exercises, aiProgressionPrompt, history, personalBests, userId, onStart, onCancel }) => {
     const [mode, setMode] = useState<'normal' | 'fatigued'>('normal');
@@ -382,65 +419,20 @@ const PreGameView: React.FC<{
     const exerciseTargets = useMemo(() => {
         return exercises.map(ex => {
             const exName = ex.exerciseName || ex.name || '';
-            const cleanKey = exName.toLowerCase().trim();
-
-            const pb = personalBests[cleanKey];
-            let current1RM: number | undefined = undefined;
-            if (pb) {
-                if (pb.calculated1RM !== undefined && pb.calculated1RM > 0) {
-                    current1RM = Math.round(pb.calculated1RM);
-                } else if (pb.weight > 0) {
-                    current1RM = calculate1RM(pb.weight, pb.reps || 1) || undefined;
-                }
-            } else {
-                const lastPerf = history[exName];
-                if (lastPerf) {
-                    const lastWeight = typeof lastPerf.weight === 'number' ? lastPerf.weight : (parseFloat(String(lastPerf.weight)) || 0);
-                    const lastReps = typeof lastPerf.reps === 'number' ? lastPerf.reps : (parseFloat(String(lastPerf.reps)) || 0);
-                    if (lastWeight > 0 && lastReps > 0 && lastReps <= 10) {
-                        current1RM = calculate1RM(lastWeight, lastReps) || undefined;
-                    }
-                }
-            }
-
-            const storageKey = `target_pct_${userId || 'user'}_${cleanKey}`;
-            let targetPct: number | null = null;
-            try {
-                const saved = localStorage.getItem(storageKey);
-                if (saved) targetPct = parseInt(saved, 10);
-            } catch {}
-
-            let bas: number | null = null;
-            let basSource: 'targetPct' | 'history' | 'none' = 'none';
-
-            if (current1RM && current1RM > 0 && targetPct && targetPct > 0) {
-                bas = Math.round(current1RM * (targetPct / 100) * 2) / 2;
-                basSource = 'targetPct';
-            } else {
-                const lastPerf = history[exName];
-                const lastWeight = typeof lastPerf?.weight === 'number' ? lastPerf.weight : (parseFloat(String(lastPerf?.weight)) || 0);
-                if (lastWeight > 0) {
-                    bas = lastWeight;
-                    basSource = 'history';
-                }
-            }
-
-            let scaledWeight: number | null = null;
-            if (bas !== null) {
-                if (mode === 'normal') {
-                    scaledWeight = bas;
-                } else {
-                    scaledWeight = Math.round((bas * 0.9) / 2.5) * 2.5;
-                }
-            }
+            const res = getTargetWeightForExercise({
+                exerciseName: exName,
+                personalBests,
+                history,
+                userId,
+                mode
+            });
 
             return {
                 exName,
-                bas,
-                scaledWeight,
-                targetPct,
-                current1RM,
-                basSource
+                bas: res.base,
+                scaledWeight: res.scaled,
+                targetPct: res.targetPct,
+                basSource: res.source
             };
         });
     }, [exercises, history, personalBests, userId, mode]);
@@ -507,29 +499,32 @@ const PreGameView: React.FC<{
                 <div className="mb-8">
                     <h3 className="text-xs font-black uppercase text-gray-400 dark:text-gray-500 mb-3 tracking-wider">Målvikter för övningar</h3>
                     <div className="space-y-2.5">
-                        {exerciseTargets.map((item, idx) => (
-                            <div key={idx} className="flex justify-between items-center bg-white dark:bg-gray-800/80 p-3.5 rounded-xl border border-gray-100 dark:border-gray-700/80 shadow-sm">
-                                <span className="text-sm font-bold text-gray-900 dark:text-white pr-2">{item.exName}</span>
-                                <div className="text-right whitespace-nowrap">
-                                    {item.bas !== null && item.scaledWeight !== null ? (
-                                        <div className="flex items-center gap-2">
-                                            {mode === 'fatigued' && item.bas !== item.scaledWeight && (
-                                                <span className="text-xs font-semibold text-gray-400 dark:text-gray-500 line-through tabular-nums">
-                                                    {String(item.bas).replace('.', ',')} kg
+                        {exerciseTargets.map((item, idx) => {
+                            const targetReps = item.targetPct && item.targetPct > 0 ? getRepsForPercentage(item.targetPct) : 0;
+                            return (
+                                <div key={idx} className="flex justify-between items-center bg-white dark:bg-gray-800/80 p-3.5 rounded-xl border border-gray-100 dark:border-gray-700/80 shadow-sm">
+                                    <span className="text-sm font-bold text-gray-900 dark:text-white pr-2">{item.exName}</span>
+                                    <div className="text-right whitespace-nowrap">
+                                        {item.bas !== null && item.scaledWeight !== null ? (
+                                            <div className="flex items-center gap-2">
+                                                {mode === 'fatigued' && item.bas !== item.scaledWeight && (
+                                                    <span className="text-xs font-semibold text-gray-400 dark:text-gray-500 line-through tabular-nums">
+                                                        {String(item.bas).replace('.', ',')} kg
+                                                    </span>
+                                                )}
+                                                <span className="text-sm font-black tabular-nums text-primary dark:text-primary">
+                                                    {String(item.scaledWeight).replace('.', ',')} kg{targetReps > 0 ? ` × ~${targetReps} reps` : ''}
                                                 </span>
-                                            )}
-                                            <span className="text-sm font-black tabular-nums text-primary dark:text-primary">
-                                                {String(item.scaledWeight).replace('.', ',')} kg
+                                            </div>
+                                        ) : (
+                                            <span className="text-xs font-medium text-gray-400 dark:text-gray-500">
+                                                Ingen historik än
                                             </span>
-                                        </div>
-                                    ) : (
-                                        <span className="text-xs font-medium text-gray-400 dark:text-gray-500">
-                                            Ingen historik än
-                                        </span>
-                                    )}
+                                        )}
+                                    </div>
                                 </div>
-                            </div>
-                        ))}
+                            );
+                        })}
                     </div>
                 </div>
 
@@ -539,7 +534,7 @@ const PreGameView: React.FC<{
 
                 {/* --- START BUTTON IN SCROLL FLOW --- */}
                 <div className="pb-12">
-                    <button onClick={onStart} className="w-full min-h-[52px] bg-primary hover:brightness-110 text-white font-black text-lg py-4 rounded-xl shadow-lg shadow-primary/20 transition-all transform active:scale-95 flex items-center justify-center gap-2 focus:ring-2 focus:ring-primary uppercase tracking-tight">
+                    <button onClick={() => onStart(mode)} className="w-full min-h-[52px] bg-primary hover:brightness-110 text-white font-black text-lg py-4 rounded-xl shadow-lg shadow-primary/20 transition-all transform active:scale-95 flex items-center justify-center gap-2 focus:ring-2 focus:ring-primary uppercase tracking-tight">
                         <span className="leading-[1.2] pt-[0.1em]">Starta passet</span>
                         <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
                             <path fillRule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clipRule="evenodd" />
@@ -577,13 +572,20 @@ export const ExerciseLogCard: React.FC<{
   isLastInGroup?: boolean;
   onAddGroupSet?: () => void;
   userId?: string;
+  sessionMode?: 'normal' | 'fatigued';
+  history?: Record<string, LastPerformanceRecord>;
+  personalBests?: Record<string, PersonalBest>;
+  blockProfile?: TrainingProfile | null;
+  sessionPct?: number | null;
+  onSelectSessionPct?: (pct: number | null) => void;
+  onStartRestTimer?: (seconds: number) => void;
   onOpenCalculator?: (context: { 
       exerciseName: string, 
       current1RM?: number, 
       activeTargetPct?: number | null, 
       onSelectTargetPct?: (pct: number | null) => void 
   }) => void;
-}> = ({ name, result, onUpdate, onRemove, lastPerformance, personalBest, isLastInGroup, onAddGroupSet, userId, onOpenCalculator }) => {
+}> = ({ name, result, onUpdate, onRemove, lastPerformance, personalBest, isLastInGroup, onAddGroupSet, userId, sessionMode = 'normal', history, personalBests, blockProfile, sessionPct, onSelectSessionPct, onStartRestTimer, onOpenCalculator }) => {
     
     const trackingFields = result.trackingFields || ['reps', 'weight'];
     const showReps = trackingFields.includes('reps');
@@ -594,6 +596,20 @@ export const ExerciseLogCard: React.FC<{
 
     const dynamicColsCount = [showReps, showWeight, showTime, showDistance, showKcal].filter(Boolean).length;
     const gridColsClass = GRID_COLS_MAP[dynamicColsCount] || 'grid-cols-[36px_repeat(2,_1fr)_40px_48px]';
+
+    const prescribedPct = (blockProfile && blockProfile.hasWeightMath !== false && blockProfile.targetPct !== undefined && blockProfile.targetPct > 0) ? blockProfile.targetPct : null;
+
+    const targetInfo = useMemo(() => {
+        return getTargetWeightForExercise({
+            exerciseName: name,
+            personalBests: personalBests || (personalBest ? { [name]: personalBest } : {}),
+            history: history || (lastPerformance ? { [name]: lastPerformance } : {}),
+            userId,
+            mode: sessionMode,
+            prescribedPct,
+            sessionPct
+        });
+    }, [name, personalBests, personalBest, history, lastPerformance, userId, sessionMode, prescribedPct, sessionPct]);
 
     // Extract tailwind color classes from groupColor (e.g. "bg-pink-500")
     const groupColorObj = result.groupColor ? GROUP_COLORS.find(c => c.bg === result.groupColor) : null;
@@ -609,18 +625,32 @@ export const ExerciseLogCard: React.FC<{
     };
 
     const handleToggleComplete = (index: number) => {
+         const wasCompleted = result.setDetails[index].completed;
          if (window.navigator.vibrate) {
-             window.navigator.vibrate(result.setDetails[index].completed ? 5 : 15);
+             window.navigator.vibrate(wasCompleted ? 5 : 15);
          }
          
          const newSets = [...result.setDetails];
-         newSets[index] = { ...newSets[index], completed: !newSets[index].completed };
+         const isNowCompleted = !wasCompleted;
+         newSets[index] = { ...newSets[index], completed: isNowCompleted };
          onUpdate({ setDetails: newSets });
-    }
+
+         if (!wasCompleted && isNowCompleted && onStartRestTimer) {
+             let restSec = 0;
+             if (blockProfile && blockProfile.restSeconds && blockProfile.restSeconds > 0) {
+                 restSec = blockProfile.restSeconds;
+             } else if (targetInfo && targetInfo.targetPct && targetInfo.targetPct > 0) {
+                 restSec = getRestSecondsForPercentage(targetInfo.targetPct);
+             }
+             if (restSec > 0) {
+                 onStartRestTimer(restSec);
+             }
+         }
+    };
 
     const handleAddSet = () => {
         const lastSet = result.setDetails[result.setDetails.length - 1];
-        const newSet = lastSet ? { ...lastSet, completed: false } : { weight: '', reps: '', time: '', distance: '', kcal: '', completed: false };
+        const newSet = lastSet ? { ...lastSet, completed: false, rir: null } : { weight: '', reps: '', time: '', distance: '', kcal: '', completed: false, rir: null };
         onUpdate({ setDetails: [...result.setDetails, newSet] });
     };
 
@@ -728,16 +758,109 @@ export const ExerciseLogCard: React.FC<{
                                 </div>
                             ) : null}
 
-                            {/* Target Weight Badge */}
-                            {targetPct && current1RM ? (() => {
-                                const targetWeight = Math.round(current1RM * (targetPct / 100) * 2) / 2;
-                                const formattedTargetWeight = targetWeight.toString().replace('.', ',');
+                            {/* Target Weight Badge & RIR Target */}
+                            {(() => {
+                                const hasWeightMath = showWeight && showReps && (blockProfile ? blockProfile.hasWeightMath !== false : true);
+                                const rirTargetVal = (blockProfile && blockProfile.hasWeightMath !== false && blockProfile.rirTarget !== undefined && blockProfile.rirTarget !== null) ? blockProfile.rirTarget : null;
+
+                                let sourceSuffix = '';
+                                if (targetInfo.pctSource === 'coach') sourceSuffix = 'coachens upplägg';
+                                else if (targetInfo.pctSource === 'session') sourceSuffix = 'ditt val idag';
+
+                                let restText = '';
+                                if (blockProfile && blockProfile.restSeconds && blockProfile.restSeconds > 0) {
+                                    restText = formatRestSeconds(blockProfile.restSeconds);
+                                } else if (targetInfo.targetPct && targetInfo.targetPct > 0) {
+                                    restText = getRestGuidelineForPercentage(targetInfo.targetPct);
+                                }
+
+                                let underradText = '';
+                                if (targetInfo.targetPct) {
+                                    const parts = [`${targetInfo.targetPct} % av 1RM`];
+                                    if (sourceSuffix) parts.push(sourceSuffix);
+                                    if (restText) parts.push(`vila ${restText}`);
+                                    if (sessionMode === 'fatigued') parts.push('nedskalat');
+                                    underradText = parts.join(' · ');
+                                } else if (sessionMode === 'fatigued') {
+                                    underradText = 'nedskalat';
+                                }
+
+                                const showBadge = hasWeightMath && targetInfo.base !== null && targetInfo.scaled !== null && (targetInfo.pctSource !== 'none' || sessionMode === 'fatigued');
+
+                                const handleTargetPctSelection = (pct: number | null) => {
+                                    if (prescribedPct && prescribedPct > 0) {
+                                        if (onSelectSessionPct) onSelectSessionPct(pct);
+                                    } else {
+                                        handleSetTargetPct(pct);
+                                    }
+                                };
+
                                 return (
-                                    <div className="inline-flex items-center gap-1 bg-primary/10 dark:bg-primary/20 text-primary border border-primary/30 px-2.5 py-1 rounded-lg text-xs font-black tracking-wide font-mono tabular-nums">
-                                        <span>MÅL: {formattedTargetWeight} kg ({targetPct} % av 1RM)</span>
-                                    </div>
+                                    <>
+                                        {showBadge && (() => {
+                                            const formattedScaled = String(targetInfo.scaled).replace('.', ',');
+                                            const formattedBase = String(targetInfo.base).replace('.', ',');
+                                            const targetReps = targetInfo.targetPct && targetInfo.targetPct > 0 ? getRepsForPercentage(targetInfo.targetPct) : 0;
+                                            const repsText = targetReps > 0 ? ` × ~${targetReps} reps` : '';
+
+                                            if (sessionMode === 'fatigued') {
+                                                return (
+                                                    <div 
+                                                        onClick={() => {
+                                                            if (onOpenCalculator) {
+                                                                onOpenCalculator({ 
+                                                                    exerciseName: name, 
+                                                                    current1RM: current1RM,
+                                                                    activeTargetPct: targetInfo.targetPct,
+                                                                    onSelectTargetPct: handleTargetPctSelection
+                                                                });
+                                                            }
+                                                        }}
+                                                        className={`inline-flex flex-col bg-amber-500/10 dark:bg-amber-400/10 text-amber-700 dark:text-amber-300 border border-amber-500/30 px-2.5 py-1 rounded-lg font-mono tabular-nums ${onOpenCalculator ? 'cursor-pointer hover:bg-amber-500/20' : ''}`}
+                                                    >
+                                                        <div className="flex items-center gap-1.5">
+                                                            <span className="text-xs font-black tracking-wide">DAGENS MÅL: {formattedScaled} kg{repsText}</span>
+                                                            {targetInfo.base !== targetInfo.scaled && (
+                                                                <span className="text-[10px] font-semibold text-gray-400 dark:text-gray-500 line-through">
+                                                                    {formattedBase} kg
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                        <span className="text-[10px] font-semibold opacity-80">{underradText}</span>
+                                                    </div>
+                                                );
+                                            } else if (targetInfo.targetPct) {
+                                                return (
+                                                    <div 
+                                                        onClick={() => {
+                                                            if (onOpenCalculator) {
+                                                                onOpenCalculator({ 
+                                                                    exerciseName: name, 
+                                                                    current1RM: current1RM,
+                                                                    activeTargetPct: targetInfo.targetPct,
+                                                                    onSelectTargetPct: handleTargetPctSelection
+                                                                });
+                                                            }
+                                                        }}
+                                                        className={`inline-flex flex-col bg-primary/10 dark:bg-primary/20 text-primary border border-primary/30 px-2.5 py-1 rounded-lg font-mono tabular-nums ${onOpenCalculator ? 'cursor-pointer hover:bg-primary/20' : ''}`}
+                                                    >
+                                                        <span className="text-xs font-black tracking-wide">MÅL: {formattedScaled} kg{repsText}</span>
+                                                        <span className="text-[10px] font-semibold opacity-80">{underradText}</span>
+                                                    </div>
+                                                );
+                                            }
+                                            return null;
+                                        })()}
+
+                                        {/* RIR Target Badge */}
+                                        {rirTargetVal !== null && (
+                                            <div className="inline-flex items-center gap-1 text-gray-500 dark:text-gray-400 text-xs font-medium">
+                                                <span>{rirTargetVal > 0 ? `Sikta på ${rirTargetVal} kvar` : 'Kör till failure'}</span>
+                                            </div>
+                                        )}
+                                    </>
                                 );
-                            })() : null}
+                            })()}
                         </div>
                     </div>
                     {/* Gear / Edit / Delete buttons */}
@@ -748,8 +871,14 @@ export const ExerciseLogCard: React.FC<{
                                     onOpenCalculator({ 
                                         exerciseName: name, 
                                         current1RM: current1RM,
-                                        activeTargetPct: targetPct,
-                                        onSelectTargetPct: handleSetTargetPct
+                                        activeTargetPct: targetInfo.targetPct,
+                                        onSelectTargetPct: (pct) => {
+                                            if (prescribedPct && prescribedPct > 0) {
+                                                if (onSelectSessionPct) onSelectSessionPct(pct);
+                                            } else {
+                                                handleSetTargetPct(pct);
+                                            }
+                                        }
                                     });
                                 }}
                                 className="p-3 rounded-2xl transition-all active:scale-90 bg-gray-50 dark:bg-gray-800 text-primary hover:bg-primary/20 dark:hover:bg-primary/20 shadow-sm"
@@ -861,64 +990,104 @@ export const ExerciseLogCard: React.FC<{
                     </div>
 
                     {result.setDetails.map((set, index) => {
+                        const isWeightAndRepsOnly = showWeight && showReps && !showTime && !showDistance && !showKcal;
+                        const hasValidWeightAndReps = (parseFloat(set.weight) > 0) && (parseFloat(set.reps) > 0);
+                        const showRirRow = Boolean(set.completed) && isWeightAndRepsOnly && hasValidWeightAndReps;
+
                         return (
-                            <div key={index} className={`grid ${gridColsClass} gap-2 items-center transition-all ${set.completed ? 'opacity-50' : 'opacity-100'}`}>
-                                <div className="flex justify-center items-center">
-                                    <span className={`text-sm font-black rounded-full w-8 h-8 flex items-center justify-center transition-colors shadow-sm ${set.completed ? 'bg-green-100 dark:bg-green-900/30 text-green-600' : 'bg-gray-100 dark:bg-gray-800 text-gray-500'}`}>{index + 1}</span>
-                                </div>
-                                
-                                {showReps && (
-                                    <div className="bg-gray-50 dark:bg-gray-800 rounded-xl p-3.5 border border-gray-100 dark:border-gray-700 shadow-inner">
-                                        <input type="text" inputMode="numeric" value={set.reps} onChange={(e) => handleSetChange(index, 'reps', e.target.value)} placeholder="0" className="w-full bg-transparent text-gray-900 dark:text-white font-black text-xl focus:outline-none text-center" disabled={set.completed} />
+                            <React.Fragment key={index}>
+                                <div className={`grid ${gridColsClass} gap-2 items-center transition-all ${set.completed ? 'opacity-50' : 'opacity-100'}`}>
+                                    <div className="flex justify-center items-center">
+                                        <span className={`text-sm font-black rounded-full w-8 h-8 flex items-center justify-center transition-colors shadow-sm ${set.completed ? 'bg-green-100 dark:bg-green-900/30 text-green-600' : 'bg-gray-100 dark:bg-gray-800 text-gray-500'}`}>{index + 1}</span>
                                     </div>
-                                )}
-                                
-                                {showWeight && (
-                                    <div className="relative">
+                                    
+                                    {showReps && (
                                         <div className="bg-gray-50 dark:bg-gray-800 rounded-xl p-3.5 border border-gray-100 dark:border-gray-700 shadow-inner">
-                                            <input type="number" value={set.weight} onChange={(e) => handleSetChange(index, 'weight', e.target.value)} placeholder="0" className="w-full bg-transparent text-gray-900 dark:text-white font-black text-xl focus:outline-none text-center" disabled={set.completed} />
+                                            <input type="text" inputMode="numeric" value={set.reps} onChange={(e) => handleSetChange(index, 'reps', e.target.value)} placeholder="0" className="w-full bg-transparent text-gray-900 dark:text-white font-black text-xl focus:outline-none text-center" disabled={set.completed} />
+                                        </div>
+                                    )}
+                                    
+                                    {showWeight && (
+                                        <div className="relative">
+                                            <div className="bg-gray-50 dark:bg-gray-800 rounded-xl p-3.5 border border-gray-100 dark:border-gray-700 shadow-inner">
+                                                <input type="number" value={set.weight} onChange={(e) => handleSetChange(index, 'weight', e.target.value)} placeholder="0" className="w-full bg-transparent text-gray-900 dark:text-white font-black text-xl focus:outline-none text-center" disabled={set.completed} />
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {showTime && (
+                                        <div className="bg-gray-50 dark:bg-gray-800 rounded-xl p-3.5 border border-gray-100 dark:border-gray-700 shadow-inner">
+                                            <input type="number" value={set.time || ''} onChange={(e) => handleSetChange(index, 'time', e.target.value)} placeholder="0" className="w-full bg-transparent text-gray-900 dark:text-white font-black text-xl focus:outline-none text-center" disabled={set.completed} />
+                                        </div>
+                                    )}
+
+                                    {showDistance && (
+                                        <div className="bg-gray-50 dark:bg-gray-800 rounded-xl p-3.5 border border-gray-100 dark:border-gray-700 shadow-inner">
+                                            <input type="number" value={set.distance || ''} onChange={(e) => handleSetChange(index, 'distance', e.target.value)} placeholder="0" className="w-full bg-transparent text-gray-900 dark:text-white font-black text-xl focus:outline-none text-center" disabled={set.completed} />
+                                        </div>
+                                    )}
+
+                                    {showKcal && (
+                                        <div className="bg-gray-50 dark:bg-gray-800 rounded-xl p-3.5 border border-gray-100 dark:border-gray-700 shadow-inner">
+                                            <input type="number" value={set.kcal || ''} onChange={(e) => handleSetChange(index, 'kcal', e.target.value)} placeholder="0" className="w-full bg-transparent text-gray-900 dark:text-white font-black text-xl focus:outline-none text-center" disabled={set.completed} />
+                                        </div>
+                                    )}
+
+                                    <div className="flex justify-center">
+                                        {result.setDetails.length > 1 && (
+                                            <button 
+                                                onClick={() => handleRemoveSet(index)} 
+                                                className="w-10 h-10 rounded-xl bg-gray-50 dark:bg-gray-800 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 flex items-center justify-center p-2 active:scale-95 transition-all shadow-sm" 
+                                                disabled={set.completed}
+                                            >
+                                                <CloseIcon className="w-5 h-5" />
+                                            </button>
+                                        )}
+                                    </div>
+                                    <div className="flex justify-center">
+                                        <button 
+                                            onClick={() => handleToggleComplete(index)} 
+                                            className={`w-11 h-11 rounded-xl flex items-center justify-center transition-all shadow-md transform active:scale-90 ${set.completed ? 'bg-green-600 text-white' : 'bg-gray-50 dark:bg-gray-800 text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'}`}
+                                        >
+                                            {set.completed ? <CheckIcon className="w-6 h-6" /> : <div className="w-3.5 h-3.5 rounded-full border-2 border-current opacity-45" />}
+                                        </button>
+                                    </div>
+                                </div>
+                                {showRirRow && (
+                                    <div className="mt-1.5 mb-2 p-2.5 bg-gray-50 dark:bg-gray-800/60 rounded-xl border border-gray-100 dark:border-gray-800 flex flex-wrap items-center justify-between gap-2 animate-fade-in">
+                                        <span className="text-xs font-bold text-gray-600 dark:text-gray-300">
+                                            Hade du fler kvar?
+                                        </span>
+                                        <div className="flex items-center gap-1.5">
+                                            {[
+                                                { label: '0', val: 0 },
+                                                { label: '1', val: 1 },
+                                                { label: '2', val: 2 },
+                                                { label: '3+', val: 3 },
+                                            ].map(opt => {
+                                                const isSelected = set.rir === opt.val;
+                                                return (
+                                                    <button
+                                                        key={opt.val}
+                                                        type="button"
+                                                        onClick={() => {
+                                                            const newRir = isSelected ? null : opt.val;
+                                                            handleSetChange(index, 'rir' as any, newRir as any);
+                                                        }}
+                                                        className={`min-h-[40px] px-3.5 rounded-xl text-xs font-black transition-all active:scale-95 ${
+                                                            isSelected
+                                                                ? 'bg-primary text-white shadow-sm'
+                                                                : 'bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600'
+                                                        }`}
+                                                    >
+                                                        {opt.label}
+                                                    </button>
+                                                );
+                                            })}
                                         </div>
                                     </div>
                                 )}
-
-                                {showTime && (
-                                    <div className="bg-gray-50 dark:bg-gray-800 rounded-xl p-3.5 border border-gray-100 dark:border-gray-700 shadow-inner">
-                                        <input type="number" value={set.time || ''} onChange={(e) => handleSetChange(index, 'time', e.target.value)} placeholder="0" className="w-full bg-transparent text-gray-900 dark:text-white font-black text-xl focus:outline-none text-center" disabled={set.completed} />
-                                    </div>
-                                )}
-
-                                {showDistance && (
-                                    <div className="bg-gray-50 dark:bg-gray-800 rounded-xl p-3.5 border border-gray-100 dark:border-gray-700 shadow-inner">
-                                        <input type="number" value={set.distance || ''} onChange={(e) => handleSetChange(index, 'distance', e.target.value)} placeholder="0" className="w-full bg-transparent text-gray-900 dark:text-white font-black text-xl focus:outline-none text-center" disabled={set.completed} />
-                                    </div>
-                                )}
-
-                                {showKcal && (
-                                    <div className="bg-gray-50 dark:bg-gray-800 rounded-xl p-3.5 border border-gray-100 dark:border-gray-700 shadow-inner">
-                                        <input type="number" value={set.kcal || ''} onChange={(e) => handleSetChange(index, 'kcal', e.target.value)} placeholder="0" className="w-full bg-transparent text-gray-900 dark:text-white font-black text-xl focus:outline-none text-center" disabled={set.completed} />
-                                    </div>
-                                )}
-
-                                <div className="flex justify-center">
-                                    {result.setDetails.length > 1 && (
-                                        <button 
-                                            onClick={() => handleRemoveSet(index)} 
-                                            className="w-10 h-10 rounded-xl bg-gray-50 dark:bg-gray-800 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 flex items-center justify-center p-2 active:scale-95 transition-all shadow-sm" 
-                                            disabled={set.completed}
-                                        >
-                                            <CloseIcon className="w-5 h-5" />
-                                        </button>
-                                    )}
-                                </div>
-                                <div className="flex justify-center">
-                                    <button 
-                                        onClick={() => handleToggleComplete(index)} 
-                                        className={`w-11 h-11 rounded-xl flex items-center justify-center transition-all shadow-md transform active:scale-90 ${set.completed ? 'bg-green-600 text-white' : 'bg-gray-50 dark:bg-gray-800 text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'}`}
-                                    >
-                                        {set.completed ? <CheckIcon className="w-6 h-6" /> : <div className="w-3.5 h-3.5 rounded-full border-2 border-current opacity-45" />}
-                                    </button>
-                                </div>
-                            </div>
+                            </React.Fragment>
                         );
                     })}
                     {(!result.groupId) && (
@@ -1313,6 +1482,7 @@ const OneRMCalculatorModal: React.FC<{
                             {percentages.map(p => {
                                 const weight = Math.round((calculated1RM as number) * (p / 100) * 2) / 2;
                                 const formattedWeight = weight.toString().replace('.', ',');
+                                const reps = getRepsForPercentage(p);
                                 const isActive = context?.activeTargetPct === p;
                                 const isClickable = !!(context?.onSelectTargetPct || context?.onSelectWeight);
                                 return (
@@ -1338,7 +1508,9 @@ const OneRMCalculatorModal: React.FC<{
                                     >
                                         <div className="flex items-center justify-between w-full">
                                             <span className={`text-sm font-black ${isActive ? 'text-white' : isClickable ? 'text-primary' : 'text-gray-400'}`}>{p}%</span>
-                                            <span className={`text-lg font-black ${isActive ? 'text-white' : 'text-gray-900 dark:text-white'}`}>{formattedWeight} <span className="text-xs opacity-70">kg</span></span>
+                                            <span className={`text-xs font-black ${isActive ? 'text-white' : 'text-gray-900 dark:text-white'}`}>
+                                                {formattedWeight} kg <span className="opacity-80">· ~{reps} reps</span>
+                                            </span>
                                         </div>
                                     </button>
                                 );
@@ -1448,7 +1620,28 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
   const [logDate, setLogDate] = useState(getLocalDateString(new Date()));
   const [allLogs, setAllLogs] = useState<WorkoutLog[]>([]);
   const [viewMode, setViewMode] = useState<'pre-game' | 'logging'>(isManualMode ? 'logging' : 'pre-game');
+  const [sessionMode, setSessionMode] = useState<'normal' | 'fatigued'>('normal');
+  const [sessionPctMap, setSessionPctMap] = useState<Record<string, number | null>>({});
   const [customActivity, setCustomActivity] = useState({ name: '', duration: '', distance: '', calories: '' });
+
+  const blockProfilesMap = useMemo(() => {
+      if (!workout || !workout.blocks) return {};
+      const map: Record<string, TrainingProfile | null> = {};
+      workout.blocks.forEach(block => {
+          if (block.id) {
+              map[block.id] = getBlockProfile(block as any);
+          }
+      });
+      return map;
+  }, [workout]);
+
+  const handleSelectSessionPct = (exerciseName: string, pct: number | null) => {
+      const canonKey = canonicalizeExerciseName(exerciseName);
+      setSessionPctMap(prev => ({
+          ...prev,
+          [canonKey]: pct
+      }));
+  };
   const [sessionStats, setSessionStats] = useState({ distance: '', calories: '', time: '', rounds: '' });
   const [activeSummaryFields, setActiveSummaryFields] = useState<string[]>([]);
   const [showSummaryMoreFields, setShowSummaryMoreFields] = useState(false);
@@ -1457,6 +1650,167 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
   const [saveAsProgram, setSaveAsProgram] = useState(false);
   const [programName, setProgramName] = useState('');
   const [attemptedSubmit, setAttemptedSubmit] = useState(false);
+
+  // --- Rest Timer State & Controls ---
+  const restTimerStorageKey = `rest_timer_enabled_${userId || 'user'}`;
+  const [restTimerEnabled, setRestTimerEnabled] = useState<boolean>(() => {
+    try {
+      const saved = localStorage.getItem(restTimerStorageKey);
+      return saved !== null ? saved === 'true' : true;
+    } catch {
+      return true;
+    }
+  });
+
+  const toggleRestTimer = () => {
+    setRestTimerEnabled(prev => {
+      const next = !prev;
+      try {
+        localStorage.setItem(restTimerStorageKey, String(next));
+      } catch (e) {
+        console.error('Failed to save rest timer setting:', e);
+      }
+      return next;
+    });
+  };
+
+  const [restTimer, setRestTimer] = useState<{
+    endTime: number;
+    totalSeconds: number;
+    status: 'running' | 'completed';
+  } | null>(null);
+
+  const [remainingRestSeconds, setRemainingRestSeconds] = useState<number>(0);
+  const restWakeLockSentinelRef = useRef<any>(null);
+
+  const startRestTimer = useCallback((seconds: number) => {
+    if (!restTimerEnabled || seconds <= 0) return;
+    const endTime = Date.now() + seconds * 1000;
+    setRestTimer({
+      endTime,
+      totalSeconds: seconds,
+      status: 'running'
+    });
+    setRemainingRestSeconds(seconds);
+  }, [restTimerEnabled]);
+
+  const handleAdd30Seconds = useCallback(() => {
+    setRestTimer(prev => {
+      if (!prev) return null;
+      const newEndTime = prev.endTime + 30000;
+      return {
+        ...prev,
+        endTime: newEndTime,
+        status: 'running'
+      };
+    });
+  }, []);
+
+  const handleSkipRestTimer = useCallback(() => {
+    setRestTimer(null);
+  }, []);
+
+  // Timer Tick & Visibility Effect
+  useEffect(() => {
+    if (!restTimer || restTimer.status !== 'running') return;
+
+    const checkTimer = () => {
+      const now = Date.now();
+      const diffMs = restTimer.endTime - now;
+      const remaining = Math.max(0, Math.ceil(diffMs / 1000));
+      setRemainingRestSeconds(remaining);
+
+      if (remaining <= 0) {
+        setRestTimer(prev => prev ? { ...prev, status: 'completed' } : null);
+
+        try {
+          playTimerSound((studioConfig?.soundProfile as any) || 'boxing', 1);
+        } catch (e) {
+          console.error('Error playing rest timer sound:', e);
+        }
+
+        try {
+          if (typeof navigator !== 'undefined' && 'vibrate' in navigator && navigator.vibrate) {
+            navigator.vibrate([200, 100, 200]);
+          }
+        } catch (e) {
+          console.error('Error vibrating:', e);
+        }
+      }
+    };
+
+    checkTimer();
+    const intervalId = setInterval(checkTimer, 500);
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        checkTimer();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      clearInterval(intervalId);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [restTimer, studioConfig?.soundProfile]);
+
+  // Auto-hide when completed after 5 seconds
+  useEffect(() => {
+    if (restTimer && restTimer.status === 'completed') {
+      const timeoutId = setTimeout(() => {
+        setRestTimer(null);
+      }, 5000);
+      return () => clearTimeout(timeoutId);
+    }
+  }, [restTimer]);
+
+  // WakeLock while timer is running
+  useEffect(() => {
+    let isMounted = true;
+    const requestWakeLock = async () => {
+      if (restTimer && restTimer.status === 'running' && 'wakeLock' in navigator) {
+        try {
+          if (!restWakeLockSentinelRef.current) {
+            const wl = await (navigator as any).wakeLock.request('screen');
+            if (isMounted) {
+              restWakeLockSentinelRef.current = wl;
+              wl.addEventListener('release', () => {
+                restWakeLockSentinelRef.current = null;
+              });
+            } else {
+              wl.release();
+            }
+          }
+        } catch (err) {
+          console.error('WakeLock error in rest timer:', err);
+        }
+      }
+    };
+
+    const releaseWakeLock = async () => {
+      if (restWakeLockSentinelRef.current) {
+        try {
+          await restWakeLockSentinelRef.current.release();
+        } catch (err) {
+          console.error('WakeLock release error:', err);
+        }
+        restWakeLockSentinelRef.current = null;
+      }
+    };
+
+    if (restTimer && restTimer.status === 'running') {
+      requestWakeLock();
+    } else {
+      releaseWakeLock();
+    }
+
+    return () => {
+      isMounted = false;
+      releaseWakeLock();
+    };
+  }, [restTimer]);
   
   const scanSource = source || route?.params?.source;
   const [inStudio, setInStudio] = useState<boolean | null>(scanSource === 'qr_scan' ? true : null);
@@ -1682,6 +2036,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
         // Reset state for new workout
         setViewMode(isManualMode ? 'logging' : 'pre-game');
         setLogStep('exercises');
+        setSessionPctMap({});
         
         try {
             let foundWorkout: any = null;
@@ -1933,6 +2288,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
   }, [exerciseResults, logData, sessionStats, customActivity, loading, isSubmitting, userId, wId, finalOrgId, isManualMode, workout]);
 
   const handleCancel = (isSuccess = false, diploma: WorkoutDiploma | null = null) => {
+    setSessionPctMap({});
     if (isSuccess) {
         localStorage.removeItem(ACTIVE_LOG_STORAGE_KEY);
     }
@@ -2069,7 +2425,8 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
       });
   };
 
-  const handleStartWorkout = () => {
+  const handleStartWorkout = (mode: 'normal' | 'fatigued' = 'normal') => {
+      setSessionMode(mode);
       setViewMode('logging');
   };
 
@@ -2136,7 +2493,8 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
                       reps: s.reps || null,
                       time: s.time ? parseFloat(s.time) : null,
                       distance: s.distance ? parseFloat(s.distance) : null,
-                      kcal: s.kcal ? parseFloat(s.kcal) : null
+                      kcal: s.kcal ? parseFloat(s.kcal) : null,
+                      rir: s.rir !== undefined && s.rir !== null ? Number(s.rir) : null
                   })),
                   weight: maxWeight, 
                   reps: repsSummary, 
@@ -2449,6 +2807,19 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
             <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Registrera dina resultat</p>
         </div>
         <div className="flex items-center gap-2">
+            <button
+                type="button"
+                onClick={toggleRestTimer}
+                className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 shadow-sm active:scale-95 border ${
+                    restTimerEnabled 
+                        ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/30 dark:bg-emerald-500/20' 
+                        : 'bg-gray-100 dark:bg-gray-800 text-gray-400 border-gray-200 dark:border-gray-700'
+                }`}
+                title="Slå på/av vilotimer mellan set"
+            >
+                <span className={`w-2 h-2 rounded-full ${restTimerEnabled ? 'bg-emerald-500' : 'bg-gray-400'}`} />
+                <span>Vilotimer</span>
+            </button>
             <button 
                 onClick={() => {
                     setCalculatorContext(null);
@@ -2468,6 +2839,25 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
       <div ref={scrollContainerRef} className="flex-1 overflow-y-auto bg-gray-50 dark:bg-black scrollbar-hide">
           <div className="p-2 sm:p-4 max-w-2xl mx-auto w-full">
               
+              {/* Banner when session is fatigued */}
+              {sessionMode === 'fatigued' && (
+                  <div className="mb-4 p-4 rounded-2xl bg-amber-500/10 dark:bg-amber-500/20 border border-amber-500/30 flex items-center justify-between gap-3 text-amber-900 dark:text-amber-200 shadow-sm animate-fade-in">
+                      <div className="flex items-center gap-2.5 min-w-0">
+                          <span className="text-xl flex-shrink-0">⚡</span>
+                          <span className="text-xs font-bold leading-snug">
+                              Nedskalat pass — vikterna är ca 10 % lägre idag.
+                          </span>
+                      </div>
+                      <button
+                          type="button"
+                          onClick={() => setSessionMode('normal')}
+                          className="flex-shrink-0 px-3.5 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-extrabold uppercase tracking-wider transition shadow-sm active:scale-95"
+                      >
+                          Kör som vanligt
+                      </button>
+                  </div>
+              )}
+
               {/* Steg-indikator */}
               <div className="mb-6 flex gap-2 select-none">
                   <button
@@ -2576,7 +2966,11 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
                                                 name={result.exerciseName}
                                                 result={result}
                                                 userId={currentUser?.uid}
+                                                sessionMode={sessionMode}
+                                                history={history}
+                                                personalBests={personalBests}
                                                 onUpdate={(updates) => handleUpdateResult(index, updates)}
+                                                onStartRestTimer={startRestTimer}
                                                 onRemove={() => setExerciseResults(prev => prev.filter((_, i) => i !== index))}
                                                 lastPerformance={history[result.exerciseName]} 
                                                 personalBest={personalBests[result.exerciseName.toLowerCase().trim()]}
@@ -2815,6 +3209,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
                                                                                         className="p-1 space-y-1 bg-gray-50/25 dark:bg-gray-950/5"
                                                                                     >
                                                                                         {subGroup.exercises.map(({ result, originalIndex }, idxInsideSub) => {
+                                                                                             // superset session mode
                                                                                             const isLastInGroup = idxInsideSub === subGroup.exercises.length - 1;
                                                                                             
                                                                                             return (
@@ -2827,6 +3222,14 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
                                                                                                     personalBest={personalBests[result.exerciseName.toLowerCase().trim()]}
                                                                                                     isLastInGroup={isLastInGroup}
                                                                                                     onAddGroupSet={() => handleAddGroupSet(result.groupId!)}
+                                                                                                    userId={userId}
+                                                                                                    history={history}
+                                                                                                    personalBests={personalBests}
+                                                                                                    sessionMode={sessionMode}
+                                                                                                    blockProfile={result.blockId ? blockProfilesMap[result.blockId] : undefined}
+                                                                                                    sessionPct={sessionPctMap[canonicalizeExerciseName(result.exerciseName)] ?? sessionPctMap[result.exerciseName] ?? null}
+                                                                                                    onSelectSessionPct={(pct) => handleSelectSessionPct(result.exerciseName, pct)}
+                                                                                                    onStartRestTimer={startRestTimer}
                                                                                                     onOpenCalculator={(ctx) => {
                                                                                                         setCalculatorContext({
                                                                                                             ...ctx,
@@ -2855,11 +3258,11 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
                                                                                         })}
                                                                                     </motion.div>
                                                                                 )}
-                                                                            </AnimatePresence>
-                                                                        </div>
-                                                                    );
-                                                                } else {
-                                                                    // Det här är en helt vanlig, fristående övning (subGroup har inget groupId)
+                                                                                                                                                                                      </AnimatePresence>
+                                                                         </div>
+                                                                     );
+                                                                 } else {
+                                                                     // Det här är en helt vanlig, fristående övning (subGroup har inget groupId)
                                                                     const { result, originalIndex } = subGroup.exercises[0];
                                                                     return (
                                                                         <ExerciseLogCard
@@ -2870,9 +3273,17 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
                                                                             lastPerformance={history[result.exerciseName]} 
                                                                             personalBest={personalBests[result.exerciseName.toLowerCase().trim()]}
                                                                             isLastInGroup={false}
-                                                                            onOpenCalculator={(ctx) => {
-                                                                                setCalculatorContext({
-                                                                                    ...ctx,
+                                                                            userId={userId}
+                                                                            history={history}
+                                                                            personalBests={personalBests}
+                                                                            sessionMode={sessionMode}
+                                                                            blockProfile={result.blockId ? blockProfilesMap[result.blockId] : undefined}
+                                                                            sessionPct={sessionPctMap[canonicalizeExerciseName(result.exerciseName)] ?? sessionPctMap[result.exerciseName] ?? null}
+                                                                            onSelectSessionPct={(pct) => handleSelectSessionPct(result.exerciseName, pct)}
+                                                                            onStartRestTimer={startRestTimer}
+                                                                             onOpenCalculator={(ctx) => {
+                                                                                 setCalculatorContext({
+                                                                                     ...ctx,
                                                                                     onSelectWeight: (weight: number) => {
                                                                                         setExerciseResults(prev => {
                                                                                             const newResults = [...prev];
@@ -3212,6 +3623,62 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
               )}
           </div>
       </div>
+
+      {/* REST TIMER FLOATING BAR */}
+      {restTimer && (
+          <div className="fixed bottom-6 left-4 right-4 z-50 max-w-md mx-auto pointer-events-auto animate-fade-in">
+              <div 
+                  onClick={() => {
+                      if (restTimer.status === 'completed') setRestTimer(null);
+                  }}
+                  className={`flex items-center justify-between gap-3 px-4 py-3 rounded-2xl shadow-xl border backdrop-blur-md transition-all ${
+                      restTimer.status === 'completed'
+                          ? 'bg-primary text-white border-primary cursor-pointer'
+                          : 'bg-gray-900/95 dark:bg-gray-800/95 text-white border-gray-700/50'
+                  }`}
+              >
+                  {restTimer.status === 'running' ? (
+                      <>
+                          <div className="flex items-center gap-2.5">
+                              <div className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
+                              <span className="text-xs font-black uppercase tracking-wider text-gray-300">Vila</span>
+                              <span className="text-xl font-black font-mono tabular-nums tracking-tight text-white">
+                                  {Math.floor(remainingRestSeconds / 60)}:{String(remainingRestSeconds % 60).padStart(2, '0')}
+                              </span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                              <button
+                                  type="button"
+                                  onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleAdd30Seconds();
+                                  }}
+                                  className="px-3 py-1.5 rounded-xl bg-gray-800 dark:bg-gray-700 hover:bg-gray-700 dark:hover:bg-gray-600 text-xs font-bold text-gray-100 border border-gray-600/50 transition active:scale-95"
+                              >
+                                  +30 s
+                              </button>
+                              <button
+                                  type="button"
+                                  onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleSkipRestTimer();
+                                  }}
+                                  className="px-3 py-1.5 rounded-xl bg-gray-800/60 dark:bg-gray-700/60 hover:bg-gray-700 text-xs font-semibold text-gray-300 hover:text-white transition active:scale-95"
+                              >
+                                  Hoppa över
+                              </button>
+                          </div>
+                      </>
+                  ) : (
+                      <div className="flex items-center justify-between w-full font-bold text-sm py-0.5">
+                          <span className="uppercase tracking-wide font-black">VILA KLAR</span>
+                          <span className="text-xs opacity-90 font-normal">Tryck för att stänga</span>
+                      </div>
+                  )}
+              </div>
+          </div>
+      )}
+
 {showExerciseSearch && (
           <Modal isOpen={showExerciseSearch} onClose={() => setShowExerciseSearch(false)} size="lg">
               <div className="flex flex-col items-center w-full h-[85vh]">

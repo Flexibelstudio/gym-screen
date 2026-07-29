@@ -139,6 +139,10 @@ export interface WorkoutBlock {
   aiMagicPenSuggestions?: string[];
   autoAdvance?: boolean;     // NEW: Automatically start next block
   transitionTime?: number;   // NEW: Rest time between blocks in seconds
+  useTrainingProfile?: boolean;   // saknas eller false = blocket styr ingenting
+  profileOverrides?: { repMin?: number; repMax?: number; targetPct?: number; rirTarget?: number; restSeconds?: number };
+  progressionModel?: 'none' | 'auto' | 'custom';   // saknas = 'none' (STANDARD ÄNDRAS TILL 'none')
+  customProgression?: { incrementKg: number; atReps: number; maxRir: number; requireAllSets: boolean };
 }
 
 export interface Workout {
@@ -546,6 +550,7 @@ export interface ExerciseSetDetail {
     time?: number | null;
     distance?: number | null;
     kcal?: number | null;
+    rir?: number | null;
 }
 
 export interface ExerciseResult {

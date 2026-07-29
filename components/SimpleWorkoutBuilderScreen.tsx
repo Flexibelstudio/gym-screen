@@ -42,6 +42,8 @@ const createNewBlock = (index: number): WorkoutBlock => ({
   setupDescription: '',
   showDescriptionInTimer: false,
   followMe: false,
+  useTrainingProfile: false,
+  progressionModel: 'none',
   settings: {
     mode: TimerMode.NoTimer,
     workTime: 0,
@@ -450,11 +452,12 @@ const BlockCard: React.FC<BlockCardProps> = ({ block, index, totalBlocks, onUpda
                     <div className="w-full sm:w-48">
                         <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-2 block ml-1">Kategori (Tagg)</label>
                         <select
-                            value={block.tag || 'Styrka'}
+                            value={['Styrka', 'Hypertrofi', 'Kondition', 'Rörlighet', 'Teknik', 'Core/Bål', 'Balans', 'Uppvärmning', 'Nedvarvning', 'Finisher'].find(opt => opt.toLowerCase() === (block.tag || 'Styrka').toLowerCase()) || block.tag || 'Styrka'}
                             onChange={e => handleFieldChange('tag', e.target.value)}
                             className={`${inputBaseClasses} w-full text-lg cursor-pointer`}
                         >
                             <option value="Styrka">Styrka</option>
+                            <option value="Hypertrofi">Hypertrofi</option>
                             <option value="Kondition">Kondition</option>
                             <option value="Rörlighet">Rörlighet</option>
                             <option value="Teknik">Teknik</option>
@@ -767,16 +770,16 @@ export const SimpleWorkoutBuilderScreen: React.FC<{ initialWorkout: Workout | nu
                             {showAdminFields && (
                                 <div>
                                     <label className="text-[10px] font-black text-purple-500 uppercase tracking-[0.3em] mb-2 block ml-2 flex items-center gap-2">
-                                        <SparklesIcon className="w-4 h-4" /> AI-instruktioner (Frivilligt)
+                                        <SparklesIcon className="w-4 h-4" /> Instruktion till medlemmen
                                     </label>
                                     <textarea 
                                         value={workout.aiProgressionPrompt || ''} 
                                         onChange={e => setWorkout({ ...workout, aiProgressionPrompt: e.target.value })} 
-                                        placeholder="T.ex. 'Fokusera på att peppa användaren att öka vikten i knäböj nästa gång'..." 
+                                        placeholder="Din instruktion till medlemmen..." 
                                         className={`${inputBaseClasses} w-full text-lg h-24 resize-none !bg-white dark:!bg-gray-900 border-purple-200 dark:border-purple-900 focus:border-purple-500 focus:ring-purple-500`} 
                                         rows={2}
                                     />
-                                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-2 ml-2">Denna text skickas till AI:n när en medlem loggar passet och ber om feedback.</p>
+                                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-2 ml-2">Visas för medlemmen före passet. Används inte för att räkna fram vikter.</p>
                                 </div>
                             )}
                         </div>

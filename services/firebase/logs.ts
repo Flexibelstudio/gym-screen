@@ -149,14 +149,14 @@ export const saveWorkoutLog = async (logData: any): Promise<{ log: any, newRecor
             for (const exResult of logData.exerciseResults) {
                 let bestSet: { weight: number, reps: number, oneRm: number } | null = null;
                 
-                const processSet = (wVal: any, rVal: any) => {
+                const processSet = (wVal: any, rVal: any, rirVal?: any) => {
                     const w = parseFloat(wVal) || 0;
                     const r = parseFloat(rVal) || 0;
                     
                     if (r > 0 || w > 0) {
                         let oneRm = 0;
-                        if (w > 0 && r > 0 && r <= 10) {
-                            oneRm = calculate1RM(w, r) || 0;
+                        if (w > 0 && r > 0) {
+                            oneRm = calculate1RM(w, r, rirVal) || 0;
                         }
                         
                         const currentScore = oneRm > 0 ? oneRm * 10000 : (w > 0 ? w * 100 + r : r);
@@ -169,9 +169,9 @@ export const saveWorkoutLog = async (logData: any): Promise<{ log: any, newRecor
                 };
 
                 if (exResult.setDetails && exResult.setDetails.length > 0) {
-                    exResult.setDetails.forEach((s: any) => processSet(s.weight, s.reps));
+                    exResult.setDetails.forEach((s: any) => processSet(s.weight, s.reps, s.rir));
                 } else if (exResult.weight || exResult.reps) {
-                    processSet(exResult.weight, exResult.reps);
+                    processSet(exResult.weight, exResult.reps, (exResult as any).rir);
                 }
 
                 if (bestSet && exResult.exerciseName) {

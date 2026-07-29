@@ -7,7 +7,7 @@ import { generateExerciseDescription } from '../../services/geminiService';
 import { parseSettingsFromTitle } from '../../hooks/useWorkoutTimer';
 import { motion, AnimatePresence } from 'framer-motion';
 import { saveExerciseToBank } from '../../services/firebaseService';
-import { findDuplicateBankExercise } from '../../utils/workoutUtils';
+import { findDuplicateBankExercise, getBlockProfile } from '../../utils/workoutUtils';
 import { DuplicateExerciseModal } from '../DuplicateExerciseModal';
 import { useDroppable } from '@dnd-kit/core';
 import { SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
@@ -711,11 +711,12 @@ export const EditableBlockCard: React.FC<EditableBlockCardProps> = ({
                     </div>
                     <div className="w-full sm:w-auto sm:min-w-[160px] ml-8 sm:ml-0">
                         <select
-                            value={block.tag || 'Styrka'}
+                            value={['Styrka', 'Hypertrofi', 'Kondition', 'Rörlighet', 'Teknik', 'Core/Bål', 'Balans', 'Uppvärmning', 'Nedvarvning', 'Finisher'].find(opt => opt.toLowerCase() === (block.tag || 'Styrka').toLowerCase()) || block.tag || 'Styrka'}
                             onChange={e => handleFieldChange('tag', e.target.value)}
                             className="w-full bg-transparent text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 font-bold uppercase tracking-widest text-xs border-b border-transparent hover:border-gray-300 dark:hover:border-gray-600 focus:border-primary focus:outline-none focus:text-primary transition-colors cursor-pointer py-1"
                         >
                             <option value="Styrka">Styrka</option>
+                            <option value="Hypertrofi">Hypertrofi</option>
                             <option value="Kondition">Kondition</option>
                             <option value="Rörlighet">Rörlighet</option>
                             <option value="Teknik">Teknik</option>
@@ -730,6 +731,105 @@ export const EditableBlockCard: React.FC<EditableBlockCardProps> = ({
                 <button onClick={onRemove} className="text-red-500 hover:text-red-400 ml-4 flex-shrink-0 font-semibold p-2">
                     <TrashIcon className="w-5 h-5" />
                 </button>
+            </div>
+
+            {/* Toggle Switch: Styr intensitet och progression */}
+            <div className="my-3 p-3 bg-gray-50/80 dark:bg-gray-800/40 rounded-xl border border-gray-200 dark:border-gray-700/60 text-xs">
+                <div className="flex items-center justify-between">
+                    <div>
+                        <span className="font-bold text-gray-800 dark:text-gray-200 block text-xs">
+                            Styr intensitet och progression
+                        </span>
+                        <span className="text-[11px] text-gray-500 dark:text-gray-400 block mt-0.5">
+                            När den är av påverkar blocket inte medlemmens målvikter.
+                        </span>
+                    </div>
+                    <label className="relative inline-flex items-center cursor-pointer ml-3 flex-shrink-0">
+                        <input
+                            type="checkbox"
+                            checked={!!block.useTrainingProfile}
+                            onChange={e => handleFieldChange('useTrainingProfile', e.target.checked)}
+                            className="sr-only peer"
+                        />
+                        <div className="w-9 h-5 bg-gray-300 peer-focus:outline-none rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all dark:after:border-gray-600 peer-checked:bg-primary"></div>
+                    </label>
+                </div>
+
+                {/* Profilraden visas ENDAST när växeln är på */}
+                {block.useTrainingProfile && (() => {
+                    const profile = getBlockProfile({ ...block, useTrainingProfile: true });
+                    if (!profile) return null;
+
+                    const currentRepMin = block.profileOverrides?.repMin ?? profile.repMin;
+                    const currentRepMax = block.profileOverrides?.repMax ?? profile.repMax;
+                    const currentTargetPct = profile.targetPct ?? 0;
+                    const currentRirTarget = block.profileOverrides?.rirTarget ?? profile.rirTarget;
+                    const currentRestSeconds = block.profileOverrides?.restSeconds ?? profile.restSeconds;
+                    const hasOverrides = block.profileOverrides && Object.keys(block.profileOverrides).length > 0;
+
+                    const handleProfileOverrideChange = (field: string, value: number) => {
+                        const existing = block.profileOverrides || {};
+                        handleFieldChange('profileOverrides', { ...existing, [field]: value });
+                    };
+
+                    return (
+                        <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700/60 space-y-3">
+                            {/* Profilraden (Reps / Intensitet / Reps i reserv / Vila) */}
+                            <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-gray-700 dark:text-gray-300">
+                                <div className="flex items-center gap-1.5">
+                                    <span className="font-bold text-gray-500 dark:text-gray-400">Reps</span>
+                                    <span className="font-mono font-bold">{currentRepMin}–{currentRepMax}</span>
+                                </div>
+
+                                {profile.hasWeightMath && (
+                                    <>
+                                        <div className="flex items-center gap-1.5">
+                                            <span className="font-bold text-gray-500 dark:text-gray-400">Intensitet</span>
+                                            <input
+                                                type="number"
+                                                value={currentTargetPct}
+                                                onChange={e => handleProfileOverrideChange('targetPct', parseInt(e.target.value, 10) || 0)}
+                                                className="w-12 px-1.5 py-0.5 bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded font-mono font-bold text-center focus:outline-none focus:ring-1 focus:ring-primary"
+                                            />
+                                            <span className="font-medium">% av 1RM</span>
+                                        </div>
+
+                                        <div className="flex items-center gap-1.5">
+                                            <span className="font-bold text-gray-500 dark:text-gray-400">Reps i reserv</span>
+                                            <input
+                                                type="number"
+                                                value={currentRirTarget}
+                                                onChange={e => handleProfileOverrideChange('rirTarget', parseInt(e.target.value, 10) || 0)}
+                                                className="w-12 px-1.5 py-0.5 bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded font-mono font-bold text-center focus:outline-none focus:ring-1 focus:ring-primary"
+                                            />
+                                        </div>
+                                    </>
+                                )}
+
+                                <div className="flex items-center gap-1.5">
+                                    <span className="font-bold text-gray-500 dark:text-gray-400">Vila</span>
+                                    <input
+                                        type="number"
+                                        value={currentRestSeconds}
+                                        onChange={e => handleProfileOverrideChange('restSeconds', parseInt(e.target.value, 10) || 0)}
+                                        className="w-14 px-1.5 py-0.5 bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded font-mono font-bold text-center focus:outline-none focus:ring-1 focus:ring-primary"
+                                    />
+                                    <span className="font-medium">s</span>
+                                </div>
+
+                                {hasOverrides && (
+                                    <button
+                                        type="button"
+                                        onClick={() => handleFieldChange('profileOverrides', undefined)}
+                                        className="text-[11px] text-primary hover:underline font-semibold ml-auto"
+                                    >
+                                        Återställ till standard för {block.tag || 'Styrka'}
+                                    </button>
+                                )}
+                            </div>
+                        </div>
+                    );
+                })()}
             </div>
 
             <EditableField

@@ -139,6 +139,8 @@ const createNewBlock = (): WorkoutBlock => ({
   tag: 'Styrka',
   setupDescription: '',
   followMe: false,
+  useTrainingProfile: false,
+  progressionModel: 'none',
   settings: {
     mode: TimerMode.Interval,
     workTime: 30,
@@ -834,15 +836,15 @@ export const WorkoutBuilderScreen: React.FC<WorkoutBuilderScreenProps> = ({ init
                   {isAdminView && (
                       <div className="bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800 rounded-lg p-4">
                           <label className="text-xs font-black text-purple-600 dark:text-purple-400 uppercase tracking-wider mb-1 block flex items-center gap-2">
-                              <SparklesIcon className="w-4 h-4" /> AI Progressionsregel
+                              <SparklesIcon className="w-4 h-4" /> Instruktion till medlemmen
                           </label>
                           <p className="text-sm text-purple-800/70 dark:text-purple-300/70 mb-3">
-                              Skriv en instruktion till AI:n om hur passet ska utvecklas nästa gång. T.ex: "Öka vikten med 2.5kg på knäböjen", eller "Om man når 10 reps ska man höja".
+                              Visas för medlemmen före passet. Används inte för att räkna fram vikter.
                           </p>
                           <textarea
                               value={workout.aiProgressionPrompt || ''}
                               onChange={e => handleUpdateWorkoutDetail('aiProgressionPrompt', e.target.value)}
-                              placeholder="Din instruktion till AI:n..."
+                              placeholder="Din instruktion till medlemmen..."
                               className="w-full bg-white dark:bg-gray-800 border border-purple-200 dark:border-purple-700 rounded-md p-3 text-base text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-purple-500 resize-y"
                               rows={3}
                           />
