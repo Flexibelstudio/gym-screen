@@ -562,6 +562,15 @@ export const EditableBlockCard: React.FC<EditableBlockCardProps> = ({
                 updatedBlock.settings = { ...updatedBlock.settings, ...settingsFromTitle };
             }
         }
+        if (field === 'setupDescription' && typeof value === 'string') {
+            const newValueHasContent = value.trim().length > 0;
+            const oldValueWasEmpty = !block.setupDescription || !block.setupDescription.trim();
+            const isToggleUndefined = block.showDescriptionInTimer === undefined;
+
+            if (newValueHasContent && oldValueWasEmpty && isToggleUndefined) {
+                updatedBlock.showDescriptionInTimer = true;
+            }
+        }
         onUpdate(updatedBlock);
     };
 
@@ -715,10 +724,15 @@ export const EditableBlockCard: React.FC<EditableBlockCardProps> = ({
                     </div>
                     <div className="w-full sm:w-auto sm:min-w-[160px] ml-8 sm:ml-0">
                         <select
-                            value={['Styrka', 'Hypertrofi', 'Kondition', 'Rörlighet', 'Teknik', 'Core/Bål', 'Balans', 'Uppvärmning', 'Nedvarvning', 'Finisher'].find(opt => opt.toLowerCase() === (block.tag || 'Styrka').toLowerCase()) || block.tag || 'Styrka'}
+                            value={['Styrka', 'Hypertrofi', 'Kondition', 'Rörlighet', 'Teknik', 'Core/Bål', 'Balans', 'Uppvärmning', 'Nedvarvning', 'Finisher'].find(opt => opt.toLowerCase() === (block.tag || '').toLowerCase()) || block.tag || ''}
                             onChange={e => handleFieldChange('tag', e.target.value)}
-                            className="w-full bg-transparent text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 font-bold uppercase tracking-widest text-xs border-b border-transparent hover:border-gray-300 dark:hover:border-gray-600 focus:border-primary focus:outline-none focus:text-primary transition-colors cursor-pointer py-1"
+                            className={`w-full appearance-none font-bold uppercase tracking-widest text-xs transition-colors cursor-pointer focus:outline-none ${
+                                !block.tag
+                                    ? 'bg-amber-500 text-gray-900 border border-amber-500 rounded-md px-2 py-1 shadow-sm'
+                                    : 'bg-transparent text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 border-b border-transparent hover:border-gray-300 dark:hover:border-gray-600 focus:border-primary focus:text-primary py-1'
+                            }`}
                         >
+                            <option value="">Välj blocktyp</option>
                             <option value="Styrka">Styrka</option>
                             <option value="Hypertrofi">Hypertrofi</option>
                             <option value="Kondition">Kondition</option>

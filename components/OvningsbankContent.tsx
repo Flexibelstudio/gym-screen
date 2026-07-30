@@ -44,12 +44,13 @@ const ExerciseEditorModal: React.FC<ExerciseEditorModalProps> = ({ exercise, ban
     const [localExercise, setLocalExercise] = useState<Partial<BankExercise>>({});
     const [isSaving, setIsSaving] = useState(false);
     const [duplicateWarning, setDuplicateWarning] = useState<BankExercise | null>(null);
+    const [renameWarning, setRenameWarning] = useState<{ from: string; to: string } | null>(null);
 
     useEffect(() => {
         setLocalExercise(exercise ? { ...exercise } : { name: '', description: '' });
     }, [exercise]);
 
-    const handleSave = async (forceAnyway = false) => {
+    const handleSave = async (forceAnyway = false, forceRename = false) => {
         if (!localExercise.name) {
             alert("Namn är ett obligatoriskt fält.");
             return;
@@ -62,6 +63,13 @@ const ExerciseEditorModal: React.FC<ExerciseEditorModalProps> = ({ exercise, ban
             tags: localExercise.tags?.filter(t => t) || [],
             imageUrl: localExercise.imageUrl
         };
+
+        const originalName = (exercise?.name || '').trim();
+        const newName = exerciseToSave.name.trim();
+        if (exercise?.id && originalName && newName !== originalName && !forceRename) {
+            setRenameWarning({ from: originalName, to: newName });
+            return;
+        }
 
         const duplicate = findDuplicateBankExercise(exerciseToSave.name, bank.filter(b => b.id !== exerciseToSave.id));
         if (duplicate && duplicate.name.toLowerCase().trim() === exerciseToSave.name.toLowerCase().trim()) {
@@ -94,6 +102,26 @@ const ExerciseEditorModal: React.FC<ExerciseEditorModalProps> = ({ exercise, ban
                     <button onClick={() => handleSave()} disabled={isSaving || !localExercise.name} className="flex-1 bg-primary font-bold py-3 rounded disabled:opacity-50">{isSaving ? 'Sparar...' : 'Spara'}</button>
                 </div>
             </div>
+            {renameWarning && (
+                <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-[60] p-4" onClick={() => setRenameWarning(null)}>
+                    <div className="bg-gray-800 rounded-xl p-6 w-full max-w-lg text-white shadow-2xl border border-amber-500/40" onClick={e => e.stopPropagation()}>
+                        <h2 className="text-xl font-bold mb-3 text-amber-400">Byta namn delar medlemmarnas historik</h2>
+                        <p className="text-sm text-gray-300 mb-3">
+                            Du byter från <span className="font-bold text-white">{renameWarning.from}</span> till <span className="font-bold text-white">{renameWarning.to}</span>.
+                        </p>
+                        <p className="text-sm text-gray-300 mb-3">
+                            Personbästa sparas på övningens namn. Alla resultat som redan loggats ligger kvar under det gamla namnet, och nästa set räknas som ett nytt personbästa från noll — med pling och plats i flödet. Medlemmarnas progression och målvikter börjar också om.
+                        </p>
+                        <p className="text-sm text-gray-300 mb-6">
+                            Det gäller även om du bara rättar en stavning eller lägger till en parentes. Är övningen global påverkas alla organisationer.
+                        </p>
+                        <div className="flex gap-4">
+                            <button onClick={() => setRenameWarning(null)} className="flex-1 bg-gray-600 font-bold py-3 rounded">Behåll namnet</button>
+                            <button onClick={() => { setRenameWarning(null); handleSave(false, true); }} className="flex-1 bg-amber-600 hover:bg-amber-500 font-bold py-3 rounded">Byt namn ändå</button>
+                        </div>
+                    </div>
+                </div>
+            )}
             {duplicateWarning && (
                 <DuplicateExerciseModal
                     isOpen={!!duplicateWarning}
@@ -104,7 +132,7 @@ const ExerciseEditorModal: React.FC<ExerciseEditorModalProps> = ({ exercise, ban
                     }}
                     onCreateAnyway={() => {
                         setDuplicateWarning(null);
-                        handleSave(true);
+                        handleSave(true, true);
                     }}
                     onClose={() => setDuplicateWarning(null)}
                 />

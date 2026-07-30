@@ -292,7 +292,44 @@ export function isWorkoutVisibleForLocations(w: Workout, memberLocationIds: stri
     return w.locationIds.some(id => memberLocationIds.includes(id));
 }
 
-export function getWorkoutStatusInfo(w: Workout, now: number = Date.now()): { label: string; styleClass: string } {
+export function getWorkoutVisibilityIssues(
+    w: Workout,
+    customCategories?: { name: string; isLocked?: boolean }[],
+    assumePublished?: boolean
+): { issues: string[]; hidden: boolean } {
+    const issues: string[] = [];
+    if (!w.isPublished && !assumePublished) return { issues, hidden: false };
+
+    const cat = (w.category || '').trim();
+    if (!cat || cat === 'Ej kategoriserad') {
+        issues.push('Ingen passkategori vald. Passet hittas inte under någon kategori i appen, bara under Alla.');
+    } else if (customCategories && customCategories.length > 0) {
+        const cfg = customCategories.find(c => c.name === cat);
+        if (!cfg) {
+            issues.push(`Kategorin "${cat}" finns inte bland gymmets kategorier.`);
+        } else if (cfg.isLocked) {
+            issues.push(`Kategorin "${cat}" är låst och kräver lösenord i appen.`);
+        }
+    }
+
+    const appOff = w.showInApp === false;
+    const studioOff = w.showInStudio === false;
+    if (appOff && studioOff) {
+        issues.push('Avstängt både i medlemsappen och på skärmen.');
+    } else if (appOff) {
+        issues.push('Visas inte i medlemsappen.');
+    } else if (studioOff) {
+        issues.push('Visas inte på skärmen.');
+    }
+
+    return { issues, hidden: appOff && studioOff };
+}
+
+export function getWorkoutStatusInfo(
+    w: Workout,
+    now: number = Date.now(),
+    customCategories?: { name: string; isLocked?: boolean }[]
+): { label: string; styleClass: string } {
     if (!w.isPublished) {
         if (w.publishAt && w.publishAt > now) {
             const dateStr = new Date(w.publishAt).toLocaleDateString('sv-SE');
@@ -317,6 +354,13 @@ export function getWorkoutStatusInfo(w: Workout, now: number = Date.now()): { la
         return {
             label: 'Visas inte längre',
             styleClass: 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300'
+        };
+    }
+    const vis = getWorkoutVisibilityIssues(w, customCategories);
+    if (vis.hidden) {
+        return {
+            label: 'Publicerad · dold',
+            styleClass: 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300'
         };
     }
     return {

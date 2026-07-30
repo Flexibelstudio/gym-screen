@@ -155,6 +155,18 @@ export function useWorkoutActions(deps: UseWorkoutActionsDeps) {
     const workoutToToggle = workouts.find((w) => w.id === workoutId);
     if (workoutToToggle) {
       if (isPublished) {
+        const untaggedBlocks = workoutToToggle.blocks?.filter(b => !(b.tag || '').trim()) || [];
+        if (untaggedBlocks.length > 0) {
+          const blockTitles = untaggedBlocks.map(b => b.title || 'Namnlöst block').join(', ');
+          await confirm({
+            title: "Blocktyp saknas",
+            message: `Blockets typ styr loggning, målvikter och vilotider och måste därför vara vald innan passet publiceras. Följande block saknar typ: ${blockTitles}`,
+            confirmText: "Gå tillbaka",
+            cancelText: "Avbryt"
+          });
+          return;
+        }
+
         const hasLoggingEligibleBlock = workoutToToggle.blocks?.some(b => getDefaultLoggingForBlockTag(b.tag)) || false;
         const hasAnyLoggingEnabled = workoutToToggle.blocks?.some(b => b.exercises?.some(e => e.loggingEnabled === true)) || false;
 

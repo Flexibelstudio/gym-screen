@@ -588,9 +588,11 @@ export const WorkoutPresentationModal: React.FC<{
                         <div key={block.id || `block-${bIndex}`} className="space-y-4 sm:space-y-5 md:space-y-8 lg:space-y-12 xl:space-y-16">
                             <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 md:gap-6 lg:gap-8 xl:gap-12 border-b-2 border-gray-100 dark:border-gray-800 pb-3 md:pb-6 lg:pb-8 xl:pb-12">
                                 <div className="flex items-center gap-3 md:gap-5 lg:gap-8 xl:gap-10 flex-wrap">
-                                    <span className={`inline-flex items-center px-3 py-1 md:px-4 md:py-2 lg:px-6 lg:py-3 xl:px-8 xl:py-4 rounded-lg text-xs sm:text-sm md:text-xl lg:text-3xl xl:text-4xl font-black uppercase tracking-[0.1em] shadow-sm ${getTagColor(block.tag)}`}>
-                                        {block.tag}
-                                    </span>
+                                    {block.tag && (
+                                        <span className={`inline-flex items-center px-3 py-1 md:px-4 md:py-2 lg:px-6 lg:py-3 xl:px-8 xl:py-4 rounded-lg text-xs sm:text-sm md:text-xl lg:text-3xl xl:text-4xl font-black uppercase tracking-[0.1em] shadow-sm ${getTagColor(block.tag)}`}>
+                                            {block.tag}
+                                        </span>
+                                    )}
                                     <h2 className="text-xl sm:text-2xl md:text-3xl lg:text-4xl xl:text-6xl font-black text-gray-900 dark:text-white uppercase tracking-tight break-words">
                                         {block.title}
                                     </h2>
@@ -769,9 +771,11 @@ const WorkoutBlockCard: React.FC<{
             <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
                 <div className="flex-grow min-w-0">
                     <div className="flex items-center gap-2 mb-2 flex-wrap">
-                        <span className={`inline-flex items-center px-3 py-1 rounded-md text-[10px] font-black uppercase tracking-[0.1em] shadow-sm ${getTagColor(block.tag)}`}>
-                            {block.tag}
-                        </span>
+                        {block.tag && (
+                            <span className={`inline-flex items-center px-3 py-1 rounded-md text-[10px] font-black uppercase tracking-[0.1em] shadow-sm ${getTagColor(block.tag)}`}>
+                                {block.tag}
+                            </span>
+                        )}
                         {block.followMe && (
                             <span className="inline-flex items-center gap-1 px-3 py-1 rounded-md text-[10px] font-black uppercase tracking-[0.1em] bg-indigo-50 text-indigo-600 border border-indigo-100">
                                 <UsersIcon className="w-3.5 h-3.5" /> Följ mig

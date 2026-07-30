@@ -38,7 +38,7 @@ const createNewWorkout = (): Workout => ({
 const createNewBlock = (index: number): WorkoutBlock => ({
   id: `block-${Date.now()}`,
   title: `Block ${index}`,
-  tag: 'Styrka',
+  tag: '',
   setupDescription: '',
   showDescriptionInTimer: false,
   followMe: false,
@@ -453,10 +453,15 @@ const BlockCard: React.FC<BlockCardProps> = ({ block, index, totalBlocks, onUpda
                     <div className="w-full sm:w-48">
                         <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-2 block ml-1">Kategori (Tagg)</label>
                         <select
-                            value={['Styrka', 'Hypertrofi', 'Kondition', 'Rörlighet', 'Teknik', 'Core/Bål', 'Balans', 'Uppvärmning', 'Nedvarvning', 'Finisher'].find(opt => opt.toLowerCase() === (block.tag || 'Styrka').toLowerCase()) || block.tag || 'Styrka'}
+                            value={['Styrka', 'Hypertrofi', 'Kondition', 'Rörlighet', 'Teknik', 'Core/Bål', 'Balans', 'Uppvärmning', 'Nedvarvning', 'Finisher'].find(opt => opt.toLowerCase() === (block.tag || '').toLowerCase()) || block.tag || ''}
                             onChange={e => handleFieldChange('tag', e.target.value)}
-                            className={`${inputBaseClasses} w-full text-lg cursor-pointer`}
+                            className={`${inputBaseClasses} w-full text-lg cursor-pointer ${
+                                !block.tag
+                                    ? '!bg-amber-500 !text-gray-900 !border-amber-500 dark:!bg-amber-500 dark:!text-gray-900'
+                                    : ''
+                            }`}
                         >
+                            <option value="">Välj blocktyp</option>
                             <option value="Styrka">Styrka</option>
                             <option value="Hypertrofi">Hypertrofi</option>
                             <option value="Kondition">Kondition</option>

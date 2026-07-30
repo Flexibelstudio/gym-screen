@@ -6,7 +6,7 @@ import { DumbbellIcon, BuildingIcon, UsersIcon, SpeakerphoneIcon, SparklesIcon, 
 import { motion, AnimatePresence } from 'framer-motion';
 import { AIGeneratorScreen } from '../AIGeneratorScreen';
 import { WorkoutBuilderScreen } from '../WorkoutBuilderScreen';
-import { deepCopyAndPrepareAsNew, getWorkoutStatusInfo } from '../../utils/workoutUtils';
+import { deepCopyAndPrepareAsNew, getWorkoutStatusInfo, getWorkoutVisibilityIssues } from '../../utils/workoutUtils';
 import { ManageBenchmarksModal } from './AdminModals';
 import { updateOrganizationBenchmarks, resolveAndCreateExercises, updateGlobalConfig, listenToGlobalSummerChallenge, listenToMembers, listenToCommunityLogs, listenToCommunityLogsByLocations } from '../../services/firebaseService';
 import { WorkoutPresentationModal } from '../WorkoutDetailScreen';
@@ -580,13 +580,14 @@ const PassProgramModule: React.FC<{
 const ManageWorkoutsView: React.FC<{
     workouts: Workout[];
     locations?: { id: string; name: string }[];
+    organization?: Organization;
     onEdit: (workout: Workout) => void;
     onDelete: (id: string) => void;
     onDuplicate: (workout: Workout, origin?: string) => void;
     onTogglePublish: (id: string, isPublished: boolean, silentPublish?: boolean) => void;
     onCopyToLibrary: (workout: Workout) => void;
     onBack: () => void;
-}> = ({ workouts, locations, onEdit, onDelete, onDuplicate, onTogglePublish, onCopyToLibrary, onBack }) => {
+}> = ({ workouts, locations, organization, onEdit, onDelete, onDuplicate, onTogglePublish, onCopyToLibrary, onBack }) => {
     
     const [activeTab, setActiveTab] = useState<'official' | 'drafts'>('official');
     const [searchTerm, setSearchTerm] = useState('');
@@ -778,6 +779,18 @@ const ManageWorkoutsView: React.FC<{
                                                     </div>
                                                 );
                                             })()}
+                                            {(() => {
+                                                const vis = getWorkoutVisibilityIssues(workout, organization?.globalConfig?.customCategories);
+                                                if (vis.issues.length === 0) return null;
+                                                return (
+                                                    <div className="flex items-start gap-1.5 mt-1">
+                                                        <span className="text-amber-500 text-xs leading-4">⚠</span>
+                                                        <span className="text-[11px] text-amber-600 dark:text-amber-400 leading-4">
+                                                            {vis.issues.join(' ')}
+                                                        </span>
+                                                    </div>
+                                                );
+                                            })()}
                                         </td>
                                         <td className="p-5">
                                             <div className="flex flex-wrap items-center gap-2">
@@ -796,7 +809,7 @@ const ManageWorkoutsView: React.FC<{
                                         </td>
                                         <td className="p-5">
                                             {(() => {
-                                                const statusInfo = getWorkoutStatusInfo(workout);
+                                                const statusInfo = getWorkoutStatusInfo(workout, Date.now(), organization?.globalConfig?.customCategories);
                                                 return (
                                                     <button 
                                                         onClick={() => {
@@ -922,6 +935,27 @@ const ManageWorkoutsView: React.FC<{
                                 <p className="text-gray-600 dark:text-gray-300 mb-6">
                                     Vill du skicka en pushnotis till medlemmarna om att passet är publicerat?
                                 </p>
+                                {(() => {
+                                    const wToPub = workouts.find(w => w.id === publishConfirmWorkoutId);
+                                    if (!wToPub) return null;
+                                    const vis = getWorkoutVisibilityIssues(wToPub, organization?.globalConfig?.customCategories);
+                                    if (vis.issues.length === 0) return null;
+                                    return (
+                                        <div className="mb-6 p-3 bg-amber-50 dark:bg-amber-900/20 rounded-xl border border-amber-200 dark:border-amber-800/60">
+                                            <div className="flex items-start gap-1.5">
+                                                <span className="text-amber-500 text-xs leading-4">⚠</span>
+                                                <span className="text-xs font-bold text-amber-700 dark:text-amber-400">
+                                                    Upplysning:
+                                                </span>
+                                            </div>
+                                            <ul className="mt-1 list-disc list-inside text-xs text-amber-800 dark:text-amber-300 space-y-1">
+                                                {vis.issues.map((issue, idx) => (
+                                                    <li key={idx}>{issue}</li>
+                                                ))}
+                                            </ul>
+                                        </div>
+                                    );
+                                })()}
                                 <div className="flex flex-col gap-3">
                                     <button 
                                         onClick={() => {
@@ -1158,6 +1192,7 @@ const PassProgramContent: React.FC<DashboardContentProps & {
             <ManageWorkoutsView 
                 workouts={workouts}
                 locations={organization?.locations}
+                organization={organization}
                 onEdit={handleEditWorkout}
                 onDelete={onDeleteWorkout}
                 onDuplicate={onDuplicateWorkout}
