@@ -399,7 +399,7 @@ const getGoalCoachingAdvice = (goals: MemberGoals, logs: WorkoutLog[]): { status
         } else {
             return {
                 status: "Sätt igång träningsmaskinen! 🚀",
-                advice: `Du har inte loggat så många pass nyligen än. För en balanserad utveckling, kom igång denna vecka med ett kort, peppande styrkepass och ett skönt konditionspass. Fråga vår AI-coach i chatten nedan om du vill ha hjälp att lägga upp det!`,
+                advice: `Du har inte loggat så många pass nyligen än. För en balanserad utveckling, kom igång denna vecka med ett kort, peppande styrkepass och ett skönt konditionspass.`,
                 color: "blue"
             };
         }
@@ -419,7 +419,7 @@ const getGoalCoachingAdvice = (goals: MemberGoals, logs: WorkoutLog[]): { status
         } else {
             return {
                 status: "Dags att väcka musklerna! 🏋️‍♂️",
-                advice: "För att starta din resa mot ökad styrka, boka in veckans första styrkepass redan idag. Fokusera på basövningar med bra teknik och rörlighet, och glöm inte att söka guidning av AI-coachen i chatten vid minsta osäkerhet!",
+                advice: "För att starta din resa mot ökad styrka, boka in veckans första styrkepass redan idag. Fokusera på basövningar med bra teknik och rörlighet.",
                 color: "blue"
             };
         }
@@ -446,8 +446,8 @@ const getGoalCoachingAdvice = (goals: MemberGoals, logs: WorkoutLog[]): { status
     }
 
     return {
-        status: "Nå dina mål tillsammans med coachen 🌟",
-        advice: `Grymt jobbat med dina uppsatta mål. Försök att planera in 2-3 pass i veckan som stöder dina delmål. Vår AI-coach i chatten står alltid redo med personliga rekommendationer utifrån vad du körde senast!`,
+        status: "Du är på väg mot dina mål 🌟",
+        advice: `Grymt jobbat med dina uppsatta mål. Försök att planera in 2-3 pass i veckan som stöder dina delmål. Här ser du löpande hur din träning ligger till mot dem.`,
         color: "blue"
     };
 };
@@ -3462,7 +3462,7 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                                             🚀 Maximera dina resultat med SMART-metoden!
                                         </h4>
                                         <p className="text-xs text-gray-600 dark:text-gray-300 leading-relaxed font-semibold">
-                                            Genom att sätta ett <strong>SMART-mål</strong> (Specifikt, Mätbart, Accepterat, Relevant och Tidsbestämt) sätter du en tydlig kompass för din hälsoresa. Då får du dessutom en interaktiv progressbar på din översikt och personligt stöttande analyser från din AI-coach här i appen!
+                                            Genom att sätta ett <strong>SMART-mål</strong> (Specifikt, Mätbart, Accepterat, Relevant och Tidsbestämt) sätter du en tydlig kompass för din hälsoresa. Då får du dessutom en interaktiv progressbar på din översikt och en löpande analys av hur din träning ligger till mot målet.
                                         </p>
                                     </div>
                                     <button 
@@ -3485,7 +3485,7 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                                             🎯 Gör dina val till ett SMART mål!
                                         </h4>
                                         <p className="text-xs text-gray-600 dark:text-gray-300 leading-relaxed font-semibold">
-                                            Du har valt dina kategorier! Gör dem ännu mer kraftfulla genom att formulera ett specifikt och tidsbestämt <strong>SMART-mål</strong>. När du gör det kan vi rita upp en interaktiv progressbar på din översikt, och din AI-coach kommer att ge dig anpassade framstegstips löpande!
+                                            Du har valt dina kategorier! Gör dem ännu mer kraftfulla genom att formulera ett specifikt och tidsbestämt <strong>SMART-mål</strong>. När du gör det kan vi rita upp en interaktiv progressbar på din översikt, och du får löpande återkoppling på hur träningen ligger till mot målet.
                                         </p>
                                         <button 
                                             onClick={() => setIsEditingGoals(true)} 
@@ -3530,10 +3530,10 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                                                             </div>
                                                             <div className="bg-white dark:bg-gray-800 p-3.5 rounded-xl border border-gray-100 dark:border-gray-800 text-left">
                                                                 <p className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-1 flex items-center gap-1">
-                                                                    <span>💡</span> Feedback från coachen
+                                                                    <span>🎯</span> Måldatumet är nått
                                                                 </p>
                                                                 <p className="text-xs text-gray-600 dark:text-gray-300 leading-relaxed font-semibold">
-                                                                    Snyggt jobbat att du kämpat på mot ditt mål! Nu när måldatumet är nått är det ett perfekt tillfälle att stanna upp, utvärdera och fira dina framsteg tillsammans med din personliga PT i fickformat. Fråga PT-coachen i chatten vad nästa steg bör bli för att hålla kontinuiteten uppe!
+                                                                    Snyggt jobbat att du kämpat på mot ditt mål! Nu när måldatumet är nått är det ett perfekt tillfälle att stanna upp, utvärdera och fira dina framsteg. Sätt ett nytt mål för att hålla kontinuiteten uppe.
                                                                 </p>
                                                             </div>
                                                             <div className="flex gap-2">
@@ -3564,7 +3564,7 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                                                 )
                                             )}
 
-                                            {/* AI-Coach Insight Card (Steg 3) */}
+                                            {/* Träningsanalyskort (Steg 3) */}
                                             {daysLeft !== null && daysLeft > 0 && (() => {
                                                 const adviceData = getGoalCoachingAdvice(userData.goals!, logs);
                                                 const bgCol = adviceData.color === 'emerald' 
@@ -3580,12 +3580,12 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                                                 return (
                                                     <div className={`bg-gradient-to-r ${bgCol} p-5 rounded-3xl border text-left space-y-3 relative overflow-hidden backdrop-blur-sm shadow-sm animate-fade-in`}>
                                                         <div className="absolute top-0 right-0 p-4 opacity-10">
-                                                            <SparklesIcon className="w-20 h-20 text-primary" />
+                                                            <ChartBarIcon className="w-20 h-20 text-primary" />
                                                         </div>
                                                         <div className="flex items-center gap-2 relative z-10">
-                                                            <SparklesIcon className={`w-5 h-5 ${iconCol}`} />
+                                                            <ChartBarIcon className={`w-5 h-5 ${iconCol}`} />
                                                             <h4 className="font-extrabold text-xs text-gray-900 dark:text-white uppercase tracking-tight leading-none">
-                                                                AI-Coachens analys & rekommendation
+                                                                Din träning mot målen
                                                             </h4>
                                                         </div>
                                                         <div className="space-y-2 relative z-10">
@@ -3594,11 +3594,6 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                                                               </p>
                                                             <p className="text-xs text-gray-600 dark:text-gray-300 leading-relaxed font-semibold">
                                                                 {adviceData.advice}
-                                                            </p>
-                                                        </div>
-                                                        <div className="pt-1 flex justify-end relative z-10">
-                                                            <p className="text-[10px] text-gray-400 uppercase tracking-widest font-black flex items-center gap-1">
-                                                                Öppna coach-chatten nere till höger för din fullständiga plan ↗
                                                             </p>
                                                         </div>
                                                     </div>
