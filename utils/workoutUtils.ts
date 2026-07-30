@@ -55,6 +55,29 @@ export function getBlockProfile(block: WorkoutBlock): TrainingProfile | null {
   };
 }
 
+export function getBlockPlanParts(profile: TrainingProfile | null | undefined): string[] {
+    if (!profile) return [];
+    const parts: string[] = [];
+    if (profile.repMin > 0 && profile.repMax > 0) {
+        parts.push(profile.repMin === profile.repMax
+            ? `Reps ${profile.repMin}`
+            : `Reps ${profile.repMin}–${profile.repMax}`);
+    }
+    if (profile.hasWeightMath !== false && profile.targetPct !== undefined && profile.targetPct > 0) {
+        parts.push(`${profile.targetPct} % av 1RM`);
+    }
+    if (profile.rirTarget !== undefined && profile.rirTarget !== null) {
+        parts.push(profile.rirTarget > 0
+            ? `${profile.rirTarget} reps i reserv`
+            : 'till failure');
+    }
+    if (profile.restSeconds > 0) {
+        parts.push(`vila ${formatRestSeconds(profile.restSeconds)}`);
+    }
+    if (parts.length < 2) return [];
+    return parts;
+}
+
 /**
  * Checks if a new exercise name conflicts with an existing exercise in the bank.
  * Compares case-insensitively, trimmed, and also against names without trailing parentheses
@@ -129,6 +152,10 @@ export const deepCopyAndPrepareAsNew = (workoutToCopy: Workout): Workout => {
  * Calculates 1RM using the Epley formula, taking optional Reps In Reserve (RIR) into account.
  * Returns null if inputs are invalid, if reps > 10 without RIR, or if reps > 12 with RIR.
  */
+export function getSetScore(weight: number, reps: number, oneRm: number): number {
+    return oneRm > 0 ? oneRm * 10000 : (weight > 0 ? weight * 100 + reps : reps);
+}
+
 export const calculate1RM = (weight: number | string, reps: number | string, rir?: number | null): number | null => {
     const w = typeof weight === 'string' ? parseFloat(weight) : weight;
     const r = typeof reps === 'string' ? parseFloat(reps) : reps;

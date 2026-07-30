@@ -140,6 +140,7 @@ export interface WorkoutBlock {
   autoAdvance?: boolean;     // NEW: Automatically start next block
   transitionTime?: number;   // NEW: Rest time between blocks in seconds
   useTrainingProfile?: boolean;   // saknas eller false = blocket styr ingenting
+  showBlockPlan?: boolean;   // saknas eller true = visa blockets upplägg för medlemmen
   profileOverrides?: { repMin?: number; repMax?: number; targetPct?: number; rirTarget?: number; restSeconds?: number };
   progressionModel?: 'none' | 'auto' | 'custom';   // saknas = 'none' (STANDARD ÄNDRAS TILL 'none')
   customProgression?: { incrementKg: number; atReps: number; maxRir: number; requireAllSets: boolean };
@@ -599,6 +600,7 @@ export interface WorkoutLog {
     showOnLeaderboard?: boolean; // NYTT: För att dölja i flöden och topplistor
     totalVolume?: number; // NYTT: Total vikt x reps under passet
     inStudio?: boolean; // NYTT: Indikerar om träningspasset genomfördes på plats på gymmet
+    sessionMode?: 'normal' | 'fatigued';
     imageUrl?: string; // NYTT: Alternativ sommarfeedsbild bifogad till passet
     summerPoints?: number; // NYTT: Poäng i sommarutmaningen (1, 2 eller 3)
     reachedSummerGoal?: boolean; // NYTT: Om användaren uppnått veckans sommar mål med detta pass

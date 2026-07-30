@@ -7,9 +7,6 @@ import { StudioEvent, TimerStatus } from "../types";
 import { Confetti } from "./WorkoutCompleteModal";
 
 const DISPLAY_DURATION = 7000;
-// TTL (Time To Live) för events om man t.ex. tappar nätet och återansluter.
-// Vi visar inte events som är äldre än 10 minuter i en "live"-kö.
-const EVENT_TTL = 10 * 60 * 1000;
 
 const playBellSound = () => {
   const ctx = getAudioContext();
@@ -78,6 +75,17 @@ export const PBOverlay: React.FC<PBOverlayProps> = React.memo(({ isGrattisOpen }
 
   // För att hålla koll på föregående status
   const prevStatusRef = useRef<TimerStatus | undefined>(undefined);
+  const activeWorkoutIdRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    const currentId = selectedStudio?.remoteState?.activeWorkoutId || null;
+    if (activeWorkoutIdRef.current !== null && currentId !== activeWorkoutIdRef.current) {
+      queueRef.current = [];
+      setCurrentEvent(null);
+      isLocked.current = false;
+    }
+    activeWorkoutIdRef.current = currentId;
+  }, [selectedStudio?.remoteState?.activeWorkoutId]);
 
   // State för att hålla koll på om vi har väntat 5 sekunder i Grattis-vyn
   const [isGrattisReady, setIsGrattisReady] = useState(false);
@@ -102,8 +110,6 @@ export const PBOverlay: React.FC<PBOverlayProps> = React.memo(({ isGrattisOpen }
     const unsubscribe = listenForStudioEvents(
       selectedOrganization.id,
       (event) => {
-        const now = Date.now();
-
         const resolvedLocationId = selectedStudio?.locationId ?? null;
         const numLocations = selectedOrganization?.locations?.length ?? 0;
         const shouldFilter = !!resolvedLocationId && numLocations >= 2;
@@ -120,12 +126,7 @@ export const PBOverlay: React.FC<PBOverlayProps> = React.memo(({ isGrattisOpen }
           return;
         }
 
-        // 2. TTL-spärr: Är eventet för gammalt (t.ex. vid återanslutning efter lång tid)?
-        if (now - event.timestamp > EVENT_TTL) {
-          return;
-        }
-
-        // 3. Dubblett-spärr
+        // 2. Dubblett-spärr
         if (processedIds.current.has(event.id)) {
           return;
         }
@@ -171,12 +172,6 @@ export const PBOverlay: React.FC<PBOverlayProps> = React.memo(({ isGrattisOpen }
       if (!isAllowedToShowPB) {
         return;
       }
-
-      // Rensa gamla events från kön (äldre än 10 minuter)
-      const now = Date.now();
-      queueRef.current = queueRef.current.filter(
-        (event) => now - event.timestamp <= EVENT_TTL,
-      );
 
       // Om vi redan visar något eller kön är tom, gör inget
       if (isLocked.current || queueRef.current.length === 0) {

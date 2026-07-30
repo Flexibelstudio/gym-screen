@@ -1,8 +1,8 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { CalculatorIcon, CheckIcon, CloseIcon, PlusIcon } from '../../../components/icons';
 import { PersonalBest } from '../../../types';
-import { calculate1RM, getRepsForPercentage, getTargetWeightForExercise, getRestGuidelineForPercentage, formatRestSeconds, getRestSecondsForPercentage, TrainingProfile } from '../../../utils/workoutUtils';
+import { calculate1RM, getRepsForPercentage, getTargetWeightForExercise, getRestSecondsForPercentage, TrainingProfile, getSetScore } from '../../../utils/workoutUtils';
 import { LocalExerciseResult, LastPerformanceRecord, LocalSetDetail } from './types';
 import { ChevronDownIcon, formatLastPerformance, GROUP_COLORS, GRID_COLS_MAP, DEFAULT_REST_SECONDS } from './utils';
 
@@ -93,6 +93,9 @@ export const ExerciseLogCard: React.FC<{
              }
          }
          setInvalidSetIdx(null);
+         if (wasCompleted) {
+             setSetFeedback(null);
+         }
 
          if (window.navigator.vibrate) {
              window.navigator.vibrate(wasCompleted ? 5 : 15);
@@ -102,6 +105,43 @@ export const ExerciseLogCard: React.FC<{
          const isNowCompleted = !wasCompleted;
          newSets[index] = { ...newSets[index], completed: isNowCompleted };
          onUpdate({ setDetails: newSets });
+
+         if (!wasCompleted && isNowCompleted && showWeight && showReps) {
+             const s = result.setDetails[index];
+             const w = parseFloat(s.weight) || 0;
+             const r = parseFloat(s.reps) || 0;
+             if (w > 0 && r > 0) {
+                 const oneRm = calculate1RM(w, r, s.rir) || 0;
+                 const score = getSetScore(w, r, oneRm);
+
+                 if (score <= sessionBestRef.current) {
+                     setSetFeedback(null);
+                 } else {
+                     const pbW = personalBest?.weight || 0;
+                     const pbR = personalBest?.reps || 0;
+                     const pbRm = personalBest?.calculated1RM || 0;
+                     const pbScore = personalBest ? getSetScore(pbW, pbR, pbRm) : -1;
+
+                     let text = '';
+                     if (score > pbScore && score > sessionBestRef.current) {
+                         text = 'Bästa setet du gjort på den här övningen.';
+                     } else {
+                         const lastW = parseFloat(lastPerformance?.weight as any) || 0;
+                         const lastR = parseFloat(lastPerformance?.reps as any) || 0;
+                         if (lastW > 0 && w > lastW) {
+                             const diff = String(Math.round((w - lastW) * 10) / 10).replace('.', ',');
+                             text = `+${diff} kg sen sist.`;
+                         } else if (lastW > 0 && w === lastW && lastR > 0 && r > lastR) {
+                             const extra = r - lastR;
+                             text = extra === 1 ? 'Samma vikt, ett rep till.' : `Samma vikt, ${extra} reps till.`;
+                         }
+                     }
+
+                     if (score > sessionBestRef.current) { sessionBestRef.current = score; }
+                     setSetFeedback(text ? { index, text } : null);
+                 }
+             }
+         }
 
          if (!wasCompleted && isNowCompleted && onStartRestTimer) {
              let restSec = 0;
@@ -135,6 +175,8 @@ export const ExerciseLogCard: React.FC<{
     const [isNoteActive, setIsNoteActive] = useState(true);
     const [isNoteExpanded, setIsNoteExpanded] = useState(false);
     const [invalidSetIdx, setInvalidSetIdx] = useState<number | null>(null);
+    const [setFeedback, setSetFeedback] = useState<{ index: number; text: string } | null>(null);
+    const sessionBestRef = useRef<number>(0);
 
     // Calculate/Get current 1RM for this exercise
     const current1RM = useMemo(() => {
@@ -213,27 +255,18 @@ export const ExerciseLogCard: React.FC<{
                                 </div>
                             ) : null}
 
-                            {/* Target Weight Badge & RIR Target */}
+                            {/* Target Weight Badge */}
                             {(() => {
                                 const hasWeightMath = showWeight && showReps && (blockProfile ? blockProfile.hasWeightMath !== false : true);
-                                const rirTargetVal = (blockProfile && blockProfile.hasWeightMath !== false && blockProfile.rirTarget !== undefined && blockProfile.rirTarget !== null) ? blockProfile.rirTarget : null;
 
                                 let sourceSuffix = '';
                                 if (targetInfo.pctSource === 'coach') sourceSuffix = 'coachens upplägg';
                                 else if (targetInfo.pctSource === 'session') sourceSuffix = 'ditt val idag';
 
-                                let restText = '';
-                                if (blockProfile && blockProfile.restSeconds && blockProfile.restSeconds > 0) {
-                                    restText = formatRestSeconds(blockProfile.restSeconds);
-                                } else if (targetInfo.targetPct && targetInfo.targetPct > 0) {
-                                    restText = getRestGuidelineForPercentage(targetInfo.targetPct);
-                                }
-
                                 let underradText = '';
                                 if (targetInfo.targetPct) {
                                     const parts = [`${targetInfo.targetPct} % av 1RM`];
                                     if (sourceSuffix) parts.push(sourceSuffix);
-                                    if (restText) parts.push(`vila ${restText}`);
                                     if (sessionMode === 'fatigued') parts.push('sliten idag');
                                     underradText = parts.join(' · ');
                                 } else if (sessionMode === 'fatigued') {
@@ -310,13 +343,6 @@ export const ExerciseLogCard: React.FC<{
                                                 </div>
                                             );
                                         })()}
-
-                                        {/* RIR Target Badge */}
-                                        {rirTargetVal !== null && (
-                                            <div className="inline-flex items-center gap-1 text-gray-500 dark:text-gray-400 text-xs font-medium">
-                                                <span>{rirTargetVal > 0 ? `Sikta på ${rirTargetVal} kvar` : 'Kör till failure'}</span>
-                                            </div>
-                                        )}
                                     </>
                                 );
                             })()}
@@ -518,10 +544,17 @@ export const ExerciseLogCard: React.FC<{
                                         </span>
                                     </div>
                                 )}
+                                {setFeedback && setFeedback.index === index && (
+                                    <div className="mt-1.5 mb-1 px-3 py-2 rounded-xl bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800/60 animate-fade-in">
+                                        <span className="text-xs font-bold text-green-700 dark:text-green-400">
+                                            {setFeedback.text}
+                                        </span>
+                                    </div>
+                                )}
                                 {showRirRow && (
                                     <div className="mt-1.5 mb-2 p-2.5 bg-gray-50 dark:bg-gray-800/60 rounded-xl border border-gray-100 dark:border-gray-800 flex flex-wrap items-center justify-between gap-2 animate-fade-in">
                                         <span className="text-xs font-bold text-gray-600 dark:text-gray-300">
-                                            Kvar i tanken?
+                                            Reps i reserv
                                         </span>
                                         <div className="flex items-center gap-1.5">
                                             {[

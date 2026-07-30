@@ -12,7 +12,7 @@ import { ParticipantFinishList } from './timer/ParticipantFinishList';
 import { DumbbellIcon, InformationCircleIcon, LightningIcon, SparklesIcon, ChevronRightIcon, ClockIcon, PlayIcon, SettingsIcon, RefreshIcon } from './icons'; // Added SettingsIcon if available, else standard icons
 import { useStudio } from '../context/StudioContext';
 import { useAuth } from '../context/AuthContext';
-import { getSideLabel } from '../utils/workoutUtils';
+import { getSideLabel, getBlockProfile, getBlockPlanParts } from '../utils/workoutUtils';
 
 // --- Constants ---
 const HYROX_RIGHT_PANEL_WIDTH = '450px';
@@ -2661,9 +2661,22 @@ export const TimerScreen: React.FC<TimerScreenProps> = React.memo(({
             {/* STATUS (ARBETE/VILA) ELLER BLOCK RUBRIK - Överst */}
             <div className="text-center z-20 w-full px-10 mb-1">
                 {isAutostartMode ? (
-                    <h1 className={`font-black text-white/90 uppercase tracking-tighter text-xl sm:text-2xl md:text-3xl drop-shadow-lg overflow-visible whitespace-nowrap leading-none ${isTransitioning ? 'animate-pulse' : ''}`}>
-                        {isTransitioning ? "VILA - GÖR REDO" : block.title}
-                    </h1>
+                    <>
+                        <h1 className={`font-black text-white/90 uppercase tracking-tighter text-xl sm:text-2xl md:text-3xl drop-shadow-lg overflow-visible whitespace-nowrap leading-none ${isTransitioning ? 'animate-pulse' : ''}`}>
+                            {isTransitioning ? "VILA - GÖR REDO" : block.title}
+                        </h1>
+                        {(() => {
+                            const planBlock = isTransitioning ? nextBlock : block;
+                            if (!planBlock || (planBlock as any).showBlockPlan === false) return null;
+                            const parts = getBlockPlanParts(getBlockProfile(planBlock as any));
+                            if (parts.length === 0) return null;
+                            return (
+                                <p className="font-bold text-white/70 uppercase tracking-widest drop-shadow-md text-sm sm:text-base md:text-lg mt-1 whitespace-nowrap">
+                                    {parts.join(' · ')}
+                                </p>
+                            );
+                        })()}
+                    </>
                 ) : (
                     <h2 className={`font-black text-white tracking-widest uppercase drop-shadow-xl animate-pulse w-full text-center text-3xl sm:text-4xl lg:text-5xl overflow-visible whitespace-nowrap leading-none ${isLobbyMode ? 'opacity-100' : ''}`}>
                         {isLobbyMode ? "REDO" : statusLabel}
@@ -2702,6 +2715,17 @@ export const TimerScreen: React.FC<TimerScreenProps> = React.memo(({
                     <h1 className="font-black text-white/90 uppercase tracking-tighter text-xl sm:text-2xl md:text-3xl drop-shadow-lg overflow-visible whitespace-nowrap leading-none">
                         {isTransitioning ? nextBlock?.title : block.title}
                     </h1>
+                    {(() => {
+                        const planBlock = isTransitioning ? nextBlock : block;
+                        if (!planBlock || (planBlock as any).showBlockPlan === false) return null;
+                        const parts = getBlockPlanParts(getBlockProfile(planBlock as any));
+                        if (parts.length === 0) return null;
+                        return (
+                            <p className="font-bold text-white/70 uppercase tracking-widest drop-shadow-md text-sm sm:text-base md:text-lg mt-1 whitespace-nowrap">
+                                {parts.join(' · ')}
+                            </p>
+                        );
+                    })()}
                 </div>
             )}
 

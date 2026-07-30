@@ -7,27 +7,32 @@ import { LastPerformanceRecord } from './types';
 
 export const PreGameView: React.FC<{
     workoutTitle: string;
-    exercises: { id: string; name: string; exerciseName?: string }[];
+    exercises: { id: string; name: string; exerciseName?: string; blockId?: string }[];
+    blocks?: { blockId: string; title: string; planPct: number }[];
+    blockPct?: Record<string, number | null>;
+    onChangeBlockPct?: (blockId: string, pct: number | null) => void;
     aiProgressionPrompt?: string;
     history: Record<string, LastPerformanceRecord>;
     personalBests: Record<string, PersonalBest>;
     userId?: string;
     onStart: (mode: 'normal' | 'fatigued') => void;
     onCancel: () => void;
-}> = ({ workoutTitle, exercises, aiProgressionPrompt, history, personalBests, userId, onStart, onCancel }) => {
+}> = ({ workoutTitle, exercises, blocks = [], blockPct = {}, onChangeBlockPct, aiProgressionPrompt, history, personalBests, userId, onStart, onCancel }) => {
     const [mode, setMode] = useState<'normal' | 'fatigued'>('normal');
 
     const exerciseTargets = useMemo(() => {
         return exercises.map(ex => {
             const exName = ex.exerciseName || ex.name || '';
+            const b = ex.blockId ? blocks.find(x => x.blockId === ex.blockId) : undefined;
             const res = getTargetWeightForExercise({
                 exerciseName: exName,
                 personalBests,
                 history,
                 userId,
-                mode
+                mode,
+                prescribedPct: b ? b.planPct : null,
+                sessionPct: ex.blockId ? (blockPct[ex.blockId] ?? null) : null
             });
-
             return {
                 exName,
                 bas: res.base,
@@ -36,7 +41,7 @@ export const PreGameView: React.FC<{
                 basSource: res.source
             };
         });
-    }, [exercises, history, personalBests, userId, mode]);
+    }, [exercises, history, personalBests, userId, mode, blocks, blockPct]);
 
     return (
         <div className="flex flex-col h-full bg-white dark:bg-gray-900 text-gray-900 dark:text-white relative overflow-hidden animate-fade-in">
@@ -73,6 +78,43 @@ export const PreGameView: React.FC<{
                         </button>
                     </div>
                 </div>
+
+                {blocks.length > 0 && (
+                    <div className="mb-8">
+                        <p className="text-center text-xs font-black uppercase text-gray-400 dark:text-gray-500 mb-3 tracking-wider leading-[1.2] pt-[0.1em]">Intensitet per block</p>
+                        <div className="space-y-2.5">
+                            {blocks.map(b => {
+                                const current = blockPct[b.blockId] ?? b.planPct;
+                                const isChanged = current !== b.planPct;
+                                const step = (delta: number) => {
+                                    const next = Math.max(40, Math.min(100, current + delta));
+                                    onChangeBlockPct?.(b.blockId, next === b.planPct ? null : next);
+                                };
+                                return (
+                                    <div key={b.blockId} className="flex items-center justify-between bg-white dark:bg-gray-800/80 p-3.5 rounded-xl border border-gray-100 dark:border-gray-700/80 shadow-sm">
+                                        <div className="min-w-0 pr-2">
+                                            <span className="text-sm font-bold text-gray-900 dark:text-white block truncate uppercase">{b.title}</span>
+                                            {isChanged && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => onChangeBlockPct?.(b.blockId, null)}
+                                                    className="text-[11px] font-semibold text-gray-400 dark:text-gray-500 hover:text-primary transition-colors"
+                                                >
+                                                    Planen: {b.planPct} % — återställ
+                                                </button>
+                                            )}
+                                        </div>
+                                        <div className="flex items-center gap-2 flex-shrink-0">
+                                            <button type="button" onClick={() => step(-5)} className="w-11 h-11 rounded-xl bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 font-black text-lg active:scale-90 transition-all">−</button>
+                                            <span className={`text-base font-black tabular-nums w-16 text-center ${isChanged ? 'text-primary' : 'text-gray-900 dark:text-white'}`}>{current} %</span>
+                                            <button type="button" onClick={() => step(5)} className="w-11 h-11 rounded-xl bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 font-black text-lg active:scale-90 transition-all">+</button>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </div>
+                )}
 
                 {/* 3. TEXTER */}
                 <div className="bg-gray-50 dark:bg-gray-800/60 border border-gray-200 dark:border-gray-700/80 rounded-2xl p-5 mb-6">

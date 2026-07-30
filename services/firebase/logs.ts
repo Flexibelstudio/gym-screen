@@ -2,7 +2,7 @@ import {
   collection, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, query, where, or, orderBy, limit, onSnapshot, writeBatch, serverTimestamp, runTransaction, deleteField, getCountFromServer, increment 
 } from 'firebase/firestore';
 import { db, isOffline, sanitizeData, getPBId, getLeaderboardDocId } from './init';
-import { calculate1RM, isWorkoutMilestone, getYearWeek } from '../../utils/workoutUtils';
+import { calculate1RM, isWorkoutMilestone, getYearWeek, getSetScore } from '../../utils/workoutUtils';
 import { getOrganizationById } from './organizations';
 import { getGlobalSummerChallenge } from './misc';
 import { WorkoutLog, PersonalBest, WorkoutResult, MemberGoals, Workout, StudioEvent } from '../../types';
@@ -137,6 +137,13 @@ export const saveWorkoutLog = async (logData: any): Promise<{ log: any, newRecor
         } catch (e) { console.warn("Failed to enrich log", e); }
     }
 
+    if (!newLog.locationId) {
+        const org = await getOrganizationById(logData.organizationId);
+        if (org && org.locations && org.locations.length === 1) {
+            newLog.locationId = org.locations[0].id;
+        }
+    }
+
     const batch = writeBatch(db);
 
     if (logData.memberId && logData.exerciseResults) {
@@ -159,8 +166,8 @@ export const saveWorkoutLog = async (logData: any): Promise<{ log: any, newRecor
                             oneRm = calculate1RM(w, r, rirVal) || 0;
                         }
                         
-                        const currentScore = oneRm > 0 ? oneRm * 10000 : (w > 0 ? w * 100 + r : r);
-                        const bestScore = bestSet ? (bestSet.oneRm > 0 ? bestSet.oneRm * 10000 : (bestSet.weight > 0 ? bestSet.weight * 100 + bestSet.reps : bestSet.reps)) : -1;
+                        const currentScore = getSetScore(w, r, oneRm);
+                        const bestScore = bestSet ? getSetScore(bestSet.weight, bestSet.reps, bestSet.oneRm) : -1;
                         
                         if (currentScore > bestScore) {
                             bestSet = { weight: w, reps: r, oneRm };
@@ -183,10 +190,10 @@ export const saveWorkoutLog = async (logData: any): Promise<{ log: any, newRecor
                         const ew = existingPB.weight || 0;
                         const er = existingPB.reps || 0;
                         const eRm = existingPB.calculated1RM || 0;
-                        existingScore = eRm > 0 ? eRm * 10000 : (ew > 0 ? ew * 100 + er : er);
+                        existingScore = getSetScore(ew, er, eRm);
                     }
 
-                    const newScore = bestSet.oneRm > 0 ? bestSet.oneRm * 10000 : (bestSet.weight > 0 ? bestSet.weight * 100 + bestSet.reps : bestSet.reps);
+                    const newScore = getSetScore(bestSet.weight, bestSet.reps, bestSet.oneRm);
 
                     if (newScore > existingScore) {
                         const pbData: PersonalBest = { 
@@ -230,7 +237,7 @@ export const saveWorkoutLog = async (logData: any): Promise<{ log: any, newRecor
                     id: eventRef.id,
                     type: 'pb',
                     organizationId: logData.organizationId,
-                    locationId: logData.locationId || userData?.locationId || null, 
+                    locationId: newLog.locationId || logData.locationId || userData?.locationId || null, 
                     timestamp: Date.now(),
                     data: { 
                         userName: newLog.memberName || 'En medlem', 
@@ -241,13 +248,6 @@ export const saveWorkoutLog = async (logData: any): Promise<{ log: any, newRecor
                 batch.set(eventRef, eventData);
             }
         } catch (e) { console.error("PB calculation failed", e); }
-    }
-
-    if (!newLog.locationId) {
-        const org = await getOrganizationById(logData.organizationId);
-        if (org && org.locations && org.locations.length === 1) {
-            newLog.locationId = org.locations[0].id;
-        }
     }
 
     batch.set(newLogRef, newLog);

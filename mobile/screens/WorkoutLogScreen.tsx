@@ -6,7 +6,7 @@ import { useAuth } from '../../context/AuthContext';
 import { CloseIcon, InformationCircleIcon, PlusIcon, TrashIcon, CalculatorIcon } from '../../components/icons'; 
 import { Modal } from '../../components/ui/Modal';
 import { ConfirmModal } from '../../components/ui/ConfirmModal';
-import { calculate1RM, findDuplicateBankExercise, canonicalizeExerciseName, getBlockProfile, TrainingProfile } from '../../utils/workoutUtils';
+import { calculate1RM, findDuplicateBankExercise, canonicalizeExerciseName, getBlockProfile, getBlockPlanParts, TrainingProfile } from '../../utils/workoutUtils';
 import { playTimerSound } from '../../hooks/useWorkoutTimer';
 import { DuplicateExerciseModal } from '../../components/DuplicateExerciseModal';
 import { ExerciseResult, WorkoutDiploma, WorkoutLog, BankExercise, Workout, PersonalBest } from '../../types';
@@ -107,6 +107,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
   const [viewMode, setViewMode] = useState<'pre-game' | 'logging'>(isManualMode ? 'logging' : 'pre-game');
   const [sessionMode, setSessionMode] = useState<'normal' | 'fatigued'>('normal');
   const [sessionPctMap, setSessionPctMap] = useState<Record<string, number | null>>({});
+  const [sessionPctByBlock, setSessionPctByBlock] = useState<Record<string, number | null>>({});
   const [customActivity, setCustomActivity] = useState({ name: '', duration: '', distance: '', calories: '' });
 
   const blockProfilesMap = useMemo(() => {
@@ -119,6 +120,18 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
       });
       return map;
   }, [workout]);
+
+  const preGameBlocks = useMemo(() => {
+      if (!workout?.blocks) return [];
+      return workout.blocks
+          .map(b => ({
+              blockId: b.id,
+              title: b.title,
+              planPct: blockProfilesMap[b.id]?.targetPct || 0,
+              hasWeightMath: blockProfilesMap[b.id]?.hasWeightMath !== false,
+          }))
+          .filter(b => b.hasWeightMath && b.planPct > 0);
+  }, [workout, blockProfilesMap]);
 
   const canEditTrackingFields = useMemo(() => {
       if (isManualMode) return true;
@@ -535,6 +548,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
         setViewMode(isManualMode ? 'logging' : 'pre-game');
         setLogStep('exercises');
         setSessionPctMap({});
+        setSessionPctByBlock({});
         
         try {
             let foundWorkout: any = null;
@@ -799,6 +813,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
 
   const handleCancel = (isSuccess = false, diploma: WorkoutDiploma | null = null) => {
     setSessionPctMap({});
+    setSessionPctByBlock({});
     if (isSuccess) {
         localStorage.removeItem(ACTIVE_LOG_STORAGE_KEY);
     }
@@ -1052,6 +1067,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
               benchmarkId: benchmarkDefinition?.id,
               totalVolume: totalVolume > 0 ? totalVolume : undefined,
               inStudio: inStudio,
+              sessionMode: sessionMode,
               locationId: userData?.locationId,
           };
 
@@ -1260,7 +1276,14 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
       return (
           <PreGameView 
               workoutTitle={workout?.title || 'Träningspass'}
-              exercises={exerciseResults.map(e => ({ id: e.exerciseId, name: e.exerciseName, exerciseName: e.exerciseName }))}
+              exercises={exerciseResults.map(e => ({ id: e.exerciseId, name: e.exerciseName, exerciseName: e.exerciseName, blockId: e.blockId }))}
+              blocks={preGameBlocks}
+              blockPct={sessionPctByBlock}
+              onChangeBlockPct={(blockId, pct) => setSessionPctByBlock(prev => {
+                  const next = { ...prev };
+                  if (pct === null) { delete next[blockId]; } else { next[blockId] = pct; }
+                  return next;
+              })}
               aiProgressionPrompt={workout?.aiProgressionPrompt}
               history={history}
               personalBests={personalBests}
@@ -1492,6 +1515,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
                                                 personalBest={personalBests[result.exerciseName.toLowerCase().trim()]}
                                                 isLastInGroup={isLastInGroup}
                                                 onAddGroupSet={() => handleAddGroupSet(result.groupId!)}
+                                                sessionPct={sessionPctMap[canonicalizeExerciseName(result.exerciseName)] ?? sessionPctMap[result.exerciseName] ?? (result.blockId ? sessionPctByBlock[result.blockId] : undefined) ?? null}
                                                 onOpenCalculator={(ctx) => {
                                                     setCalculatorContext({
                                                         ...ctx,
@@ -1592,6 +1616,17 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
                                                                 </>
                                                             )}
                                                         </div>
+                                                        {(() => {
+                                                            const group_block = workout?.blocks?.find(b => b.id === group.blockId);
+                                                            if (group_block && (group_block as any).showBlockPlan === false) return null;
+                                                            const parts = getBlockPlanParts(blockProfilesMap[group.blockId]);
+                                                            if (parts.length === 0) return null;
+                                                            return (
+                                                                <div className="text-[11px] text-gray-500 dark:text-gray-400 mt-1">
+                                                                    {parts.join(' · ')}
+                                                                </div>
+                                                            );
+                                                        })()}
                                                     </div>
                                                 </div>
                                                 <div className="flex items-center gap-2 pr-1">
@@ -1744,7 +1779,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
                                                                                                     personalBests={personalBests}
                                                                                                     sessionMode={sessionMode}
                                                                                                     blockProfile={result.blockId ? blockProfilesMap[result.blockId] : undefined}
-                                                                                                    sessionPct={sessionPctMap[canonicalizeExerciseName(result.exerciseName)] ?? sessionPctMap[result.exerciseName] ?? null}
+                                                                                                    sessionPct={sessionPctMap[canonicalizeExerciseName(result.exerciseName)] ?? sessionPctMap[result.exerciseName] ?? (result.blockId ? sessionPctByBlock[result.blockId] : undefined) ?? null}
                                                                                                     onSelectSessionPct={(pct) => handleSelectSessionPct(result.exerciseName, pct)}
                                                                                                     onStartRestTimer={startRestTimer}
                                                                                                     onOpenCalculator={(ctx) => {
@@ -1796,7 +1831,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
                                                                             personalBests={personalBests}
                                                                             sessionMode={sessionMode}
                                                                             blockProfile={result.blockId ? blockProfilesMap[result.blockId] : undefined}
-                                                                            sessionPct={sessionPctMap[canonicalizeExerciseName(result.exerciseName)] ?? sessionPctMap[result.exerciseName] ?? null}
+                                                                            sessionPct={sessionPctMap[canonicalizeExerciseName(result.exerciseName)] ?? sessionPctMap[result.exerciseName] ?? (result.blockId ? sessionPctByBlock[result.blockId] : undefined) ?? null}
                                                                             onSelectSessionPct={(pct) => handleSelectSessionPct(result.exerciseName, pct)}
                                                                             onStartRestTimer={startRestTimer}
                                                                              onOpenCalculator={(ctx) => {
