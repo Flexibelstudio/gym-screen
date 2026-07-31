@@ -98,7 +98,7 @@ export function useWorkoutActions(deps: UseWorkoutActionsDeps) {
   };
 
   const handleSaveAndNavigate = async (workout: Workout, startFirstBlock?: boolean) => {
-    const isMemberRole = sessionRole === 'member';
+    const isMemberRole = sessionRole === 'member' || isStudioMode;
 
     if (sessionRole === 'member' && !isStudioMode && currentUser?.uid) {
       await saveCustomProgram(currentUser.uid, workout);
@@ -139,7 +139,7 @@ export function useWorkoutActions(deps: UseWorkoutActionsDeps) {
   };
 
   const handleSaveOnly = async (workout: Workout) => {
-    const isMemberRole = sessionRole === 'member';
+    const isMemberRole = sessionRole === 'member' || isStudioMode;
     if (sessionRole === 'member' && !isStudioMode && currentUser?.uid) {
       await saveCustomProgram(currentUser.uid, workout);
       window.dispatchEvent(new Event('customProgramsUpdated'));
@@ -329,13 +329,12 @@ export function useWorkoutActions(deps: UseWorkoutActionsDeps) {
   };
 
   const handleWorkoutInterpretedFromNote = (workout: Workout) => {
-    const isMember = sessionRole === 'member';
     const workoutWithOrg = {
       ...workout,
       organizationId: selectedOrganization?.id || '',
-      isMemberDraft: isMember,
-      isPublished: !isMember,
-      silentPublish: !isMember ? true : workout.silentPublish,
+      isMemberDraft: false,
+      isPublished: true,
+      silentPublish: true,
     };
     setActiveWorkout(workoutWithOrg);
     setIsEditingNewDraft(true);
