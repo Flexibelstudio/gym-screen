@@ -390,6 +390,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
   const [expandedSubGroups, setExpandedSubGroups] = useState<Record<string, boolean>>({});
   const [logStep, setLogStep] = useState<'exercises' | 'summary'>('exercises');
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
+  const hasAutoExpandedRef = useRef(false);
 
   const blockGroups = useMemo(() => {
       const groups: BlockGroup[] = [];
@@ -409,6 +410,19 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
       });
       return groups;
   }, [exerciseResults]);
+
+  useEffect(() => {
+      if (hasAutoExpandedRef.current) return;
+      if (viewMode !== 'logging') return;
+      if (blockGroups.length === 0) return;
+      const firstUnfinished = blockGroups.find(g =>
+          g.exercises.some(e => e.result.setDetails.some(s => !s.completed))
+      ) || blockGroups[0];
+      if (firstUnfinished) {
+          setExpandedBlockId(firstUnfinished.blockId);
+          hasAutoExpandedRef.current = true;
+      }
+  }, [blockGroups, viewMode]);
 
   const getBlockCompletionInfo = (group: BlockGroup) => {
       let totalSets = 0;
@@ -450,7 +464,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
   const getValidationErrors = () => {
       const errors: string[] = [];
       if (inStudio === null) {
-          errors.push("Du måste välja om du tränat på gymmet eller på annan plats.");
+          errors.push("Välj var passet genomfördes — knapparna finns ovanför felrutan.");
       }
       if (isManualMode) {
           if (exerciseResults.length === 0) {
@@ -1949,7 +1963,11 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
                                       scrollContainerRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
                                   }, 50);
                               }}
-                              className="w-full bg-primary hover:brightness-110 text-white font-black py-5 rounded-2xl shadow-xl shadow-primary/20 transition-all transform active:scale-95 text-lg uppercase tracking-tight flex items-center justify-center gap-2"
+                              className={`w-full font-black py-5 rounded-2xl transition-all transform active:scale-95 text-lg uppercase tracking-tight flex items-center justify-center gap-2 ${
+                                  !isManualMode && uncheckedSetsCount > 0
+                                      ? 'bg-transparent border-2 border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400'
+                                      : 'bg-primary hover:brightness-110 text-white shadow-xl shadow-primary/20'
+                              }`}
                           >
                               <span>Gå vidare till sammanfattning</span>
                               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="3" stroke="currentColor" className="w-5 h-5">
@@ -2109,14 +2127,26 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
                                   <button
                                       type="button"
                                       onClick={() => setInStudio(true)}
-                                      className={`py-4 px-3 rounded-2xl border-2 font-bold text-sm transition-all ${inStudio === true ? 'border-primary bg-primary/10 text-primary' : 'border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800'}`}
+                                      className={`py-4 px-3 rounded-2xl border-2 font-bold text-sm transition-all ${
+                                          inStudio === true
+                                              ? 'border-primary bg-primary/10 text-primary'
+                                              : (attemptedSubmit && inStudio !== false)
+                                                  ? 'border-red-500 bg-white dark:bg-gray-900 text-gray-600 dark:text-gray-400'
+                                                  : 'border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800'
+                                      }`}
                                   >
                                       {selectedOrganization?.name || 'På Gymmet'}
                                   </button>
                                   <button
                                       type="button"
                                       onClick={() => setInStudio(false)}
-                                      className={`py-4 px-3 rounded-2xl border-2 font-bold text-sm transition-all ${inStudio === false ? 'border-primary bg-primary/10 text-primary' : 'border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800'}`}
+                                      className={`py-4 px-3 rounded-2xl border-2 font-bold text-sm transition-all ${
+                                          inStudio === false
+                                              ? 'border-primary bg-primary/10 text-primary'
+                                              : (attemptedSubmit && inStudio !== true)
+                                                  ? 'border-red-500 bg-white dark:bg-gray-900 text-gray-600 dark:text-gray-400'
+                                                  : 'border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800'
+                                      }`}
                                   >
                                       Annan plats
                                   </button>
@@ -2161,7 +2191,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
                                   <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="3" stroke="currentColor" className="w-4 h-4">
                                       <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18" />
                                   </svg>
-                                  <span>Gå tillbaka</span>
+                                  <span>Tillbaka till övningarna</span>
                               </button>
                               
                               <div className="flex-[2] flex flex-col items-center gap-3">
