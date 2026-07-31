@@ -91,7 +91,7 @@ const SavedWorkoutsScreen: React.FC<SavedWorkoutsScreenProps> = ({ workouts, onS
                                     <span className="text-xs font-medium px-2.5 py-1 rounded-md bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300">
                                         {workout.blocks.length} block
                                     </span>
-                                    {workout.category && (
+                                    {workout.category && workout.category !== 'AI Genererat' && workout.category !== 'Ej kategoriserad' && (
                                         <span className="text-xs font-medium px-2.5 py-1 rounded-md bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-300">
                                             {workout.category}
                                         </span>

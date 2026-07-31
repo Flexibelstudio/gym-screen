@@ -586,8 +586,9 @@ const ManageWorkoutsView: React.FC<{
     onDuplicate: (workout: Workout, origin?: string) => void;
     onTogglePublish: (id: string, isPublished: boolean, silentPublish?: boolean) => void;
     onCopyToLibrary: (workout: Workout) => void;
+    onMoveToLibrary: (workout: Workout) => void;
     onBack: () => void;
-}> = ({ workouts, locations, organization, onEdit, onDelete, onDuplicate, onTogglePublish, onCopyToLibrary, onBack }) => {
+}> = ({ workouts, locations, organization, onEdit, onDelete, onDuplicate, onTogglePublish, onCopyToLibrary, onMoveToLibrary, onBack }) => {
     
     const [activeTab, setActiveTab] = useState<'official' | 'drafts'>('official');
     const [searchTerm, setSearchTerm] = useState('');
@@ -829,17 +830,26 @@ const ManageWorkoutsView: React.FC<{
                                         <td className="p-5 text-right">
                                             <div className="flex justify-end gap-2">
                                                 {activeTab === 'drafts' && (
-                                                    <button 
-                                                        onClick={() => {
-                                                            setCopyConfirmWorkoutId(workout.id);
-                                                        }}
-                                                        className="p-2 text-gray-400 hover:text-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 rounded-lg transition-colors" 
-                                                        title="Spara som permanent mall"
-                                                    >
-                                                        <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                                            <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                                        </svg>
-                                                    </button>
+                                                    <>
+                                                        <button 
+                                                            onClick={() => onMoveToLibrary(workout)}
+                                                            className="p-2 text-gray-400 hover:text-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 rounded-lg transition-colors" 
+                                                            title="Flytta till gymmets bibliotek"
+                                                        >
+                                                            <ChevronRightIcon className="w-5 h-5" />
+                                                        </button>
+                                                        <button 
+                                                            onClick={() => {
+                                                                setCopyConfirmWorkoutId(workout.id);
+                                                            }}
+                                                            className="p-2 text-gray-400 hover:text-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 rounded-lg transition-colors" 
+                                                            title="Spara som permanent mall"
+                                                        >
+                                                            <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                                                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                                            </svg>
+                                                        </button>
+                                                    </>
                                                 )}
                                                 <button 
                                                     onClick={() => setPreviewWorkout(workout)} 
@@ -1128,6 +1138,10 @@ const PassProgramContent: React.FC<DashboardContentProps & {
         setSubView('manage'); 
     };
 
+    const handleMoveToLibrary = async (workout: Workout) => {
+        await onSaveWorkout({ ...workout, isMemberDraft: false });
+    };
+
     const handleCopyToLibrary = async (workout: Workout) => {
         let copy = deepCopyAndPrepareAsNew(workout);
         copy.isMemberDraft = false;
@@ -1198,6 +1212,7 @@ const PassProgramContent: React.FC<DashboardContentProps & {
                 onDuplicate={onDuplicateWorkout}
                 onTogglePublish={onTogglePublish}
                 onCopyToLibrary={handleCopyToLibrary}
+                onMoveToLibrary={handleMoveToLibrary}
                 onBack={onReturnToHub}
             />
         );

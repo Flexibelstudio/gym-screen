@@ -98,7 +98,7 @@ export function useWorkoutActions(deps: UseWorkoutActionsDeps) {
   };
 
   const handleSaveAndNavigate = async (workout: Workout, startFirstBlock?: boolean) => {
-    const isMemberRole = sessionRole === 'member' || isStudioMode;
+    const isMemberRole = sessionRole === 'member';
 
     if (sessionRole === 'member' && !isStudioMode && currentUser?.uid) {
       await saveCustomProgram(currentUser.uid, workout);
@@ -139,7 +139,7 @@ export function useWorkoutActions(deps: UseWorkoutActionsDeps) {
   };
 
   const handleSaveOnly = async (workout: Workout) => {
-    const isMemberRole = sessionRole === 'member' || isStudioMode;
+    const isMemberRole = sessionRole === 'member';
     if (sessionRole === 'member' && !isStudioMode && currentUser?.uid) {
       await saveCustomProgram(currentUser.uid, workout);
       window.dispatchEvent(new Event('customProgramsUpdated'));

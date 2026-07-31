@@ -304,7 +304,7 @@ export function getWorkoutVisibilityIssues(
     if (!w.isPublished && !assumePublished) return { issues, hidden: false };
 
     const cat = (w.category || '').trim();
-    if (!cat || cat === 'Ej kategoriserad') {
+    if (!cat || cat === 'Ej kategoriserad' || cat === 'AI Genererat') {
         issues.push('Ingen passkategori vald. Passet hittas inte under någon kategori i appen, bara under Alla.');
     } else if (customCategories && customCategories.length > 0) {
         const cfg = customCategories.find(c => c.name === cat);

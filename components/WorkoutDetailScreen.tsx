@@ -639,7 +639,7 @@ export const WorkoutPresentationModal: React.FC<{
                                                     <h3 className="text-lg sm:text-2xl md:text-4xl lg:text-5xl xl:text-7xl font-black text-gray-900 dark:text-white leading-[1.2] pt-[0.1em] break-words flex items-center gap-2 flex-wrap">
                                                         <span>{ex.name || 'Okänd övning'}</span>
                                                         {getSideLabel(ex.side) && (
-                                                            <span className="inline-flex items-center justify-center px-2 py-0.5 sm:px-3 sm:py-1 text-xs sm:text-base md:text-xl lg:text-2xl xl:text-3xl font-black rounded-lg bg-work/10 text-work dark:bg-work/20 dark:text-work border border-work/30 uppercase tracking-wider">
+                                                            <span className="inline-flex items-center justify-center px-2 py-0.5 sm:px-3 sm:py-1 text-sm sm:text-lg md:text-2xl lg:text-3xl xl:text-4xl font-black rounded-lg bg-work/10 text-work dark:bg-work/20 dark:text-work border border-work/30 uppercase tracking-wider">
                                                                 {getSideLabel(ex.side)}
                                                             </span>
                                                         )}
@@ -850,7 +850,7 @@ const WorkoutBlockCard: React.FC<{
                                 <h4 className="text-lg font-black text-gray-900 dark:text-white leading-[1.2] pt-[0.1em] break-words flex items-center gap-1.5 flex-wrap">
                                     <span>{ex.name || 'Okänd övning'}</span>
                                     {getSideLabel(ex.side) && (
-                                        <span className="inline-flex items-center justify-center px-1.5 py-0.5 text-[10px] font-black rounded-md bg-work/10 text-work dark:bg-work/20 dark:text-work border border-work/30 uppercase tracking-wider">
+                                        <span className="inline-flex items-center justify-center px-1.5 py-0.5 text-xs sm:text-sm font-black rounded-md bg-work/10 text-work dark:bg-work/20 dark:text-work border border-work/30 uppercase tracking-wider">
                                             {getSideLabel(ex.side)}
                                         </span>
                                     )}
@@ -1139,7 +1139,7 @@ const WorkoutDetailScreen: React.FC<WorkoutDetailScreenProps> = ({
             </div>
             
             <div className="flex items-center justify-center sm:justify-start gap-2 flex-wrap">
-                {sessionWorkout.category && (
+                {sessionWorkout.category && sessionWorkout.category !== 'AI Genererat' && sessionWorkout.category !== 'Ej kategoriserad' && (
                     <span className="bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 px-3 py-1 rounded-md text-[10px] font-black uppercase tracking-widest border border-gray-200 dark:border-gray-700">
                         {sessionWorkout.category}
                     </span>
@@ -1158,7 +1158,7 @@ const WorkoutDetailScreen: React.FC<WorkoutDetailScreenProps> = ({
                 className="bg-indigo-600 hover:bg-indigo-500 text-white font-black py-3 px-6 rounded-xl flex items-center justify-center gap-2 shadow-lg transition-all transform active:scale-95 w-full sm:w-auto flex-shrink-0"
             >
                 <PencilIcon className="w-5 h-5" />
-                <span className="text-lg uppercase tracking-tight">Anpassa & Starta</span>
+                <span className="text-lg uppercase tracking-tight">Kopiera pass</span>
             </button>
           )}
 
