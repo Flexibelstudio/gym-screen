@@ -125,6 +125,16 @@ export const MyStrengthScreen: React.FC<MyStrengthScreenProps> = ({ userData, lo
             }
         };
 
+        // Nollställningsmärken: senaste resetAt per kanonisk övning.
+        const resetAtByKey = new Map<string, number>();
+        pbs.forEach(pb => {
+            if (!pb || !pb.exerciseName) return;
+            const ra = (pb as any).resetAt;
+            if (typeof ra !== 'number' || ra <= 0) return;
+            const key = canonicalizeExerciseName(pb.exerciseName);
+            resetAtByKey.set(key, Math.max(resetAtByKey.get(key) || 0, ra));
+        });
+
         pbs.forEach(pb => {
             if (pb && pb.exerciseName) {
                 const w = pb.weight || 0;
@@ -139,6 +149,8 @@ export const MyStrengthScreen: React.FC<MyStrengthScreenProps> = ({ userData, lo
                 if (log.exerciseResults) {
                     log.exerciseResults.forEach(ex => {
                         if (!ex.exerciseName) return;
+                        const resetAt = resetAtByKey.get(canonicalizeExerciseName(ex.exerciseName)) || 0;
+                        if (resetAt > 0 && (log.date || 0) <= resetAt) return;
                         let maxW = 0;
                         let maxR = 0;
                         if (ex.setDetails) {

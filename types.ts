@@ -30,6 +30,8 @@ export interface PersonalBest {
   reps?: number;
   calculated1RM?: number;
   date: number; // Timestamp
+  resetAt?: number; // Timestamp då medlemmen nollställde. Loggar äldre än denna
+                    // räknas inte in i härlett personbästa.
 }
 
 export interface InvoiceAdjustmentItem {

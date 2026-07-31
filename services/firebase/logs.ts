@@ -204,7 +204,7 @@ export const saveWorkoutLog = async (logData: any): Promise<{ log: any, newRecor
                             calculated1RM: bestSet.oneRm,
                             date: Date.now() 
                         };
-                        batch.set(doc(db, 'users', logData.memberId, 'personalBests', pbId), pbData);
+                        batch.set(doc(db, 'users', logData.memberId, 'personalBests', pbId), pbData, { merge: true });
                         
                         // For pure reps exercises, diff can just be the difference in reps.
                         // Or if 1RM exists, the difference in 1RM.
@@ -700,14 +700,15 @@ export const resetPersonalBest = async (userId: string, exerciseName: string) =>
     if (isOffline || !db || !userId) return;
     const pbId = getPBId(exerciseName);
     try {
-        await setDoc(doc(db, 'users', userId, 'personalBests', pbId), { 
-            id: pbId, 
-            exerciseName: exerciseName.trim(), 
-            weight: 0, 
+        await setDoc(doc(db, 'users', userId, 'personalBests', pbId), {
+            id: pbId,
+            exerciseName: exerciseName.trim(),
+            weight: 0,
             reps: 0,
             calculated1RM: 0,
-            date: Date.now() 
-        });
+            resetAt: Date.now(),
+            date: Date.now()
+        }, { merge: true });
     } catch (e) { console.error("resetPersonalBest failed", e); }
 };
 
