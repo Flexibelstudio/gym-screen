@@ -135,12 +135,12 @@ export interface WorkoutBlock {
   followMe: boolean;
   settings: TimerSettings;
   exercises: Exercise[];
-  aiCoachNotes?: string;
   aiMagicPenSuggestions?: string[];
   autoAdvance?: boolean;     // NEW: Automatically start next block
   transitionTime?: number;   // NEW: Rest time between blocks in seconds
   useTrainingProfile?: boolean;   // saknas eller false = blocket styr ingenting
   showBlockPlan?: boolean;   // saknas eller true = visa blockets upplägg för medlemmen
+  showIntensity?: boolean;   // saknas eller true = visa procenten i upplägget
   profileOverrides?: { repMin?: number; repMax?: number; targetPct?: number; rirTarget?: number; restSeconds?: number };
   progressionModel?: 'none' | 'auto' | 'custom';   // saknas = 'none' (STANDARD ÄNDRAS TILL 'none')
   customProgression?: { incrementKg: number; atReps: number; maxRir: number; requireAllSets: boolean };
@@ -568,6 +568,10 @@ export interface ExerciseResult {
     coachAdvice?: string; // NYTT: Sparar AI-rådet direkt på övningen
     note?: string; // Användarens anteckning för denna övning
     originalBankId?: string | null;
+    prescribedPct?: number | null;   // coachens intensitet på blocket, vid tillfället
+    appliedPct?: number | null;      // procenten som faktiskt gällde för setet
+    pctSource?: 'coach' | 'session' | 'none';
+    estimated1RM?: number | null;    // medlemmens uppskattade 1RM vid tillfället
 }
 
 export type MemberFeeling = 'good' | 'neutral' | 'bad';

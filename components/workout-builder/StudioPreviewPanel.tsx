@@ -139,8 +139,9 @@ export const StudioPreviewPanel: React.FC<StudioPreviewPanelProps> = ({ workout,
                     }
 
                     const showBlockPlan = (block as any).showBlockPlan !== false;
+                    const showIntensity = (block as any).showIntensity !== false;
                     const profile = getBlockProfile(block as any);
-                    const planParts = showBlockPlan ? getBlockPlanParts(profile) : [];
+                    const planParts = showBlockPlan ? getBlockPlanParts(profile, showIntensity) : [];
 
                     return (
                         <div key={block.id || index} className="p-4 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 space-y-3">
@@ -194,12 +195,21 @@ export const StudioPreviewPanel: React.FC<StudioPreviewPanelProps> = ({ workout,
                                     <span className="font-semibold text-gray-700 dark:text-gray-300 block mb-0.5">Under blockrubriken:</span>
                                     {!showBlockPlan ? (
                                         <span className="text-gray-500 italic">Upplägget är avstängt för det här blocket</span>
-                                    ) : planParts.length > 0 ? (
-                                        <span className="p-1.5 bg-white dark:bg-gray-800 rounded border border-gray-200 dark:border-gray-700 font-mono text-gray-800 dark:text-gray-200 block">
-                                            {planParts.join(' · ')}
-                                        </span>
                                     ) : (
-                                        <span className="text-gray-500 italic">Ingen uppläggsrad visas</span>
+                                        <>
+                                            {planParts.length > 0 ? (
+                                                <span className="p-1.5 bg-white dark:bg-gray-800 rounded border border-gray-200 dark:border-gray-700 font-mono text-gray-800 dark:text-gray-200 block">
+                                                    {planParts.join(' · ')}
+                                                </span>
+                                            ) : (
+                                                <span className="text-gray-500 italic">Ingen uppläggsrad visas</span>
+                                            )}
+                                            {!showIntensity && (
+                                                <span className="text-gray-500 italic block mt-0.5">
+                                                    Intensiteten är avstängd för det här blocket.
+                                                </span>
+                                            )}
+                                        </>
                                     )}
                                 </div>
 

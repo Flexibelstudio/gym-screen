@@ -1162,7 +1162,7 @@ const WorkoutDetailScreen: React.FC<WorkoutDetailScreenProps> = ({
             </button>
           )}
 
-          {isOwnProgram && (
+          {(isOwnProgram || (isStudioMode && onEditWorkout)) && (
             <button 
                 onClick={() => onEditWorkout(sessionWorkout)}
                 className="bg-primary hover:bg-primary/95 text-white font-black py-3 px-6 rounded-xl flex items-center justify-center gap-2 shadow-lg transition-all transform active:scale-95 w-full sm:w-auto flex-shrink-0 animate-fade-in"

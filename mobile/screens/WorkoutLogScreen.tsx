@@ -6,7 +6,7 @@ import { useAuth } from '../../context/AuthContext';
 import { CloseIcon, InformationCircleIcon, PlusIcon, TrashIcon, CalculatorIcon } from '../../components/icons'; 
 import { Modal } from '../../components/ui/Modal';
 import { ConfirmModal } from '../../components/ui/ConfirmModal';
-import { calculate1RM, findDuplicateBankExercise, canonicalizeExerciseName, getBlockProfile, getBlockPlanParts, TrainingProfile } from '../../utils/workoutUtils';
+import { calculate1RM, findDuplicateBankExercise, canonicalizeExerciseName, getBlockProfile, getBlockPlanParts, TrainingProfile, getTargetWeightForExercise } from '../../utils/workoutUtils';
 import { playTimerSound } from '../../hooks/useWorkoutTimer';
 import { DuplicateExerciseModal } from '../../components/DuplicateExerciseModal';
 import { ExerciseResult, WorkoutDiploma, WorkoutLog, BankExercise, Workout, PersonalBest } from '../../types';
@@ -1013,6 +1013,22 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
               const uniqueReps = [...new Set(repsValues)];
               const repsSummary = uniqueReps.length === 1 ? uniqueReps[0] : (uniqueReps.length > 0 ? 'Mixed' : null);
 
+              const blockProfile = r.blockId ? blockProfilesMap[r.blockId] : undefined;
+              const prescribedPct = (blockProfile && blockProfile.hasWeightMath !== false && blockProfile.targetPct !== undefined && blockProfile.targetPct > 0)
+                  ? blockProfile.targetPct
+                  : null;
+              const canonName = canonicalizeExerciseName(r.exerciseName);
+              const sessionPctForEx = sessionPctMap[canonName] ?? sessionPctMap[r.exerciseName] ?? (r.blockId ? sessionPctByBlock[r.blockId] : undefined) ?? null;
+              const savedTargetInfo = getTargetWeightForExercise({
+                  exerciseName: r.exerciseName,
+                  personalBests,
+                  history,
+                  userId,
+                  mode: sessionMode,
+                  prescribedPct,
+                  sessionPct: sessionPctForEx
+              });
+
               return {
                   exerciseId: r.exerciseId,
                   exerciseName: r.exerciseName,
@@ -1033,6 +1049,10 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
                   distance: totalDistance > 0 ? totalDistance : null,
                   kcal: totalKcal > 0 ? totalKcal : null,
                   blockId: r.blockId,
+                  prescribedPct: prescribedPct,
+                  appliedPct: savedTargetInfo.targetPct ?? null,
+                  pctSource: savedTargetInfo.pctSource,
+                  estimated1RM: savedTargetInfo.current1RM ?? null,
                   coachAdvice: r.coachAdvice,
                   note: r.note
               };
@@ -1619,7 +1639,10 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
                                                         {(() => {
                                                             const group_block = workout?.blocks?.find(b => b.id === group.blockId);
                                                             if (group_block && (group_block as any).showBlockPlan === false) return null;
-                                                            const parts = getBlockPlanParts(blockProfilesMap[group.blockId]);
+                                                            const parts = getBlockPlanParts(
+                                                                blockProfilesMap[group.blockId],
+                                                                (group_block as any)?.showIntensity !== false
+                                                            );
                                                             if (parts.length === 0) return null;
                                                             return (
                                                                 <div className="text-[11px] text-gray-500 dark:text-gray-400 mt-1">

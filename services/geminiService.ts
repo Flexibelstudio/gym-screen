@@ -102,7 +102,6 @@ const workoutSchema = {
                     tag: { type: Type.STRING }, 
                     setupDescription: { type: Type.STRING },
                     followMe: { type: Type.BOOLEAN },
-                    aiCoachNotes: { type: Type.STRING },
                     aiMagicPenSuggestions: { type: Type.ARRAY, items: { type: Type.STRING } },
                     settings: {
                         type: Type.OBJECT,
@@ -220,7 +219,7 @@ const transformWorkout = (data: any, orgId: string, isDraft: boolean = false): W
     isPublished: false,
     isMemberDraft: isDraft,
     title: data.title || 'AI-Genererat Pass',
-    category: data.category || 'AI Genererat',
+    category: data.category || '',
     blocks: (data.blocks || []).map((b: any, i: number) => {
         const exerciseCount = b.exercises?.length || 0;
         let settings = { ...b.settings };
@@ -491,9 +490,8 @@ export async function parseWorkoutFromImage(base64Image: string, additionalText?
         {
           "title": "Blockets namn (t.ex. Uppvärmning)",
           "tag": "Styrka",
-          "setupDescription": "Beskrivning av upplägget",
+          "setupDescription": "Vad medlemmen ska fokusera på i blocket — teknik, tempo, vanliga misstag eller hur det ska kännas. Upprepa ALDRIG tider, antal varv eller vila; det visas redan av timern.",
           "followMe": false,
-          "aiCoachNotes": "Noteringar till coachen",
           "aiMagicPenSuggestions": [],
           "settings": {
             "mode": "Interval",

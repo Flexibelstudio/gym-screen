@@ -80,7 +80,7 @@ export function useWorkoutActions(deps: UseWorkoutActionsDeps) {
     setActiveWorkout(workout);
     setFocusedBlockId(blockId || null);
     setIsEditingNewDraft(false);
-    if (sessionRole === 'member') navigateTo(Page.SimpleWorkoutBuilder);
+    if (sessionRole === 'member' || isStudioMode) navigateTo(Page.SimpleWorkoutBuilder);
     else navigateTo(Page.WorkoutBuilder);
   };
 
@@ -329,10 +329,13 @@ export function useWorkoutActions(deps: UseWorkoutActionsDeps) {
   };
 
   const handleWorkoutInterpretedFromNote = (workout: Workout) => {
+    const isMember = sessionRole === 'member';
     const workoutWithOrg = {
       ...workout,
       organizationId: selectedOrganization?.id || '',
-      isMemberDraft: true,
+      isMemberDraft: isMember,
+      isPublished: !isMember,
+      silentPublish: !isMember ? true : workout.silentPublish,
     };
     setActiveWorkout(workoutWithOrg);
     setIsEditingNewDraft(true);

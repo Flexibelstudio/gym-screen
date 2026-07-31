@@ -55,7 +55,10 @@ export function getBlockProfile(block: WorkoutBlock): TrainingProfile | null {
   };
 }
 
-export function getBlockPlanParts(profile: TrainingProfile | null | undefined): string[] {
+export function getBlockPlanParts(
+    profile: TrainingProfile | null | undefined,
+    includeIntensity: boolean = true
+): string[] {
     if (!profile) return [];
     const parts: string[] = [];
     if (profile.repMin > 0 && profile.repMax > 0) {
@@ -63,7 +66,7 @@ export function getBlockPlanParts(profile: TrainingProfile | null | undefined): 
             ? `Reps ${profile.repMin}`
             : `Reps ${profile.repMin}–${profile.repMax}`);
     }
-    if (profile.hasWeightMath !== false && profile.targetPct !== undefined && profile.targetPct > 0) {
+    if (includeIntensity && profile.hasWeightMath !== false && profile.targetPct !== undefined && profile.targetPct > 0) {
         parts.push(`${profile.targetPct} % av 1RM`);
     }
     if (profile.rirTarget !== undefined && profile.rirTarget !== null) {
@@ -383,6 +386,7 @@ export function getTargetWeightForExercise(params: {
   targetPct: number | null;
   source: 'targetPct' | 'history' | 'none';
   pctSource: 'coach' | 'session' | 'none';
+  current1RM: number | null;
 } {
   const { exerciseName, personalBests, history, mode, prescribedPct, sessionPct } = params;
   const canon = canonicalizeExerciseName(exerciseName);
@@ -433,9 +437,9 @@ export function getTargetWeightForExercise(params: {
     if (lastWeight > 0) { base = lastWeight; source = 'history'; }
   }
 
-  if (base === null) return { base: null, scaled: null, targetPct, source: 'none', pctSource: 'none' };
+  if (base === null) return { base: null, scaled: null, targetPct, source: 'none', pctSource: 'none', current1RM: current1RM ?? null };
   const scaled = mode === 'fatigued' ? Math.round((base * 0.9) / 2.5) * 2.5 : base;
-  return { base, scaled, targetPct, source, pctSource };
+  return { base, scaled, targetPct, source, pctSource, current1RM: current1RM ?? null };
 }
 
 export function getRestGuidelineForPercentage(pct: number): string {

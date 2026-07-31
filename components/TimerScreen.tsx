@@ -2668,7 +2668,7 @@ export const TimerScreen: React.FC<TimerScreenProps> = React.memo(({
                         {(() => {
                             const planBlock = isTransitioning ? nextBlock : block;
                             if (!planBlock || (planBlock as any).showBlockPlan === false) return null;
-                            const parts = getBlockPlanParts(getBlockProfile(planBlock as any));
+                            const parts = getBlockPlanParts(getBlockProfile(planBlock as any), (planBlock as any).showIntensity !== false);
                             if (parts.length === 0) return null;
                             return (
                                 <p className="font-bold text-white/70 uppercase tracking-widest drop-shadow-md text-sm sm:text-base md:text-lg mt-1 whitespace-nowrap">
@@ -2718,7 +2718,7 @@ export const TimerScreen: React.FC<TimerScreenProps> = React.memo(({
                     {(() => {
                         const planBlock = isTransitioning ? nextBlock : block;
                         if (!planBlock || (planBlock as any).showBlockPlan === false) return null;
-                        const parts = getBlockPlanParts(getBlockProfile(planBlock as any));
+                        const parts = getBlockPlanParts(getBlockProfile(planBlock as any), (planBlock as any).showIntensity !== false);
                         if (parts.length === 0) return null;
                         return (
                             <p className="font-bold text-white/70 uppercase tracking-widest drop-shadow-md text-sm sm:text-base md:text-lg mt-1 whitespace-nowrap">

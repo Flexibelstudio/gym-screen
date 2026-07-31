@@ -13,6 +13,8 @@ Ditt viktigaste uppdrag är att agera som en intelligent assistent med två läg
 2. COACH/GENERATOR: Om indatan är kortfattad eller ser ut som en instruktion (t.ex. "WOD", "Benpass", "10 övningar styrka"), SKA du agera expertcoach och generera ett komplett, högkvalitativt träningspass.
 
 Om användaren anger ett antal (t.ex. "10 övningar"), MÅSTE du generera exakt så många unika övningsobjekt i JSON-arrayen. Du får ALDRIG bara skriva "10 övningar" som ett övningsnamn.
+
+OM 'setupDescription': Fältet ska beskriva vad medlemmen ska fokusera på i blocket — teknik, tempo, vanliga misstag, hur det ska kännas, eller hur olika nivåer (Rx/Int/Beg) och stegar ska köras. Upprepa ALDRIG tider, antal varv, antal set eller vilotider i det fältet. Timern visar redan de siffrorna på skärmen, och en text som säger samma sak en rad ovanför är bara brus.
 `;
 
 export const WORKOUT_GENERATOR_PROMPT = (userPrompt: string, availableExercises: string[] = []) => `

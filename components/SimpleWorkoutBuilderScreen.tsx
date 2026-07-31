@@ -524,6 +524,26 @@ const BlockCard: React.FC<BlockCardProps> = ({ block, index, totalBlocks, onUpda
                         );
                     })()}
                 </div>
+
+                <div className="p-4 rounded-2xl bg-gray-50 dark:bg-gray-800/50 border border-gray-100 dark:border-gray-800">
+                    <ToggleSwitch 
+                        label="Visa upplägget" 
+                        checked={!!block.useTrainingProfile} 
+                        onChange={v => handleFieldChange('useTrainingProfile', v)} 
+                        description="Reps, intensitet, reps i reserv och vila visas i appen och på skärmen, hämtat från blockets typ."
+                    />
+                </div>
+
+                {block.useTrainingProfile && (
+                    <div className="p-4 rounded-2xl bg-gray-50 dark:bg-gray-800/50 border border-gray-100 dark:border-gray-800">
+                        <ToggleSwitch 
+                            label="Visa intensiteten" 
+                            checked={block.showIntensity !== false} 
+                            onChange={v => handleFieldChange('showIntensity', v)} 
+                            description="Stäng av om era medlemmar inte loggar — då säger procenten dem ingenting."
+                        />
+                    </div>
+                )}
                 
                 {!isLastBlock && (
                      <div className={`col-span-1 sm:col-span-2 p-4 rounded-2xl bg-purple-50/30 dark:bg-purple-900/10 border border-purple-100 dark:border-purple-800/50 flex flex-col gap-4 ${block.settings.mode === TimerMode.NoTimer ? 'opacity-50' : ''}`}>

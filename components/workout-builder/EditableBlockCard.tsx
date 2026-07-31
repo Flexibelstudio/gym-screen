@@ -865,6 +865,26 @@ export const EditableBlockCard: React.FC<EditableBlockCardProps> = ({
                                     <div className="w-9 h-5 bg-gray-300 peer-focus:outline-none rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all dark:after:border-gray-600 peer-checked:bg-primary"></div>
                                 </label>
                             </div>
+
+                            <div className="pt-3 border-t border-gray-200 dark:border-gray-700/60 flex items-center justify-between">
+                                <div>
+                                    <span className="font-bold text-gray-800 dark:text-gray-200 block text-xs">
+                                        Visa intensiteten
+                                    </span>
+                                    <span className="text-[11px] text-gray-500 dark:text-gray-400 block mt-0.5">
+                                        Visar procenten av 1RM i upplägget. Reps, reps i reserv och vila visas fortfarande.
+                                    </span>
+                                </div>
+                                <label className="relative inline-flex items-center cursor-pointer ml-3 flex-shrink-0">
+                                    <input
+                                        type="checkbox"
+                                        checked={block.showIntensity !== false}
+                                        onChange={e => handleFieldChange('showIntensity', e.target.checked)}
+                                        className="sr-only peer"
+                                    />
+                                    <div className="w-9 h-5 bg-gray-300 peer-focus:outline-none rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all dark:after:border-gray-600 peer-checked:bg-primary"></div>
+                                </label>
+                            </div>
                         </div>
                     );
                 })()}
