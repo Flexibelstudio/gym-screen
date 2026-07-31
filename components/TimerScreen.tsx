@@ -408,7 +408,7 @@ const StandardListView: React.FC<{
                             >
                                 <span>{ex.name}</span>
                                 {getSideLabel(ex.side) && (
-                                    <span className="inline-flex items-center justify-center px-2 py-0.5 text-[10px] font-black rounded-md bg-work/10 text-work dark:bg-work/20 dark:text-work border border-work/30 uppercase tracking-wider">
+                                    <span className="inline-flex items-center justify-center px-[0.5em] py-[0.15em] text-[0.4em] font-black rounded-[0.3em] bg-work/10 text-work dark:bg-work/20 dark:text-work border border-work/30 uppercase tracking-wider">
                                         {getSideLabel(ex.side)}
                                     </span>
                                 )}
