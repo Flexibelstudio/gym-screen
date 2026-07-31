@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Organization, SmartScreenPricing, InvoiceDetails, SeasonalThemeSetting, ThemeDateRange } from '../types';
 import { OvningsbankContent } from './OvningsbankContent';
-import { getSmartScreenPricing, updateSmartScreenPricing, updateOrganizationFreeCoaches, getSeasonalThemes, updateSeasonalThemes, archiveOrganization, restoreOrganization, deleteOrganizationPermanently, updateOrganizationName, getMembers, requestPushNotificationPermission, auth, updateGlobalConfig, updateOrganizationMigrationOption, updateOrganizationStripeBypassOption, updateOrganizationAllowMemberPromotionCode, getGlobalSummerChallenge, updateGlobalSummerChallenge, listenToGlobalSummerChallenge, listenToMembers, listenToCommunityLogs, listenToCommunityLogsByLocations } from '../services/firebaseService';
+import { getSmartScreenPricing, updateSmartScreenPricing, updateOrganizationFreeCoaches, getSeasonalThemes, updateSeasonalThemes, archiveOrganization, restoreOrganization, deleteOrganizationPermanently, updateOrganizationName, getMembers, requestPushNotificationPermission, auth, updateGlobalConfig, updateOrganizationMigrationOption, updateOrganizationStripeBypassOption, updateOrganizationAllowMemberPromotionCode, updateOrganizationMembersPaidByGym, getGlobalSummerChallenge, updateGlobalSummerChallenge, listenToGlobalSummerChallenge, listenToMembers, listenToCommunityLogs, listenToCommunityLogsByLocations } from '../services/firebaseService';
 import { PencilIcon, HomeIcon, BuildingIcon, SparklesIcon, ToggleSwitch, ChevronDownIcon, CloseIcon } from './icons';
 import { MoreVertical } from 'lucide-react';
 import { calculateInvoiceDetails } from '../utils/billing';
@@ -32,9 +32,10 @@ interface OrganizationCardProps {
     onUpdateMigrationOption: (orgId: string, allow: boolean) => Promise<void>;
     onUpdateStripeBypassOption: (orgId: string, allow: boolean) => Promise<void>;
     onUpdateAllowMemberPromotionCode: (orgId: string, allow: boolean) => Promise<void>;
+    onUpdateMembersPaidByGym: (orgId: string, value: boolean) => Promise<void>;
 }
 
-const OrganizationCard: React.FC<OrganizationCardProps> = React.memo(({ org, onSelect, onArchive, onRestore, onDeletePermanent, onUpdateFreeCoaches, onUpdateName, onUpdateGlobalConfig, onUpdateMigrationOption, onUpdateStripeBypassOption, onUpdateAllowMemberPromotionCode }) => {
+const OrganizationCard: React.FC<OrganizationCardProps> = React.memo(({ org, onSelect, onArchive, onRestore, onDeletePermanent, onUpdateFreeCoaches, onUpdateName, onUpdateGlobalConfig, onUpdateMigrationOption, onUpdateStripeBypassOption, onUpdateAllowMemberPromotionCode, onUpdateMembersPaidByGym }) => {
     const [freeCoaches, setFreeCoaches] = useState(org.freeCoachAccounts || 0);
     const [enableEventsModule, setEnableEventsModule] = useState(org.globalConfig?.enableEventsModule || false);
     const [enableSummerChallenge, setEnableSummerChallenge] = useState(org.globalConfig?.enableSummerChallenge || false);
@@ -43,6 +44,7 @@ const OrganizationCard: React.FC<OrganizationCardProps> = React.memo(({ org, onS
     const [allowMigrationOption, setAllowMigrationOption] = useState(org.allowMigrationOption || false);
     const [allowStripeBypass, setAllowStripeBypass] = useState(org.allowStripeBypass || false);
     const [allowMemberPromotionCode, setAllowMemberPromotionCode] = useState(org.allowMemberPromotionCode || false);
+    const [membersPaidByGym, setMembersPaidByGym] = useState(org.membersPaidByGym || false);
     const [isSaving, setIsSaving] = useState(false);
     const [isEditingName, setIsEditingName] = useState(false);
     const [editNameValue, setEditNameValue] = useState(org.name);
@@ -65,7 +67,8 @@ const OrganizationCard: React.FC<OrganizationCardProps> = React.memo(({ org, onS
         summerEndDate !== orgEndIso ||
         allowMigrationOption !== (org.allowMigrationOption || false) ||
         allowStripeBypass !== (org.allowStripeBypass || false) ||
-        allowMemberPromotionCode !== (org.allowMemberPromotionCode || false);
+        allowMemberPromotionCode !== (org.allowMemberPromotionCode || false) ||
+        membersPaidByGym !== (org.membersPaidByGym || false);
 
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
@@ -87,7 +90,8 @@ const OrganizationCard: React.FC<OrganizationCardProps> = React.memo(({ org, onS
         setAllowMigrationOption(org.allowMigrationOption || false);
         setAllowStripeBypass(org.allowStripeBypass || false);
         setAllowMemberPromotionCode(org.allowMemberPromotionCode || false);
-    }, [org.freeCoachAccounts, org.name, org.globalConfig?.enableEventsModule, org.globalConfig?.enableSummerChallenge, org.globalConfig?.summerChallengeStartDate, org.globalConfig?.summerChallengeEndDate, org.allowMigrationOption, org.allowStripeBypass, org.allowMemberPromotionCode]);
+        setMembersPaidByGym(org.membersPaidByGym || false);
+    }, [org.freeCoachAccounts, org.name, org.globalConfig?.enableEventsModule, org.globalConfig?.enableSummerChallenge, org.globalConfig?.summerChallengeStartDate, org.globalConfig?.summerChallengeEndDate, org.allowMigrationOption, org.allowStripeBypass, org.allowMemberPromotionCode, org.membersPaidByGym]);
 
     useEffect(() => {
         if (!isExpanded) return; // Only fetch counts if expanded (performance optimization)
@@ -117,6 +121,7 @@ const OrganizationCard: React.FC<OrganizationCardProps> = React.memo(({ org, onS
             await onUpdateMigrationOption(org.id, allowMigrationOption);
             await onUpdateStripeBypassOption(org.id, allowStripeBypass);
             await onUpdateAllowMemberPromotionCode(org.id, allowMemberPromotionCode);
+            await onUpdateMembersPaidByGym(org.id, membersPaidByGym);
         } catch (error) {
             alert("Kunde inte spara inställningarna.");
         } finally {
@@ -418,6 +423,26 @@ const OrganizationCard: React.FC<OrganizationCardProps> = React.memo(({ org, onS
                                         />
                                     </div>
                                     <p className="text-[9px] text-gray-500 font-medium mt-2 leading-tight">Ger organisationens admin möjlighet att lägga in en promotion-kod som auto-appliceras på deras medlemmars prenumeration. Standard: av.</p>
+                                </div>
+                                <div className="bg-white dark:bg-gray-800/50 p-4 rounded-2xl border border-gray-200 dark:border-gray-700 flex flex-col justify-between">
+                                    <p className="text-[10px] text-emerald-500 dark:text-emerald-400 font-black uppercase tracking-widest mb-2">Medlemsavgift</p>
+                                    <div className="scale-90 origin-left">
+                                        <ToggleSwitch 
+                                            label="Gymmet betalar för medlemmarna"
+                                            checked={membersPaidByGym} 
+                                            onChange={async () => {
+                                                const newValue = !membersPaidByGym;
+                                                setMembersPaidByGym(newValue);
+                                                try {
+                                                    await onUpdateMembersPaidByGym(org.id, newValue);
+                                                } catch (e) {
+                                                    setMembersPaidByGym(!newValue);
+                                                    alert("Ett fel inträffade vid sparande.");
+                                                }
+                                            }} 
+                                        />
+                                    </div>
+                                    <p className="text-[9px] text-gray-500 font-medium mt-2 leading-tight">Medlemmarna slipper betalväggen helt och behöver aldrig registrera något kort. De skapar konto, kopplas till organisation och ort, och kommer direkt in i appen. Befintliga prenumerationer måste sägas upp manuellt i Stripe. Standard: av.</p>
                                 </div>
                             </div>
                         </div>
@@ -1071,6 +1096,11 @@ export const SystemOwnerScreen: React.FC<SystemOwnerScreenProps> = ({ allOrganiz
         setLocalOrgs(prev => prev.map(o => o.id === orgId ? { ...o, allowMemberPromotionCode: allow } : o));
     }, []);
 
+    const handleUpdateMembersPaidByGym = useCallback(async (orgId: string, value: boolean) => {
+        await updateOrganizationMembersPaidByGym(orgId, value);
+        setLocalOrgs(prev => prev.map(o => o.id === orgId ? { ...o, membersPaidByGym: value } : o));
+    }, []);
+
     const tabs = [
         { id: 'dashboard', label: 'Dashboard' },
         { id: 'list', label: 'Organisationer' },
@@ -1205,6 +1235,7 @@ export const SystemOwnerScreen: React.FC<SystemOwnerScreenProps> = ({ allOrganiz
                                                         onUpdateMigrationOption={handleUpdateMigrationOption}
                                                         onUpdateStripeBypassOption={handleUpdateStripeBypassOption}
                                                         onUpdateAllowMemberPromotionCode={handleUpdateAllowMemberPromotionCode}
+                                                        onUpdateMembersPaidByGym={handleUpdateMembersPaidByGym}
                                                     />
                                             ))}
                                         </div>
@@ -1228,6 +1259,7 @@ export const SystemOwnerScreen: React.FC<SystemOwnerScreenProps> = ({ allOrganiz
                                                         onUpdateMigrationOption={handleUpdateMigrationOption}
                                                         onUpdateStripeBypassOption={handleUpdateStripeBypassOption}
                                                         onUpdateAllowMemberPromotionCode={handleUpdateAllowMemberPromotionCode}
+                                                        onUpdateMembersPaidByGym={handleUpdateMembersPaidByGym}
                                                     />
                                                 ))}
                                             </div>

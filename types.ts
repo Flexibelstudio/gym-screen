@@ -338,6 +338,7 @@ export interface Organization {
   stripeConnectSetupComplete?: boolean;
   memberPromotionCode?: string; // Stripe promotion code-ID (t.ex. "promo_...")
   allowMemberPromotionCode?: boolean; // Tillåt medlemsrabattkod (endast systemägare)
+  membersPaidByGym?: boolean; // Gymmet betalar för medlemmarna — de ska aldrig se betalväggen
   
   // Subscription / Payment fields
   stripeCustomerId?: string;

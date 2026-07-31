@@ -186,9 +186,13 @@ const App: React.FC = () => {
   const hasActiveSubscription = useMemo(() => {
       if (role === 'systemowner' || role === 'organizationadmin' || role === 'coach') return true;
       if (userData?.status === 'inactive') return false;
+      if (selectedOrganization?.membersPaidByGym === true &&
+          !!userData?.organizationId &&
+          selectedOrganization.id === userData.organizationId) return true;
       if (userData?.subscriptionStatus === 'active' || optimisticSubActive) return true;
       return false;
-  }, [role, userData?.subscriptionStatus, userData?.status, optimisticSubActive]);
+  }, [role, userData?.subscriptionStatus, userData?.status, userData?.organizationId,
+      optimisticSubActive, selectedOrganization?.id, selectedOrganization?.membersPaidByGym]);
 
   const showPaywall = currentUser && !isStudioMode && !hasActiveSubscription && !showWelcomePaywall;
   const showPendingCoach = currentUser && !isStudioMode && userData?.status === 'pending_coach';
