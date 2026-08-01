@@ -303,7 +303,7 @@ export const RouletteGame: React.FC<RouletteGameProps> = ({ onBack }) => {
             <div className="w-full max-w-5xl mx-auto px-6 pb-12 animate-fade-in flex flex-col items-center justify-center min-h-[80vh]">
                 <div className="text-center mb-10 w-full">
                     <h1 className="text-5xl font-black text-gray-900 dark:text-white mb-2 tracking-tight uppercase">
-                        Svett-hjulet
+                        Svetthjulet
                     </h1>
                     <div className="h-1.5 w-24 bg-primary mx-auto rounded-full mb-4"></div>
                     <p className="text-gray-500 dark:text-gray-400 mt-2 font-medium">
@@ -528,7 +528,7 @@ export const RouletteGame: React.FC<RouletteGameProps> = ({ onBack }) => {
             <div className="flex items-center justify-between mb-6 z-10 w-full">
                 <div>
                     <h2 className="text-4xl md:text-6xl font-black text-gray-900 dark:text-white tracking-tight uppercase">
-                        Svett-hjulet
+                        Svetthjulet
                     </h2>
                     <div className="flex items-center gap-4 mt-2">
                         <p className="text-xl text-gray-500 dark:text-gray-400 font-medium">

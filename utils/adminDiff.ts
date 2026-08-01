@@ -6,7 +6,7 @@ export const FIELD_LABELS: Record<string, string> = {
   enableTimer: 'Fristående Timer',
   enableOtherWorkouts: 'Övriga Pass',
   enableWorkoutGames: 'Träningslekar (Smart Play)',
-  enableHyrox: 'HYROX-modul',
+  enableHyrox: 'Visa Event & Tävlingar',
   enableFitnessBenchmarks: 'Styrka & Kondition (jämförelser)',
   enableSummerChallenge: 'Sommarutmaning (Sommar-Sisu)',
   enableWorkoutLogging: 'Medlemsupplevelse & Loggning',

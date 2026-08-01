@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { StudioConfig, Organization, ThemeOption, TimerSoundProfile } from '../../types';
-import { ToggleSwitch, InformationCircleIcon, SpeakerphoneIcon } from '../icons';
+import { ToggleSwitch, InformationCircleIcon, SpeakerphoneIcon, LockIcon } from '../icons';
 import { SelectField } from './AdminShared';
 import { CategoryPromptManager } from '../CategoryPromptManager';
 import { FeatureInfoModal } from './AdminModals';
@@ -70,17 +70,33 @@ export const GlobalSettingsContent: React.FC<GlobalSettingsContentProps> = ({
                                 checked={!!config.enableWorkoutGames} 
                                 onChange={(checked) => handleUpdateConfigField('enableWorkoutGames', checked)} 
                             />
-                            <p className="text-xs text-gray-500 mt-2 pl-2">Aktiverar kortlekar, tärningar och andra träningsspel på skärmen.</p>
+                            <p className="text-xs text-gray-500 mt-2 pl-2">Aktiverar kortlek, svetthjul och andra träningsspel på skärmen.</p>
                         </div>
 
-                        <div className="bg-gray-50 dark:bg-gray-900/50 p-4 rounded-xl border border-gray-100 dark:border-gray-700">
-                            <ToggleSwitch 
-                                label="HYROX-modul" 
-                                checked={!!config.enableHyrox} 
-                                onChange={(checked) => handleUpdateConfigField('enableHyrox', checked)} 
-                            />
-                            <p className="text-xs text-gray-500 mt-2 pl-2">Aktiverat verktyg för tävlingar och HYROX-pass.</p>
-                        </div>
+                        {organization?.globalConfig?.enableEventsModule ? (
+                            <div className="bg-gray-50 dark:bg-gray-900/50 p-4 rounded-xl border border-gray-100 dark:border-gray-700">
+                                <ToggleSwitch 
+                                    label="Visa Event & Tävlingar" 
+                                    checked={!!config.enableHyrox} 
+                                    onChange={(checked) => handleUpdateConfigField('enableHyrox', checked)} 
+                                />
+                                <p className="text-xs text-gray-500 mt-2 pl-2">Visar planerade event och tävlingar samt tillhörande tidtagning på studioskärmen.</p>
+                            </div>
+                        ) : (
+                            <div className="bg-gray-50 dark:bg-gray-900/50 p-4 rounded-xl border border-gray-100 dark:border-gray-700">
+                                <ToggleSwitch 
+                                    label="Event & Tävlingar" 
+                                    checked={false} 
+                                    onChange={() => {}} 
+                                    disabled 
+                                />
+                                <p className="text-xs text-gray-500 mt-2 pl-2">Planera event och tävlingar, kör tidtagning med startgrupper och visa liveresultat på studioskärmen.</p>
+                                <p className="text-xs text-blue-600 dark:text-blue-400 font-bold mt-2 pl-2 flex items-center gap-1.5">
+                                    <LockIcon className="w-3.5 h-3.5 flex-shrink-0" />
+                                    Ingår inte i er plan — hör av er så aktiverar vi den.
+                                </p>
+                            </div>
+                        )}
 
                         <div className="bg-gray-50 dark:bg-gray-900/50 p-4 rounded-xl border border-gray-100 dark:border-gray-700">
                             <ToggleSwitch 
