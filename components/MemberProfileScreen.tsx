@@ -4,7 +4,7 @@ import { deleteField } from 'firebase/firestore';
 import { WorkoutLog, UserData, MemberGoals, Page, UserRole, SmartGoalDetail, WorkoutDiploma, StudioConfig, BenchmarkDefinition, PersonalBest } from '../types';
 import { listenToMemberLogs, listenToPersonalBests, updateUserGoals, updateUserProfile, uploadImage, updateWorkoutLog, deleteWorkoutLog, requestPushNotificationPermission, auth, getPastRaces, toggleWorkoutLogLike, calculateBodyWeightHistory, saveWorkoutLog } from '../services/firebaseService';
 import { LEVEL_NAMES, ROWING_LEVEL_NAMES } from '../data/fitnessStandards';
-import { getAgeFromBirthDate, getRowingAssessment, formatRowingTime } from '../utils/fitnessBenchmarks';
+import { getAgeFromBirthDate, getRowingAssessment, getRowingScore, formatRowingTime } from '../utils/fitnessBenchmarks';
 import { calculateMonthlyStats, MonthlyWrappedModal } from './MonthlyWrapped';
 import { ChartBarIcon, DumbbellIcon, PencilIcon, SparklesIcon, UserIcon, FireIcon, LightningIcon, TrashIcon, CloseIcon, TrophyIcon, ToggleSwitch, ClockIcon, HistoryIcon, FlagIcon, StarIcon, ChevronRightIcon, SunIcon, InformationCircleIcon } from './icons';
 import { Modal } from './ui/Modal';
@@ -622,6 +622,28 @@ const Rowing2000mCard: React.FC<{
     const age = getAgeFromBirthDate(userData?.birthDate);
     const gender = userData?.gender;
 
+    const rowingScoreHistory = useMemo(() => {
+        if ((gender !== 'male' && gender !== 'female') || age === null) return [];
+        return [...rowingLogs]
+            .filter(l => (l.benchmarkDistance ?? 2000) === 2000)
+            .sort((a, b) => a.date - b.date)
+            .map(l => {
+                const score = getRowingScore(gender, age, l.benchmarkValue!);
+                if (score === null) return null;
+                return {
+                    date: new Date(l.date).toLocaleDateString('sv-SE', { month: 'short', day: 'numeric' }),
+                    timestamp: l.date,
+                    score,
+                    timeLabel: formatRowingTime(l.benchmarkValue!)
+                };
+            })
+            .filter(Boolean) as { date: string; timestamp: number; score: number; timeLabel: string }[];
+    }, [rowingLogs, gender, age]);
+
+    const latestRowingScore = rowingScoreHistory.length > 0
+        ? rowingScoreHistory[rowingScoreHistory.length - 1].score
+        : null;
+
     const latestDistance = latestAttempt ? (latestAttempt.benchmarkDistance ?? 2000) : 2000;
     const isFullTest = latestDistance === 2000;
 
@@ -849,6 +871,41 @@ const Rowing2000mCard: React.FC<{
                             </div>
                         </div>
                     ) : null}
+                </div>
+            )}
+
+            {latestRowingScore !== null && (
+                <div className="pt-4 border-t border-gray-100 dark:border-gray-800">
+                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Din konditionspoäng</p>
+                    <div className="flex items-baseline gap-2 mb-1">
+                        <span className="text-5xl font-black text-gray-900 dark:text-white tracking-tight leading-none">{latestRowingScore}</span>
+                        <span className="text-sm font-bold text-gray-400">/ 100</span>
+                    </div>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mb-4">
+                        Samma skala som din styrkepoäng, räknad på din senaste hela 2000-metare och justerad för din ålder och ditt kön.
+                    </p>
+
+                    {rowingScoreHistory.length >= 2 ? (
+                        <div className="h-40 w-full">
+                            <ResponsiveContainer width="100%" height="100%">
+                                <LineChart data={rowingScoreHistory} margin={{ top: 5, right: 5, left: -20, bottom: 5 }}>
+                                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e7eb" />
+                                    <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#9ca3af' }} dy={10} />
+                                    <YAxis domain={[0, 100]} axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#9ca3af' }} />
+                                    <Tooltip
+                                        contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)', fontSize: '12px', fontWeight: 'bold' }}
+                                        formatter={(value: number, _name: string, props: any) => [`${value} poäng · ${props?.payload?.timeLabel ?? ''}`, 'Konditionspoäng']}
+                                        labelStyle={{ color: '#6b7280', marginBottom: '4px' }}
+                                    />
+                                    <Line type="monotone" dataKey="score" stroke="#14b8a6" strokeWidth={3} dot={{ r: 4, fill: '#14b8a6', strokeWidth: 2, stroke: '#fff' }} activeDot={{ r: 6, fill: '#14b8a6', strokeWidth: 0 }} />
+                                </LineChart>
+                            </ResponsiveContainer>
+                        </div>
+                    ) : (
+                        <p className="text-xs text-gray-500 dark:text-gray-400">
+                            Gör om testet så ritas din utvecklingskurva här.
+                        </p>
+                    )}
                 </div>
             )}
 

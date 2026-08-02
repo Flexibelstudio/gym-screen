@@ -97,6 +97,75 @@ export function getStrengthAssessment(
   };
 }
 
+/**
+ * Lyften som ingår i den sammanvägda styrkepoängen. Alltid samma tre.
+ */
+export const STRENGTH_SCORE_LIFTS = ['squat', 'bench', 'deadlift'] as const;
+
+/**
+ * Matchar ett loggat övningsnamn mot ett av standardlyften via aliaslistan.
+ */
+export function matchesLift(exerciseName: string | undefined | null, lift: string): boolean {
+  if (!exerciseName) return false;
+  const aliases = LIFT_ALIASES[lift];
+  if (!aliases || !Array.isArray(aliases)) return false;
+  return aliases.includes(String(exerciseName).toLowerCase().trim());
+}
+
+/**
+ * Kontinuerlig poäng 0–100 för ett enskilt lyft.
+ * Tjugo poäng per nivå, linjärt interpolerat mellan trösklarna.
+ */
+export function getLiftScore(
+  lift: string,
+  gender: string | undefined | null,
+  age: number | undefined | null,
+  bodyWeightKg: number | undefined | null,
+  oneRM: number | undefined | null
+): number | null {
+  const assessment = getStrengthAssessment(lift, gender, age, bodyWeightKg, oneRM);
+  if (!assessment || !oneRM) return null;
+
+  const t = assessment.thresholdsKg;
+  if (!Array.isArray(t) || t.length < 5) return null;
+
+  if (oneRM < t[0]) {
+    if (t[0] <= 0) return 0;
+    return Math.max(0, Math.min(20, Math.round((oneRM / t[0]) * 20)));
+  }
+
+  for (let i = 0; i < t.length - 1; i++) {
+    if (oneRM >= t[i] && oneRM < t[i + 1]) {
+      const span = t[i + 1] - t[i];
+      const within = span > 0 ? (oneRM - t[i]) / span : 0;
+      return Math.round((i + 1) * 20 + within * 20);
+    }
+  }
+
+  return 100;
+}
+
+/**
+ * Sammanvägd styrkepoäng. Kräver alla tre lyften — saknas något returneras null.
+ */
+export function getStrengthScore(
+  oneRMs: { squat?: number | null; bench?: number | null; deadlift?: number | null },
+  gender: string | undefined | null,
+  age: number | undefined | null,
+  bodyWeightKg: number | undefined | null
+): { score: number; parts: Record<string, number> } | null {
+  const parts: Record<string, number> = {};
+
+  for (const lift of STRENGTH_SCORE_LIFTS) {
+    const value = getLiftScore(lift, gender, age, bodyWeightKg, oneRMs[lift]);
+    if (value === null) return null;
+    parts[lift] = value;
+  }
+
+  const score = Math.round((parts.squat + parts.bench + parts.deadlift) / 3);
+  return { score, parts };
+}
+
 export function parseRowingTime(t: string | undefined | null): number {
   if (!t || typeof t !== 'string') return 0;
   const trimmed = t.trim();
@@ -188,6 +257,46 @@ export function getRowingAssessment(
     nextLevelSec,
     averageSec,
   };
+}
+
+/**
+ * Kontinuerlig konditionspoäng 0–100 för 2000 m rodd.
+ *
+ * Räknas i hastighet (meter per sekund) i stället för tid. Trösklarna i
+ * ROWING_2000M_STANDARDS är tider där lägre är bättre; omräknade till hastighet
+ * blir de stigande, och nollpunkten blir noll hastighet. Därmed fungerar exakt
+ * samma interpolation som i getLiftScore och de två poängen betyder samma sak.
+ *
+ * Gäller endast hela 2000 meter. Delprov ska aldrig skickas hit.
+ */
+export function getRowingScore(
+  gender: string | undefined | null,
+  age: number | undefined | null,
+  timeSeconds: number | undefined | null
+): number | null {
+  const assessment = getRowingAssessment(gender, age, timeSeconds);
+  if (!assessment || !timeSeconds || timeSeconds <= 0) return null;
+
+  const t = assessment.thresholdsSec;
+  if (!Array.isArray(t) || t.length < 5) return null;
+
+  const speed = 2000 / timeSeconds;
+  const speedThresholds = t.map((sec) => (sec > 0 ? 2000 / sec : 0));
+
+  if (speed < speedThresholds[0]) {
+    if (speedThresholds[0] <= 0) return 0;
+    return Math.max(0, Math.min(20, Math.round((speed / speedThresholds[0]) * 20)));
+  }
+
+  for (let i = 0; i < speedThresholds.length - 1; i++) {
+    if (speed >= speedThresholds[i] && speed < speedThresholds[i + 1]) {
+      const span = speedThresholds[i + 1] - speedThresholds[i];
+      const within = span > 0 ? (speed - speedThresholds[i]) / span : 0;
+      return Math.round((i + 1) * 20 + within * 20);
+    }
+  }
+
+  return 100;
 }
 
 export function findLift1RM(

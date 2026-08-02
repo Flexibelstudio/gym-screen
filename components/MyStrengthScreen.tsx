@@ -11,7 +11,7 @@ import { calculate1RM } from '../utils/workoutUtils';
 import { canonicalizeExerciseName } from '../data/exerciseAliases';
 import { useConfirm } from './ConfirmContext';
 import { LEVEL_NAMES } from '../data/fitnessStandards';
-import { getAgeFromBirthDate, getStrengthAssessment, findLift1RM } from '../utils/fitnessBenchmarks';
+import { getAgeFromBirthDate, getStrengthAssessment, findLift1RM, getStrengthScore, matchesLift } from '../utils/fitnessBenchmarks';
 import { useStudio } from '../context/StudioContext';
 
 export interface MyStrengthScreenProps {
@@ -295,6 +295,82 @@ export const MyStrengthScreen: React.FC<MyStrengthScreenProps> = ({ userData, lo
     const bodyWeight = typeof userData?.bodyWeight === 'number' && userData.bodyWeight > 0 ? userData.bodyWeight : null;
     const gender = userData?.gender;
 
+    const strengthScore = useMemo(() => getStrengthScore(
+        {
+            squat: findLift1RM(sortedPbs, 'squat'),
+            bench: findLift1RM(sortedPbs, 'bench'),
+            deadlift: findLift1RM(sortedPbs, 'deadlift')
+        },
+        gender, age, bodyWeight
+    ), [sortedPbs, gender, age, bodyWeight]);
+
+    const missingScoreLifts = useMemo(() => {
+        const labels: Record<string, string> = { squat: 'knäböj', bench: 'bänkpress', deadlift: 'marklyft' };
+        return (['squat', 'bench', 'deadlift'] as const)
+            .filter(lift => !findLift1RM(sortedPbs, lift))
+            .map(lift => labels[lift]);
+    }, [sortedPbs]);
+
+    const strengthScoreHistory = useMemo(() => {
+        if (!gender || age === null || bodyWeight === null) return [];
+        const sortedLogs = [...(logs || [])].sort((a, b) => a.date - b.date);
+        const best: Record<string, number> = {};
+        const points: { date: string; timestamp: number; score: number }[] = [];
+
+        sortedLogs.forEach(log => {
+            if (!log.exerciseResults) return;
+            let changed = false;
+
+            log.exerciseResults.forEach((ex: any) => {
+                (['squat', 'bench', 'deadlift'] as const).forEach(lift => {
+                    if (!matchesLift(ex.exerciseName, lift)) return;
+
+                    let best1RM = 0;
+                    const sets = ex.setDetails || [];
+                    if (sets.length > 0) {
+                        sets.forEach((s: any) => {
+                            const w = parseFloat(s.weight);
+                            const r = parseFloat(s.reps);
+                            if (!isNaN(w) && !isNaN(r) && w > 0 && r > 0 && r <= 10) {
+                                const oneRm = calculate1RM(w, r);
+                                if (oneRm && oneRm > best1RM) best1RM = oneRm;
+                            }
+                        });
+                    } else {
+                        const w = parseFloat(ex.weight);
+                        const r = parseFloat(ex.reps);
+                        if (!isNaN(w) && !isNaN(r) && w > 0 && r > 0 && r <= 10) {
+                            const oneRm = calculate1RM(w, r);
+                            if (oneRm && oneRm > best1RM) best1RM = oneRm;
+                        }
+                    }
+
+                    if (best1RM > (best[lift] || 0)) {
+                        best[lift] = best1RM;
+                        changed = true;
+                    }
+                });
+            });
+
+            if (!changed) return;
+            if (!best.squat || !best.bench || !best.deadlift) return;
+
+            const result = getStrengthScore(
+                { squat: best.squat, bench: best.bench, deadlift: best.deadlift },
+                gender, age, bodyWeight
+            );
+            if (!result) return;
+
+            points.push({
+                date: new Date(log.date).toLocaleDateString('sv-SE', { month: 'short', day: 'numeric' }),
+                timestamp: log.date,
+                score: result.score
+            });
+        });
+
+        return points;
+    }, [logs, gender, age, bodyWeight]);
+
     return (
         <div className="w-full animate-fade-in">
             {enableFitnessBenchmarks && (
@@ -317,6 +393,69 @@ export const MyStrengthScreen: React.FC<MyStrengthScreenProps> = ({ userData, lo
                     <p className="text-xs text-gray-500 dark:text-gray-400 font-medium mb-3">
                         Din nivå jämförs med andra som tränar — i din ålder, ditt kön och din kroppsvikt.
                     </p>
+
+                    <div className="mb-4 bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 p-5 shadow-sm">
+                        {strengthScore ? (
+                            <>
+                                <div className="flex items-end justify-between gap-4 mb-1">
+                                    <div>
+                                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Din styrkepoäng</p>
+                                        <div className="flex items-baseline gap-2">
+                                            <span className="text-5xl font-black text-gray-900 dark:text-white tracking-tight leading-none">{strengthScore.score}</span>
+                                            <span className="text-sm font-bold text-gray-400">/ 100</span>
+                                        </div>
+                                    </div>
+                                    <span className="inline-flex items-center px-3 py-1 rounded-lg text-sm font-bold bg-primary/10 text-primary border border-primary/20">
+                                        {LEVEL_NAMES[Math.min(5, Math.floor(strengthScore.score / 20))] || LEVEL_NAMES[0]}
+                                    </span>
+                                </div>
+                                <p className="text-xs text-gray-500 dark:text-gray-400 mb-4">
+                                    Snittet av knäböj, bänkpress och marklyft. Knäböj {strengthScore.parts.squat}, bänkpress {strengthScore.parts.bench}, marklyft {strengthScore.parts.deadlift}.
+                                </p>
+
+                                {strengthScoreHistory.length >= 2 ? (
+                                    <>
+                                        <div className="h-40 w-full">
+                                            <ResponsiveContainer width="100%" height="100%">
+                                                <LineChart data={strengthScoreHistory} margin={{ top: 5, right: 5, left: -20, bottom: 5 }}>
+                                                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e7eb" />
+                                                    <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#9ca3af' }} dy={10} />
+                                                    <YAxis domain={[0, 100]} axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#9ca3af' }} />
+                                                    <Tooltip
+                                                        contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)', fontSize: '12px', fontWeight: 'bold' }}
+                                                        formatter={(value: number) => [`${value} poäng`, 'Styrkepoäng']}
+                                                        labelStyle={{ color: '#6b7280', marginBottom: '4px' }}
+                                                    />
+                                                    <Line type="monotone" dataKey="score" stroke="#4f46e5" strokeWidth={3} dot={{ r: 4, fill: '#4f46e5', strokeWidth: 2, stroke: '#fff' }} activeDot={{ r: 6, fill: '#4f46e5', strokeWidth: 0 }} />
+                                                </LineChart>
+                                            </ResponsiveContainer>
+                                        </div>
+                                        <p className="text-[10px] text-gray-400 mt-2">
+                                            Kurvan börjar den dag du loggat alla tre lyften och är beräknad utifrån din nuvarande kroppsvikt.
+                                        </p>
+                                    </>
+                                ) : (
+                                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                                        Logga de tre lyften vid fler tillfällen så ritas din utvecklingskurva här.
+                                    </p>
+                                )}
+                            </>
+                        ) : (
+                            <>
+                                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Din styrkepoäng</p>
+                                {missingScoreLifts.length > 0 ? (
+                                    <p className="text-sm text-gray-600 dark:text-gray-300">
+                                        Logga {missingScoreLifts.join(', ')} så räknar vi fram din styrkepoäng — ett samlat mått på knäböj, bänkpress och marklyft.
+                                    </p>
+                                ) : (
+                                    <p className="text-sm text-gray-600 dark:text-gray-300">
+                                        Fyll i kön, födelsedatum och kroppsvikt i din profil så räknar vi fram din styrkepoäng.
+                                    </p>
+                                )}
+                            </>
+                        )}
+                    </div>
+
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                         {liftsConfig.map((lift) => {
                             const oneRM = findLift1RM(sortedPbs, lift.key);
