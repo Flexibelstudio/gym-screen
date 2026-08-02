@@ -1336,3 +1336,6 @@ export const SystemOwnerScreen: React.FC<SystemOwnerScreenProps> = ({ allOrganiz
         </div>
     );
 };
+
+export default SystemOwnerScreen;
+
