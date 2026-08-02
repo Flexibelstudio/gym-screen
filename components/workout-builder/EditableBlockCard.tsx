@@ -722,28 +722,34 @@ export const EditableBlockCard: React.FC<EditableBlockCardProps> = ({
                             isTitle
                         />
                     </div>
-                    <div className="w-full sm:w-auto sm:min-w-[160px] ml-8 sm:ml-0">
-                        <select
-                            value={['Styrka', 'Hypertrofi', 'Kondition', 'Rörlighet', 'Teknik', 'Core/Bål', 'Balans', 'Uppvärmning', 'Nedvarvning', 'Finisher'].find(opt => opt.toLowerCase() === (block.tag || '').toLowerCase()) || block.tag || ''}
-                            onChange={e => handleFieldChange('tag', e.target.value)}
-                            className={`w-full appearance-none font-bold uppercase tracking-widest text-xs transition-colors cursor-pointer focus:outline-none ${
-                                !block.tag
-                                    ? 'bg-amber-500 text-gray-900 border border-amber-500 rounded-md px-2 py-1 shadow-sm'
-                                    : 'bg-transparent text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 border-b border-transparent hover:border-gray-300 dark:hover:border-gray-600 focus:border-primary focus:text-primary py-1'
-                            }`}
-                        >
-                            <option value="">Välj blocktyp</option>
-                            <option value="Styrka">Styrka</option>
-                            <option value="Hypertrofi">Hypertrofi</option>
-                            <option value="Kondition">Kondition</option>
-                            <option value="Rörlighet">Rörlighet</option>
-                            <option value="Teknik">Teknik</option>
-                            <option value="Core/Bål">Core/Bål</option>
-                            <option value="Balans">Balans</option>
-                            <option value="Uppvärmning">Uppvärmning</option>
-                            <option value="Nedvarvning">Nedvarvning</option>
-                            <option value="Finisher">Finisher</option>
-                        </select>
+                    <div className="w-full sm:w-auto sm:min-w-[180px] ml-8 sm:ml-0">
+                        <label className="block text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-1">Blocktyp</label>
+                        <div className="relative">
+                            <select
+                                value={['Styrka', 'Hypertrofi', 'Kondition', 'Rörlighet', 'Teknik', 'Core/Bål', 'Balans', 'Uppvärmning', 'Nedvarvning', 'Finisher'].find(opt => opt.toLowerCase() === (block.tag || '').toLowerCase()) || block.tag || ''}
+                                onChange={e => handleFieldChange('tag', e.target.value)}
+                                className={`w-full appearance-none font-bold uppercase tracking-widest text-xs cursor-pointer focus:outline-none rounded-lg border pl-3 pr-8 py-2.5 shadow-sm transition-colors ${
+                                    !block.tag
+                                        ? 'bg-amber-500 text-gray-900 border-amber-500'
+                                        : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200 border-gray-200 dark:border-gray-700 hover:border-primary focus:border-primary'
+                                }`}
+                            >
+                                <option value="">Välj blocktyp</option>
+                                <option value="Styrka">Styrka</option>
+                                <option value="Hypertrofi">Hypertrofi</option>
+                                <option value="Kondition">Kondition</option>
+                                <option value="Rörlighet">Rörlighet</option>
+                                <option value="Teknik">Teknik</option>
+                                <option value="Core/Bål">Core/Bål</option>
+                                <option value="Balans">Balans</option>
+                                <option value="Uppvärmning">Uppvärmning</option>
+                                <option value="Nedvarvning">Nedvarvning</option>
+                                <option value="Finisher">Finisher</option>
+                            </select>
+                            <ChevronDownIcon className={`w-4 h-4 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none ${
+                                !block.tag ? 'text-gray-900' : 'text-gray-400'
+                            }`} />
+                        </div>
                     </div>
                 </div>
                 <button onClick={onRemove} className="text-red-500 hover:text-red-400 ml-4 flex-shrink-0 font-semibold p-2">

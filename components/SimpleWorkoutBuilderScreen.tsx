@@ -767,7 +767,28 @@ export const SimpleWorkoutBuilderScreen: React.FC<{ initialWorkout: Workout | nu
         }
         if (!workout.title.trim()) { alert("Passet måste ha ett namn."); return; }
         if (setCustomBackHandler) setCustomBackHandler(null);
-        onSave({ ...workout, organizationId: selectedOrganization?.id || '' });
+
+        const workoutToSave: Workout = {
+            ...workout,
+            organizationId: selectedOrganization?.id || ''
+        };
+
+        // Ett nytt pass som skapats här ska vara publicerat direkt. Annars blir det
+        // osynligt i Anteckningar och i Kolla in passen, och går bara att nå genom
+        // att publicera det manuellt i adminvyn.
+        //
+        // Undantag: justeringar. handleAdjustWorkout sätter medvetet isMemberDraft
+        // true och isPublished false på sin kopia och anropar ändå
+        // setIsEditingNewDraft(true) — utan kontrollen nedan skulle varje
+        // "Justering:"-kopia från skärmen publiceras till hela gymmet.
+        //
+        // Ett befintligt pass rörs inte heller; det kan ha avpublicerats med flit.
+        if (isNewDraft && workoutToSave.isMemberDraft !== true) {
+            workoutToSave.isPublished = true;
+            workoutToSave.isMemberDraft = false;
+        }
+
+        onSave(workoutToSave);
     };
     
     const handleAddBlock = () => {
@@ -845,6 +866,38 @@ export const SimpleWorkoutBuilderScreen: React.FC<{ initialWorkout: Workout | nu
                                     className={`${inputBaseClasses} w-full text-4xl tracking-tight !bg-white dark:!bg-gray-900`} 
                                 />
                             </div>
+                            {studioConfig.customCategories && studioConfig.customCategories.length > 0 && (() => {
+                                const hasValidCategory = studioConfig.customCategories.some(c => c.name === workout.category);
+                                return (
+                                    <div>
+                                        <label className="text-[10px] font-black text-primary uppercase tracking-[0.3em] mb-2 block ml-2">Kategori</label>
+                                        <div className="flex flex-wrap gap-2">
+                                            {studioConfig.customCategories.map(cat => {
+                                                const isSelected = workout.category === cat.name;
+                                                return (
+                                                    <button
+                                                        key={cat.id || cat.name}
+                                                        type="button"
+                                                        onClick={() => setWorkout({ ...workout, category: cat.name })}
+                                                        className={`px-4 py-2.5 rounded-xl text-sm font-bold border-2 transition-all active:scale-95 ${
+                                                            isSelected
+                                                                ? 'bg-primary text-white border-primary shadow-lg shadow-primary/20'
+                                                                : 'bg-white dark:bg-gray-900 text-gray-600 dark:text-gray-300 border-transparent hover:border-gray-300 dark:hover:border-gray-600'
+                                                        }`}
+                                                    >
+                                                        {cat.name}
+                                                    </button>
+                                                );
+                                            })}
+                                        </div>
+                                        {!hasValidCategory && (
+                                            <p className="mt-2 ml-2 text-xs font-bold text-amber-600 dark:text-amber-400">
+                                                Välj kategori. Utan den hittar varken medlemmarna eller skärmen passet.
+                                            </p>
+                                        )}
+                                    </div>
+                                );
+                            })()}
                             <div>
                                 <label className="text-[10px] font-black text-primary uppercase tracking-[0.3em] mb-2 block ml-2">Tips till deltagare</label>
                                 <textarea 
