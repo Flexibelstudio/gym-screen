@@ -144,6 +144,7 @@ interface SummerChallengeDiplomaCardProps {
     grandTotalPoints: number;
     userRankIndex: number;
     challengeTitle: string;
+    organizationName?: string;
     endDate?: number;
     onClose: () => void;
 }
@@ -162,6 +163,7 @@ const SummerChallengeDiplomaCard: React.FC<SummerChallengeDiplomaCardProps> = ({
     grandTotalPoints,
     userRankIndex,
     challengeTitle,
+    organizationName,
     endDate,
     onClose
 }) => {
@@ -220,7 +222,7 @@ const SummerChallengeDiplomaCard: React.FC<SummerChallengeDiplomaCardProps> = ({
                         <div className="space-y-0.5 py-0.5">
                             <span className="text-[9px] sm:text-[10px] font-bold uppercase text-amber-200/70 tracking-widest block">Tilldelas härmed</span>
                             <h2 className="text-2xl sm:text-3xl font-black tracking-tight text-white capitalize font-sans drop-shadow-[0_2px_10px_rgba(0,0,0,0.5)] leading-tight">
-                                {userData?.name || userData?.displayName || 'Sisu-kämpe'}
+                                {`${userData?.firstName || ''} ${userData?.lastName || ''}`.trim() || userData?.name || userData?.displayName || 'Sisu-kämpe'}
                             </h2>
                         </div>
 
@@ -266,18 +268,13 @@ const SummerChallengeDiplomaCard: React.FC<SummerChallengeDiplomaCardProps> = ({
                         <div className="pt-3 border-t border-white/10 flex items-center justify-between gap-4 text-left max-w-sm mx-auto">
                             <div>
                                 <span className="block text-[7px] font-bold text-amber-200/70 uppercase">Utfärdat på</span>
-                                <span className="block text-[10px] font-semibold text-white truncate max-w-[125px]">{userData?.organizationName || 'Ditt Gym'}</span>
+                                <span className="block text-[10px] font-semibold text-white truncate max-w-[125px]">{organizationName || userData?.organizationName || 'Ditt Gym'}</span>
                             </div>
                             <div className="text-right">
                                 <span className="block text-[7px] font-bold text-amber-200/70 uppercase">Slutdatum</span>
                                 <span className="block text-[10px] font-semibold text-white">{endDateStr}</span>
                             </div>
                         </div>
-
-                        {/* Screenshot note */}
-                        <p className="text-[9px] text-amber-200/50 font-semibold italic select-none pt-1">
-                            📸 Ta en skärmdump och dela på sociala medier! #Sommarutmaningen
-                        </p>
                     </div>
                 </div>
             </div>
@@ -1663,7 +1660,7 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
 
             return {
                 uid: member.uid,
-                name: member.name || member.displayName || 'Medlem',
+                name: `${member.firstName || ''} ${member.lastName || ''}`.trim() || member.name || member.displayName || 'Medlem',
                 avatarUrl: member.avatarUrl || member.photoURL,
                 totalPoints,
                 weeklyPoints
@@ -2887,6 +2884,7 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                                         grandTotalPoints={grandTotalPointsForStudio}
                                         userRankIndex={userRankIndex}
                                         challengeTitle={configToUse?.summerChallengeTitle || "Sommarutmaningen ☀️"}
+                                        organizationName={selectedOrganization?.name || ''}
                                         endDate={configToUse?.summerChallengeEndDate}
                                         onClose={() => setIsSummerDiplomaOpen(false)}
                                     />
