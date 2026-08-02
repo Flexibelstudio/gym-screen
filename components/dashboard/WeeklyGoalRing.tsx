@@ -59,14 +59,14 @@ export const WeeklyGoalRing: React.FC<WeeklyGoalRingProps> = ({
             </div>
 
             {hasSummerSisu && (
-                <div className="mt-4 flex items-center gap-4 border-t border-gray-150 dark:border-gray-800 pt-4 w-full justify-around">
+                <div className="mt-4 flex items-center gap-4 border-t border-gray-200 dark:border-gray-800 pt-4 w-full justify-around">
                     <div className="text-center flex-1">
                         <span className="text-[9px] font-black text-gray-400 uppercase tracking-wider block mb-0.5">Veckopoäng</span>
-                        <span className="text-lg font-black text-amber-500 dark:text-amber-450 flex items-center justify-center gap-1">
+                        <span className="text-lg font-black text-amber-500 dark:text-amber-400 flex items-center justify-center gap-1">
                             ☀️ {summerWeekPoints}p
                         </span>
                     </div>
-                    <div className="h-8 w-[1px] bg-gray-150 dark:bg-gray-800" />
+                    <div className="h-8 w-[1px] bg-gray-200 dark:bg-gray-800" />
                     <div className="text-center flex-1">
                         <span className="text-[9px] font-black text-gray-400 uppercase tracking-wider block mb-0.5">Total Sisu</span>
                         <span className="text-lg font-black text-orange-500 flex items-center justify-center gap-1">

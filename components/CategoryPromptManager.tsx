@@ -22,7 +22,7 @@ export const CategoryPromptManager: React.FC<CategoryPromptManagerProps> = ({ ca
     const handleCancelEditing = (id: string) => setEditingState(prev => { const n = {...prev}; delete n[id]; return n; });
     const handleEditingChange = (id: string, value: string) => setEditingState(prev => ({ ...prev, [id]: value }));
 
-    const handleUpdateCategory = (id: string, field: 'name' | 'prompt' | 'icon' | 'isLocked' | 'durationMinutes', value: any) => {
+    const handleUpdateCategory = (id: string, field: 'name' | 'prompt' | 'icon' | 'isLocked' | 'durationMinutes' | 'showOnlyLatestPublished', value: any) => {
         onCategoriesChange(categories.map(cat => cat.id === id ? { ...cat, [field]: value } : cat));
     };
     
@@ -117,6 +117,16 @@ export const CategoryPromptManager: React.FC<CategoryPromptManagerProps> = ({ ca
                                             disabled={isSaving}
                                         />
                                         <span>Låst på studioskärmen (kräver coach-lösenord)</span>
+                                    </label>
+                                    <label className="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-400 cursor-pointer mt-1 ml-2">
+                                        <input 
+                                            type="checkbox" 
+                                            checked={!!cat.showOnlyLatestPublished} 
+                                            onChange={(e) => handleUpdateCategory(cat.id, 'showOnlyLatestPublished', e.target.checked)}
+                                            className="w-3.5 h-3.5 text-primary bg-gray-100 border-gray-300 rounded focus:ring-primary dark:focus:ring-primary dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
+                                            disabled={isSaving}
+                                        />
+                                        <span>Visa endast det senast publicerade passet</span>
                                     </label>
                                     <div className="flex items-center gap-2 mt-2 ml-2">
                                         <label className="text-xs text-gray-600 dark:text-gray-400 font-medium">Passlängd (min):</label>

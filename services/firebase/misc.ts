@@ -1,5 +1,5 @@
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
-import { collection, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, query, where, orderBy, limit, onSnapshot, serverTimestamp } from 'firebase/firestore';
+import { collection, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, query, where, orderBy, limit, onSnapshot, serverTimestamp, startAfter, QueryDocumentSnapshot, DocumentData } from 'firebase/firestore';
 import { db, storage, isOffline, sanitizeData, getLeaderboardDocId } from './init';
 import { AdminActivity, StudioEvent, CoachNote, SeasonalThemeSetting, HyroxRace, CheckInEvent, GalleryImage, Partner, Lead } from '../../types';
 
@@ -13,6 +13,39 @@ export const saveAdminActivity = async (activity: Omit<AdminActivity, 'id'>) => 
         });
     } catch (e) {
         console.error("Failed to save admin activity:", e);
+    }
+};
+
+export const getAdminActivitiesPage = async (
+    orgId: string,
+    pageSize = 25,
+    startAfterDoc?: QueryDocumentSnapshot<DocumentData> | null
+): Promise<{ activities: AdminActivity[]; lastDoc: QueryDocumentSnapshot<DocumentData> | null; hasMore: boolean }> => {
+    if (isOffline || !db || !orgId) return { activities: [], lastDoc: null, hasMore: false };
+    try {
+        let q = query(
+            collection(db, 'admin_activity'),
+            where('organizationId', '==', orgId),
+            orderBy('timestamp', 'desc'),
+            limit(pageSize)
+        );
+        if (startAfterDoc) {
+            q = query(
+                collection(db, 'admin_activity'),
+                where('organizationId', '==', orgId),
+                orderBy('timestamp', 'desc'),
+                startAfter(startAfterDoc),
+                limit(pageSize)
+            );
+        }
+        const snap = await getDocs(q);
+        const activities = snap.docs.map(d => d.data() as AdminActivity);
+        const lastDoc = snap.docs.length > 0 ? snap.docs[snap.docs.length - 1] : null;
+        const hasMore = snap.docs.length === pageSize;
+        return { activities, lastDoc, hasMore };
+    } catch (e) {
+        console.error("getAdminActivitiesPage failed", e);
+        return { activities: [], lastDoc: null, hasMore: false };
     }
 };
 
@@ -155,6 +188,27 @@ export const listenToWeeklyPBs = (orgId: string, onUpdate: (events: StudioEvent[
         console.error("Error listening to weekly PBs:", error);
     });
 };
+
+export const listenToFeedEvents = (orgId: string, onUpdate: (events: StudioEvent[]) => void) => {
+    if (isOffline || !db || !orgId) { onUpdate([]); return () => {}; }
+    
+    const thirtyDaysAgo = Date.now() - 30 * 24 * 60 * 60 * 1000;
+    const q = query(
+        collection(db, 'studio_events'), 
+        where('organizationId', '==', orgId), 
+        orderBy('timestamp', 'desc'), 
+        limit(100)
+    );
+    return onSnapshot(q, (snap) => {
+        const allEvents = snap.docs.map(d => d.data() as StudioEvent);
+        const feedEvents = allEvents.filter(e => (e.type === 'milestone' || e.type === 'test' || e.type === 'anniversary' || e.type === 'streak') && (e.timestamp || 0) >= thirtyDaysAgo);
+        onUpdate(feedEvents.slice(0, 20));
+    }, (error) => {
+        console.error("Error listening to feed events:", error);
+    });
+};
+
+export const listenToMilestoneEvents = listenToFeedEvents;
 
 // --- COACH NOTES ---
 

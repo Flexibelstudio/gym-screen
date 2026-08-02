@@ -1,28 +1,23 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Member, WorkoutLog, SmartGoalDetail } from '../types';
+import { Member, WorkoutLog, SmartGoalDetail, PersonalBest } from '../types';
 import { Modal } from './ui/Modal';
-import { getMemberLogs } from '../services/firebaseService';
+import { getMemberLogs, listenToPersonalBests } from '../services/firebaseService';
 import { analyzeMemberProgress, MemberProgressAnalysis } from '../services/geminiService';
-import { motion } from 'framer-motion';
-import { ChartBarIcon, SparklesIcon, InformationCircleIcon, DumbbellIcon, FireIcon } from './icons';
+import { ChartBarIcon, SparklesIcon, DumbbellIcon, FireIcon } from './icons';
 import { useStudio } from '../context/StudioContext';
 import { MapPinIcon } from 'lucide-react';
 import { calculateAge } from '../utils/dateUtils';
+import { getYearWeek, getMemberLocationIds } from '../utils/workoutUtils';
+import { getAgeFromBirthDate, findLift1RM, getStrengthScore } from '../utils/fitnessBenchmarks';
+import { buildStrengthScoreHistory, buildRowingScoreHistory, getDaysSinceLastLog, getSessionsPerWeek } from '../utils/memberProgress';
+import { LEVEL_NAMES } from '../data/fitnessStandards';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 interface MemberDetailModalProps {
     visible: boolean;
     member: Member;
     onClose: () => void;
 }
-
-const getYearWeek = (date: Date) => {
-    const d = new Date(date.getTime());
-    d.setHours(0, 0, 0, 0);
-    d.setDate(d.getDate() + 4 - (d.getDay() || 7));
-    const yearStart = new Date(d.getFullYear(), 0, 1);
-    const weekNo = Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
-    return `${d.getFullYear()}-W${weekNo}`;
-};
 
 const calculateWeeklyStreak = (logs: WorkoutLog[]) => {
     if (logs.length === 0) return 0;
@@ -73,25 +68,72 @@ const SmartItem: React.FC<{ letter: string, color: string, title: string, text: 
     </div>
 );
 
+const ScoreCard: React.FC<{
+    label: string;
+    score: number | null;
+    accent: string;
+    emptyText: string;
+    history: { date: string; score: number; label?: string }[];
+    tooltipName: string;
+}> = ({ label, score, accent, emptyText, history, tooltipName }) => (
+    <div className="bg-white dark:bg-gray-900 rounded-2xl p-5 border border-gray-100 dark:border-gray-800 shadow-sm">
+        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">{label}</p>
+        {score !== null ? (
+            <>
+                <div className="flex items-baseline gap-2 mb-4">
+                    <span className="text-4xl font-black text-gray-900 dark:text-white tracking-tight leading-none">{score}</span>
+                    <span className="text-sm font-bold text-gray-400">/ 100</span>
+                    <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded-md text-xs font-bold bg-primary/10 text-primary border border-primary/20">
+                        {LEVEL_NAMES[Math.min(5, Math.floor(score / 20))] || LEVEL_NAMES[0]}
+                    </span>
+                </div>
+                {history.length >= 2 ? (
+                    <div className="h-36 w-full">
+                        <ResponsiveContainer width="100%" height="100%">
+                            <LineChart data={history} margin={{ top: 5, right: 5, left: -20, bottom: 5 }}>
+                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e7eb" />
+                                <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#9ca3af' }} dy={10} />
+                                <YAxis domain={[0, 100]} axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#9ca3af' }} />
+                                <Tooltip
+                                    contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)', fontSize: '12px', fontWeight: 'bold' }}
+                                    formatter={(value: number, _name: string, props: any) => [
+                                        props?.payload?.label ? `${value} poäng · ${props.payload.label}` : `${value} poäng`,
+                                        tooltipName
+                                    ]}
+                                    labelStyle={{ color: '#6b7280', marginBottom: '4px' }}
+                                />
+                                <Line type="monotone" dataKey="score" stroke={accent} strokeWidth={3} dot={{ r: 3, fill: accent, strokeWidth: 2, stroke: '#fff' }} activeDot={{ r: 5, fill: accent, strokeWidth: 0 }} />
+                            </LineChart>
+                        </ResponsiveContainer>
+                    </div>
+                ) : (
+                    <p className="text-xs text-gray-500 dark:text-gray-400">Bara ett mättillfälle än. Kurvan ritas när det finns fler.</p>
+                )}
+            </>
+        ) : (
+            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{emptyText}</p>
+        )}
+    </div>
+);
+
 export const MemberDetailModal: React.FC<MemberDetailModalProps> = ({ visible, member, onClose }) => {
     const { selectedOrganization } = useStudio();
     const [recentLogs, setRecentLogs] = useState<WorkoutLog[]>([]);
+    const [pbs, setPbs] = useState<PersonalBest[]>([]);
     const [analysis, setAnalysis] = useState<MemberProgressAnalysis | null>(null);
     const [isLoadingAnalysis, setIsLoadingAnalysis] = useState(false);
-    const [showInfo, setShowInfo] = useState(false);
+    const [activeTab, setActiveTab] = useState<'overview' | 'progress' | 'insights'>('overview');
+
+    const targetId = member?.id || member?.uid || '';
 
     useEffect(() => {
         if (visible && member) {
+            setActiveTab('overview');
             const loadData = async () => {
                 try {
-                    const targetId = member.id || member.uid;
                     if (!targetId) return;
-
-                    // 1. Hämta loggar först (detta går snabbt)
                     const logs = await getMemberLogs(targetId);
                     setRecentLogs(logs);
-                    
-                    // 2. Starta AI-analys om det finns loggar
                     if (logs.length > 0) {
                         setIsLoadingAnalysis(true);
                         const result = await analyzeMemberProgress(logs, member.firstName, member.goals);
@@ -105,18 +147,76 @@ export const MemberDetailModal: React.FC<MemberDetailModalProps> = ({ visible, m
             }
             loadData();
         } else {
-            // Reset state when closing
             setRecentLogs([]);
+            setPbs([]);
             setAnalysis(null);
             setIsLoadingAnalysis(false);
         }
-    }, [visible, member]);
+    }, [visible, member, targetId]);
+
+    useEffect(() => {
+        if (!visible || !targetId) return;
+        const unsubscribe = listenToPersonalBests(targetId, setPbs);
+        return () => unsubscribe();
+    }, [visible, targetId]);
 
     const streak = useMemo(() => calculateWeeklyStreak(recentLogs), [recentLogs]);
+    const daysSinceLastLog = useMemo(() => getDaysSinceLastLog(recentLogs), [recentLogs]);
+    const sessionsPerWeek = useMemo(() => getSessionsPerWeek(recentLogs, 8), [recentLogs]);
+
+    const memberAge = getAgeFromBirthDate(member?.birthDate) ?? (typeof member?.age === 'number' ? member.age : null);
+    const memberBodyWeight = typeof member?.bodyWeight === 'number' && member.bodyWeight > 0 ? member.bodyWeight : null;
+    const memberGender = member?.gender;
+
+    const strengthScore = useMemo(() => {
+        const result = getStrengthScore(
+            { squat: findLift1RM(pbs, 'squat'), bench: findLift1RM(pbs, 'bench'), deadlift: findLift1RM(pbs, 'deadlift') },
+            memberGender, memberAge, memberBodyWeight
+        );
+        return result ? result.score : null;
+    }, [pbs, memberGender, memberAge, memberBodyWeight]);
+
+    const strengthHistory = useMemo(
+        () => buildStrengthScoreHistory(recentLogs, memberGender, memberAge, memberBodyWeight),
+        [recentLogs, memberGender, memberAge, memberBodyWeight]
+    );
+
+    const rowingHistory = useMemo(
+        () => buildRowingScoreHistory(recentLogs, memberGender, memberAge),
+        [recentLogs, memberGender, memberAge]
+    );
+
+    const conditioningScore = rowingHistory.length > 0 ? rowingHistory[rowingHistory.length - 1].score : null;
+
+    const baseLifts = useMemo(() => ([
+        { key: 'squat' as const, title: 'Knäböj', value: findLift1RM(pbs, 'squat') },
+        { key: 'bench' as const, title: 'Bänkpress', value: findLift1RM(pbs, 'bench') },
+        { key: 'deadlift' as const, title: 'Marklyft', value: findLift1RM(pbs, 'deadlift') }
+    ]), [pbs]);
 
     if (!visible) return null;
 
     const smart = member.goals?.smartCriteria;
+
+    const statusTone = daysSinceLastLog === null
+        ? 'bg-gray-50 dark:bg-gray-900/50 border-gray-100 dark:border-gray-800 text-gray-500 dark:text-gray-400'
+        : daysSinceLastLog <= 10
+            ? 'bg-green-50 dark:bg-green-900/20 border-green-100 dark:border-green-800/50 text-green-800 dark:text-green-300'
+            : daysSinceLastLog <= 20
+                ? 'bg-amber-50 dark:bg-amber-900/20 border-amber-100 dark:border-amber-800/50 text-amber-800 dark:text-amber-300'
+                : 'bg-red-50 dark:bg-red-900/20 border-red-100 dark:border-red-800/50 text-red-800 dark:text-red-300';
+
+    const statusText = daysSinceLastLog === null
+        ? 'Har inte loggat något pass än.'
+        : daysSinceLastLog === 0
+            ? `Loggade ett pass i dag. ${sessionsPerWeek} pass i veckan senaste två månaderna.`
+            : `Loggade senast för ${daysSinceLastLog} ${daysSinceLastLog === 1 ? 'dag' : 'dagar'} sedan. ${sessionsPerWeek} pass i veckan senaste två månaderna.`;
+
+    const tabs: { id: 'overview' | 'progress' | 'insights'; label: string }[] = [
+        { id: 'overview', label: 'Översikt' },
+        { id: 'progress', label: 'Utveckling' },
+        { id: 'insights', label: 'Insikter' }
+    ];
 
     return (
         <Modal isOpen={visible} onClose={onClose} title={`${member.firstName} ${member.lastName}`} size="lg">
@@ -143,13 +243,13 @@ export const MemberDetailModal: React.FC<MemberDetailModalProps> = ({ visible, m
                                 {member.role === 'coach' && <span className="bg-purple-100 text-purple-700 px-2 py-0.5 rounded text-xs font-bold">Coach</span>}
                                 {member.isTrainingMember && <span className="bg-green-100 text-green-700 px-2 py-0.5 rounded text-xs font-bold">Medlem</span>}
                                 {(() => {
-                                    const locId = member.locationId || (selectedOrganization?.locations?.[0]?.id);
-                                    const locName = selectedOrganization?.locations?.find(l => l.id === locId)?.name;
-                                    if (locName) {
+                                    const locIds = getMemberLocationIds(member);
+                                    if (locIds.length > 0 && selectedOrganization?.locations) {
+                                        const names = locIds.map(id => selectedOrganization.locations.find(l => l.id === id)?.name || id);
                                         return (
                                             <span className="bg-blue-100/80 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 px-2 py-0.5 rounded text-xs font-bold flex items-center gap-1 border border-blue-200 dark:border-blue-800">
                                                 <MapPinIcon className="w-3 h-3" />
-                                                {locName}
+                                                {names.join(', ')}
                                             </span>
                                         );
                                     }
@@ -172,86 +272,145 @@ export const MemberDetailModal: React.FC<MemberDetailModalProps> = ({ visible, m
                     </div>
                 </div>
 
-                {/* --- SMARTA MÅL --- */}
-                {member.goals?.hasSpecificGoals && (
-                    <div className="bg-white dark:bg-gray-900 rounded-3xl p-6 border border-gray-100 dark:border-gray-800 shadow-sm relative overflow-hidden">
-                        <div className="flex items-center justify-between mb-6">
-                            <h3 className="font-black text-gray-400 uppercase tracking-widest text-[10px]">Målanalys (SMART)</h3>
-                            <span className="text-xl">🎯</span>
-                        </div>
+                <div className={`px-4 py-3 rounded-2xl border text-sm font-medium ${statusTone}`}>
+                    {statusText}
+                </div>
 
-                        <div className="space-y-5 relative">
-                            {smart ? (
-                                <>
-                                    <SmartItem letter="S" color="bg-blue-500" title="Specifikt" text={smart.specific} />
-                                    <SmartItem letter="M" color="bg-emerald-500" title="Mätbart" text={smart.measurable} />
-                                    <SmartItem letter="A" color="bg-orange-500" title="Accepterat" text={smart.achievable} />
-                                    <SmartItem letter="R" color="bg-rose-500" title="Relevant" text={smart.relevant} />
-                                </>
-                            ) : (
-                                <div className="p-3 bg-gray-50 dark:bg-gray-800 rounded-xl">
-                                    <p className="text-xs text-gray-400 italic">SMART-analys saknas.</p>
+                <div className="flex gap-2 border-b border-gray-100 dark:border-gray-800">
+                    {tabs.map(tab => (
+                        <button
+                            key={tab.id}
+                            onClick={() => setActiveTab(tab.id)}
+                            className={`px-4 py-2.5 text-sm font-bold border-b-2 -mb-px transition-colors ${
+                                activeTab === tab.id
+                                    ? 'border-primary text-primary'
+                                    : 'border-transparent text-gray-400 hover:text-gray-600 dark:hover:text-gray-200'
+                            }`}
+                        >
+                            {tab.label}
+                        </button>
+                    ))}
+                </div>
+
+                {activeTab === 'overview' && (
+                    <div className="space-y-6 animate-fade-in">
+                        {/* --- SMARTA MÅL --- */}
+                        {member.goals?.hasSpecificGoals && (
+                            <div className="bg-white dark:bg-gray-900 rounded-3xl p-6 border border-gray-100 dark:border-gray-800 shadow-sm relative overflow-hidden">
+                                <div className="flex items-center justify-between mb-6">
+                                    <h3 className="font-black text-gray-400 uppercase tracking-widest text-[10px]">Målanalys (SMART)</h3>
+                                    <span className="text-xl">🎯</span>
                                 </div>
-                            )}
-                            <SmartItem letter="T" color="bg-indigo-500" title="Tid" text={member.goals?.targetDate || 'Ingen deadline.'} />
+
+                                <div className="space-y-5 relative">
+                                    {smart ? (
+                                        <>
+                                            <SmartItem letter="S" color="bg-blue-500" title="Specifikt" text={smart.specific} />
+                                            <SmartItem letter="M" color="bg-emerald-500" title="Mätbart" text={smart.measurable} />
+                                            <SmartItem letter="A" color="bg-orange-500" title="Accepterat" text={smart.achievable} />
+                                            <SmartItem letter="R" color="bg-rose-500" title="Relevant" text={smart.relevant} />
+                                        </>
+                                    ) : (
+                                        <div className="p-3 bg-gray-50 dark:bg-gray-800 rounded-xl">
+                                            <p className="text-xs text-gray-400 italic">SMART-analys saknas.</p>
+                                        </div>
+                                    )}
+                                    <SmartItem letter="T" color="bg-indigo-500" title="Tid" text={member.goals?.targetDate || 'Ingen deadline.'} />
+                                </div>
+                            </div>
+                        )}
+
+                        {/* --- SEKTION: SENASTE PASS --- */}
+                        <div className="mt-8">
+                            <div className="flex items-center justify-between mb-4">
+                                <h4 className="font-black text-gray-400 uppercase tracking-widest text-[10px]">Senaste aktivitet</h4>
+                                <span className="text-[10px] font-bold text-gray-300 bg-gray-100 dark:bg-gray-800 px-2 py-0.5 rounded uppercase">{recentLogs.length} pass totalt</span>
+                            </div>
+                            
+                            <div className="space-y-3">
+                                {recentLogs.length > 0 ? (
+                                    recentLogs.slice(0, 5).map(log => (
+                                        <div key={log.id} className="flex justify-between items-center p-4 bg-gray-50 dark:bg-gray-900 rounded-xl border border-gray-100 dark:border-gray-800 hover:border-primary/20 transition-colors">
+                                            <div>
+                                                <p className="font-bold text-sm text-gray-900 dark:text-white">{log.workoutTitle}</p>
+                                                <p className="text-xs text-gray-500">{new Date(log.date).toLocaleDateString('sv-SE', { weekday: 'short', day: 'numeric', month: 'short' })}</p>
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                                {log.feeling && (
+                                                    <span className="text-sm" title="Känsla">
+                                                        {log.feeling === 'good' ? '🔥' : log.feeling === 'bad' ? '🤕' : '🙂'}
+                                                    </span>
+                                                )}
+                                                {log.rpe && (
+                                                    <div className="px-2 py-1 bg-white dark:bg-black rounded-lg border border-gray-100 dark:border-gray-700 text-[10px] font-black text-gray-600 dark:text-gray-400 shadow-sm">
+                                                        RPE {log.rpe}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+                                    ))
+                                ) : (
+                                    <div className="py-8 text-center bg-gray-50 dark:bg-gray-900/30 rounded-xl border border-dashed border-gray-100 dark:border-gray-800">
+                                        <p className="text-sm text-gray-400 italic">Inga pass registrerade än.</p>
+                                    </div>
+                                )}
+                            </div>
                         </div>
                     </div>
                 )}
 
-                {/* --- AI SEKTION (Fysik-index & Insikter) --- */}
-                <div className="space-y-6">
-                    {isLoadingAnalysis ? (
-                        <div className="bg-gray-50 dark:bg-gray-900/50 rounded-3xl p-8 border border-dashed border-gray-200 dark:border-gray-800 flex flex-col items-center gap-3">
-                            <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
-                            <span className="text-gray-400 text-sm font-bold uppercase tracking-widest">AI:n beräknar fysik-index...</span>
-                        </div>
-                    ) : analysis ? (
-                        <>
-                            {/* FYSIK-INDEX */}
-                            <div className="bg-white dark:bg-gray-900 rounded-3xl p-6 border border-gray-100 dark:border-gray-800 shadow-sm">
-                                <div className="flex items-center justify-between mb-6">
-                                    <h3 className="font-black text-gray-400 uppercase tracking-widest text-[10px]">Fysik-index</h3>
-                                    <button onClick={() => setShowInfo(!showInfo)} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors">
-                                        <InformationCircleIcon className="w-4 h-4" />
-                                    </button>
-                                </div>
-                                
-                                {showInfo && (
-                                    <div className="mb-6 bg-gray-50 dark:bg-gray-800/50 p-4 rounded-xl text-xs text-gray-500 dark:text-gray-400 leading-relaxed border border-gray-100 dark:border-gray-700 animate-fade-in">
-                                        <p className="font-bold text-gray-700 dark:text-gray-300 mb-2">Hur funkar indexet?</p>
-                                        <p className="mb-1">AI:n analyserar de senaste 20 passen för att skapa en profil:</p>
-                                        <ul className="space-y-1 ml-1">
-                                            <li className="flex gap-2"><span className="text-red-500">●</span> <span><strong>Styrka:</strong> Ökar vid tunga lyft och låga repetitioner.</span></li>
-                                            <li className="flex gap-2"><span className="text-blue-500">●</span> <span><strong>Kondition:</strong> Ökar vid hög puls, distans och hög volym.</span></li>
-                                        </ul>
-                                    </div>
-                                )}
+                {activeTab === 'progress' && (
+                    <div className="space-y-6 animate-fade-in">
+                        <p className="text-xs text-gray-500 dark:text-gray-400">
+                            Samma siffror som medlemmen ser i appen. Poängen räknas ur loggade vikter och tider och är justerade för ålder, kön och kroppsvikt.
+                        </p>
 
-                                <div className="space-y-6">
-                                    {[
-                                        { label: 'Styrka', val: analysis.metrics.strength || 50, color: 'bg-red-500' },
-                                        { label: 'Kondition', val: analysis.metrics.endurance || 50, color: 'bg-blue-500' },
-                                        { label: 'Frekvens', val: analysis.metrics.frequency || 50, color: 'bg-green-500' }
-                                    ].map(m => (
-                                        <div key={m.label}>
-                                            <div className="flex justify-between text-[10px] font-black uppercase mb-2">
-                                                <span className="text-gray-500">{m.label}</span>
-                                                <span className="text-gray-900 dark:text-white">{m.val}%</span>
-                                            </div>
-                                            <div className="w-full bg-gray-100 dark:bg-gray-800 h-2.5 rounded-full overflow-hidden">
-                                                <motion.div 
-                                                    initial={{ width: 0 }} 
-                                                    animate={{ width: `${m.val}%` }} 
-                                                    transition={{ duration: 1, ease: "easeOut" }}
-                                                    className={`${m.color} h-full rounded-full`} 
-                                                />
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
+                        <ScoreCard
+                            label="Styrkepoäng"
+                            score={strengthScore}
+                            accent="#4f46e5"
+                            emptyText="Kräver loggade resultat i knäböj, bänkpress och marklyft, samt kön, födelsedatum och kroppsvikt i medlemmens profil."
+                            history={strengthHistory}
+                            tooltipName="Styrkepoäng"
+                        />
+
+                        <ScoreCard
+                            label="Konditionspoäng"
+                            score={conditioningScore}
+                            accent="#14b8a6"
+                            emptyText="Kräver ett genomfört 2000 m roddtest, samt kön och födelsedatum i medlemmens profil."
+                            history={rowingHistory}
+                            tooltipName="Konditionspoäng"
+                        />
+
+                        <div className="bg-white dark:bg-gray-900 rounded-2xl p-5 border border-gray-100 dark:border-gray-800 shadow-sm">
+                            <div className="flex items-center gap-2 mb-4">
+                                <DumbbellIcon className="w-4 h-4 text-gray-400" />
+                                <h4 className="font-black text-gray-400 uppercase tracking-widest text-[10px]">Personbästa, baslyft</h4>
                             </div>
+                            <div className="grid grid-cols-3 gap-3">
+                                {baseLifts.map(lift => (
+                                    <div key={lift.key} className="bg-gray-50 dark:bg-gray-800/50 p-4 rounded-xl border border-gray-100 dark:border-gray-700">
+                                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">{lift.title}</p>
+                                        <p className="text-2xl font-black text-gray-900 dark:text-white tracking-tight">
+                                            {lift.value ? `${Math.round(lift.value)}` : '–'}
+                                            {lift.value ? <span className="text-xs font-bold text-gray-400 ml-1">kg</span> : null}
+                                        </p>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+                )}
 
-                            {/* AI-COACH INSIKTER */}
+                {activeTab === 'insights' && (
+                    <div className="space-y-6 animate-fade-in">
+                        {isLoadingAnalysis ? (
+                            <div className="bg-gray-50 dark:bg-gray-900/50 rounded-3xl p-8 border border-dashed border-gray-200 dark:border-gray-800 flex flex-col items-center gap-3">
+                                <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+                                <span className="text-gray-400 text-sm font-bold uppercase tracking-widest">AI:n läser medlemmens pass...</span>
+                            </div>
+                        ) : analysis ? (
                             <div className="bg-gradient-to-br from-indigo-50 to-purple-50 dark:from-gray-800 dark:to-gray-800 p-6 rounded-2xl border border-indigo-100 dark:border-gray-700 shadow-sm">
                                 <div className="flex items-center gap-2 mb-4">
                                     <div className="bg-white/80 p-1.5 rounded-lg shadow-sm">
@@ -286,57 +445,24 @@ export const MemberDetailModal: React.FC<MemberDetailModalProps> = ({ visible, m
                                         </ul>
                                     </div>
                                 )}
-                            </div>
-                        </>
-                    ) : !isLoadingAnalysis && recentLogs.length === 0 ? (
-                        <div className="flex flex-col items-center justify-center py-8 text-center px-4 bg-gray-50 dark:bg-gray-800/50 rounded-3xl border border-dashed border-gray-200 dark:border-gray-800">
-                            <div className="bg-white dark:bg-gray-800 p-3 rounded-full mb-3 shadow-sm">
-                                <ChartBarIcon className="w-6 h-6 text-gray-300" />
-                            </div>
-                            <p className="text-sm text-gray-900 dark:text-white font-bold mb-1">Ingen data tillgänglig</p>
-                            <p className="text-xs text-gray-500 leading-relaxed">
-                                Medlemmen har inte loggat några pass än, så fysik-indexet kan inte beräknas.
-                            </p>
-                        </div>
-                    ) : null}
-                </div>
 
-                {/* --- SEKTION: SENASTE PASS --- */}
-                <div className="mt-8">
-                    <div className="flex items-center justify-between mb-4">
-                        <h4 className="font-black text-gray-400 uppercase tracking-widest text-[10px]">Senaste aktivitet</h4>
-                        <span className="text-[10px] font-bold text-gray-300 bg-gray-100 dark:bg-gray-800 px-2 py-0.5 rounded uppercase">{recentLogs.length} pass totalt</span>
-                    </div>
-                    
-                    <div className="space-y-3">
-                        {recentLogs.length > 0 ? (
-                            recentLogs.slice(0, 5).map(log => (
-                                <div key={log.id} className="flex justify-between items-center p-4 bg-gray-50 dark:bg-gray-900 rounded-xl border border-gray-100 dark:border-gray-800 hover:border-primary/20 transition-colors">
-                                    <div>
-                                        <p className="font-bold text-sm text-gray-900 dark:text-white">{log.workoutTitle}</p>
-                                        <p className="text-xs text-gray-500">{new Date(log.date).toLocaleDateString('sv-SE', { weekday: 'short', day: 'numeric', month: 'short' })}</p>
-                                    </div>
-                                    <div className="flex items-center gap-2">
-                                        {log.feeling && (
-                                            <span className="text-sm" title="Känsla">
-                                                {log.feeling === 'good' ? '🔥' : log.feeling === 'bad' ? '🤕' : '🙂'}
-                                            </span>
-                                        )}
-                                        {log.rpe && (
-                                            <div className="px-2 py-1 bg-white dark:bg-black rounded-lg border border-gray-100 dark:border-gray-700 text-[10px] font-black text-gray-600 dark:text-gray-400 shadow-sm">
-                                                RPE {log.rpe}
-                                            </div>
-                                        )}
-                                    </div>
-                                </div>
-                            ))
-                        ) : (
-                            <div className="py-8 text-center bg-gray-50 dark:bg-gray-900/30 rounded-xl border border-dashed border-gray-100 dark:border-gray-800">
-                                <p className="text-sm text-gray-400 italic">Inga pass registrerade än.</p>
+                                <p className="text-[10px] text-gray-400 mt-4">
+                                    Texten är AI-genererad ur medlemmens loggade pass och formuleras olika vid varje tillfälle. Läs den som uppslag inför samtalet med medlemmen, inte som ett färdigt program. Siffrorna under Utveckling är däremot alltid desamma.
+                                </p>
                             </div>
-                        )}
+                        ) : !isLoadingAnalysis && recentLogs.length === 0 ? (
+                            <div className="flex flex-col items-center justify-center py-8 text-center px-4 bg-gray-50 dark:bg-gray-800/50 rounded-3xl border border-dashed border-gray-200 dark:border-gray-800">
+                                <div className="bg-white dark:bg-gray-800 p-3 rounded-full mb-3 shadow-sm">
+                                    <ChartBarIcon className="w-6 h-6 text-gray-300" />
+                                </div>
+                                <p className="text-sm text-gray-900 dark:text-white font-bold mb-1">Ingen analys tillgänglig</p>
+                                <p className="text-xs text-gray-500 leading-relaxed">
+                                    Medlemmen har inte loggat några pass än.
+                                </p>
+                            </div>
+                        ) : null}
                     </div>
-                </div>
+                )}
             </div>
         </Modal>
     );

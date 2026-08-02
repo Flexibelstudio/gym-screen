@@ -169,7 +169,7 @@ export const MOCK_EXERCISE_BANK: BankExercise[] = [
     { id: 'bank_db_1', name: 'Hantelpress (Dumbbell Bench Press)', description: 'Bänkpress med hantlar för ett större rörelseomfång än med skivstång.', tags: ['bröst', 'axlar', 'triceps', 'hantlar'] },
     { id: 'bank_db_2', name: 'Hantelflyes (Dumbbell Flys)', description: 'Bröstövning där armarna rörs i en svepande rörelse, likt en fågels vingslag.', tags: ['bröst', 'hantlar'] },
     { id: 'bank_db_3', name: 'Hantelrodd (Dumbbell Row)', description: 'Ryggövning där en hantel dras mot sidan av kroppen, ofta med stöd av en bänk.', tags: ['rygg', 'biceps', 'hantlar'] },
-    { id: 'bank_db_4', name: 'Axelpress (Shoulder Press)', description: 'Pressa hantlar från axelhöjd till rakt över huvudet.', tags: ['axlar', 'triceps', 'hantlar'] },
+    { id: 'bank_db_4', name: 'Axelpress (Shoulder Press)', description: 'Pressa en skivstång från axelhöjd till rakt över huvudet.', tags: ['axlar', 'triceps', 'skivstång'] },
     { id: 'bank_db_5', name: 'Sidolyft (Lateral Raises)', description: 'Axelövning där hantlar lyfts rakt ut åt sidorna till axelhöjd.', tags: ['axlar', 'hantlar'] },
     { id: 'bank_db_6', name: 'Bicep Curls', description: 'Isolationsövning för biceps där hantlar curlas upp mot axlarna.', tags: ['biceps', 'armar', 'hantlar'] },
     { id: 'bank_db_7', name: 'Hammer Curls', description: 'Bicepsövning med neutralt grepp (som att hålla en hammare) som även tränar underarmarna.', tags: ['biceps', 'underarmar', 'armar', 'hantlar'] },
@@ -247,10 +247,15 @@ export const MOCK_ORGANIZATIONS: Organization[] = [
             checkInImageUrl: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNTYgMjU2Ij48cGF0aCBmaWxsPSIjRkZGRkZGIiBkPSJNMjA4IDMySDQ4YTggOCAwIDAgMC04IDh2NTZhOCA4IDAgMCAwIDggOGg0YTY4IDY4IDAgMCAxIDY4IDY4djRhOCA4IDAgMCAwIDggOGg1NmE4IDggMCAwIDAgOC04di04YTQwIDQwIDAgMCAwLTI4Ljc5LTM4LjEybDYuNDUtMS44NWE4IDggMCAwIDAgNS4xMy05LjI5VjQwYTggOCAwIDAgMC04LThabS04IDY0di4xNmwtOS4zNCAyLjY3YTU2IDU2IDAgMCAxLTIuNjYtMjMuNzlWNDBoNTZ2NDhhOCA4IDAgMCAxLTggOFpNNTIgNDBoNDB2NDhBNDAgNDAgMCAwIDAgODAgMTI0LjQzVjE2OEg1MlpNNjggNzZhOCA4IDAgMSAxLTggOGE4IDggMCAwIDEgOC04Wm0xMTIgOGE4IDggMCAxIDEtOCA4YTggOCAwIDAgMSA4LThabS00MCA3MmgtNDhhOCA4IDAgMCAwLTggOHY0OGE4IDggMCAwIDAgOCA4aDQ4YTggOCAwIDAgMCA4LTh2LTQ4YTggOCAwIDAgMC04LThabS04IDQ4aC0zMnYtMzJoMzJaTTk2IDEyMGE4IDggMCAxIDEtOCA4YTggOCAwIDAgMSA4LThabTQ4IDU2YTggOCAwIDEgMS04IDhhOCA4IDAgMCAxIDgtOFoiLz48L3N2Zz4=',
             seasonalTheme: 'none'
         },
+        locations: [
+            { id: 'loc_salem_mock', name: 'Salem', createdAt: 1727784000000 },
+            { id: 'loc_karra_mock', name: 'Kärra', createdAt: 1726392000000 }
+        ],
         studios: [
             {
                 id: 'studio_salem_mock',
                 name: 'Salem Centrum',
+                locationId: 'loc_salem_mock',
                 createdAt: 1727784000000, // 2024-10-01
                 configOverrides: {
                 }
@@ -258,6 +263,7 @@ export const MOCK_ORGANIZATIONS: Organization[] = [
             {
                 id: 'studio_karra_mock',
                 name: 'Kärra Centrum',
+                locationId: 'loc_karra_mock',
                 createdAt: 1726392000000, // 2024-09-15
                 configOverrides: {
                     checkInImageEnabled: true,

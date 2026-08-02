@@ -1,11 +1,12 @@
 import { 
-  collection, doc, getDoc, getDocs, setDoc, getDocsFromServer, updateDoc, deleteDoc, query, where, orderBy, onSnapshot, writeBatch, serverTimestamp 
+  collection, doc, getDoc, getDocs, setDoc, getDocsFromServer, updateDoc, deleteDoc, query, where, orderBy, onSnapshot, writeBatch, serverTimestamp, deleteField 
 } from 'firebase/firestore';
 import { db, isOffline, sanitizeData, normalizeString } from './init';
 import { getOrganizationExerciseBank } from './exercises';
 import { Workout, Exercise, BankExercise } from '../../types';
+import { isWorkoutVisibleNow, isWorkoutVisibleForLocations } from '../../utils/workoutUtils';
 
-export const getFreshCategoryWorkouts = async (orgId: string, category: string): Promise<Workout[]> => {
+export const getFreshCategoryWorkouts = async (orgId: string, category: string, memberLocationIds?: string[]): Promise<Workout[]> => {
     if (isOffline || !db || !orgId) return [];
     try {
         const q = query(
@@ -13,7 +14,9 @@ export const getFreshCategoryWorkouts = async (orgId: string, category: string):
           where("organizationId", "==", orgId),
           where("category", "==", category),
           where("isPublished", "==", true),
-          where("isMemberDraft", "==", false)
+          where("isMemberDraft", "==", false),
+          where("publishAt", "<=", Date.now()),
+          orderBy("publishAt", "desc")
         );
         const snap = await getDocsFromServer(q);
         
@@ -28,10 +31,45 @@ export const getFreshCategoryWorkouts = async (orgId: string, category: string):
                     }));
                 }
                 return data;
-            });
+            })
+            .filter(w => memberLocationIds ? isWorkoutVisibleForLocations(w, memberLocationIds) : isWorkoutVisibleNow(w));
     } catch (error) {
         console.error("Error fetching fresh category workouts:", error);
         return [];
+    }
+};
+
+export const getVisibleWorkoutsForMembers = async (orgId: string, memberLocationIds?: string[]): Promise<Workout[]> => {
+    if (isOffline || !db || !orgId) return [];
+    try {
+        const q = query(
+          collection(db, 'workouts'), 
+          where("organizationId", "==", orgId),
+          where("isPublished", "==", true),
+          where("isMemberDraft", "==", false),
+          where("publishAt", "<=", Date.now()),
+          orderBy("publishAt", "desc")
+        );
+        const snap = await getDocs(q);
+        return snap.docs.map(d => {
+            const data = d.data() as Workout;
+            if (!data.blocks) {
+                data.blocks = [];
+            } else {
+                data.blocks = data.blocks.map(block => ({
+                    ...block,
+                    exercises: block.exercises || []
+                }));
+            }
+            return data;
+        }).filter(w => memberLocationIds ? isWorkoutVisibleForLocations(w, memberLocationIds) : isWorkoutVisibleNow(w));
+    } catch (e: any) { 
+        console.error("getVisibleWorkoutsForMembers failed", e);
+        const errMsg = e?.message || String(e);
+        if (errMsg.includes("requires an index")) {
+            console.warn("VARNING: Firestore-frågan kräver ett index!", errMsg);
+        }
+        return []; 
     }
 };
 
@@ -116,11 +154,89 @@ export const getWorkoutById = async (id: string): Promise<Workout | null> => {
 export const saveWorkout = async (w: Workout): Promise<Workout> => {
     if (isOffline || !db || !w.id) return w;
     try {
-        await setDoc(doc(db, 'workouts', w.id), sanitizeData(w), { merge: true });
-        return w;
+        const workoutToSave = { ...w };
+
+        // publishAt ska alltid finnas som ett timestamp. Saknas det sätter vi det till createdAt eller nu.
+        if (!workoutToSave.publishAt) {
+            workoutToSave.publishAt = workoutToSave.createdAt || Date.now();
+        }
+
+        // isMemberDraft ska alltid ha ett boolean-värde (false som default)
+        if (workoutToSave.isMemberDraft === undefined) {
+            workoutToSave.isMemberDraft = false;
+        }
+
+        // Om publishAt är satt och ligger i framtiden sätter vi silentPublish till true.
+        // Detta förhindrar att Cloud Functions (onWorkoutCreated / onWorkoutUpdated i functions/src/training.js)
+        // skickar push-notiser ("Nytt pass tillgängligt!") i förtid till alla medlemmar när coachen skapar
+        // eller uppdaterar schemalagda pass.
+        // Notera: Notis vid den FAKTISKA publiceringstidpunkten kräver en schemalagd Cloud Function (crontab/scheduled task) i backend.
+        if (workoutToSave.publishAt && workoutToSave.publishAt > Date.now()) {
+            workoutToSave.silentPublish = true;
+        }
+
+        const payload: Record<string, any> = sanitizeData(workoutToSave);
+        if (workoutToSave.expiresAt === undefined) {
+            payload.expiresAt = deleteField();
+        }
+        await setDoc(doc(db, 'workouts', workoutToSave.id), payload, { merge: true });
+        return workoutToSave;
     } catch (e) { 
         console.error("saveWorkout failed", e); 
         // Throw the error so the caller knows it failed
+        throw e;
+    }
+};
+
+export const backfillWorkoutsPublishAt = async (
+    orgId: string, 
+    dryRun: boolean = true
+): Promise<{ totalExamined: number; missingPublishAtCount: number; updatedCount: number }> => {
+    if (isOffline || !db || !orgId) return { totalExamined: 0, missingPublishAtCount: 0, updatedCount: 0 };
+
+    try {
+        const q = query(collection(db, 'workouts'), where("organizationId", "==", orgId));
+        const snap = await getDocs(q);
+        
+        const docsToUpdate: { id: string; publishAt: number }[] = [];
+
+        snap.docs.forEach(docSnap => {
+            const data = docSnap.data();
+            if (data.publishAt === undefined || data.publishAt === null) {
+                const createdAt = data.createdAt || Date.now();
+                docsToUpdate.push({ id: docSnap.id, publishAt: createdAt });
+            }
+        });
+
+        if (dryRun) {
+            console.log(`[DryRun Backfill] Org: ${orgId}, Totalt undersökta: ${snap.size}, Saknar publishAt: ${docsToUpdate.length}`);
+            return {
+                totalExamined: snap.size,
+                missingPublishAtCount: docsToUpdate.length,
+                updatedCount: 0
+            };
+        }
+
+        let updatedCount = 0;
+        const BATCH_SIZE = 400;
+        for (let i = 0; i < docsToUpdate.length; i += BATCH_SIZE) {
+            const batchChunk = docsToUpdate.slice(i, i + BATCH_SIZE);
+            const batch = writeBatch(db);
+            batchChunk.forEach(item => {
+                const ref = doc(db, 'workouts', item.id);
+                batch.update(ref, { publishAt: item.publishAt });
+            });
+            await batch.commit();
+            updatedCount += batchChunk.length;
+        }
+
+        return {
+            totalExamined: snap.size,
+            missingPublishAtCount: docsToUpdate.length,
+            updatedCount
+        };
+    } catch (e) {
+        console.error("backfillWorkoutsPublishAt error:", e);
         throw e;
     }
 };

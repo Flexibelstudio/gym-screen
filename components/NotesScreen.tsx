@@ -218,6 +218,66 @@ const SmartObjectItem: React.FC<{
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     const rafId = useRef<number | null>(null);
 
+    const [isSelected, setIsSelected] = useState(false);
+
+    useEffect(() => {
+        const handleOutsidePointer = (e: PointerEvent) => {
+            if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+                setIsSelected(false);
+            }
+        };
+        window.addEventListener('pointerdown', handleOutsidePointer);
+        return () => window.removeEventListener('pointerdown', handleOutsidePointer);
+    }, []);
+
+    const currentFS = Math.round(obj.fontSize || (obj.type === 'text' ? 36 : 28));
+    const isMinDisabled = currentFS <= 12;
+    const isMaxDisabled = currentFS >= 120;
+    const isNearBottom = (arrowY + arrowHeight) > (containerBounds.height - 70);
+
+    const handleFontSizeChange = (delta: number) => {
+        const newFS = Math.min(120, Math.max(12, currentFS + delta));
+        if (newFS === currentFS) return;
+
+        const textToMeasure = obj.text || (obj.type === 'text' ? 'Skriv här...' : '');
+        const snug = getSnugTextSize(textToMeasure, newFS);
+
+        let newWidth = snug.width;
+        let newHeight = snug.height;
+
+        if (obj.type !== 'text') {
+            const ratio = newFS / currentFS;
+            newWidth = Math.max(snug.width, Math.round(obj.width * ratio));
+            newHeight = Math.max(snug.height, Math.round(obj.height * ratio));
+        }
+
+        const dx = obj.width - newWidth;
+        const dy = obj.height - newHeight;
+        const rawX = obj.x + (dx / 2);
+        const rawY = obj.y + (dy / 2);
+
+        const clamped = clampSmartObject(
+            {
+                ...obj,
+                fontSize: newFS,
+                width: newWidth,
+                height: newHeight,
+                x: rawX,
+                y: rawY,
+            },
+            containerBounds.width,
+            containerBounds.height
+        );
+
+        onUpdate(obj.id, {
+            fontSize: clamped.fontSize,
+            width: clamped.width,
+            height: clamped.height,
+            x: clamped.x,
+            y: clamped.y,
+        });
+    };
+
     const handleResizePointerDown = (e: React.PointerEvent) => {
         e.stopPropagation();
         e.preventDefault();
@@ -303,11 +363,14 @@ const SmartObjectItem: React.FC<{
         window.addEventListener('pointerup', onPointerUp);
     };
 
+    const controlsVisibility = isSelected ? 'opacity-100' : 'opacity-0 group-hover:opacity-100';
+
     return (
         <motion.div
             ref={containerRef as any}
             drag
             dragMomentum={false}
+            onPointerDown={() => setIsSelected(true)}
             onDragEnd={(e, info) => {
                 const rawX = obj.x + info.offset.x;
                 const rawY = obj.y + info.offset.y;
@@ -345,10 +408,11 @@ const SmartObjectItem: React.FC<{
                     ref={textareaRef}
                     value={obj.text || ''}
                     onChange={(e) => onUpdate(obj.id, { text: e.target.value })}
-                    onPointerDown={(e) => e.stopPropagation()}
+                    onPointerDown={(e) => { e.stopPropagation(); setIsSelected(true); }}
+                    onFocus={() => setIsSelected(true)}
                     rows={Math.max(1, (obj.text || '').split('\n').length)}
                     className="bg-transparent border-none outline-none text-center w-full resize-none overflow-hidden"
-                    style={{ color: obj.color, fontFamily: 'Kalam, cursive', fontSize: `${obj.fontSize || 36}px`, lineHeight: '1.2' }}
+                    style={{ color: obj.color, fontFamily: 'Kalam, cursive', fontSize: `${currentFS}px`, lineHeight: '1.2' }}
                     placeholder="Skriv här..."
                 />
             ) : obj.type !== 'arrow' ? (
@@ -356,17 +420,70 @@ const SmartObjectItem: React.FC<{
                     ref={textareaRef}
                     value={obj.text || ''}
                     onChange={(e) => onUpdate(obj.id, { text: e.target.value })}
-                    onPointerDown={(e) => e.stopPropagation()}
+                    onPointerDown={(e) => { e.stopPropagation(); setIsSelected(true); }}
+                    onFocus={() => setIsSelected(true)}
                     rows={Math.max(1, (obj.text || '').split('\n').length)}
                     className="bg-transparent border-none outline-none text-center w-full relative z-10 resize-none overflow-hidden"
-                    style={{ color: obj.color, fontFamily: 'Kalam, cursive', fontSize: `${obj.fontSize || 28}px`, lineHeight: '1.2' }}
+                    style={{ color: obj.color, fontFamily: 'Kalam, cursive', fontSize: `${currentFS}px`, lineHeight: '1.2' }}
                     placeholder=""
                 />
             ) : null}
+
+            {obj.type !== 'arrow' && (
+                <div 
+                    className={`absolute ${isNearBottom ? '-top-14' : '-bottom-14'} left-1/2 -translate-x-1/2 flex items-center gap-1.5 bg-gray-900/90 dark:bg-gray-800/90 backdrop-blur-md p-1 rounded-full shadow-lg border border-white/20 z-30 pointer-events-auto ${controlsVisibility} transition-opacity duration-200`}
+                    onPointerDown={(e) => e.stopPropagation()}
+                    onClick={(e) => e.stopPropagation()}
+                >
+                    <button
+                        type="button"
+                        disabled={isMinDisabled}
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            e.preventDefault();
+                            handleFontSizeChange(-4);
+                        }}
+                        onPointerDown={(e) => {
+                            e.stopPropagation();
+                        }}
+                        className={`w-11 h-11 min-w-[44px] min-h-[44px] rounded-full flex items-center justify-center font-bold text-xl transition-all ${
+                            isMinDisabled 
+                                ? 'text-gray-500 bg-gray-800/40 cursor-not-allowed opacity-40' 
+                                : 'text-white bg-gray-700 hover:bg-gray-600 active:scale-95 cursor-pointer shadow-sm'
+                        }`}
+                        title="Minska textstorlek"
+                    >
+                        −
+                    </button>
+                    <span className="text-white text-xs font-mono font-semibold px-1 select-none min-w-[32px] text-center">
+                        {currentFS}px
+                    </span>
+                    <button
+                        type="button"
+                        disabled={isMaxDisabled}
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            e.preventDefault();
+                            handleFontSizeChange(4);
+                        }}
+                        onPointerDown={(e) => {
+                            e.stopPropagation();
+                        }}
+                        className={`w-11 h-11 min-w-[44px] min-h-[44px] rounded-full flex items-center justify-center font-bold text-xl transition-all ${
+                            isMaxDisabled 
+                                ? 'text-gray-500 bg-gray-800/40 cursor-not-allowed opacity-40' 
+                                : 'text-white bg-gray-700 hover:bg-gray-600 active:scale-95 cursor-pointer shadow-sm'
+                        }`}
+                        title="Öka textstorlek"
+                    >
+                        +
+                    </button>
+                </div>
+            )}
             
             <button 
                 onClick={(e) => { e.stopPropagation(); onRemove(obj.id); }}
-                className="absolute -top-3 -right-3 bg-red-500 text-white rounded-full w-8 h-8 flex items-center justify-center text-sm opacity-0 group-hover:opacity-100 transition-opacity z-30 shadow-md pointer-events-auto"
+                className={`absolute -top-3 -right-3 bg-red-500 text-white rounded-full w-8 h-8 flex items-center justify-center text-sm ${controlsVisibility} transition-opacity z-30 shadow-md pointer-events-auto`}
                 title="Ta bort"
             >
                 ✕
@@ -376,14 +493,14 @@ const SmartObjectItem: React.FC<{
                 <div style={{ position: 'absolute', left: arrowEndX, top: arrowEndY, transform: 'translate(-50%, -50%)', width: 24, height: 24 }}>
                     <div 
                         onPointerDown={handleResizePointerDown}
-                        className="w-6 h-6 bg-white border-2 border-gray-400 rounded-full opacity-0 group-hover:opacity-100 transition-opacity z-30 shadow-md cursor-move pointer-events-auto"
+                        className={`w-6 h-6 bg-white border-2 border-gray-400 rounded-full ${controlsVisibility} transition-opacity z-30 shadow-md cursor-move pointer-events-auto`}
                         style={{ touchAction: 'none' }}
                     />
                 </div>
             ) : (
                 <div 
                     onPointerDown={handleResizePointerDown}
-                    className="w-6 h-6 bg-white border-2 border-gray-400 rounded-full opacity-0 group-hover:opacity-100 transition-opacity z-30 shadow-md absolute -bottom-2 -right-2 cursor-se-resize pointer-events-auto"
+                    className={`w-6 h-6 bg-white border-2 border-gray-400 rounded-full ${controlsVisibility} transition-opacity z-30 shadow-md absolute -bottom-2 -right-2 cursor-se-resize pointer-events-auto`}
                     style={{ touchAction: 'none' }}
                 />
             )}
@@ -1832,7 +1949,7 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
                         <div className="flex gap-4">
                             <button 
                                 onClick={() => setIsConfirmClearOpen(false)} 
-                                className="flex-1 bg-gray-700 hover:bg-gray-650 text-white font-bold py-3 rounded-xl transition-colors text-sm"
+                                className="flex-1 bg-gray-700 hover:bg-gray-600 text-white font-bold py-3 rounded-xl transition-colors text-sm"
                             >
                                 Avbryt
                             </button>

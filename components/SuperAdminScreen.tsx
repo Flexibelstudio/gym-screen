@@ -3,6 +3,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { StudioConfig, Studio, Organization, CustomPage, UserData, UserRole, InfoCarousel, DisplayWindow, Workout, CompanyDetails } from '../types';
 import { HomeIcon, DocumentTextIcon, SpeakerphoneIcon, UsersIcon, DumbbellIcon, BriefcaseIcon, BuildingIcon, SettingsIcon, ChartBarIcon, CopyIcon, CloseIcon, SparklesIcon, HistoryIcon, QrCodeIcon, FlagIcon, ChevronLeftIcon, MapIcon } from './icons';
 import { getAdminsForOrganization, getCoachesForOrganization, saveAdminActivity } from '../services/firebaseService';
+import { buildChangeList } from '../utils/adminDiff';
 import { OvningsbankContent } from './OvningsbankContent';
 import { PrintablePoster } from './PrintablePoster';
 import { useStudio } from '../context/StudioContext';
@@ -231,15 +232,21 @@ export const SuperAdminScreen: React.FC<SuperAdminScreenProps> = (props) => {
             setToast({ message: "Inställningar sparade!", visible: true });
 
             // LOG
-            saveAdminActivity({
-                organizationId: organization.id,
-                userId: userData?.uid || 'unknown',
-                userName: userData?.firstName || 'Admin',
-                type: 'SYSTEM',
-                action: 'UPDATE',
-                description: 'Uppdaterade globala inställningar',
-                timestamp: Date.now()
-            });
+            try {
+                const changes = buildChangeList(organization.globalConfig, configOverride || config);
+                saveAdminActivity({
+                    organizationId: organization.id,
+                    userId: userData?.uid || 'unknown',
+                    userName: userData?.firstName || 'Admin',
+                    type: 'SYSTEM',
+                    action: 'UPDATE',
+                    description: 'Uppdaterade globala inställningar',
+                    timestamp: Date.now(),
+                    changes
+                });
+            } catch (err) {
+                console.warn("Failed to log admin activity:", err);
+            }
         } catch (error) {
             console.error(error);
             setToast({ message: "Kunde inte spara inställningar.", visible: true });
@@ -435,16 +442,16 @@ export const SuperAdminScreen: React.FC<SuperAdminScreenProps> = (props) => {
             case 'dashboard':
                 return (
                     <div className="space-y-8">
-                        <DashboardContent {...props} setActiveTab={setActiveTab} admins={admins} coaches={coaches} usersLoading={usersLoading} onQuickGenerate={handleQuickGenerate} />
+                        <DashboardContent {...props} setActiveTab={setActiveTab} admins={admins} coaches={coaches} usersLoading={usersLoading} onQuickGenerate={handleQuickGenerate} onTriggerUpgrade={() => setIsUpgradeModalOpen(true)} />
                     </div>
                 );
             case 'analytics':
                 if (!organization.globalConfig.enableWorkoutLogging) {
                     return (
                         <FeatureLockedView 
-                            title="Analys & Trender ingår i Passloggning 🚀"
-                            description="Få djupa insikter i hur dina medlemmar presterar och mår. Se trender över tid och optimera ditt träningsutbud."
-                            features={["Fullständig passanalys 📊", "Medlemsregister 👥", "Generera intäkter 💰", "AI-Coaching för medlemmar 🤖"]}
+                            title="Analys & Trender ingår i Medlemsappen 🚀"
+                            description="Se hur era medlemmar presterar och mår över tid, och vilka som håller i och vilka som glidit iväg."
+                            features={["Fullständig passanalys 📊", "Medlemsregister 👥", "Styrkenivåer mot Strength Level 💪", "Ny intäkt per medlem 💰"]}
                             onActivate={() => setIsUpgradeModalOpen(true)}
                         />
                     );

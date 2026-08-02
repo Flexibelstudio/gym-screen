@@ -8,7 +8,7 @@ import { CategoryPromptManager } from './CategoryPromptManager';
 import { Toast } from './ui/ToastNotification';
 
 // Define a type for keys that have boolean values in StudioConfig
-type BooleanStudioConfigKeys = 'checkInImageEnabled' | 'enableNotes' | 'enableScreensaver' | 'enableExerciseBank' | 'enableHyrox' | 'enableWorkoutLogging';
+type BooleanStudioConfigKeys = 'checkInImageEnabled' | 'enableNotes' | 'enableScreensaver' | 'enableExerciseBank' | 'enableHyrox' | 'enableWorkoutLogging' | 'enableFitnessBenchmarks';
 type ConfigTab = 'modules' | 'categories' | 'checkin';
 
 // ... (ImageUploader component remains unchanged) ...
@@ -185,7 +185,9 @@ export const StudioConfigModal: React.FC<StudioConfigModalProps> = ({ isOpen, on
 
         setOverrides(prev => {
             const newOverrides = { ...prev };
-            const globalValue = globalConfig[key] ?? false;
+            const globalValue = key === 'enableFitnessBenchmarks'
+                ? (globalConfig[key] !== false)
+                : (globalConfig[key] ?? false);
             
             // If checking matches global, remove override. Else set override.
             if (globalValue === value) {
@@ -205,17 +207,6 @@ export const StudioConfigModal: React.FC<StudioConfigModalProps> = ({ isOpen, on
             }
         }
         setOverrides(prev => ({ ...prev, [key]: value }));
-    };
-    
-    // ... (handleAiConfigChange and resetFieldToGlobal) ...
-    const handleAiConfigChange = (field: 'instructions' | 'tone', value: string) => {
-        setOverrides(prev => ({
-            ...prev,
-            aiSettings: {
-                ...(prev.aiSettings || effectiveConfig.aiSettings || {}),
-                [field]: value
-            }
-        }));
     };
 
     const resetFieldToGlobal = <K extends keyof StudioConfig>(key: K) => {
@@ -237,7 +228,12 @@ export const StudioConfigModal: React.FC<StudioConfigModalProps> = ({ isOpen, on
 
     const renderToggle = (key: BooleanStudioConfigKeys, label: string, description: string, onInfoClick?: () => void) => {
         const isOverridden = overrides[key] !== undefined;
-        const currentValue = effectiveConfig[key] ?? false;
+        const globalValue = key === 'enableFitnessBenchmarks'
+            ? (globalConfig[key] !== false)
+            : (globalConfig[key] ?? false);
+        const currentValue = key === 'enableFitnessBenchmarks'
+            ? ((overrides[key] ?? globalValue) !== false)
+            : (effectiveConfig[key] ?? false);
 
         return (
              <div className="flex items-center justify-between p-3 rounded-lg hover:bg-slate-100 dark:hover:bg-gray-800/50 transition-colors">
@@ -266,7 +262,7 @@ export const StudioConfigModal: React.FC<StudioConfigModalProps> = ({ isOpen, on
                 {isOverridden ? (
                     <div className="flex flex-col items-end">
                         <span className="text-[10px] text-yellow-600 dark:text-yellow-500 font-semibold uppercase tracking-wide">Avviker från global</span>
-                        <button onClick={() => handleToggleChange(key, globalConfig[key] ?? false)} className="text-xs text-primary hover:underline">Återställ</button>
+                        <button onClick={() => resetFieldToGlobal(key)} className="text-xs text-primary hover:underline">Återställ</button>
                     </div>
                 ) : (
                     <span className="text-xs text-gray-400 italic">Ärvd från global</span>
@@ -295,40 +291,10 @@ export const StudioConfigModal: React.FC<StudioConfigModalProps> = ({ isOpen, on
                 return (
                     <div className="space-y-4 animate-fade-in">
                         <h3 className="font-semibold text-gray-900 dark:text-white mb-2 px-2">Funktioner</h3>
-                        {renderToggle('enableWorkoutLogging', "Aktivera Passloggning", "Låt medlemmar logga sina resultat via QR-kod.", () => setShowPricingModal(true))}
-                        
-                        {effectiveConfig.enableWorkoutLogging && (
-                            <div className="ml-14 mr-4 mb-6 p-4 bg-gray-50 dark:bg-gray-800/50 rounded-lg border-l-4 border-primary animate-fade-in">
-                                <h4 className="font-bold text-sm text-gray-900 dark:text-white mb-3">🤖 AI-Coach Inställningar</h4>
-                                <div className="space-y-4">
-                                    <div>
-                                        <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Tonläge</label>
-                                        <select 
-                                            value={effectiveConfig.aiSettings?.tone || 'neutral'}
-                                            onChange={(e) => handleAiConfigChange('tone', e.target.value)}
-                                            className="w-full p-2 text-sm rounded bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 focus:ring-2 focus:ring-primary outline-none"
-                                        >
-                                            <option value="neutral">Neutral & Professionell</option>
-                                            <option value="enthusiastic">Peppande & Entusiastisk</option>
-                                            <option value="strict">Sträng & Militärisk</option>
-                                            <option value="sales">Säljande & Serviceinriktad</option>
-                                        </select>
-                                    </div>
-                                    <div>
-                                        <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Systeminstruktioner</label>
-                                        <textarea 
-                                            rows={3}
-                                            value={effectiveConfig.aiSettings?.instructions || ''}
-                                            onChange={(e) => handleAiConfigChange('instructions', e.target.value)}
-                                            placeholder="T.ex: Påminn alltid om att boka PT om resultaten planar ut..."
-                                            className="w-full p-2 text-sm rounded bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 focus:ring-2 focus:ring-primary outline-none resize-none"
-                                        />
-                                    </div>
-                                </div>
-                            </div>
-                        )}
+                        {renderToggle('enableWorkoutLogging', "Medlemsappen", "Låt medlemmar logga sina resultat via QR-kod.", () => setShowPricingModal(true))}
                         {renderToggle('enableNotes', "Aktivera AI Whiteboard", "Digital whiteboard för att skissa upp pass och spara anteckningar.")}
                         {renderToggle('enableExerciseBank', "Aktivera Övningsbank", "Tillgång till globala övningar.")}
+                        {renderToggle('enableFitnessBenchmarks', "Styrka & Kondition (jämförelser)", "Visar medlemmarnas styrke- och konditionsnivåer jämfört med andra i samma ålder och kön. Påslaget som standard.")}
                         {organization.globalConfig?.enableEventsModule && renderToggle('enableHyrox', "Visa Event & Tävlingar", "Visa planerade event/tävlingar och tillhörande tidtagning i studiovyn.")}
                     </div>
                 );
@@ -494,13 +460,13 @@ export const StudioConfigModal: React.FC<StudioConfigModalProps> = ({ isOpen, on
                 <div className="bg-white dark:bg-gray-900 rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden" onClick={e => e.stopPropagation()}>
                     {/* ... Pricing modal content ... */}
                     <div className="p-6 bg-gradient-to-br from-blue-600 to-indigo-700 text-white text-center">
-                        <h3 className="text-2xl font-black mb-1">Aktivera Passloggning 🚀</h3>
+                        <h3 className="text-2xl font-black mb-1">Aktivera Medlemsappen 🚀</h3>
                         <p className="text-blue-100 text-sm">Ge dina medlemmar en modern träningsupplevelse</p>
                     </div>
                     
                     <div className="p-6 space-y-6">
                         <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-xl text-sm space-y-2 text-gray-700 dark:text-gray-300">
-                            <p>✅ <strong>För medlemmar:</strong> Logga resultat, se progression och få AI-feedback.</p>
+                            <p>✅ <strong>För medlemmar:</strong> Logga resultat, se sin progression och spara sin träningshistorik.</p>
                             <p>✅ <strong>För gymmet:</strong> Ökad retention, data och automatisk merförsäljning.</p>
                         </div>
                          {/* ... costs ... */}
@@ -558,7 +524,7 @@ export const StudioConfigModal: React.FC<StudioConfigModalProps> = ({ isOpen, on
                                     setOverrides(newOverrides);
                                     try {
                                         await onSave(organization.id, studio.id, newOverrides);
-                                        setToast({ message: "Passloggning aktiverad!", visible: true });
+                                        setToast({ message: "Medlemsappen aktiverad!", visible: true });
                                     } catch(e) { console.error(e); }
                                     setIsConnectingStripe(false);
                                     setShowPricingModal(false);

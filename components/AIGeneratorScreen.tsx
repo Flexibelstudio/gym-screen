@@ -222,7 +222,7 @@ export const AIGeneratorScreen: React.FC<AIGeneratorScreenProps> = ({
                 isPublished: false,
                 isFavorite: false,
                 createdAt: Date.now(),
-                category: activeTab === 'generate' && selectedCategory ? selectedCategory.name : (workout.category || 'AI Genererat'),
+                category: activeTab === 'generate' && selectedCategory ? selectedCategory.name : (workout.category || ''),
                 blocks: (workout.blocks || []).map((block: WorkoutBlock, bIdx: number) => ({
                     ...block,
                     id: block.id || `block-${Date.now()}-${bIdx}`,

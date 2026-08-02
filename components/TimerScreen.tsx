@@ -12,7 +12,7 @@ import { ParticipantFinishList } from './timer/ParticipantFinishList';
 import { DumbbellIcon, InformationCircleIcon, LightningIcon, SparklesIcon, ChevronRightIcon, ClockIcon, PlayIcon, SettingsIcon, RefreshIcon } from './icons'; // Added SettingsIcon if available, else standard icons
 import { useStudio } from '../context/StudioContext';
 import { useAuth } from '../context/AuthContext';
-import { getSideLabel } from '../utils/workoutUtils';
+import { getSideLabel, getBlockProfile, getBlockPlanParts } from '../utils/workoutUtils';
 
 // --- Constants ---
 const HYROX_RIGHT_PANEL_WIDTH = '450px';
@@ -408,7 +408,7 @@ const StandardListView: React.FC<{
                             >
                                 <span>{ex.name}</span>
                                 {getSideLabel(ex.side) && (
-                                    <span className="inline-flex items-center justify-center px-2 py-0.5 text-[10px] font-black rounded-md bg-work/10 text-work dark:bg-work/20 dark:text-work border border-work/30 uppercase tracking-wider">
+                                    <span className="inline-flex items-center justify-center px-[0.5em] py-[0.15em] text-[0.4em] font-black rounded-[0.3em] bg-work/10 text-work dark:bg-work/20 dark:text-work border border-work/30 uppercase tracking-wider">
                                         {getSideLabel(ex.side)}
                                     </span>
                                 )}
@@ -1157,7 +1157,7 @@ export const TimerScreen: React.FC<TimerScreenProps> = React.memo(({
         const wakeLock = await (navigator as any).wakeLock.request('screen');
         wakeLockRef.current = wakeLock;
         wakeLock.addEventListener('release', () => { wakeLockRef.current = null; });
-      } catch (err: any) { console.error(`${err.name}, ${err.message}`); }
+      } catch (err: any) { console.warn(`Wake Lock: ${err?.name}, ${err?.message}`); }
     }
   }, []);
 
@@ -1525,6 +1525,7 @@ export const TimerScreen: React.FC<TimerScreenProps> = React.memo(({
           }
           
           return { 
+              participantId,
               participant: partnerName ? `${displayName} & ${partnerName}` : displayName, 
               time: (data as FinishData).time, 
               groupId: group?.id || 'unknown',
@@ -2198,7 +2199,7 @@ export const TimerScreen: React.FC<TimerScreenProps> = React.memo(({
                                     <h3 className="text-3xl font-black text-slate-800 dark:text-white uppercase tracking-tight">{groupForCountdownDisplay.name}</h3>
                                     <p className={`text-sm ${textMuted} mt-1`}>{remainingGroupsCount} av {startGroups.length} startgrupper kvar att starta.</p>
                                 </div>
-                                <div className="font-mono text-6xl sm:text-7xl font-black text-orange-550 dark:text-orange-400 bg-orange-500/10 px-8 py-5 rounded-2xl border border-orange-500/20">
+                                <div className="font-mono text-6xl sm:text-7xl font-black text-orange-500 dark:text-orange-400 bg-orange-500/10 px-8 py-5 rounded-2xl border border-orange-500/20">
                                     {Math.floor(timeForCountdownDisplay / 60)}:{String(timeForCountdownDisplay % 60).padStart(2, '0')}
                                 </div>
                             </div>
@@ -2264,7 +2265,7 @@ export const TimerScreen: React.FC<TimerScreenProps> = React.memo(({
                                                                 ))
                                                             )}
                                                             {participantNames.length === 0 && (
-                                                                <p className="text-[10px] text-slate-550 italic">Inga deltagare registrerade.</p>
+                                                                <p className="text-[10px] text-slate-500 italic">Inga deltagare registrerade.</p>
                                                             )}
                                                         </div>
                                                     </div>
@@ -2660,9 +2661,22 @@ export const TimerScreen: React.FC<TimerScreenProps> = React.memo(({
             {/* STATUS (ARBETE/VILA) ELLER BLOCK RUBRIK - Överst */}
             <div className="text-center z-20 w-full px-10 mb-1">
                 {isAutostartMode ? (
-                    <h1 className={`font-black text-white/90 uppercase tracking-tighter text-xl sm:text-2xl md:text-3xl drop-shadow-lg overflow-visible whitespace-nowrap leading-none ${isTransitioning ? 'animate-pulse' : ''}`}>
-                        {isTransitioning ? "VILA - GÖR REDO" : block.title}
-                    </h1>
+                    <>
+                        <h1 className={`font-black text-white/90 uppercase tracking-tighter text-xl sm:text-2xl md:text-3xl drop-shadow-lg overflow-visible whitespace-nowrap leading-none ${isTransitioning ? 'animate-pulse' : ''}`}>
+                            {isTransitioning ? "VILA - GÖR REDO" : block.title}
+                        </h1>
+                        {(() => {
+                            const planBlock = isTransitioning ? nextBlock : block;
+                            if (!planBlock || (planBlock as any).showBlockPlan === false) return null;
+                            const parts = getBlockPlanParts(getBlockProfile(planBlock as any), (planBlock as any).showIntensity !== false);
+                            if (parts.length === 0) return null;
+                            return (
+                                <p className="font-bold text-white/70 uppercase tracking-widest drop-shadow-md text-sm sm:text-base md:text-lg mt-1 whitespace-nowrap">
+                                    {parts.join(' · ')}
+                                </p>
+                            );
+                        })()}
+                    </>
                 ) : (
                     <h2 className={`font-black text-white tracking-widest uppercase drop-shadow-xl animate-pulse w-full text-center text-3xl sm:text-4xl lg:text-5xl overflow-visible whitespace-nowrap leading-none ${isLobbyMode ? 'opacity-100' : ''}`}>
                         {isLobbyMode ? "REDO" : statusLabel}
@@ -2701,6 +2715,17 @@ export const TimerScreen: React.FC<TimerScreenProps> = React.memo(({
                     <h1 className="font-black text-white/90 uppercase tracking-tighter text-xl sm:text-2xl md:text-3xl drop-shadow-lg overflow-visible whitespace-nowrap leading-none">
                         {isTransitioning ? nextBlock?.title : block.title}
                     </h1>
+                    {(() => {
+                        const planBlock = isTransitioning ? nextBlock : block;
+                        if (!planBlock || (planBlock as any).showBlockPlan === false) return null;
+                        const parts = getBlockPlanParts(getBlockProfile(planBlock as any), (planBlock as any).showIntensity !== false);
+                        if (parts.length === 0) return null;
+                        return (
+                            <p className="font-bold text-white/70 uppercase tracking-widest drop-shadow-md text-sm sm:text-base md:text-lg mt-1 whitespace-nowrap">
+                                {parts.join(' · ')}
+                            </p>
+                        );
+                    })()}
                 </div>
             )}
 

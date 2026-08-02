@@ -5,67 +5,95 @@ import { SparklesIcon, UsersIcon, ChartBarIcon, InformationCircleIcon, DumbbellI
 import { getSmartScreenPricing } from '../../services/firebaseService';
 import { BenchmarkDefinition } from '../../types';
 
-export const FeatureInfoModal: React.FC<{ isOpen: boolean; onClose: () => void }> = ({ isOpen, onClose }) => (
-    <Modal isOpen={isOpen} onClose={onClose} title="Smart Medlemsupplevelse" size="lg">
-        <div className="space-y-6 text-gray-800 dark:text-gray-200">
-            <div className="bg-gradient-to-r from-blue-600 to-indigo-600 p-6 rounded-2xl text-white">
-                <h3 className="text-xl font-bold mb-2">Mer än bara en loggbok 🚀</h3>
-                <p className="opacity-90">
-                    Genom att aktivera denna funktion låser du upp hela potentialen i SmartStudio. Det handlar om att ge dina medlemmar verktyg för att lyckas, och dig verktyg för att driva verksamheten.
-                </p>
-            </div>
+export const FeatureInfoModal: React.FC<{ isOpen: boolean; onClose: () => void }> = ({ isOpen, onClose }) => {
+    const [baseCost, setBaseCost] = useState(19);
+    const customerPrice = 39;
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="bg-gray-50 dark:bg-gray-800/50 p-5 rounded-xl border border-gray-100 dark:border-gray-700">
-                    <h4 className="font-bold text-lg text-primary mb-3 flex items-center gap-2">
-                        <UsersIcon className="w-5 h-5" /> För Medlemmen
-                    </h4>
-                    <ul className="space-y-2 text-sm">
-                        <li className="flex gap-2">
-                            <span className="text-green-500">✓</span>
-                            <span><strong>Träningsdagbok:</strong> Smidig loggning via QR-kod.</span>
-                        </li>
-                        <li className="flex gap-2">
-                            <span className="text-green-500">✓</span>
-                            <span><strong>AI-Coach:</strong> Personlig feedback och strategi inför varje pass.</span>
-                        </li>
-                        <li className="flex gap-2">
-                            <span className="text-green-500">✓</span>
-                            <span><strong>Visuell Progression:</strong> Snygga grafer över styrka och kondition.</span>
-                        </li>
-                    </ul>
+    useEffect(() => {
+        if (isOpen) {
+            getSmartScreenPricing().then(pricing => {
+                if (pricing && pricing.workoutLoggingPricePerMember !== undefined) {
+                    setBaseCost(pricing.workoutLoggingPricePerMember);
+                }
+            });
+        }
+    }, [isOpen]);
+
+    const gymShare = Math.max(0, customerPrice - baseCost);
+
+    return (
+        <Modal isOpen={isOpen} onClose={onClose} title="Medlemsappen" size="lg">
+            <div className="space-y-6 text-gray-800 dark:text-gray-200">
+                <div className="bg-gradient-to-r from-blue-600 to-indigo-600 p-6 rounded-2xl text-white">
+                    <h3 className="text-xl font-bold mb-2">Mer än bara en loggbok 🚀</h3>
+                    <p className="opacity-90">
+                        Genom att aktivera Medlemsappen låser du upp hela potentialen i SmartStudio. Det handlar om att ge dina medlemmar verktyg för att lyckas, och dig verktyg för att driva verksamheten.
+                    </p>
                 </div>
 
-                <div className="bg-gray-50 dark:bg-gray-800/50 p-5 rounded-xl border border-gray-100 dark:border-gray-700">
-                    <h4 className="font-bold text-lg text-purple-500 mb-3 flex items-center gap-2">
-                        <ChartBarIcon className="w-5 h-5" /> För Gymmet
-                    </h4>
-                    <ul className="space-y-2 text-sm">
-                        <li className="flex gap-2">
-                            <span className="text-green-500">✓</span>
-                            <span><strong>Medlemsregister:</strong> Full översikt över dina medlemmar.</span>
-                        </li>
-                        <li className="flex gap-2">
-                            <span className="text-green-500">✓</span>
-                            <span><strong>Data & Analys:</strong> Se vilka pass som är populärast och hur nöjda medlemmarna är.</span>
-                        </li>
-                        <li className="flex gap-2">
-                            <span className="text-green-500">✓</span>
-                            <span><strong>Community:</strong> Live-feed på skärmarna när någon loggar ett PB.</span>
-                        </li>
-                    </ul>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="bg-gray-50 dark:bg-gray-800/50 p-5 rounded-xl border border-gray-100 dark:border-gray-700">
+                        <h4 className="font-bold text-lg text-primary mb-3 flex items-center gap-2">
+                            <UsersIcon className="w-5 h-5" /> För Medlemmen
+                        </h4>
+                        <ul className="space-y-2 text-sm">
+                            <li className="flex gap-2">
+                                <span className="text-green-500">✓</span>
+                                <span><strong>Träningsdagbok:</strong> Loggar sina pass i mobilen, direkt från skärmen i lokalen.</span>
+                            </li>
+                            <li className="flex gap-2">
+                                <span className="text-green-500">✓</span>
+                                <span><strong>Personbästa och styrkenivå:</strong> Ser sina 1RM och hur de ligger till mot Strength Levels databas, i sin egen ålders- och viktklass.</span>
+                            </li>
+                            <li className="flex gap-2">
+                                <span className="text-green-500">✓</span>
+                                <span><strong>Progression:</strong> Grafer över utvecklingen, pass för pass.</span>
+                            </li>
+                        </ul>
+                    </div>
+
+                    <div className="bg-gray-50 dark:bg-gray-800/50 p-5 rounded-xl border border-gray-100 dark:border-gray-700">
+                        <h4 className="font-bold text-lg text-purple-500 mb-3 flex items-center gap-2">
+                            <ChartBarIcon className="w-5 h-5" /> För Gymmet
+                        </h4>
+                        <ul className="space-y-2 text-sm">
+                            <li className="flex gap-2">
+                                <span className="text-green-500">✓</span>
+                                <span><strong>Medlemsregister:</strong> Full översikt över dina medlemmar.</span>
+                            </li>
+                            <li className="flex gap-2">
+                                <span className="text-green-500">✓</span>
+                                <span><strong>Data & Analys:</strong> Se hur medlemmarna presterar och mår över tid.</span>
+                            </li>
+                            <li className="flex gap-2">
+                                <span className="text-green-500">✓</span>
+                                <span><strong>Community:</strong> Live-feed på skärmarna när någon loggar ett PB.</span>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div className="space-y-3">
+                    <div className="bg-yellow-50 dark:bg-yellow-900/10 p-4 rounded-xl border border-yellow-100 dark:border-yellow-800 text-sm text-yellow-800 dark:text-yellow-200">
+                        <p className="font-bold mb-1">Så funkar ekonomin</p>
+                        <p>Medlemmen betalar {customerPrice} kr/mån. Vår avgift är {baseCost} kr per ansluten medlem och månad. Resten, {gymShare} kr, är er intäkt — minus Stripes transaktionsavgifter.</p>
+                    </div>
+                    <div className="bg-gray-50 dark:bg-gray-800/50 p-4 rounded-xl border border-gray-100 dark:border-gray-700 text-sm">
+                        <p className="font-bold mb-1 text-gray-900 dark:text-white">Vill ni ge era medlemmar ett lägre pris?</p>
+                        <p className="text-gray-600 dark:text-gray-300">Vi tar fram en rabattkod åt er. Medlemmens pris sjunker med rabatten medan vår avgift på {baseCost} kr ligger fast, så mellanskillnaden tas ur er andel. Hör av er så ordnar vi koden.</p>
+                    </div>
+                    <div className="bg-gray-50 dark:bg-gray-800/50 p-4 rounded-xl border border-gray-100 dark:border-gray-700 text-sm">
+                        <p className="font-bold mb-1 text-gray-900 dark:text-white">Eller betala själva i stället för medlemmarna?</p>
+                        <p className="text-gray-600 dark:text-gray-300">Vi kan fakturera gymmet direkt. Då är appen kostnadsfri för era medlemmar. Hör av er så berättar vi mer.</p>
+                    </div>
                 </div>
             </div>
-
-            <div className="bg-yellow-50 dark:bg-yellow-900/10 p-4 rounded-xl border border-yellow-100 dark:border-yellow-800 text-sm text-yellow-800 dark:text-yellow-200">
-                Premium-appen kostar 39 kr/mån för medlemmen. Av detta tjänar ni som gym 20 kr per användare och månad (minus transaktionsavgifter från Stripe).
+            <div className="mt-6 flex justify-end">
+                <button onClick={onClose} className="bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-900 dark:text-white font-bold py-3 px-6 rounded-xl transition-colors">Stäng</button>
             </div>
-        </div>
-        <div className="mt-6 flex justify-end">
-            <button onClick={onClose} className="bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-900 dark:text-white font-bold py-3 px-6 rounded-xl transition-colors">Stäng</button>
-        </div>
-    </Modal>
-);
+        </Modal>
+    );
+};
 
 export const PricingModal: React.FC<{
     isOpen: boolean;
@@ -90,12 +118,12 @@ export const PricingModal: React.FC<{
     if (!isOpen) return null;
 
     return (
-        <Modal isOpen={true} onClose={onClose} title="Aktivera Hela Paketet 🚀" size="lg">
+        <Modal isOpen={true} onClose={onClose} title="Aktivera Medlemsappen 🚀" size="lg">
             <div className="p-0 overflow-hidden">
                 <div className="bg-gradient-to-r from-blue-600 to-indigo-700 p-6 text-white text-center">
                     <h3 className="text-xl font-bold mb-2">Ett paket – alla funktioner</h3>
                     <p className="text-blue-100 text-sm">
-                        Genom att aktivera Passloggning får du automatiskt tillgång till Medlemsregistret, Analysverktyg och intäktsmöjligheter.
+                        Genom att aktivera Medlemsappen får du automatiskt tillgång till Medlemsregistret, Analysverktyg och intäktsmöjligheter.
                     </p>
                 </div>
 
@@ -105,7 +133,7 @@ export const PricingModal: React.FC<{
                             <h4 className="font-bold text-blue-900 dark:text-blue-100 mb-1">För Medlemmen</h4>
                             <ul className="text-blue-800 dark:text-blue-200 list-disc list-inside space-y-1">
                                 <li>Sparar träningshistorik</li>
-                                <li>Får AI-analys & tips</li>
+                                <li>Ser hur styrkan står sig mot Strength Level</li>
                                 <li>Ser sina framsteg visuellt</li>
                             </ul>
                         </div>
@@ -168,7 +196,7 @@ export const PricingModal: React.FC<{
                                 </svg>
                                 Laddar...
                             </>
-                        ) : (!hasStripeAccount ? 'Koppla Stripe & Aktivera' : 'Aktivera Passloggning')}
+                        ) : (!hasStripeAccount ? 'Koppla Stripe & Aktivera' : 'Aktivera Medlemsappen')}
                     </button>
                 </div>
             </div>

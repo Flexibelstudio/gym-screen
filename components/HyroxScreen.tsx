@@ -286,7 +286,7 @@ const StartGroupPrepModal: React.FC<{
                                     value={intervalMins}
                                     onChange={(e) => setIntervalMins(Math.max(0, parseInt(e.target.value, 10) || 0))}
                                     min="0"
-                                    className="w-16 bg-white dark:bg-black/50 text-gray-900 dark:text-white text-center p-2.5 rounded-xl border border-gray-300 dark:border-gray-650 focus:ring-1 focus:ring-primary focus:outline-none font-bold"
+                                    className="w-16 bg-white dark:bg-black/50 text-gray-900 dark:text-white text-center p-2.5 rounded-xl border border-gray-300 dark:border-gray-600 focus:ring-1 focus:ring-primary focus:outline-none font-bold"
                                 />
                                 <span className="text-xs font-semibold text-gray-500 dark:text-gray-400">min</span>
                              </div>
@@ -298,7 +298,7 @@ const StartGroupPrepModal: React.FC<{
                                     onChange={(e) => setIntervalSecs(Math.max(0, Math.min(59, parseInt(e.target.value, 10) || 0)))}
                                     min="0"
                                     max="59"
-                                    className="w-16 bg-white dark:bg-black/50 text-gray-900 dark:text-white text-center p-2.5 rounded-xl border border-gray-300 dark:border-gray-650 focus:ring-1 focus:ring-primary focus:outline-none font-bold"
+                                    className="w-16 bg-white dark:bg-black/50 text-gray-900 dark:text-white text-center p-2.5 rounded-xl border border-gray-300 dark:border-gray-600 focus:ring-1 focus:ring-primary focus:outline-none font-bold"
                                 />
                                 <span className="text-xs font-semibold text-gray-500 dark:text-gray-400">sek</span>
                              </div>
@@ -463,7 +463,7 @@ export const HyroxScreen: React.FC<HyroxScreenProps> = ({ navigateTo, onSelectWo
         setRaceConfig(config);
         
         // Gå direkt in i loppet med sparade startgrupper och startintervall från admin
-        const interval = race.startIntervalMinutes || 2;
+        const interval = race.startIntervalMinutes ?? 2;
         startFullRace(race.startGroups || [], interval, !isStudioMode, config);
     };
 
@@ -471,8 +471,9 @@ export const HyroxScreen: React.FC<HyroxScreenProps> = ({ navigateTo, onSelectWo
         const configToUse = customConfig || raceConfig || { name: 'HYROX Race', exercises: createDefaultExercises() };
         const orgId = selectedOrganization?.id || '';
         
-        // Check if this is a planned race by looking for it in plannedRaces
-        const plannedRace = plannedRaces.find(r => r.raceName === configToUse.name || (customConfig && r.id === (customConfig as any).raceId));
+        // Check if this is a planned race by looking for it in plannedRaces (check raceId first, fall back to name)
+        const targetRaceId = (customConfig as any)?.raceId || (configToUse as any)?.raceId;
+        const plannedRace = plannedRaces.find(r => targetRaceId ? r.id === targetRaceId : r.raceName === configToUse.name);
         
         const raceWorkout = createCustomRaceWorkout(configToUse, groups, interval, orgId);
         if (openAsOfficial) {

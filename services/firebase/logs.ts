@@ -1,8 +1,8 @@
 import { 
-  collection, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, query, where, or, orderBy, limit, onSnapshot, writeBatch, serverTimestamp, runTransaction, deleteField 
+  collection, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, query, where, or, orderBy, limit, onSnapshot, writeBatch, serverTimestamp, runTransaction, deleteField, getCountFromServer, increment 
 } from 'firebase/firestore';
 import { db, isOffline, sanitizeData, getPBId, getLeaderboardDocId } from './init';
-import { calculate1RM } from '../../utils/workoutUtils';
+import { calculate1RM, isWorkoutMilestone, getYearWeek, getSetScore } from '../../utils/workoutUtils';
 import { getOrganizationById } from './organizations';
 import { getGlobalSummerChallenge } from './misc';
 import { WorkoutLog, PersonalBest, WorkoutResult, MemberGoals, Workout, StudioEvent } from '../../types';
@@ -137,6 +137,13 @@ export const saveWorkoutLog = async (logData: any): Promise<{ log: any, newRecor
         } catch (e) { console.warn("Failed to enrich log", e); }
     }
 
+    if (!newLog.locationId) {
+        const org = await getOrganizationById(logData.organizationId);
+        if (org && org.locations && org.locations.length === 1) {
+            newLog.locationId = org.locations[0].id;
+        }
+    }
+
     const batch = writeBatch(db);
 
     if (logData.memberId && logData.exerciseResults) {
@@ -149,18 +156,18 @@ export const saveWorkoutLog = async (logData: any): Promise<{ log: any, newRecor
             for (const exResult of logData.exerciseResults) {
                 let bestSet: { weight: number, reps: number, oneRm: number } | null = null;
                 
-                const processSet = (wVal: any, rVal: any) => {
+                const processSet = (wVal: any, rVal: any, rirVal?: any) => {
                     const w = parseFloat(wVal) || 0;
                     const r = parseFloat(rVal) || 0;
                     
                     if (r > 0 || w > 0) {
                         let oneRm = 0;
-                        if (w > 0 && r > 0 && r <= 10) {
-                            oneRm = calculate1RM(w, r) || 0;
+                        if (w > 0 && r > 0) {
+                            oneRm = calculate1RM(w, r, rirVal) || 0;
                         }
                         
-                        const currentScore = oneRm > 0 ? oneRm * 10000 : (w > 0 ? w * 100 + r : r);
-                        const bestScore = bestSet ? (bestSet.oneRm > 0 ? bestSet.oneRm * 10000 : (bestSet.weight > 0 ? bestSet.weight * 100 + bestSet.reps : bestSet.reps)) : -1;
+                        const currentScore = getSetScore(w, r, oneRm);
+                        const bestScore = bestSet ? getSetScore(bestSet.weight, bestSet.reps, bestSet.oneRm) : -1;
                         
                         if (currentScore > bestScore) {
                             bestSet = { weight: w, reps: r, oneRm };
@@ -169,9 +176,9 @@ export const saveWorkoutLog = async (logData: any): Promise<{ log: any, newRecor
                 };
 
                 if (exResult.setDetails && exResult.setDetails.length > 0) {
-                    exResult.setDetails.forEach((s: any) => processSet(s.weight, s.reps));
+                    exResult.setDetails.forEach((s: any) => processSet(s.weight, s.reps, s.rir));
                 } else if (exResult.weight || exResult.reps) {
-                    processSet(exResult.weight, exResult.reps);
+                    processSet(exResult.weight, exResult.reps, (exResult as any).rir);
                 }
 
                 if (bestSet && exResult.exerciseName) {
@@ -183,10 +190,10 @@ export const saveWorkoutLog = async (logData: any): Promise<{ log: any, newRecor
                         const ew = existingPB.weight || 0;
                         const er = existingPB.reps || 0;
                         const eRm = existingPB.calculated1RM || 0;
-                        existingScore = eRm > 0 ? eRm * 10000 : (ew > 0 ? ew * 100 + er : er);
+                        existingScore = getSetScore(ew, er, eRm);
                     }
 
-                    const newScore = bestSet.oneRm > 0 ? bestSet.oneRm * 10000 : (bestSet.weight > 0 ? bestSet.weight * 100 + bestSet.reps : bestSet.reps);
+                    const newScore = getSetScore(bestSet.weight, bestSet.reps, bestSet.oneRm);
 
                     if (newScore > existingScore) {
                         const pbData: PersonalBest = { 
@@ -197,7 +204,7 @@ export const saveWorkoutLog = async (logData: any): Promise<{ log: any, newRecor
                             calculated1RM: bestSet.oneRm,
                             date: Date.now() 
                         };
-                        batch.set(doc(db, 'users', logData.memberId, 'personalBests', pbId), pbData);
+                        batch.set(doc(db, 'users', logData.memberId, 'personalBests', pbId), pbData, { merge: true });
                         
                         // For pure reps exercises, diff can just be the difference in reps.
                         // Or if 1RM exists, the difference in 1RM.
@@ -230,7 +237,7 @@ export const saveWorkoutLog = async (logData: any): Promise<{ log: any, newRecor
                     id: eventRef.id,
                     type: 'pb',
                     organizationId: logData.organizationId,
-                    locationId: logData.locationId || userData?.locationId || null, 
+                    locationId: newLog.locationId || logData.locationId || userData?.locationId || null, 
                     timestamp: Date.now(),
                     data: { 
                         userName: newLog.memberName || 'En medlem', 
@@ -243,15 +250,255 @@ export const saveWorkoutLog = async (logData: any): Promise<{ log: any, newRecor
         } catch (e) { console.error("PB calculation failed", e); }
     }
 
-    if (!newLog.locationId) {
-        const org = await getOrganizationById(logData.organizationId);
-        if (org && org.locations && org.locations.length > 0) {
-            newLog.locationId = org.locations[0].id;
-        }
-    }
-
     batch.set(newLogRef, newLog);
     await batch.commit();
+
+    // Maintenance for Coach Radar user stats (lastWorkoutAt, lastPBAt, totalWorkoutsCount)
+    if (logData.memberId) {
+        try {
+            const userRef = doc(db, 'users', logData.memberId);
+            const userUpdates: Record<string, any> = {};
+
+            if (!userData?.lastWorkoutAt || newLog.date > userData.lastWorkoutAt) {
+                userUpdates.lastWorkoutAt = newLog.date;
+            }
+
+            if (newRecords.length > 0) {
+                if (!userData?.lastPBAt || newLog.date > userData.lastPBAt) {
+                    userUpdates.lastPBAt = newLog.date;
+                }
+            }
+
+            let appTotal = 0;
+            if (typeof userData?.totalWorkoutsCount === 'number') {
+                appTotal = userData.totalWorkoutsCount + 1;
+                userUpdates.totalWorkoutsCount = increment(1);
+            } else {
+                const qCount = query(collection(db, 'workoutLogs'), where("memberId", "==", logData.memberId));
+                const countSnap = await getCountFromServer(qCount);
+                appTotal = countSnap.data().count;
+                userUpdates.totalWorkoutsCount = appTotal;
+            }
+
+            const newTotal = appTotal + (userData?.migratedStats?.totalWorkouts ?? 0);
+
+            // 1. firstLogAt: set if missing or if backdated pass is older
+            let computedFirstLogAt = userData?.firstLogAt;
+            let isBackdatedFirstLogUpdate = false;
+
+            if (!computedFirstLogAt) {
+                if (appTotal === 1) {
+                    computedFirstLogAt = newLog.date;
+                    userUpdates.firstLogAt = computedFirstLogAt;
+                } else {
+                    try {
+                        const qOldest = query(
+                            collection(db, 'workoutLogs'),
+                            where('memberId', '==', logData.memberId),
+                            orderBy('date', 'asc'),
+                            limit(1)
+                        );
+                        const oldestSnap = await getDocs(qOldest);
+                        if (!oldestSnap.empty) {
+                            const oldestData = oldestSnap.docs[0].data() as WorkoutLog;
+                            if (oldestData.date) {
+                                computedFirstLogAt = oldestData.date;
+                                userUpdates.firstLogAt = computedFirstLogAt;
+
+                                const fDate = new Date(computedFirstLogAt);
+                                const wDate = new Date(newLog.date);
+                                let passedYears = wDate.getFullYear() - fDate.getFullYear();
+                                if (
+                                    wDate.getMonth() < fDate.getMonth() || 
+                                    (wDate.getMonth() === fDate.getMonth() && wDate.getDate() < fDate.getDate())
+                                ) {
+                                    passedYears--;
+                                }
+                                if (passedYears > 0) {
+                                    userUpdates.lastAnniversaryYear = passedYears;
+                                }
+                            }
+                        }
+                    } catch (oldestErr) {
+                        console.warn("Failed to fetch oldest log for firstLogAt:", oldestErr);
+                    }
+                }
+            } else if (newLog.date < computedFirstLogAt) {
+                computedFirstLogAt = newLog.date;
+                userUpdates.firstLogAt = computedFirstLogAt;
+                isBackdatedFirstLogUpdate = true;
+            }
+
+            // 2. Veckosvit (pure arithmetic)
+            const workoutDateObj = new Date(newLog.date);
+            const currentKey = getYearWeek(workoutDateObj);
+            let newStreakWeeks = userData?.streakWeeks ?? 0;
+            let streakIncreased = false;
+
+            if (userData?.streakWeekKey && currentKey < userData.streakWeekKey) {
+                // Pass is older than already counted week - skip streak update completely
+            } else if (currentKey !== userData?.streakWeekKey) {
+                const prevWeekDateObj = new Date(newLog.date - 7 * 24 * 60 * 60 * 1000);
+                const prevWeekKeyOfWorkout = getYearWeek(prevWeekDateObj);
+                if (userData?.streakWeekKey && prevWeekKeyOfWorkout === userData.streakWeekKey) {
+                    newStreakWeeks = (userData.streakWeeks ?? 0) + 1;
+                } else {
+                    newStreakWeeks = 1;
+                }
+                userUpdates.streakWeeks = newStreakWeeks;
+                userUpdates.streakWeekKey = currentKey;
+                streakIncreased = newStreakWeeks > (userData?.streakWeeks ?? 0);
+            }
+
+            await updateDoc(userRef, userUpdates);
+
+            if (isWorkoutMilestone(newTotal) && showOnLeaderboard) {
+                try {
+                    const eventRef = doc(collection(db, 'studio_events'));
+                    const milestoneEvent: StudioEvent = {
+                        id: eventRef.id,
+                        type: 'milestone',
+                        organizationId: logData.organizationId,
+                        locationId: logData.locationId || userData?.locationId || null,
+                        timestamp: Date.now(),
+                        data: {
+                            userName: newLog.memberName || 'En medlem',
+                            userPhotoUrl: newLog.memberPhotoUrl || null,
+                            milestone: newTotal
+                        }
+                    };
+                    await setDoc(eventRef, milestoneEvent);
+                } catch (eventErr) {
+                    console.warn("Failed to create milestone event:", eventErr);
+                }
+            }
+
+            const finalBenchmarkId = newLog.benchmarkId || logData.benchmarkId;
+            const finalBenchmarkVal = typeof newLog.benchmarkValue === 'number' && newLog.benchmarkValue > 0 
+                ? newLog.benchmarkValue 
+                : (typeof logData.benchmarkValue === 'number' && logData.benchmarkValue > 0 ? logData.benchmarkValue : undefined);
+            const finalBenchmarkDist = typeof newLog.benchmarkDistance === 'number' && newLog.benchmarkDistance > 0
+                ? newLog.benchmarkDistance
+                : (typeof logData.benchmarkDistance === 'number' && logData.benchmarkDistance > 0 ? logData.benchmarkDistance : 2000);
+
+            if (finalBenchmarkId && finalBenchmarkVal !== undefined && finalBenchmarkVal > 0 && showOnLeaderboard) {
+                try {
+                    let improvedBySec: number | undefined = undefined;
+                    if (logData.memberId) {
+                        const qPrev = query(
+                            collection(db, 'workoutLogs'),
+                            where('memberId', '==', logData.memberId),
+                            where('benchmarkId', '==', finalBenchmarkId),
+                            limit(50)
+                        );
+                        const prevSnap = await getDocs(qPrev);
+                        const prevValues: number[] = [];
+                        prevSnap.docs.forEach(docSnap => {
+                            if (docSnap.id !== newLog.id) {
+                                const data = docSnap.data() as WorkoutLog;
+                                const prevDist = typeof data.benchmarkDistance === 'number' && data.benchmarkDistance > 0 ? data.benchmarkDistance : 2000;
+                                if (prevDist === finalBenchmarkDist && typeof data.benchmarkValue === 'number' && data.benchmarkValue > 0) {
+                                    prevValues.push(data.benchmarkValue);
+                                }
+                            }
+                        });
+                        if (prevValues.length > 0) {
+                            const prevBest = Math.min(...prevValues);
+                            if (finalBenchmarkVal < prevBest) {
+                                improvedBySec = Math.round((prevBest - finalBenchmarkVal) * 10) / 10;
+                            }
+                        }
+                    }
+
+                    const eventRef = doc(collection(db, 'studio_events'));
+                    const testEvent: StudioEvent = {
+                        id: eventRef.id,
+                        type: 'test',
+                        organizationId: logData.organizationId,
+                        locationId: logData.locationId || userData?.locationId || null,
+                        timestamp: Date.now(),
+                        data: {
+                            userName: newLog.memberName || 'En medlem',
+                            userPhotoUrl: newLog.memberPhotoUrl || null,
+                            benchmarkId: finalBenchmarkId,
+                            benchmarkValue: finalBenchmarkVal,
+                            benchmarkDistance: finalBenchmarkDist,
+                            benchmarkTitle: newLog.workoutTitle || undefined,
+                            ...(improvedBySec !== undefined ? { improvedBySec } : {})
+                        }
+                    };
+                    await setDoc(eventRef, testEvent);
+                } catch (testErr) {
+                    console.warn("Failed to create test event:", testErr);
+                }
+            }
+
+            // 1. ÅRSDAG (ANNIVERSARY)
+            if (computedFirstLogAt && showOnLeaderboard && !isBackdatedFirstLogUpdate) {
+                try {
+                    const fDate = new Date(computedFirstLogAt);
+                    const wDate = new Date(newLog.date);
+                    let years = wDate.getFullYear() - fDate.getFullYear();
+                    if (
+                        wDate.getMonth() < fDate.getMonth() || 
+                        (wDate.getMonth() === fDate.getMonth() && wDate.getDate() < fDate.getDate())
+                    ) {
+                        years--;
+                    }
+                    const lastAnniv = (userUpdates.lastAnniversaryYear as number | undefined) ?? userData?.lastAnniversaryYear ?? 0;
+                    if (years >= 1 && years > lastAnniv) {
+                        const eventRef = doc(collection(db, 'studio_events'));
+                        const annivEvent: StudioEvent = {
+                            id: eventRef.id,
+                            type: 'anniversary',
+                            organizationId: logData.organizationId,
+                            locationId: logData.locationId || userData?.locationId || null,
+                            timestamp: Date.now(),
+                            data: {
+                                userName: newLog.memberName || 'En medlem',
+                                userPhotoUrl: newLog.memberPhotoUrl || null,
+                                years: years
+                            }
+                        };
+                        await setDoc(eventRef, annivEvent);
+                        await updateDoc(userRef, { lastAnniversaryYear: years });
+                    }
+                } catch (annivErr) {
+                    console.warn("Failed to create anniversary event:", annivErr);
+                }
+            }
+
+            // 2. VECKOSVIT (STREAK)
+            const isStreakMilestone = (sw: number) => {
+                if (sw === 4 || sw === 12 || sw === 26) return true;
+                if (sw >= 52 && sw % 52 === 0) return true;
+                return false;
+            };
+
+            if (isStreakMilestone(newStreakWeeks) && streakIncreased && showOnLeaderboard) {
+                try {
+                    const eventRef = doc(collection(db, 'studio_events'));
+                    const streakEvent: StudioEvent = {
+                        id: eventRef.id,
+                        type: 'streak',
+                        organizationId: logData.organizationId,
+                        locationId: logData.locationId || userData?.locationId || null,
+                        timestamp: Date.now(),
+                        data: {
+                            userName: newLog.memberName || 'En medlem',
+                            userPhotoUrl: newLog.memberPhotoUrl || null,
+                            streakWeeks: newStreakWeeks
+                        }
+                    };
+                    await setDoc(eventRef, streakEvent);
+                } catch (streakErr) {
+                    console.warn("Failed to create streak event:", streakErr);
+                }
+            }
+        } catch (err) {
+            console.warn("Failed to update user stats for coach radar:", err);
+        }
+    }
 
     return { log: newLog, newRecords };
 };
@@ -266,7 +513,28 @@ export const updateWorkoutLog = async (logId: string, updates: Partial<WorkoutLo
 export const deleteWorkoutLog = async (logId: string) => {
     if (isOffline || !db || !logId) return;
     try {
+        const logSnap = await getDoc(doc(db, 'workoutLogs', logId));
+        const memberId = logSnap.exists() ? logSnap.data()?.memberId : null;
+
         await deleteDoc(doc(db, 'workoutLogs', logId));
+
+        if (memberId) {
+            try {
+                const userRef = doc(db, 'users', memberId);
+                const userSnap = await getDoc(userRef);
+                if (userSnap.exists()) {
+                    const currentCount = userSnap.data()?.totalWorkoutsCount;
+                    if (typeof currentCount === 'number') {
+                        const newCount = Math.max(0, currentCount - 1);
+                        // Note: lastWorkoutAt and lastPBAt are left untouched as documented in coach radar specification
+                        // (acceptable deviation if deleting the most recent workout log).
+                        await updateDoc(userRef, { totalWorkoutsCount: newCount });
+                    }
+                }
+            } catch (err) {
+                console.warn("Failed to decrement user totalWorkoutsCount on delete:", err);
+            }
+        }
     } catch (e) { console.error("deleteWorkoutLog failed", e); }
 };
 
@@ -432,14 +700,15 @@ export const resetPersonalBest = async (userId: string, exerciseName: string) =>
     if (isOffline || !db || !userId) return;
     const pbId = getPBId(exerciseName);
     try {
-        await setDoc(doc(db, 'users', userId, 'personalBests', pbId), { 
-            id: pbId, 
-            exerciseName: exerciseName.trim(), 
-            weight: 0, 
+        await setDoc(doc(db, 'users', userId, 'personalBests', pbId), {
+            id: pbId,
+            exerciseName: exerciseName.trim(),
+            weight: 0,
             reps: 0,
             calculated1RM: 0,
-            date: Date.now() 
-        });
+            resetAt: Date.now(),
+            date: Date.now()
+        }, { merge: true });
     } catch (e) { console.error("resetPersonalBest failed", e); }
 };
 
@@ -458,4 +727,21 @@ export const getWorkoutResults = async (workoutId: string, orgId: string): Promi
         const snap = await getDocs(q);
         return snap.docs.map(d => d.data() as WorkoutResult);
     } catch (e) { return []; }
+};
+
+export const getOrganizationLogsSince = async (orgId: string, sinceMs: number): Promise<WorkoutLog[]> => {
+    if (isOffline || !db || !orgId) return [];
+    try {
+        const q = query(
+            collection(db, 'workoutLogs'),
+            where('organizationId', '==', orgId),
+            where('date', '>=', sinceMs),
+            orderBy('date', 'desc')
+        );
+        const snap = await getDocs(q);
+        return snap.docs.map(d => ({ id: d.id, ...d.data() }) as WorkoutLog);
+    } catch (error) {
+        console.warn("getOrganizationLogsSince failed (may require composite index):", error);
+        return [];
+    }
 };

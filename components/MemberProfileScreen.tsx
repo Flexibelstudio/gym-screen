@@ -1,12 +1,17 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
+import { deleteField } from 'firebase/firestore';
 import { WorkoutLog, UserData, MemberGoals, Page, UserRole, SmartGoalDetail, WorkoutDiploma, StudioConfig, BenchmarkDefinition, PersonalBest } from '../types';
-import { listenToMemberLogs, listenToPersonalBests, updateUserGoals, updateUserProfile, uploadImage, updateWorkoutLog, deleteWorkoutLog, requestPushNotificationPermission, auth, getPastRaces, toggleWorkoutLogLike } from '../services/firebaseService';
+import { listenToMemberLogs, listenToPersonalBests, updateUserGoals, updateUserProfile, uploadImage, updateWorkoutLog, deleteWorkoutLog, requestPushNotificationPermission, auth, getPastRaces, toggleWorkoutLogLike, calculateBodyWeightHistory, saveWorkoutLog } from '../services/firebaseService';
+import { LEVEL_NAMES, ROWING_LEVEL_NAMES } from '../data/fitnessStandards';
+import { getAgeFromBirthDate, getRowingAssessment, formatRowingTime, findLift1RM, getStrengthScore } from '../utils/fitnessBenchmarks';
+import { buildRowingScoreHistory } from '../utils/memberProgress';
 import { calculateMonthlyStats, MonthlyWrappedModal } from './MonthlyWrapped';
-import { ChartBarIcon, DumbbellIcon, PencilIcon, SparklesIcon, UserIcon, FireIcon, LightningIcon, TrashIcon, CloseIcon, TrophyIcon, ToggleSwitch, ClockIcon, HistoryIcon, FlagIcon, StarIcon, ChevronRightIcon, SunIcon } from './icons';
+import { ChartBarIcon, DumbbellIcon, PencilIcon, SparklesIcon, UserIcon, FireIcon, LightningIcon, TrashIcon, CloseIcon, TrophyIcon, ToggleSwitch, ClockIcon, HistoryIcon, FlagIcon, StarIcon, ChevronRightIcon, SunIcon, InformationCircleIcon } from './icons';
 import { Modal } from './ui/Modal';
 import { useConfirm } from './ConfirmContext';
 import { resizeImage } from '../utils/imageUtils';
+import { getYearWeek } from '../utils/workoutUtils';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MyStrengthScreen } from './MyStrengthScreen';
 import { WorkoutDiplomaView } from './WorkoutDiplomaView';
@@ -140,13 +145,14 @@ interface SummerChallengeDiplomaCardProps {
     grandTotalPoints: number;
     userRankIndex: number;
     challengeTitle: string;
+    organizationName?: string;
     endDate?: number;
     onClose: () => void;
 }
 
 const getSisuAchievementTitle = (points: number) => {
     if (points >= 20) return { title: "Superhjälte 🌟", desc: "Nivå Sisu-Elit", color: "text-yellow-300" };
-    if (points >= 10) return { title: "Sisu-Kämpe 💪", desc: "Stark hängivenhet", color: "text-amber-250" };
+    if (points >= 10) return { title: "Sisu-Kämpe 💪", desc: "Stark hängivenhet", color: "text-amber-200" };
     if (points > 0) return { title: "Deltagare 🎯", desc: "Aktiv lagspelare", color: "text-orange-200" };
     return { title: "Hejaklack 📣", desc: "Tillsammans är vi starkast", color: "text-amber-100" };
 };
@@ -158,6 +164,7 @@ const SummerChallengeDiplomaCard: React.FC<SummerChallengeDiplomaCardProps> = ({
     grandTotalPoints,
     userRankIndex,
     challengeTitle,
+    organizationName,
     endDate,
     onClose
 }) => {
@@ -216,7 +223,7 @@ const SummerChallengeDiplomaCard: React.FC<SummerChallengeDiplomaCardProps> = ({
                         <div className="space-y-0.5 py-0.5">
                             <span className="text-[9px] sm:text-[10px] font-bold uppercase text-amber-200/70 tracking-widest block">Tilldelas härmed</span>
                             <h2 className="text-2xl sm:text-3xl font-black tracking-tight text-white capitalize font-sans drop-shadow-[0_2px_10px_rgba(0,0,0,0.5)] leading-tight">
-                                {userData?.name || userData?.displayName || 'Sisu-kämpe'}
+                                {`${userData?.firstName || ''} ${userData?.lastName || ''}`.trim() || userData?.name || userData?.displayName || 'Sisu-kämpe'}
                             </h2>
                         </div>
 
@@ -262,18 +269,13 @@ const SummerChallengeDiplomaCard: React.FC<SummerChallengeDiplomaCardProps> = ({
                         <div className="pt-3 border-t border-white/10 flex items-center justify-between gap-4 text-left max-w-sm mx-auto">
                             <div>
                                 <span className="block text-[7px] font-bold text-amber-200/70 uppercase">Utfärdat på</span>
-                                <span className="block text-[10px] font-semibold text-white truncate max-w-[125px]">{userData?.organizationName || 'Ditt Gym'}</span>
+                                <span className="block text-[10px] font-semibold text-white truncate max-w-[125px]">{organizationName || userData?.organizationName || 'Ditt Gym'}</span>
                             </div>
                             <div className="text-right">
                                 <span className="block text-[7px] font-bold text-amber-200/70 uppercase">Slutdatum</span>
                                 <span className="block text-[10px] font-semibold text-white">{endDateStr}</span>
                             </div>
                         </div>
-
-                        {/* Screenshot note */}
-                        <p className="text-[9px] text-amber-200/50 font-semibold italic select-none pt-1">
-                            📸 Ta en skärmdump och dela på sociala medier! #Sommarutmaningen
-                        </p>
                     </div>
                 </div>
             </div>
@@ -283,18 +285,15 @@ const SummerChallengeDiplomaCard: React.FC<SummerChallengeDiplomaCardProps> = ({
 
 // --- Helper Functions ---
 
-const getYearWeek = (date: Date) => {
-    const d = new Date(date.getTime());
-    d.setHours(0, 0, 0, 0);
-    d.setDate(d.getDate() + 4 - (d.getDay() || 7));
-    const yearStart = new Date(d.getFullYear(), 0, 1);
-    const weekNo = Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
-    return `${d.getFullYear()}-W${weekNo}`;
-};
-
 const calculateWeeklyStreak = (logs: WorkoutLog[], migratedStats?: { totalWorkouts: number; streakWeeks: number; migratedAtDate: string; }) => {
-    const activeWeeks = new Set(logs.map(log => getYearWeek(new Date(log.date))));
+    const activeWeeks = new Set<string>();
     
+    logs.forEach(log => {
+        if (log.date) {
+            activeWeeks.add(getYearWeek(new Date(log.date)));
+        }
+    });
+
     if (migratedStats?.streakWeeks && migratedStats?.migratedAtDate) {
         let migrationCheckDate = new Date(migratedStats.migratedAtDate);
         for (let i = 0; i < migratedStats.streakWeeks; i++) {
@@ -310,19 +309,34 @@ const calculateWeeklyStreak = (logs: WorkoutLog[], migratedStats?: { totalWorkou
     
     // Check if current week has a workout
     const currentWeekKey = getYearWeek(now);
-    if (activeWeeks.has(currentWeekKey)) {
-        streak++;
+    const hasTrainedCurrentWeek = activeWeeks.has(currentWeekKey);
+
+    let checkDate = new Date(now.getTime());
+    checkDate.setHours(0, 0, 0, 0);
+
+    if (hasTrainedCurrentWeek) {
+        streak = 1;
+        checkDate.setDate(checkDate.getDate() - 7);
+    } else {
+        // Current week is ongoing with no workout yet; check previous week
+        checkDate.setDate(checkDate.getDate() - 7);
+        const prevWeekKey = getYearWeek(checkDate);
+        if (!activeWeeks.has(prevWeekKey)) {
+            return 0; // Both current and previous week have no workout
+        }
     }
 
-    let checkDate = new Date(now);
-    checkDate.setDate(checkDate.getDate() - 7);
+    // Count consecutive preceding active weeks
     while (true) {
         const weekKey = getYearWeek(checkDate);
         if (activeWeeks.has(weekKey)) {
             streak++;
             checkDate.setDate(checkDate.getDate() - 7);
-        } else { break; }
+        } else {
+            break;
+        }
     }
+
     return streak;
 };
 
@@ -383,7 +397,7 @@ const getGoalCoachingAdvice = (goals: MemberGoals, logs: WorkoutLog[]): { status
         } else {
             return {
                 status: "Sätt igång träningsmaskinen! 🚀",
-                advice: `Du har inte loggat så många pass nyligen än. För en balanserad utveckling, kom igång denna vecka med ett kort, peppande styrkepass och ett skönt konditionspass. Fråga vår AI-coach i chatten nedan om du vill ha hjälp att lägga upp det!`,
+                advice: `Du har inte loggat så många pass nyligen än. För en balanserad utveckling, kom igång denna vecka med ett kort, peppande styrkepass och ett skönt konditionspass.`,
                 color: "blue"
             };
         }
@@ -403,7 +417,7 @@ const getGoalCoachingAdvice = (goals: MemberGoals, logs: WorkoutLog[]): { status
         } else {
             return {
                 status: "Dags att väcka musklerna! 🏋️‍♂️",
-                advice: "För att starta din resa mot ökad styrka, boka in veckans första styrkepass redan idag. Fokusera på basövningar med bra teknik och rörlighet, och glöm inte att söka guidning av AI-coachen i chatten vid minsta osäkerhet!",
+                advice: "För att starta din resa mot ökad styrka, boka in veckans första styrkepass redan idag. Fokusera på basövningar med bra teknik och rörlighet.",
                 color: "blue"
             };
         }
@@ -430,33 +444,71 @@ const getGoalCoachingAdvice = (goals: MemberGoals, logs: WorkoutLog[]): { status
     }
 
     return {
-        status: "Nå dina mål tillsammans med coachen 🌟",
-        advice: `Grymt jobbat med dina uppsatta mål. Försök att planera in 2-3 pass i veckan som stöder dina delmål. Vår AI-coach i chatten står alltid redo med personliga rekommendationer utifrån vad du körde senast!`,
+        status: "Du är på väg mot dina mål 🌟",
+        advice: `Grymt jobbat med dina uppsatta mål. Försök att planera in 2-3 pass i veckan som stöder dina delmål. Här ser du löpande hur din träning ligger till mot dem.`,
         color: "blue"
     };
 };
 
-const getLevelInfo = (count: number) => {
-    const workoutsPerLevel = 10;
-    const level = Math.floor(count / workoutsPerLevel) + 1;
-    const workoutsInCurrentLevel = count % workoutsPerLevel;
-    const progressToNext = (workoutsInCurrentLevel / workoutsPerLevel) * 100;
-    return { level, progressToNext, workoutsInCurrentLevel, workoutsPerLevel };
+const MILESTONES: { count: number; name: string }[] = [
+    { count: 10, name: 'Igång' },
+    { count: 25, name: 'Vanan sitter' },
+    { count: 50, name: 'Stammis' },
+    { count: 100, name: 'Hundraklubben' },
+    { count: 250, name: 'Veteran' },
+    { count: 500, name: 'Legendarisk' },
+    { count: 1000, name: 'Tusenklubben' },
+];
+
+const getMilestoneInfo = (count: number) => {
+    const reached = MILESTONES.filter(m => count >= m.count).pop() || null;
+    const next = MILESTONES.find(m => count < m.count) || null;
+    const from = reached ? reached.count : 0;
+    const span = next ? next.count - from : 0;
+    const progress = next && span > 0
+        ? Math.min(100, Math.max(0, ((count - from) / span) * 100))
+        : 100;
+
+    return {
+        reachedName: reached ? reached.name : null,
+        nextName: next ? next.name : null,
+        workoutsToNext: next ? next.count - count : 0,
+        progress
+    };
 };
 
-const getAthleteArchetype = (logs: WorkoutLog[]) => {
-    if (logs.length < 3) return { title: "Nykomling", icon: <SparklesIcon className="w-5 h-5" />, color: "from-blue-500 to-cyan-500", desc: "Du är i början av din resa. Fortsätt såhär!" };
-    let strengthCount = 0, cardioCount = 0, hyroxCount = 0;
-    logs.forEach(l => {
-        const t = (l.workoutTitle + (l.tags?.join(' ') || '')).toLowerCase();
-        if (t.includes('styrka') || t.includes('gym') || t.includes('power')) strengthCount++;
-        if (t.includes('kondition') || t.includes('flås') || t.includes('löpning')) cardioCount++;
-        if (t.includes('hyrox')) hyroxCount++;
-    });
-    if (hyroxCount > 3) return { title: "HYROX-Krigare", icon: <LightningIcon className="w-5 h-5" />, color: "from-yellow-500 to-orange-500", desc: "Du älskar funktionell fitness och tävlingsmomentet!" };
-    if (strengthCount > cardioCount + 2) return { title: "Lyftaren", icon: <DumbbellIcon className="w-5 h-5" />, color: "from-red-500 to-pink-600", desc: "Tunga lyft är din grej. Starkt jobbat!" };
-    if (cardioCount > strengthCount + 2) return { title: "Maskinen", icon: <FireIcon className="w-5 h-5" />, color: "from-orange-400 to-red-500", desc: "Uthållighet av stål. Du slutar aldrig!" };
-    return { title: "Hybridatlet", icon: <UserIcon className="w-5 h-5" />, color: "from-indigo-500 to-purple-600", desc: "Du behärskar både styrka och kondition. Den kompletta atleten." };
+const getAthleteArchetype = (
+    strengthScore: number | null,
+    conditioningScore: number | null,
+    logCount: number
+) => {
+    if (strengthScore !== null && conditioningScore !== null) {
+        const detail = `Styrka ${strengthScore} · Kondition ${conditioningScore}`;
+        const diff = strengthScore - conditioningScore;
+
+        if (diff > 10) {
+            return { title: "Lyftaren", icon: <DumbbellIcon className="w-5 h-5" />, color: "from-red-500 to-pink-600", desc: `Tunga lyft är din grej. ${detail}.` };
+        }
+        if (diff < -10) {
+            return { title: "Maskinen", icon: <FireIcon className="w-5 h-5" />, color: "from-orange-400 to-red-500", desc: `Uthållighet av stål. ${detail}.` };
+        }
+        return { title: "Hybridatlet", icon: <UserIcon className="w-5 h-5" />, color: "from-indigo-500 to-purple-600", desc: `Du håller ihop styrka och kondition. ${detail}.` };
+    }
+
+    if (logCount < 3) {
+        return { title: "Nykomling", icon: <SparklesIcon className="w-5 h-5" />, color: "from-blue-500 to-cyan-500", desc: "Du är i början av din resa. Logga några pass så visar vi din profil." };
+    }
+
+    const missing: string[] = [];
+    if (strengthScore === null) missing.push('knäböj, bänkpress och marklyft');
+    if (conditioningScore === null) missing.push('ett 2000 m roddtest');
+
+    return {
+        title: "På gång",
+        icon: <SparklesIcon className="w-5 h-5" />,
+        color: "from-slate-500 to-slate-700",
+        desc: `Logga ${missing.join(' och ')} så kan vi visa din träningsprofil.`
+    };
 };
 
 const BenchmarkDetailModal: React.FC<{ 
@@ -569,7 +621,374 @@ const BenchmarkDetailModal: React.FC<{
     );
 };
 
-const BenchmarksView: React.FC<{ logs: WorkoutLog[], definitions: BenchmarkDefinition[], onViewLog: (log: WorkoutLog) => void }> = ({ logs, definitions, onViewLog }) => {
+function parseRowingInputTime(input: string): number | null {
+    if (!input) return null;
+    const clean = input.trim().replace(',', '.');
+    const match = clean.match(/^(\d{1,2}):([0-5]?\d(?:\.\d)?)$/);
+    if (!match) return null;
+    const min = parseInt(match[1], 10);
+    const sec = parseFloat(match[2]);
+    if (isNaN(min) || isNaN(sec)) return null;
+    const totalSeconds = min * 60 + sec;
+    if (totalSeconds < 60 || totalSeconds > 3600) return null;
+    return totalSeconds;
+}
+
+const Rowing2000mCard: React.FC<{
+    logs: WorkoutLog[];
+    userData?: any;
+    onOpenProfileEdit?: () => void;
+}> = ({ logs, userData, onOpenProfileEdit }) => {
+    const [timeInput, setTimeInput] = useState('');
+    const [showCustomDistance, setShowCustomDistance] = useState(false);
+    const [distanceInput, setDistanceInput] = useState('');
+    const [isSaving, setIsSaving] = useState(false);
+    const [errorMsg, setErrorMsg] = useState<string | null>(null);
+    const [showInfoModal, setShowInfoModal] = useState(false);
+
+    const rowingLogs = useMemo(() => {
+        return logs
+            .filter(l => l.benchmarkId === 'platform_row_2000m' && typeof l.benchmarkValue === 'number' && l.benchmarkValue > 0)
+            .sort((a, b) => b.date - a.date);
+    }, [logs]);
+
+    const latestAttempt = rowingLogs[0];
+    const history = rowingLogs.slice(0, 10);
+
+    const age = getAgeFromBirthDate(userData?.birthDate);
+    const gender = userData?.gender;
+
+    const rowingScoreHistory = useMemo(
+        () => buildRowingScoreHistory(logs, gender, age),
+        [logs, gender, age]
+    );
+
+    const latestRowingScore = rowingScoreHistory.length > 0
+        ? rowingScoreHistory[rowingScoreHistory.length - 1].score
+        : null;
+
+    const latestDistance = latestAttempt ? (latestAttempt.benchmarkDistance ?? 2000) : 2000;
+    const isFullTest = latestDistance === 2000;
+
+    const latestAssessment = latestAttempt && isFullTest && (gender === 'male' || gender === 'female') && age !== null
+        ? getRowingAssessment(gender, age, latestAttempt.benchmarkValue!)
+        : null;
+
+    const handleSave = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setErrorMsg(null);
+
+        let targetDistance = 2000;
+        if (showCustomDistance && distanceInput.trim()) {
+            const parsedDist = parseInt(distanceInput.trim(), 10);
+            if (isNaN(parsedDist) || parsedDist < 100 || parsedDist > 10000) {
+                setErrorMsg('Ange en giltig sträcka mellan 100 och 10 000 m.');
+                return;
+            }
+            targetDistance = parsedDist;
+        }
+
+        const seconds = parseRowingInputTime(timeInput);
+        if (seconds === null) {
+            setErrorMsg('Ange en giltig tid mellan 1:00 och 60:00 (t.ex. 7:15 eller 07:15.3)');
+            return;
+        }
+
+        const orgId = userData?.organizationId;
+        if (!userData?.uid || !orgId) {
+            setErrorMsg('Medlemsuppgifter saknas.');
+            return;
+        }
+
+        setIsSaving(true);
+        try {
+            await saveWorkoutLog({
+                memberId: userData.uid,
+                organizationId: orgId,
+                date: Date.now(),
+                workoutTitle: targetDistance === 2000 ? '2000 m Rodd' : `${targetDistance} m Rodd`,
+                workoutId: 'manual',
+                benchmarkId: 'platform_row_2000m',
+                benchmarkValue: seconds,
+                benchmarkDistance: targetDistance,
+            });
+            setTimeInput('');
+            setDistanceInput('');
+            setShowCustomDistance(false);
+        } catch (err) {
+            console.error('Failed to save rowing log', err);
+            setErrorMsg('Kunde inte spara resultatet. Försök igen.');
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    return (
+        <div className="bg-white dark:bg-gray-900 rounded-2xl p-6 shadow-sm border border-gray-100 dark:border-gray-800 space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-gray-100 dark:border-gray-800 pb-4">
+                <div className="flex items-center justify-between w-full sm:w-auto">
+                    <div>
+                        <div className="flex items-center gap-2">
+                            <h3 className="font-black text-gray-900 dark:text-white text-lg tracking-tight leading-[1.2] pt-[0.1em]">2000 M RODD</h3>
+                            <button
+                                type="button"
+                                onClick={() => setShowInfoModal(true)}
+                                className="w-11 h-11 min-w-[44px] min-h-[44px] flex items-center justify-center text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors"
+                                aria-label="Information om 2000 m rodd"
+                            >
+                                <InformationCircleIcon className="w-5 h-5" />
+                            </button>
+                        </div>
+                        <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">Konditionstest — Concept2</p>
+                    </div>
+                </div>
+            </div>
+
+            <form onSubmit={handleSave} className="space-y-3">
+                <label className="block text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest">
+                    Logga nytt resultat
+                </label>
+
+                {showCustomDistance && (
+                    <div className="space-y-1">
+                        <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300">
+                            Sträcka (meter)
+                        </label>
+                        <input
+                            type="number"
+                            value={distanceInput}
+                            onChange={(e) => setDistanceInput(e.target.value)}
+                            placeholder="t.ex. 500"
+                            min={100}
+                            max={10000}
+                            className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-3 py-2 text-sm text-gray-900 dark:text-white font-mono focus:outline-none focus:ring-2 focus:ring-primary"
+                        />
+                    </div>
+                )}
+
+                <div className="flex gap-2">
+                    <input
+                        type="text"
+                        value={timeInput}
+                        onChange={(e) => setTimeInput(e.target.value)}
+                        placeholder="mm:ss (t.ex. 7:15 eller 7:15.0)"
+                        className="flex-1 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-3 py-2 text-sm text-gray-900 dark:text-white font-mono placeholder:font-sans focus:outline-none focus:ring-2 focus:ring-primary"
+                    />
+                    <button
+                        type="submit"
+                        disabled={isSaving || !timeInput.trim()}
+                        className="bg-primary text-white font-bold text-xs px-4 py-2 rounded-xl hover:brightness-110 transition-all disabled:opacity-50 shrink-0"
+                    >
+                        {isSaving ? 'Sparar...' : 'Spara test'}
+                    </button>
+                </div>
+
+                <div>
+                    <button
+                        type="button"
+                        onClick={() => {
+                            setShowCustomDistance(!showCustomDistance);
+                            if (showCustomDistance) setDistanceInput('');
+                        }}
+                        className="text-xs font-semibold text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors underline"
+                    >
+                        {showCustomDistance ? 'Standard 2000 m' : 'Jag rodde en kortare sträcka'}
+                    </button>
+                </div>
+
+                {errorMsg && <p className="text-xs text-red-500 font-medium">{errorMsg}</p>}
+            </form>
+
+            {latestAttempt && (
+                <div className="bg-gray-50/50 dark:bg-gray-800/40 rounded-xl p-4 border border-gray-100 dark:border-gray-800 space-y-3">
+                    <div className="flex items-center justify-between">
+                        <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 dark:text-gray-500">
+                            Senaste test ({new Date(latestAttempt.date).toLocaleDateString('sv-SE')})
+                        </span>
+                        <span className="font-mono font-bold text-base text-primary tabular-nums">
+                            {isFullTest ? formatRowingTime(latestAttempt.benchmarkValue!) : `${latestDistance} m · ${formatRowingTime(latestAttempt.benchmarkValue!)}`}
+                        </span>
+                    </div>
+
+                    {!isFullTest ? (
+                        <p className="text-xs text-gray-600 dark:text-gray-300 font-medium pt-1">
+                            Jämförelse görs på 2000 m. Kör hela sträckan för att se din nivå.
+                        </p>
+                    ) : (age === null || !userData?.birthDate) ? (
+                        <div className="space-y-1">
+                            <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">
+                                Ange födelsedatum i din profil för att se jämförelsen.
+                            </p>
+                            {onOpenProfileEdit && (
+                                <button
+                                    type="button"
+                                    onClick={onOpenProfileEdit}
+                                    className="inline-flex items-center gap-1 text-xs font-bold text-primary hover:underline"
+                                >
+                                    Till profilen →
+                                </button>
+                            )}
+                        </div>
+                    ) : (gender !== 'male' && gender !== 'female') ? (
+                        <div className="space-y-2">
+                            <div className="space-y-1.5">
+                                <div className="flex items-center justify-between gap-2">
+                                    <span className="text-[10px] font-black uppercase tracking-wider text-gray-400 dark:text-gray-500">
+                                        Nivå
+                                    </span>
+                                    <span className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-bold bg-primary/10 text-primary border border-primary/20">
+                                        På väg
+                                    </span>
+                                </div>
+                                <div className="grid grid-cols-5 gap-1.5 h-2">
+                                    {[1, 2, 3, 4, 5].map((seg) => (
+                                        <div key={seg} className="h-full rounded-full bg-gray-200 dark:bg-gray-800" />
+                                    ))}
+                                </div>
+                            </div>
+                            <p className="text-[11px] text-gray-400 dark:text-gray-500 italic">
+                                Jämförelser finns för man/kvinna. Din progression räknas ändå.
+                            </p>
+                        </div>
+                    ) : latestAssessment ? (
+                        <div className="space-y-3">
+                            <div className="space-y-1.5">
+                                <div className="flex items-center justify-between gap-2">
+                                    <span className="text-[10px] font-black uppercase tracking-wider text-gray-400 dark:text-gray-500">
+                                        Nivå
+                                    </span>
+                                    <span className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-bold bg-primary/10 text-primary border border-primary/20">
+                                        {latestAssessment.levelName}
+                                    </span>
+                                </div>
+                                <div className="grid grid-cols-5 gap-1.5 h-2">
+                                    {[1, 2, 3, 4, 5].map((seg) => (
+                                        <div
+                                            key={seg}
+                                            className={`h-full rounded-full transition-colors ${
+                                                seg <= latestAssessment.level ? 'bg-primary' : 'bg-gray-200 dark:bg-gray-800'
+                                            }`}
+                                        />
+                                    ))}
+                                </div>
+                            </div>
+                            <div className="space-y-1 pt-1 border-t border-gray-200/60 dark:border-gray-700/60 text-xs">
+                                <p className="text-gray-600 dark:text-gray-400">
+                                    <span className="font-medium">Snitt i din ålder & kön:</span>{' '}
+                                    <span className="font-bold text-gray-900 dark:text-white font-mono tabular-nums">
+                                        {formatRowingTime(latestAssessment.averageSec)}
+                                    </span>
+                                </p>
+                                {latestAssessment.level < 5 && latestAssessment.nextLevelSec !== null && (
+                                    <p className="text-gray-600 dark:text-gray-400">
+                                        <span className="font-medium">Nästa nivå:</span>{' '}
+                                        <span className="font-semibold text-gray-800 dark:text-gray-200">
+                                            {ROWING_LEVEL_NAMES[latestAssessment.level + 1]}
+                                        </span>{' '}
+                                        vid{' '}
+                                        <span className="font-bold text-gray-900 dark:text-white font-mono tabular-nums">
+                                            {formatRowingTime(latestAssessment.nextLevelSec)}
+                                        </span>
+                                    </p>
+                                )}
+                            </div>
+                        </div>
+                    ) : null}
+                </div>
+            )}
+
+            {latestRowingScore !== null && (
+                <div className="pt-4 border-t border-gray-100 dark:border-gray-800">
+                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Din konditionspoäng</p>
+                    <div className="flex items-baseline gap-2 mb-1">
+                        <span className="text-5xl font-black text-gray-900 dark:text-white tracking-tight leading-none">{latestRowingScore}</span>
+                        <span className="text-sm font-bold text-gray-400">/ 100</span>
+                    </div>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mb-4">
+                        Samma skala som din styrkepoäng, räknad på din senaste hela 2000-metare och justerad för din ålder och ditt kön.
+                    </p>
+
+                    {rowingScoreHistory.length >= 2 ? (
+                        <div className="h-40 w-full">
+                            <ResponsiveContainer width="100%" height="100%">
+                                <LineChart data={rowingScoreHistory} margin={{ top: 5, right: 5, left: -20, bottom: 5 }}>
+                                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e7eb" />
+                                    <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#9ca3af' }} dy={10} />
+                                    <YAxis domain={[0, 100]} axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#9ca3af' }} />
+                                    <Tooltip
+                                        contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)', fontSize: '12px', fontWeight: 'bold' }}
+                                        formatter={(value: number, _name: string, props: any) => [`${value} poäng · ${props?.payload?.label ?? ''}`, 'Konditionspoäng']}
+                                        labelStyle={{ color: '#6b7280', marginBottom: '4px' }}
+                                    />
+                                    <Line type="monotone" dataKey="score" stroke="#14b8a6" strokeWidth={3} dot={{ r: 4, fill: '#14b8a6', strokeWidth: 2, stroke: '#fff' }} activeDot={{ r: 6, fill: '#14b8a6', strokeWidth: 0 }} />
+                                </LineChart>
+                            </ResponsiveContainer>
+                        </div>
+                    ) : (
+                        <p className="text-xs text-gray-500 dark:text-gray-400">
+                            Gör om testet så ritas din utvecklingskurva här.
+                        </p>
+                    )}
+                </div>
+            )}
+
+            {history.length > 0 && (
+                <div className="space-y-2 pt-2 border-t border-gray-100 dark:border-gray-800">
+                    <h4 className="text-[10px] font-black uppercase tracking-widest text-gray-400 dark:text-gray-500">
+                        Tidigare försök ({history.length})
+                    </h4>
+                    <div className="divide-y divide-gray-100 dark:divide-gray-800 text-xs">
+                        {history.map((item) => {
+                            const itemDist = item.benchmarkDistance ?? 2000;
+                            return (
+                                <div key={item.id} className="py-2 flex items-center justify-between">
+                                    <span className="text-gray-500 dark:text-gray-400">
+                                        {new Date(item.date).toLocaleDateString('sv-SE', { year: 'numeric', month: 'short', day: 'numeric' })}
+                                    </span>
+                                    <span className="font-mono font-bold text-gray-900 dark:text-white tabular-nums">
+                                        {itemDist === 2000 ? formatRowingTime(item.benchmarkValue!) : `${itemDist} m · ${formatRowingTime(item.benchmarkValue!)}`}
+                                    </span>
+                                </div>
+                            );
+                        })}
+                    </div>
+                </div>
+            )}
+
+            <Modal isOpen={showInfoModal} onClose={() => setShowInfoModal(false)} title="2000 m rodd">
+                <div className="space-y-4 text-sm text-gray-700 dark:text-gray-300 leading-relaxed">
+                    <div>
+                        <h4 className="font-bold text-gray-900 dark:text-white text-base mb-1">Så gör du testet</h4>
+                        <p>
+                            Ro 2000 meter så snabbt du kan på en Concept2-maskin. Värm upp ordentligt, håll ett jämnt tempo och spara lite till slutet. Orkar du inte hela sträckan — logga ändå det du gjorde och ange hur långt du rodde. Kortare distanser sparas i din historik så att du kan slå dem nästa gång, men jämförelsen mot andra görs bara på hela 2000 meter.
+                        </p>
+                    </div>
+
+                    <p>
+                        <strong className="font-bold text-gray-900 dark:text-white">Nivåerna</strong> följer samma skala som styrkan och är justerade för din ålder och ditt kön. En 60-årig man som ror på 8:00 presterar lika bra som en 30-åring på 7:04 — därför jämförs du med din egen åldersgrupp.
+                    </p>
+
+                    <p>
+                        <strong className="font-bold text-gray-900 dark:text-white">Snittet</strong> som visas är tiden för mittennivån i din åldersgrupp — alltså vad hälften klarar. Ligger du över är du i gott sällskap; ligger du under har du ett tydligt mål.
+                    </p>
+
+                    <p>
+                        Testa igen om 8–12 veckor. Det är då förändringen syns.
+                    </p>
+                </div>
+            </Modal>
+        </div>
+    );
+};
+
+const BenchmarksView: React.FC<{
+    logs: WorkoutLog[];
+    definitions: BenchmarkDefinition[];
+    onViewLog: (log: WorkoutLog) => void;
+    userData?: any;
+    onOpenProfileEdit?: () => void;
+    enableFitnessBenchmarks?: boolean;
+}> = ({ logs, definitions, onViewLog, userData, onOpenProfileEdit, enableFitnessBenchmarks }) => {
     const [selectedBenchmark, setSelectedBenchmark] = useState<any>(null);
 
     // Process data to find PBs for each benchmark definition and sort them
@@ -648,57 +1067,64 @@ const BenchmarksView: React.FC<{ logs: WorkoutLog[], definitions: BenchmarkDefin
         return '';
     };
 
-    if (sortedBenchmarks.length === 0) {
-        return (
-            <div className="p-12 text-center bg-white dark:bg-gray-900 rounded-3xl border border-dashed border-gray-200 dark:border-gray-800 animate-fade-in">
-                <p className="text-gray-400 text-sm">Här visas dina resultat när du kört ett benchmark-pass.</p>
-            </div>
-        );
-    }
-
     return (
         <div className="space-y-6 animate-fade-in">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {sortedBenchmarks.map((benchmark) => {
-                    const { def, pb, attempts, trend } = benchmark;
-                    return (
-                        <div 
-                            key={def.id} 
-                            onClick={() => setSelectedBenchmark(benchmark)}
-                            className={`cursor-pointer relative overflow-hidden rounded-3xl p-6 transition-all bg-gradient-to-br from-yellow-50 to-orange-50 dark:from-gray-800 dark:to-gray-900 border-2 border-yellow-400/30 dark:border-yellow-500/20 hover:border-yellow-400 dark:hover:border-yellow-500 hover:shadow-lg`}
-                        >
-                            <div className="absolute top-0 right-0 w-24 h-24 bg-yellow-400/10 rounded-full blur-3xl -mr-6 -mt-6"></div>
-                            
-                            <div className="relative z-10">
-                                <div className="flex justify-between items-start mb-4">
-                                    <h4 className="font-bold truncate pr-2 text-lg text-gray-900 dark:text-white">
-                                        {def.title}
-                                    </h4>
-                                    <div className="bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400 px-2 py-1 rounded-lg">
-                                        <TrophyIcon className="w-4 h-4" />
-                                    </div>
-                                </div>
+            {enableFitnessBenchmarks && (
+                <Rowing2000mCard
+                    logs={logs}
+                    userData={userData}
+                    onOpenProfileEdit={onOpenProfileEdit}
+                />
+            )}
+
+            {sortedBenchmarks.length === 0 ? (
+                <div className="p-12 text-center bg-white dark:bg-gray-900 rounded-3xl border border-dashed border-gray-200 dark:border-gray-800">
+                    <p className="text-gray-400 text-sm">Här visas dina resultat när du kört ett benchmark-pass.</p>
+                </div>
+            ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {sortedBenchmarks.map((benchmark) => {
+                        const { def, pb, attempts, trend } = benchmark;
+                        return (
+                            <div 
+                                key={def.id} 
+                                onClick={() => setSelectedBenchmark(benchmark)}
+                                className={`cursor-pointer relative overflow-hidden rounded-3xl p-6 transition-all bg-gradient-to-br from-yellow-50 to-orange-50 dark:from-gray-800 dark:to-gray-900 border-2 border-yellow-400/30 dark:border-yellow-500/20 hover:border-yellow-400 dark:hover:border-yellow-500 hover:shadow-lg`}
+                            >
+                                <div className="absolute top-0 right-0 w-24 h-24 bg-yellow-400/10 rounded-full blur-3xl -mr-6 -mt-6"></div>
                                 
-                                <div className="flex justify-between items-end">
-                                    <div>
-                                        <p className="text-4xl font-black text-gray-900 dark:text-white tracking-tight">
-                                            {formatResult(pb!.benchmarkValue!, def.type)} <span className="text-sm text-gray-500 font-bold">{getUnit(def.type)}</span>
-                                        </p>
-                                        <p className="text-[10px] text-gray-500 dark:text-gray-400 mt-2 uppercase tracking-wider font-bold">
-                                            {new Date(pb!.date).toLocaleDateString('sv-SE')} • {attempts} försök
-                                        </p>
-                                    </div>
-                                    {trend && trend.hasChanged && (
-                                        <div className={`flex items-center gap-1 text-xs font-bold px-2 py-1 rounded-lg ${trend.isImprovement ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'}`}>
-                                            {trend.isImprovement ? '↑' : '↓'} {formatResult(trend.diff, def.type)}
+                                <div className="relative z-10">
+                                    <div className="flex justify-between items-start mb-4">
+                                        <h4 className="font-bold truncate pr-2 text-lg text-gray-900 dark:text-white">
+                                            {def.title}
+                                        </h4>
+                                        <div className="bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400 px-2 py-1 rounded-lg">
+                                            <TrophyIcon className="w-4 h-4" />
                                         </div>
-                                    )}
+                                    </div>
+                                    
+                                    <div className="flex justify-between items-end">
+                                        <div>
+                                            <p className="text-4xl font-black text-gray-900 dark:text-white tracking-tight">
+                                                {formatResult(pb!.benchmarkValue!, def.type)} <span className="text-sm text-gray-500 font-bold">{getUnit(def.type)}</span>
+                                            </p>
+                                            <p className="text-[10px] text-gray-500 dark:text-gray-400 mt-2 uppercase tracking-wider font-bold">
+                                                {new Date(pb!.date).toLocaleDateString('sv-SE')} • {attempts} försök
+                                            </p>
+                                        </div>
+                                        {trend && trend.hasChanged && (
+                                            <div className={`flex items-center gap-1 text-xs font-bold px-2 py-1 rounded-lg ${trend.isImprovement ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'}`}>
+                                                {trend.isImprovement ? '↑' : '↓'} {formatResult(trend.diff, def.type)}
+                                            </div>
+                                        )}
+                                    </div>
                                 </div>
                             </div>
-                        </div>
-                    );
-                })}
-            </div>
+                        );
+                    })}
+                </div>
+            )}
+
 
             {selectedBenchmark && (
                 <BenchmarkDetailModal 
@@ -1149,7 +1575,7 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
             label = 'ÖVERHETTNING';
             emoji = '🌋';
             colorClass = 'text-red-500 dark:text-red-400 font-extrabold';
-            bannerBgClass = 'from-red-650/20 to-slate-950';
+            bannerBgClass = 'from-red-600/20 to-slate-950';
             scale = 'overhettning';
         } else if (completedPercentage >= 100) {
             label = 'HET';
@@ -1160,19 +1586,19 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
         } else if (completedPercentage >= 70) {
             label = 'VARM';
             emoji = '☀️';
-            colorClass = 'text-yellow-600 dark:text-yellow-450 font-extrabold';
+            colorClass = 'text-yellow-600 dark:text-yellow-400 font-extrabold';
             bannerBgClass = 'from-yellow-400/20 to-slate-950';
             scale = 'varmt';
         } else if (completedPercentage >= 40) {
             label = 'LJUMMEN';
             emoji = '🌤️';
-            colorClass = 'text-amber-550 dark:text-amber-450 font-extrabold';
-            bannerBgClass = 'from-amber-450/20 to-slate-950';
+            colorClass = 'text-amber-500 dark:text-amber-400 font-extrabold';
+            bannerBgClass = 'from-amber-400/20 to-slate-950';
             scale = 'ljummen';
         } else {
             label = 'SVALT';
             emoji = '❄️';
-            colorClass = 'text-sky-450 dark:text-sky-400 font-extrabold';
+            colorClass = 'text-sky-400 dark:text-sky-400 font-extrabold';
             bannerBgClass = 'from-sky-500/10 to-slate-900';
             scale = 'svalt';
         }
@@ -1260,7 +1686,7 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
 
             return {
                 uid: member.uid,
-                name: member.name || member.displayName || 'Medlem',
+                name: `${member.firstName || ''} ${member.lastName || ''}`.trim() || member.name || member.displayName || 'Medlem',
                 avatarUrl: member.avatarUrl || member.photoURL,
                 totalPoints,
                 weeklyPoints
@@ -1282,15 +1708,27 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
         return summerLeaderboardData.reduce((acc, curr) => acc + curr.totalPoints, 0);
     }, [summerLeaderboardData]);
 
-    const [activeTab, setActiveTab] = useState<'overview' | 'goals' | 'strength' | 'benchmarks'>(() => {
-        const saved = localStorage.getItem('smart-skarm-profile-active-tab');
-        if (saved === 'summer') return 'overview';
-        return (saved as any) || 'overview';
-    });
+    const [activeTab, setActiveTab] = useState<'overview' | 'goals' | 'strength' | 'benchmarks'>('overview');
+
+    const [showWelcome, setShowWelcome] = useState(false);
+    const welcomeDismissedRef = useRef(false);
 
     useEffect(() => {
-        localStorage.setItem('smart-skarm-profile-active-tab', activeTab);
-    }, [activeTab]);
+        if (welcomeDismissedRef.current) return;
+        if (!userData?.uid) return;
+        setShowWelcome(userData.hasSeenWelcome !== true);
+    }, [userData?.uid, userData?.hasSeenWelcome]);
+
+    const handleCloseWelcome = async () => {
+        welcomeDismissedRef.current = true;
+        setShowWelcome(false);
+        if (!userData?.uid) return;
+        try {
+            await updateUserProfile(userData.uid, { hasSeenWelcome: true });
+        } catch (e) {
+            console.error('hasSeenWelcome update failed', e);
+        }
+    };
 
 
     const [summerTabLeaderboard, setSummerTabLeaderboard] = useState<'weekly' | 'overall'>('weekly');
@@ -1319,6 +1757,11 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
     const [lastName, setLastName] = useState(userData.lastName || '');
     const [birthDate, setBirthDate] = useState(userData.birthDate || '');
     const [gender, setGender] = useState(userData.gender || 'prefer_not_to_say');
+    const [bodyWeightInput, setBodyWeightInput] = useState<string>(
+        userData.bodyWeight !== undefined && userData.bodyWeight !== null
+            ? String(userData.bodyWeight).replace('.', ',')
+            : ''
+    );
     const [photoUrl, setPhotoUrl] = useState(userData.photoUrl || '');
     const [backgroundImageUrl, setBackgroundImageUrl] = useState(userData.backgroundImageUrl || '');
     const [backgroundOverlayOpacity, setBackgroundOverlayOpacity] = useState(userData.backgroundOverlayOpacity ?? 20);
@@ -1514,6 +1957,25 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
             alert("Vänligen ange ett fullständigt födelsedatum (ÅÅÅÅ-MM-DD).");
             return;
         }
+
+        let parsedBodyWeight: number | undefined = undefined;
+        let updatedBodyWeightHistory = userData.bodyWeightHistory || [];
+        let shouldDeleteWeight = false;
+
+        const trimmedWeight = bodyWeightInput.trim();
+        if (trimmedWeight !== '') {
+            const normalized = trimmedWeight.replace(',', '.');
+            const val = parseFloat(normalized);
+            if (isNaN(val) || val < 25 || val > 300) {
+                alert("Vänligen ange en giltig kroppsvikt mellan 25 och 300 kg.");
+                return;
+            }
+            parsedBodyWeight = val;
+            updatedBodyWeightHistory = calculateBodyWeightHistory(userData.bodyWeightHistory || [], val);
+        } else if (userData.bodyWeight !== undefined && userData.bodyWeight !== null) {
+            shouldDeleteWeight = true;
+        }
+
         setIsSaving(true);
         try {
             await updateUserProfile(userData.uid, {
@@ -1521,6 +1983,8 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                 lastName: lastName.trim(),
                 birthDate: birthDate || undefined,
                 gender: gender as any,
+                bodyWeight: shouldDeleteWeight ? deleteField() : (trimmedWeight !== '' ? parsedBodyWeight : undefined),
+                bodyWeightHistory: shouldDeleteWeight ? deleteField() : (trimmedWeight !== '' ? updatedBodyWeightHistory : undefined),
                 weeklyGoal: Number(weeklyGoal),
                 showOnLeaderboard,
                 backgroundOverlayOpacity: Number(backgroundOverlayOpacity)
@@ -1636,8 +2100,36 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
         return Math.min(100, Math.max(0, percent));
     }, [userData.goals]);
 
-    const archetype = useMemo(() => getAthleteArchetype(logs), [logs]);
-    const { level, progressToNext, workoutsInCurrentLevel, workoutsPerLevel } = useMemo(() => getLevelInfo(logs.length), [logs]);
+    const profileAge = getAgeFromBirthDate(userData?.birthDate);
+    const profileBodyWeight = typeof userData?.bodyWeight === 'number' && userData.bodyWeight > 0 ? userData.bodyWeight : null;
+    const profileGender = userData?.gender;
+
+    const memberStrengthScore = useMemo(() => {
+        const result = getStrengthScore(
+            {
+                squat: findLift1RM(personalBests, 'squat'),
+                bench: findLift1RM(personalBests, 'bench'),
+                deadlift: findLift1RM(personalBests, 'deadlift')
+            },
+            profileGender, profileAge, profileBodyWeight
+        );
+        return result ? result.score : null;
+    }, [personalBests, profileGender, profileAge, profileBodyWeight]);
+
+    const memberConditioningScore = useMemo(() => {
+        const history = buildRowingScoreHistory(logs, profileGender, profileAge);
+        return history.length > 0 ? history[history.length - 1].score : null;
+    }, [logs, profileGender, profileAge]);
+
+    const archetype = useMemo(
+        () => getAthleteArchetype(memberStrengthScore, memberConditioningScore, logs.length),
+        [memberStrengthScore, memberConditioningScore, logs.length]
+    );
+
+    const milestone = useMemo(
+        () => getMilestoneInfo(logs.length + (userData?.migratedStats?.totalWorkouts || 0)),
+        [logs.length, userData?.migratedStats?.totalWorkouts]
+    );
 
     const handleResumeWorkout = () => {
         if (activeSession && functions.handleLogWorkoutRequest) {
@@ -1783,6 +2275,18 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                                 <option value="other">Annat</option>
                             </select>
                         </div>
+                        <div>
+                            <label className="block text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-2 ml-1">Kroppsvikt (kg)</label>
+                            <input 
+                                type="text" 
+                                inputMode="decimal" 
+                                placeholder="t.ex. 78,5" 
+                                value={bodyWeightInput} 
+                                onChange={e => setBodyWeightInput(e.target.value)} 
+                                className="w-full bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl p-4 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary outline-none transition-all shadow-sm font-bold" 
+                            />
+                            <p className="text-xs text-gray-400 dark:text-gray-500 mt-1.5 ml-1">Används för styrkejämförelser. Frivilligt.</p>
+                        </div>
                         {selectedOrganization?.locations && selectedOrganization.locations.length > 0 && (
                             <div>
                                 <label className="block text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-2 ml-1">Din Studio / Ort</label>
@@ -1857,7 +2361,7 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
     }
 
     return (
-        <div className="w-full max-w-4xl mx-auto px-0.5 sm:px-3 pt-2 pb-24 animate-fade-in relative z-0 overflow-x-hidden">
+        <div className="w-full max-w-4xl mx-auto px-0.5 sm:px-3 pt-2 pb-24 animate-fade-in relative z-0 overflow-x-clip">
             
             {/* 1. Monthly Wrapped Banner (Days 1-7 of new month - Top card) */}
             {showMonthlyBanner && (
@@ -2026,7 +2530,7 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                     title="📸 Sommarfeeden - Alla bilder"
                     size="lg"
                 >
-                    <div className="space-y-4 max-h-[70vh] overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-gray-250 dark:scrollbar-thumb-gray-800 text-left text-gray-900 dark:text-white pb-4">
+                    <div className="space-y-4 max-h-[70vh] overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-gray-800 text-left text-gray-900 dark:text-white pb-4">
                         <p className="text-xs text-gray-500 font-bold mb-4">
                             Klicka på en bild för att läsa meddelandet och se mer detaljer.
                         </p>
@@ -2041,7 +2545,7 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                                             setIsShowingAllPhotos(false);
                                             setSelectedPhoto(log);
                                         }}
-                                        className="group flex flex-col bg-gray-50 dark:bg-slate-905/20 dark:bg-slate-900 rounded-2xl p-1.5 border border-gray-100 dark:border-white/5 transition-all hover:scale-[1.03] hover:border-primary/30 text-left"
+                                        className="group flex flex-col bg-gray-50 dark:bg-slate-900/20 dark:bg-slate-900 rounded-2xl p-1.5 border border-gray-100 dark:border-white/5 transition-all hover:scale-[1.03] hover:border-primary/30 text-left"
                                     >
                                         <div className="relative w-full aspect-square rounded-xl overflow-hidden mb-2 bg-black/10">
                                             <img 
@@ -2147,10 +2651,10 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                                                     +
                                                 </button>
                                             </div>
-                                            <p className="text-[10px] sm:text-[11px] text-amber-955 font-black mt-2.5 leading-normal bg-white/85 p-2.5 rounded-2xl border border-amber-250/50">
+                                            <p className="text-[10px] sm:text-[11px] text-amber-950 font-black mt-2.5 leading-normal bg-white/85 p-2.5 rounded-2xl border border-amber-200/50">
                                                 💡 <strong>Träningspoäng:</strong> 1 pass i gymmet ger <strong>2 poäng</strong>, och utomhus-/gruppträning ger <strong>1 poäng</strong> (minst 30 min). Sätt ett veckomål som peppar dig att klara utmaningen!
                                             </p>
-                                            <div className="mt-2.5 text-[10px] sm:text-[11px] text-red-950 font-black leading-normal bg-white/95 p-2.5 rounded-2xl border border-red-350 flex items-start gap-1.5 shadow-sm">
+                                            <div className="mt-2.5 text-[10px] sm:text-[11px] text-red-950 font-black leading-normal bg-white/95 p-2.5 rounded-2xl border border-red-300 flex items-start gap-1.5 shadow-sm">
                                                 <span>⚠️</span>
                                                 <span><strong>Satt mål gäller:</strong> Du kan inte ändra ditt veckomål efter att du har gått med i utmaningen. Välj ett mål du vet att du vill och kan hålla!</span>
                                             </div>
@@ -2250,12 +2754,12 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                             <div className="absolute -left-2 -bottom-2 text-orange-200 dark:text-white opacity-20 transform -rotate-12 transition-transform group-hover:scale-110">
                                 <FireIcon className="w-16 h-16" />
                             </div>
-                            <span className="block text-[10px] font-black text-orange-600 dark:text-white/80 uppercase tracking-widest mb-1 relative z-10">Streak</span>
+                            <span className="block text-[10px] font-black text-orange-600 dark:text-white/80 uppercase tracking-widest mb-1 relative z-10">VECKOSVIT</span>
                             <div className="flex items-center justify-center relative z-10 min-h-[36px] gap-1">
-                                <p className="text-3xl sm:text-4xl font-black text-orange-500 dark:text-white leading-none tracking-tight">
-                                    {stats.weeklyStreak}
+                                <p className="text-xl sm:text-2xl font-black text-orange-500 dark:text-white leading-none tracking-tight">
+                                    {stats.weeklyStreak} {stats.weeklyStreak === 1 ? 'vecka' : 'veckor'}
                                 </p>
-                                <FireIcon className={`w-8 h-8 ${stats.hasTrainedThisWeek ? 'text-orange-500 dark:text-white animate-pulse' : 'text-gray-300 dark:text-gray-600 opacity-50'}`} />
+                                <FireIcon className={`w-6 h-6 ${stats.hasTrainedThisWeek ? 'text-orange-500 dark:text-white animate-pulse' : 'text-gray-300 dark:text-gray-600 opacity-50'}`} />
                             </div>
                         </div>
                     </div>
@@ -2296,16 +2800,20 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                         </div>
                     )}
 
-                    {/* Level Meter */}
+                    {/* Milstolpe */}
                     <div className="bg-white dark:bg-gray-900 rounded-2xl p-3 sm:p-4 shadow-sm border border-gray-100 dark:border-gray-800">
-                        <div className="flex items-center justify-between mb-2">
-                            <span className="text-sm font-black text-gray-900 dark:text-white uppercase tracking-widest">Nivå {level}</span>
-                            <span className="text-xs font-bold text-gray-400">
-                                {workoutsInCurrentLevel} av {workoutsPerLevel} pass till nivå {level + 1}
+                        <div className="flex items-center justify-between mb-2 gap-3">
+                            <span className="text-sm font-black text-gray-900 dark:text-white uppercase tracking-widest">
+                                {milestone.reachedName || 'På väg mot första milstolpen'}
+                            </span>
+                            <span className="text-xs font-bold text-gray-400 text-right">
+                                {milestone.nextName
+                                    ? `${milestone.workoutsToNext} pass till ${milestone.nextName}`
+                                    : 'Alla milstolpar avklarade'}
                             </span>
                         </div>
                         <div className="w-full h-3 bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden">
-                            <div className="h-full bg-primary transition-all duration-1000" style={{ width: `${progressToNext}%` }}></div>
+                            <div className="h-full bg-primary transition-all duration-1000" style={{ width: `${milestone.progress}%` }}></div>
                         </div>
                     </div>
 
@@ -2365,7 +2873,7 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                                     </p>
 
                                     {/* Mini Grid results - Optimized for both light and dark mode visibility */}
-                                    <div className="grid grid-cols-3 gap-3 max-w-sm bg-slate-150 dark:bg-black/35 p-4 rounded-2xl border border-gray-200/60 dark:border-gray-800">
+                                    <div className="grid grid-cols-3 gap-3 max-w-sm bg-slate-100 dark:bg-black/35 p-4 rounded-2xl border border-gray-200/60 dark:border-gray-800">
                                         <div className="text-center space-y-0.5">
                                             <span className="block text-[8px] font-black uppercase text-gray-500 dark:text-gray-400 tracking-wider">Ditt Bidrag</span>
                                             <span className="block text-base font-black text-gray-900 dark:text-white font-mono">{stats.summerTotalPoints} p</span>
@@ -2446,6 +2954,7 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                                         grandTotalPoints={grandTotalPointsForStudio}
                                         userRankIndex={userRankIndex}
                                         challengeTitle={configToUse?.summerChallengeTitle || "Sommarutmaningen ☀️"}
+                                        organizationName={selectedOrganization?.name || ''}
                                         endDate={configToUse?.summerChallengeEndDate}
                                         onClose={() => setIsSummerDiplomaOpen(false)}
                                     />
@@ -2701,7 +3210,7 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
 
                                                                 <p className={`text-xs sm:text-sm tracking-tight leading-relaxed font-black text-center ${
                                                                     personalFeedback.includes('Överhettning')
-                                                                        ? 'text-red-650 dark:text-red-400'
+                                                                        ? 'text-red-600 dark:text-red-400'
                                                                         : personalFeedback.includes('Målet')
                                                                         ? 'text-amber-950 dark:text-amber-300'
                                                                         : 'text-amber-900/80 dark:text-amber-400 font-bold'
@@ -2996,10 +3505,10 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                                             className="overflow-hidden"
                                         >
                                             <div className="flex items-center justify-between mb-4 mt-4">
-                                                <span className="text-[10px] text-indigo-600 dark:text-indigo-450 font-bold">Kopplad via e-post</span>
+                                                <span className="text-[10px] text-indigo-600 dark:text-indigo-400 font-bold">Kopplad via e-post</span>
                                             </div>
                                             
-                                            <p className="text-xs text-slate-550 dark:text-slate-300 mb-5 leading-relaxed">
+                                            <p className="text-xs text-slate-500 dark:text-slate-300 mb-5 leading-relaxed">
                                                 Här presenteras dina officiella tider och placeringar från alla genomförda utmaningar och event du deltagit i hos oss.
                                             </p>
                                             
@@ -3007,12 +3516,12 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                                                 {personalHyroxResults.map(res => (
                                                     <div 
                                                         key={res.id}
-                                                        className="p-4 rounded-2xl bg-white/60 dark:bg-white/5 border border-slate-150 dark:border-white/10 flex flex-col sm:flex-row justify-between sm:items-center gap-3 hover:bg-white dark:hover:bg-white/10 shadow-sm dark:shadow-none transition-all duration-150"
+                                                        className="p-4 rounded-2xl bg-white/60 dark:bg-white/5 border border-slate-100 dark:border-white/10 flex flex-col sm:flex-row justify-between sm:items-center gap-3 hover:bg-white dark:hover:bg-white/10 shadow-sm dark:shadow-none transition-all duration-150"
                                                     >
                                                         <div>
                                                             <div className="flex items-center gap-2">
                                                                 <span className="font-extrabold text-xs text-indigo-600 dark:text-amber-400">Plats #{res.placement}</span>
-                                                                <h4 className="font-bold text-sm text-slate-800 dark:text-slate-150">{res.raceName}</h4>
+                                                                <h4 className="font-bold text-sm text-slate-800 dark:text-slate-100">{res.raceName}</h4>
                                                             </div>
                                                             <div className="flex items-center gap-2 mt-1">
                                                                 <span className="text-[9px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded bg-indigo-50 dark:bg-indigo-500/20 text-indigo-600 dark:text-indigo-300 border border-indigo-100 dark:border-indigo-500/30">
@@ -3078,7 +3587,7 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                                             🚀 Maximera dina resultat med SMART-metoden!
                                         </h4>
                                         <p className="text-xs text-gray-600 dark:text-gray-300 leading-relaxed font-semibold">
-                                            Genom att sätta ett <strong>SMART-mål</strong> (Specifikt, Mätbart, Accepterat, Relevant och Tidsbestämt) sätter du en tydlig kompass för din hälsoresa. Då får du dessutom en interaktiv progressbar på din översikt och personligt stöttande analyser från din AI-coach här i appen!
+                                            Genom att sätta ett <strong>SMART-mål</strong> (Specifikt, Mätbart, Accepterat, Relevant och Tidsbestämt) sätter du en tydlig kompass för din hälsoresa. Då får du dessutom en interaktiv progressbar på din översikt och en löpande analys av hur din träning ligger till mot målet.
                                         </p>
                                     </div>
                                     <button 
@@ -3101,7 +3610,7 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                                             🎯 Gör dina val till ett SMART mål!
                                         </h4>
                                         <p className="text-xs text-gray-600 dark:text-gray-300 leading-relaxed font-semibold">
-                                            Du har valt dina kategorier! Gör dem ännu mer kraftfulla genom att formulera ett specifikt och tidsbestämt <strong>SMART-mål</strong>. När du gör det kan vi rita upp en interaktiv progressbar på din översikt, och din AI-coach kommer att ge dig anpassade framstegstips löpande!
+                                            Du har valt dina kategorier! Gör dem ännu mer kraftfulla genom att formulera ett specifikt och tidsbestämt <strong>SMART-mål</strong>. När du gör det kan vi rita upp en interaktiv progressbar på din översikt, och du får löpande återkoppling på hur träningen ligger till mot målet.
                                         </p>
                                         <button 
                                             onClick={() => setIsEditingGoals(true)} 
@@ -3146,10 +3655,10 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                                                             </div>
                                                             <div className="bg-white dark:bg-gray-800 p-3.5 rounded-xl border border-gray-100 dark:border-gray-800 text-left">
                                                                 <p className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-1 flex items-center gap-1">
-                                                                    <span>💡</span> Feedback från coachen
+                                                                    <span>🎯</span> Måldatumet är nått
                                                                 </p>
                                                                 <p className="text-xs text-gray-600 dark:text-gray-300 leading-relaxed font-semibold">
-                                                                    Snyggt jobbat att du kämpat på mot ditt mål! Nu när måldatumet är nått är det ett perfekt tillfälle att stanna upp, utvärdera och fira dina framsteg tillsammans med din personliga PT i fickformat. Fråga PT-coachen i chatten vad nästa steg bör bli för att hålla kontinuiteten uppe!
+                                                                    Snyggt jobbat att du kämpat på mot ditt mål! Nu när måldatumet är nått är det ett perfekt tillfälle att stanna upp, utvärdera och fira dina framsteg. Sätt ett nytt mål för att hålla kontinuiteten uppe.
                                                                 </p>
                                                             </div>
                                                             <div className="flex gap-2">
@@ -3180,7 +3689,7 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                                                 )
                                             )}
 
-                                            {/* AI-Coach Insight Card (Steg 3) */}
+                                            {/* Träningsanalyskort (Steg 3) */}
                                             {daysLeft !== null && daysLeft > 0 && (() => {
                                                 const adviceData = getGoalCoachingAdvice(userData.goals!, logs);
                                                 const bgCol = adviceData.color === 'emerald' 
@@ -3196,12 +3705,12 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                                                 return (
                                                     <div className={`bg-gradient-to-r ${bgCol} p-5 rounded-3xl border text-left space-y-3 relative overflow-hidden backdrop-blur-sm shadow-sm animate-fade-in`}>
                                                         <div className="absolute top-0 right-0 p-4 opacity-10">
-                                                            <SparklesIcon className="w-20 h-20 text-primary" />
+                                                            <ChartBarIcon className="w-20 h-20 text-primary" />
                                                         </div>
                                                         <div className="flex items-center gap-2 relative z-10">
-                                                            <SparklesIcon className={`w-5 h-5 ${iconCol}`} />
+                                                            <ChartBarIcon className={`w-5 h-5 ${iconCol}`} />
                                                             <h4 className="font-extrabold text-xs text-gray-900 dark:text-white uppercase tracking-tight leading-none">
-                                                                AI-Coachens analys & rekommendation
+                                                                Din träning mot målen
                                                             </h4>
                                                         </div>
                                                         <div className="space-y-2 relative z-10">
@@ -3210,11 +3719,6 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                                                               </p>
                                                             <p className="text-xs text-gray-600 dark:text-gray-300 leading-relaxed font-semibold">
                                                                 {adviceData.advice}
-                                                            </p>
-                                                        </div>
-                                                        <div className="pt-1 flex justify-end relative z-10">
-                                                            <p className="text-[10px] text-gray-400 uppercase tracking-widest font-black flex items-center gap-1">
-                                                                Öppna coach-chatten nere till höger för din fullständiga plan ↗
                                                             </p>
                                                         </div>
                                                     </div>
@@ -3273,18 +3777,26 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                         userData={userData} 
                         logs={logs} 
                         onClose={() => setActiveTab('overview')} 
+                        onOpenProfileEdit={() => {
+                            setActiveTab('overview');
+                            setIsEditing(true);
+                        }}
                     />
                 </div>
             )}
 
             {activeTab === 'benchmarks' && (
-                selectedOrganization && (
-                    <BenchmarksView 
-                        logs={logs} 
-                        definitions={selectedOrganization.benchmarkDefinitions || []} 
-                        onViewLog={setSelectedLog}
-                    />
-                )
+                <BenchmarksView 
+                    logs={logs} 
+                    definitions={selectedOrganization?.benchmarkDefinitions || []} 
+                    onViewLog={setSelectedLog}
+                    userData={userData}
+                    onOpenProfileEdit={() => {
+                        setActiveTab('overview');
+                        setIsEditing(true);
+                    }}
+                    enableFitnessBenchmarks={(selectedOrganization?.globalConfig?.enableFitnessBenchmarks ?? studioConfig?.enableFitnessBenchmarks) !== false}
+                />
             )}
 
             {(isEditingGoals || isCreatingNewGoal) && (
@@ -3349,7 +3861,7 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                 <Modal isOpen={true} onClose={() => setShowArchetypeInfo(false)} title="Träningsprofiler">
                     <div className="space-y-4">
                         <p className="text-sm text-gray-600 dark:text-gray-400 mb-6">
-                            Din träningsprofil baseras på vilken typ av pass du loggar mest. Här är de olika profilerna du kan uppnå:
+                            Din träningsprofil bygger på din styrkepoäng och din konditionspoäng, som räknas fram ur de vikter och tider du loggat. Här är de olika profilerna:
                         </p>
                         
                         <div className="space-y-3">
@@ -3357,7 +3869,7 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                                 <h4 className="font-black flex items-center gap-2 mb-1">
                                     Nykomling <SparklesIcon className="w-4 h-4" />
                                 </h4>
-                                <p className="text-sm text-white/90">Du är i början av din resa. Fortsätt såhär!</p>
+                                <p className="text-sm text-white/90">Du är i början av din resa. Logga några pass så visar vi din profil.</p>
                             </div>
                             
                             <div className="bg-gradient-to-br from-red-500 to-pink-600 p-4 rounded-xl text-white">
@@ -3374,18 +3886,18 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                                 <p className="text-sm text-white/90">Uthållighet av stål. Du slutar aldrig!</p>
                             </div>
                             
-                            <div className="bg-gradient-to-br from-yellow-500 to-orange-500 p-4 rounded-xl text-white">
-                                <h4 className="font-black flex items-center gap-2 mb-1">
-                                    HYROX-Krigare <LightningIcon className="w-4 h-4" />
-                                </h4>
-                                <p className="text-sm text-white/90">Du älskar funktionell fitness och tävlingsmomentet!</p>
-                            </div>
-                            
                             <div className="bg-gradient-to-br from-indigo-500 to-purple-600 p-4 rounded-xl text-white">
                                 <h4 className="font-black flex items-center gap-2 mb-1">
                                     Hybridatlet <UserIcon className="w-4 h-4" />
                                 </h4>
                                 <p className="text-sm text-white/90">Du behärskar både styrka och kondition. Den kompletta atleten.</p>
+                            </div>
+
+                            <div className="bg-gradient-to-br from-slate-500 to-slate-700 p-4 rounded-xl text-white">
+                                <h4 className="font-black flex items-center gap-2 mb-1">
+                                    På gång <SparklesIcon className="w-4 h-4" />
+                                </h4>
+                                <p className="text-sm text-white/90">Vi behöver dina tre baslyft och ett roddtest för att kunna placera dig. Kortet visar vad som fattas.</p>
                             </div>
                         </div>
                         
@@ -3421,8 +3933,54 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                 personalBests={personalBests}
                 userName={loggedInMemberName}
                 gymName={selectedOrganization?.name || 'Mitt gym'}
+                gymLogoUrl={selectedOrganization?.logoUrlDark || selectedOrganization?.logoUrlLight}
                 referenceDate={selectedWrappedDate}
             />
+
+            <Modal
+                isOpen={showWelcome}
+                onClose={handleCloseWelcome}
+                title={`Välkommen${userData?.firstName ? `, ${userData.firstName}` : ''}!`}
+                size="md"
+            >
+                <div className="space-y-6 text-gray-800 dark:text-gray-200">
+                    <p className="text-base leading-relaxed">
+                        Det här är din träningsdagbok. Här samlas allt du gör på {selectedOrganization?.name || 'ditt gym'}.
+                    </p>
+
+                    <ul className="space-y-4">
+                        <li className="flex gap-3">
+                            <span className="text-primary font-black">›</span>
+                            <span className="text-sm leading-relaxed">
+                                <strong className="text-gray-900 dark:text-white">Logga dina pass.</strong> Skanna QR-koden på skärmen i lokalen, eller lägg till egen träning direkt i appen.
+                            </span>
+                        </li>
+                        <li className="flex gap-3">
+                            <span className="text-primary font-black">›</span>
+                            <span className="text-sm leading-relaxed">
+                                <strong className="text-gray-900 dark:text-white">Se att det går framåt.</strong> Vikter, reps och personbästa sparas pass för pass och ritas upp i grafer.
+                            </span>
+                        </li>
+                        <li className="flex gap-3">
+                            <span className="text-primary font-black">›</span>
+                            <span className="text-sm leading-relaxed">
+                                <strong className="text-gray-900 dark:text-white">Ta reda på var du står.</strong> Din styrka jämförs med andra i din ålder och viktklass, och du kan testa dig mot gymmets egna utmaningar.
+                            </span>
+                        </li>
+                    </ul>
+
+                    <p className="text-sm text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-800/50 p-4 rounded-xl border border-gray-100 dark:border-gray-700">
+                        Fyll i ålder, kön och kroppsvikt i din profil så kan vi räkna ut din styrkenivå.
+                    </p>
+
+                    <button
+                        onClick={handleCloseWelcome}
+                        className="w-full bg-primary hover:brightness-110 text-white font-bold py-4 rounded-xl shadow-lg shadow-primary/20 transition-all transform active:scale-95"
+                    >
+                        Sätt igång
+                    </button>
+                </div>
+            </Modal>
         </div>
     );
 };

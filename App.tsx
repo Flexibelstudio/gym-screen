@@ -186,9 +186,13 @@ const App: React.FC = () => {
   const hasActiveSubscription = useMemo(() => {
       if (role === 'systemowner' || role === 'organizationadmin' || role === 'coach') return true;
       if (userData?.status === 'inactive') return false;
+      if (selectedOrganization?.membersPaidByGym === true &&
+          !!userData?.organizationId &&
+          selectedOrganization.id === userData.organizationId) return true;
       if (userData?.subscriptionStatus === 'active' || optimisticSubActive) return true;
       return false;
-  }, [role, userData?.subscriptionStatus, userData?.status, optimisticSubActive]);
+  }, [role, userData?.subscriptionStatus, userData?.status, userData?.organizationId,
+      optimisticSubActive, selectedOrganization?.id, selectedOrganization?.membersPaidByGym]);
 
   const showPaywall = currentUser && !isStudioMode && !hasActiveSubscription && !showWelcomePaywall;
   const showPendingCoach = currentUser && !isStudioMode && userData?.status === 'pending_coach';
@@ -467,9 +471,9 @@ const App: React.FC = () => {
         if (code) {
             const joinSlideMsg: InfoMessage & { isJoinSlide?: boolean; joinUrl?: string; orgName?: string; locationName?: string; logoUrl?: string } = {
                 id: 'join-slide-auto',
-                internalTitle: 'Bli medlem — skanna koden',
-                headline: `Bli medlem i ${orgName}${locName ? ` — ${locName}` : ''}`,
-                body: 'Skanna QR-koden med din mobil för att skapa konto och komma igång direkt!',
+                internalTitle: 'Börja logga din träning — skanna koden',
+                headline: `Börja logga din träning hos ${orgName}${locName ? ` — ${locName}` : ''}`,
+                body: 'Skanna QR-koden med mobilen så är du igång på en minut.',
                 durationSeconds: 15,
                 animation: 'fade',
                 layout: 'image-left',
@@ -596,6 +600,8 @@ const App: React.FC = () => {
     isStudioMode,
     currentUser,
     selectedOrganization,
+    selectedStudio,
+    userData,
     workouts,
     activeWorkout,
     page,
@@ -603,6 +609,7 @@ const App: React.FC = () => {
     returnToAdminOnSave,
     isSearchWorkoutOpen,
     isPickingForLog,
+    studioConfig,
     setActiveWorkout,
     setFocusedBlockId,
     setIsEditingNewDraft,

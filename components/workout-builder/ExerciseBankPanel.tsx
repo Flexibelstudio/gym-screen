@@ -28,8 +28,7 @@ const DraggableBankExercise: React.FC<{
                 description: exercise.description,
                 imageUrl: exercise.imageUrl,
                 isFromBank: true,
-                id: exercise.id, // Keep the bank ID
-                loggingEnabled: true
+                id: exercise.id // Keep the bank ID
             }
         }
     });

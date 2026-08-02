@@ -10,7 +10,8 @@ import { WorkoutQRDisplay } from './WorkoutQRDisplay';
 import { useAuth } from '../context/AuthContext';
 import { useWorkout } from '../context/WorkoutContext';
 import { useConfirm } from './ConfirmContext';
-import { getSideLabel } from '../utils/workoutUtils';
+import { getSideLabel, findDuplicateBankExercise } from '../utils/workoutUtils';
+import { DuplicateExerciseModal } from './DuplicateExerciseModal';
 import { Modal } from './ui/Modal';
 
 // Helper to format time for results (00:00)
@@ -21,15 +22,19 @@ const formatResultTime = (timeInSeconds: number) => {
 };
 
 // Helper to get color based on workout tag
-const getTagColor = (tag: string) => {
-  switch (tag.toLowerCase()) {
+const getTagColor = (tag: string | undefined) => {
+  if (!tag) return 'bg-gray-500 text-white';
+  switch (tag.toLowerCase().trim()) {
     case 'styrka': return 'bg-red-200 text-red-800 dark:bg-red-900/50 dark:text-red-200';
+    case 'hypertrofi': return 'bg-amber-200 text-amber-800 dark:bg-amber-900/50 dark:text-amber-200';
     case 'kondition': return 'bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-200';
     case 'rörlighet': return 'bg-teal-100 text-teal-900 dark:bg-teal-900/50 dark:text-teal-200';
     case 'teknik': return 'bg-purple-100 text-purple-900 dark:bg-purple-900/50 dark:text-purple-200';
     case 'core': case 'bål': case 'core/bål': return 'bg-yellow-200 text-yellow-800 dark:bg-yellow-900/50 dark:text-yellow-200';
     case 'balans': return 'bg-pink-100 text-pink-800 dark:bg-pink-900/50 dark:text-pink-200';
     case 'uppvärmning': return 'bg-orange-500 text-white';
+    case 'nedvarvning': return 'bg-slate-500 text-white';
+    case 'finisher': return 'bg-emerald-200 text-emerald-800 dark:bg-emerald-900/50 dark:text-emerald-200';
     default: return 'bg-gray-500 text-white';
   }
 };
@@ -220,15 +225,41 @@ export function useCustomWorkoutExerciseEditor() {
         setAddModalBlockId(null);
     };
 
+    const [duplicateWarning, setDuplicateWarning] = useState<{
+        blockId: string;
+        exerciseName: string;
+        duplicate: BankExercise;
+        workout: Workout;
+        setWorkout: (w: Workout) => void;
+        userId?: string;
+    } | null>(null);
+
     const handleCreateAndAddCustomExercise = async (
         blockId: string,
         exerciseName: string,
         workout: Workout,
         setWorkout: (w: Workout) => void,
-        userId?: string
+        userId?: string,
+        forceCreateAnyway = false
     ) => {
         const trimmed = exerciseName.trim();
         if (!trimmed) return;
+
+        const duplicate = findDuplicateBankExercise(trimmed, exerciseBank);
+        if (duplicate && duplicate.name.toLowerCase().trim() === trimmed.toLowerCase()) {
+            await handleAddExerciseToBlock(blockId, duplicate, workout, setWorkout, userId);
+            return;
+        } else if (duplicate && !forceCreateAnyway) {
+            setDuplicateWarning({
+                blockId,
+                exerciseName: trimmed,
+                duplicate,
+                workout,
+                setWorkout,
+                userId
+            });
+            return;
+        }
 
         let bankEx: BankExercise;
         if (userId) {
@@ -357,10 +388,11 @@ export function useCustomWorkoutExerciseEditor() {
             !filteredBank.some(ex => (ex.name || '').toLowerCase() === exerciseSearchTerm.trim().toLowerCase());
 
         return (
-            <Modal 
-                isOpen={!!addModalBlockId} 
-                onClose={() => setAddModalBlockId(null)} 
-                size="lg"
+            <>
+                <Modal 
+                    isOpen={!!addModalBlockId} 
+                    onClose={() => setAddModalBlockId(null)} 
+                    size="lg"
             >
                 <div className="flex flex-col items-center w-full max-h-[85vh]">
                     <div className="w-full flex items-center justify-between mb-4 pb-2 border-b border-gray-100 dark:border-gray-800">
@@ -436,8 +468,27 @@ export function useCustomWorkoutExerciseEditor() {
                     </div>
                 </div>
             </Modal>
-        );
-    };
+            {duplicateWarning && (
+                <DuplicateExerciseModal
+                    isOpen={!!duplicateWarning}
+                    existingName={duplicateWarning.duplicate.name}
+                    inputName={duplicateWarning.exerciseName}
+                    onUseExisting={() => {
+                        const warning = duplicateWarning;
+                        setDuplicateWarning(null);
+                        handleAddExerciseToBlock(warning.blockId, warning.duplicate, warning.workout, warning.setWorkout, warning.userId);
+                    }}
+                    onCreateAnyway={() => {
+                        const warning = duplicateWarning;
+                        setDuplicateWarning(null);
+                        handleCreateAndAddCustomExercise(warning.blockId, warning.exerciseName, warning.workout, warning.setWorkout, warning.userId, true);
+                    }}
+                    onClose={() => setDuplicateWarning(null)}
+                />
+            )}
+        </>
+    );
+};
 
     return {
         exerciseToRename,
@@ -537,9 +588,11 @@ export const WorkoutPresentationModal: React.FC<{
                         <div key={block.id || `block-${bIndex}`} className="space-y-4 sm:space-y-5 md:space-y-8 lg:space-y-12 xl:space-y-16">
                             <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 md:gap-6 lg:gap-8 xl:gap-12 border-b-2 border-gray-100 dark:border-gray-800 pb-3 md:pb-6 lg:pb-8 xl:pb-12">
                                 <div className="flex items-center gap-3 md:gap-5 lg:gap-8 xl:gap-10 flex-wrap">
-                                    <span className={`inline-flex items-center px-3 py-1 md:px-4 md:py-2 lg:px-6 lg:py-3 xl:px-8 xl:py-4 rounded-lg text-xs sm:text-sm md:text-xl lg:text-3xl xl:text-4xl font-black uppercase tracking-[0.1em] shadow-sm ${getTagColor(block.tag)}`}>
-                                        {block.tag}
-                                    </span>
+                                    {block.tag && (
+                                        <span className={`inline-flex items-center px-3 py-1 md:px-4 md:py-2 lg:px-6 lg:py-3 xl:px-8 xl:py-4 rounded-lg text-xs sm:text-sm md:text-xl lg:text-3xl xl:text-4xl font-black uppercase tracking-[0.1em] shadow-sm ${getTagColor(block.tag)}`}>
+                                            {block.tag}
+                                        </span>
+                                    )}
                                     <h2 className="text-xl sm:text-2xl md:text-3xl lg:text-4xl xl:text-6xl font-black text-gray-900 dark:text-white uppercase tracking-tight break-words">
                                         {block.title}
                                     </h2>
@@ -602,7 +655,7 @@ export const WorkoutPresentationModal: React.FC<{
                                                         {ex.description}
                                                     </p>
                                                 )}
-                                                {ex.loggingEnabled !== false && (
+                                                {ex.loggingEnabled === true && (
                                                     <div className="flex items-center gap-2 flex-wrap mt-2 sm:mt-3">
                                                         <span className="text-xs sm:text-sm md:text-lg font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">Logga:</span>
                                                         {(ex.trackingFields && ex.trackingFields.length > 0 ? ex.trackingFields : ['reps', 'weight']).map(field => {
@@ -718,9 +771,11 @@ const WorkoutBlockCard: React.FC<{
             <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
                 <div className="flex-grow min-w-0">
                     <div className="flex items-center gap-2 mb-2 flex-wrap">
-                        <span className={`inline-flex items-center px-3 py-1 rounded-md text-[10px] font-black uppercase tracking-[0.1em] shadow-sm ${getTagColor(block.tag)}`}>
-                            {block.tag}
-                        </span>
+                        {block.tag && (
+                            <span className={`inline-flex items-center px-3 py-1 rounded-md text-[10px] font-black uppercase tracking-[0.1em] shadow-sm ${getTagColor(block.tag)}`}>
+                                {block.tag}
+                            </span>
+                        )}
                         {block.followMe && (
                             <span className="inline-flex items-center gap-1 px-3 py-1 rounded-md text-[10px] font-black uppercase tracking-[0.1em] bg-indigo-50 text-indigo-600 border border-indigo-100">
                                 <UsersIcon className="w-3.5 h-3.5" /> Följ mig
@@ -801,7 +856,7 @@ const WorkoutBlockCard: React.FC<{
                                     )}
                                 </h4>
                                 {ex.description && <p className="text-sm text-gray-500 dark:text-gray-400 mt-1 leading-relaxed font-medium break-words whitespace-pre-wrap">{ex.description}</p>}
-                                {ex.loggingEnabled !== false && (
+                                {ex.loggingEnabled === true && (
                                     <div className="flex items-center gap-1.5 flex-wrap mt-1.5">
                                         <span className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">Logga:</span>
                                         {(ex.trackingFields && ex.trackingFields.length > 0 ? ex.trackingFields : ['reps', 'weight']).map(field => {
@@ -1018,7 +1073,7 @@ const WorkoutDetailScreen: React.FC<WorkoutDetailScreenProps> = ({
     });
   };
 
-  const handleUpdateSettings = (blockId: string, newSettings: Partial<TimerSettings> & { autoAdvance?: boolean; transitionTime?: number }) => {
+  const handleUpdateSettings = (blockId: string, newSettings: Partial<TimerSettings> & { autoAdvance?: boolean; transitionTime?: number; followMe?: boolean }) => {
       setSessionWorkout(prevWorkout => {
           if (!prevWorkout) return null as any;
           
@@ -1026,10 +1081,11 @@ const WorkoutDetailScreen: React.FC<WorkoutDetailScreenProps> = ({
           
           const blockIndex = newWorkout.blocks.findIndex(b => b.id === blockId);
           if (blockIndex !== -1) {
-              const { autoAdvance, transitionTime, ...settingsUpdates } = newSettings;
+              const { autoAdvance, transitionTime, followMe, ...settingsUpdates } = newSettings;
               
               if (autoAdvance !== undefined) newWorkout.blocks[blockIndex].autoAdvance = autoAdvance;
               if (transitionTime !== undefined) newWorkout.blocks[blockIndex].transitionTime = transitionTime;
+              if (followMe !== undefined) newWorkout.blocks[blockIndex].followMe = followMe;
               
               newWorkout.blocks[blockIndex].settings = { 
                   ...newWorkout.blocks[blockIndex].settings, 
@@ -1083,7 +1139,7 @@ const WorkoutDetailScreen: React.FC<WorkoutDetailScreenProps> = ({
             </div>
             
             <div className="flex items-center justify-center sm:justify-start gap-2 flex-wrap">
-                {sessionWorkout.category && (
+                {sessionWorkout.category && sessionWorkout.category !== 'AI Genererat' && sessionWorkout.category !== 'Ej kategoriserad' && (
                     <span className="bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 px-3 py-1 rounded-md text-[10px] font-black uppercase tracking-widest border border-gray-200 dark:border-gray-700">
                         {sessionWorkout.category}
                     </span>
@@ -1102,11 +1158,11 @@ const WorkoutDetailScreen: React.FC<WorkoutDetailScreenProps> = ({
                 className="bg-indigo-600 hover:bg-indigo-500 text-white font-black py-3 px-6 rounded-xl flex items-center justify-center gap-2 shadow-lg transition-all transform active:scale-95 w-full sm:w-auto flex-shrink-0"
             >
                 <PencilIcon className="w-5 h-5" />
-                <span className="text-lg uppercase tracking-tight">Anpassa & Starta</span>
+                <span className="text-lg uppercase tracking-tight">Kopiera pass</span>
             </button>
           )}
 
-          {isOwnProgram && (
+          {(isOwnProgram || (isStudioMode && onEditWorkout)) && (
             <button 
                 onClick={() => onEditWorkout(sessionWorkout)}
                 className="bg-primary hover:bg-primary/95 text-white font-black py-3 px-6 rounded-xl flex items-center justify-center gap-2 shadow-lg transition-all transform active:scale-95 w-full sm:w-auto flex-shrink-0 animate-fade-in"

@@ -55,7 +55,7 @@ export const LocationPromptModal: React.FC<LocationPromptModalProps> = ({ isOpen
                                     className={`w-full flex items-center justify-between p-4 rounded-2xl border-2 transition-all font-bold text-left ${
                                         isSelected 
                                             ? 'border-primary bg-primary/5 text-gray-900 dark:text-white dark:bg-primary/10 shadow-md' 
-                                            : 'border-gray-200 dark:border-gray-750 hover:border-gray-300 dark:hover:border-gray-700 text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-gray-850'
+                                            : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-700 text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-gray-800'
                                     }`}
                                 >
                                     <div className="flex items-center gap-3">

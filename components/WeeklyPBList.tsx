@@ -21,15 +21,13 @@ export const WeeklyPBList: React.FC<WeeklyPBListProps> = React.memo(({ onExpand,
         setIsLoading(true);
         const unsubscribe = listenToWeeklyPBs(selectedOrganization.id, (newEvents) => {
             let filteredEvents = newEvents;
-            const resolvedLocationId = selectedStudio?.locationId || selectedOrganization?.locations?.[0]?.id;
+            const resolvedLocationId = selectedStudio?.locationId ?? null;
+            const numLocations = selectedOrganization?.locations?.length ?? 0;
+            const shouldFilter = !!resolvedLocationId && numLocations >= 2;
             
-            if (resolvedLocationId) {
+            if (shouldFilter) {
                 filteredEvents = newEvents.filter(event => {
-                    const eventLocationId = event.locationId || selectedOrganization?.locations?.[0]?.id;
-                    if (eventLocationId && eventLocationId !== resolvedLocationId) {
-                        return false;
-                    }
-                    return true;
+                    return event.locationId === resolvedLocationId;
                 });
             }
 

@@ -10,6 +10,13 @@ export interface AdminActivity {
   action: 'CREATE' | 'UPDATE' | 'DELETE' | 'PUBLISH' | 'UNPUBLISH';
   description: string;
   timestamp: number;
+  changes?: {
+    field: string;
+    label: string;
+    from?: string;
+    to?: string;
+    valueHidden?: boolean;
+  }[];
 }
 
 export interface ExerciseOverride {
@@ -23,6 +30,8 @@ export interface PersonalBest {
   reps?: number;
   calculated1RM?: number;
   date: number; // Timestamp
+  resetAt?: number; // Timestamp då medlemmen nollställde. Loggar äldre än denna
+                    // räknas inte in i härlett personbästa.
 }
 
 export interface InvoiceAdjustmentItem {
@@ -128,10 +137,15 @@ export interface WorkoutBlock {
   followMe: boolean;
   settings: TimerSettings;
   exercises: Exercise[];
-  aiCoachNotes?: string;
   aiMagicPenSuggestions?: string[];
   autoAdvance?: boolean;     // NEW: Automatically start next block
   transitionTime?: number;   // NEW: Rest time between blocks in seconds
+  useTrainingProfile?: boolean;   // saknas eller false = blocket styr ingenting
+  showBlockPlan?: boolean;   // saknas eller true = visa blockets upplägg för medlemmen
+  showIntensity?: boolean;   // saknas eller true = visa procenten i upplägget
+  profileOverrides?: { repMin?: number; repMax?: number; targetPct?: number; rirTarget?: number; restSeconds?: number };
+  progressionModel?: 'none' | 'auto' | 'custom';   // saknas = 'none' (STANDARD ÄNDRAS TILL 'none')
+  customProgression?: { incrementKg: number; atReps: number; maxRir: number; requireAllSets: boolean };
 }
 
 export interface Workout {
@@ -158,6 +172,9 @@ export interface Workout {
   aiProgressionPrompt?: string; // NYTT: Prompt för AI-progression
   openAsOfficial?: boolean; // NYTT: Öppna direkt i funktionärsläge
   durationMinutes?: number; // NYTT: Planerad passlängd i minuter
+  publishAt?: number; // timestamp; passet är osynligt för medlemmar före denna tidpunkt
+  expiresAt?: number; // timestamp; passet är osynligt för medlemmar från och med denna tidpunkt
+  locationIds?: string[]; // tom eller saknas = syns för ALLA orter
 }
 
 export type Passkategori = string;
@@ -169,6 +186,7 @@ export interface CustomCategoryWithPrompt {
   icon?: string;
   isLocked?: boolean;
   durationMinutes?: number; // NYTT: Standard passlängd i minuter
+  showOnlyLatestPublished?: boolean; // NYTT: Visa endast det senast publicerade passet
 }
 
 // NYTT: Definition av ett Benchmark
@@ -191,6 +209,7 @@ export interface StudioConfig {
   enableEventsModule?: boolean;
   enableNotes?: boolean;
   enableWorkoutLogging?: boolean;
+  enableFitnessBenchmarks?: boolean; // NYTT: Styrka & Kondition (jämförelser)
   enableWorkoutGames?: boolean; // NYTT: Träningslekar
   enableTimer?: boolean; // NYTT: Fristående timer
   enableOtherWorkouts?: boolean; // NYTT: Övriga pass
@@ -203,6 +222,7 @@ export interface StudioConfig {
   soundProfile?: TimerSoundProfile; 
   navigationControlPosition?: 'top' | 'bottom'; // NYTT: Position för navigationsknappar
   commonActivities?: string[]; // NYTT: Vanliga aktiviteter i loggningen
+  /** @deprecated – användes av borttagen medlemschatt, läses inte längre */
   aiSettings?: {
       tone?: string;
       instructions?: string;
@@ -320,6 +340,7 @@ export interface Organization {
   stripeConnectSetupComplete?: boolean;
   memberPromotionCode?: string; // Stripe promotion code-ID (t.ex. "promo_...")
   allowMemberPromotionCode?: boolean; // Tillåt medlemsrabattkod (endast systemägare)
+  membersPaidByGym?: boolean; // Gymmet betalar för medlemmarna — de ska aldrig se betalväggen
   
   // Subscription / Payment fields
   stripeCustomerId?: string;
@@ -400,14 +421,18 @@ export interface UserData {
   adminRole?: 'superadmin' | 'admin';
   organizationId?: string;
   locationId?: string;
+  locationIds?: string[];
   firstName?: string;
   lastName?: string;
   photoUrl?: string;
   stripeCustomerId?: string;
   termsAcceptedAt?: number;
+  hasSeenWelcome?: boolean; // Välkomstrutan i medlemsappen har visats en gång.
   age?: number;
   birthDate?: string;
   gender?: string;
+  bodyWeight?: number;
+  bodyWeightHistory?: { date: string; weight: number }[];
   goals?: MemberGoals;
   backgroundImageUrl?: string;
   backgroundOverlayOpacity?: number; // 0 to 100
@@ -427,6 +452,15 @@ export interface UserData {
   nextSummerChallengeGoal?: number;
   summerChallengeGoals?: Record<number, number>;
   createdAt?: any;
+
+  // Coach Radar stats
+  totalWorkoutsCount?: number;
+  lastWorkoutAt?: number;
+  lastPBAt?: number;
+  firstLogAt?: number;
+  lastAnniversaryYear?: number;
+  streakWeeks?: number;
+  streakWeekKey?: string;
 
   migratedStats?: {
     totalWorkouts: number;
@@ -521,6 +555,7 @@ export interface ExerciseSetDetail {
     time?: number | null;
     distance?: number | null;
     kcal?: number | null;
+    rir?: number | null;
 }
 
 export interface ExerciseResult {
@@ -536,6 +571,11 @@ export interface ExerciseResult {
     blockId?: string;
     coachAdvice?: string; // NYTT: Sparar AI-rådet direkt på övningen
     note?: string; // Användarens anteckning för denna övning
+    originalBankId?: string | null;
+    prescribedPct?: number | null;   // coachens intensitet på blocket, vid tillfället
+    appliedPct?: number | null;      // procenten som faktiskt gällde för setet
+    pctSource?: 'coach' | 'session' | 'none';
+    estimated1RM?: number | null;    // medlemmens uppskattade 1RM vid tillfället
 }
 
 export type MemberFeeling = 'good' | 'neutral' | 'bad';
@@ -564,9 +604,11 @@ export interface WorkoutLog {
     newPBs?: PBRecord[]; 
     benchmarkId?: string; // NYTT: För att enkelt gruppera benchmarks
     benchmarkValue?: number; // NYTT: Resultatet (tid i sekunder, antal reps, eller vikt)
+    benchmarkDistance?: number; // NYTT: Distans i meter för konditionstester (t.ex. 2000 m rodd)
     showOnLeaderboard?: boolean; // NYTT: För att dölja i flöden och topplistor
     totalVolume?: number; // NYTT: Total vikt x reps under passet
     inStudio?: boolean; // NYTT: Indikerar om träningspasset genomfördes på plats på gymmet
+    sessionMode?: 'normal' | 'fatigued';
     imageUrl?: string; // NYTT: Alternativ sommarfeedsbild bifogad till passet
     summerPoints?: number; // NYTT: Poäng i sommarutmaningen (1, 2 eller 3)
     reachedSummerGoal?: boolean; // NYTT: Om användaren uppnått veckans sommar mål med detta pass
@@ -592,13 +634,21 @@ export interface CheckInEvent {
 
 export interface StudioEvent {
     id: string;
-    type: 'pb' | 'pb_batch';
+    type: 'pb' | 'pb_batch' | 'milestone' | 'test' | 'anniversary' | 'streak';
     organizationId: string;
     locationId?: string;
     timestamp: number;
     data: {
         userName: string;
         userPhotoUrl?: string | null;
+        milestone?: number;
+        benchmarkId?: string;
+        benchmarkValue?: number;
+        benchmarkDistance?: number;
+        benchmarkTitle?: string;
+        improvedBySec?: number;
+        years?: number;
+        streakWeeks?: number;
         // Updated to support multiple records (or single via array)
         records?: PBRecord[]; 
         

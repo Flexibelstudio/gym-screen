@@ -148,7 +148,7 @@ export const LocationsContent: React.FC<LocationsContentProps> = ({ organization
             {toast.visible && <Toast message={toast.message} isVisible={toast.visible} onClose={() => setToast({ ...toast, visible: false })} />}
             <div className="p-6 sm:p-8 border-b border-gray-100 dark:border-gray-700">
                 <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-1">Studios / Orter</h3>
-                <p className="text-sm text-gray-500 dark:text-gray-400">Lägg till dina olika studios och bjud in team & medlemmar till respektive studio. För att bjuda in och använda loggningen för medlemmar måste Passloggning först aktiveras i inställningarna.</p>
+                <p className="text-sm text-gray-500 dark:text-gray-400">Lägg till dina olika studios och bjud in team & medlemmar till respektive studio. För att bjuda in och använda loggningen för medlemmar måste Medlemsappen först aktiveras i inställningarna.</p>
             </div>
             
              <div className="p-6 sm:p-8 space-y-6 bg-gray-50/50 dark:bg-gray-900/20">
@@ -211,7 +211,7 @@ export const LocationsContent: React.FC<LocationsContentProps> = ({ organization
                                             {!organization.globalConfig?.enableWorkoutLogging && (
                                                 <div 
                                                     className="absolute inset-0 z-20 cursor-pointer" 
-                                                    onClick={() => setToast({ message: "Aktivera Passloggning först för att låsa upp medlemsinbjudningar.", visible: true, type: 'error' } as any)}
+                                                    onClick={() => setToast({ message: "Aktivera Medlemsappen först för att låsa upp medlemsinbjudningar.", visible: true, type: 'error' } as any)}
                                                 />
                                             )}
                                             <span className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-6">Medlemskod</span>

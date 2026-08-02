@@ -1,17 +1,19 @@
 
-import React, { useState, useEffect, useMemo } from 'react';
-import { Member, UserRole } from '../types';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { Member, UserRole, WorkoutLog } from '../types';
 import { UsersIcon, PencilIcon, ChartBarIcon, SearchIcon, ChevronDownIcon, ChevronLeftIcon, ChevronRightIcon, CloseIcon, QrCodeIcon, CopyIcon } from './icons';
 import { MemberDetailModal } from './MemberDetailModal';
 import { PrintablePoster } from './PrintablePoster';
 import { useStudio } from '../context/StudioContext';
-import { listenToMembers, updateMemberEndDate, updateUserRoleCloud, approveCoach, updateOrganization, updateUserProfile } from '../services/firebaseService';
+import { listenToMembers, updateMemberEndDate, updateUserRoleCloud, approveCoach, updateOrganization, updateUserProfile, getOrganizationLogsSince, saveAdminActivity } from '../services/firebaseService';
 import QRCode from 'react-qr-code';
 import QRCodePNG from 'qrcode';
 import { Modal } from './ui/Modal';
 import { useAuth } from '../context/AuthContext';
 import { Toast } from './ui/ToastNotification';
 import { calculateAge, formatBirthday, isBirthdayToday } from '../utils/dateUtils';
+import { buildRadar, RadarFlag, MemberRadarResult, RadarResultItem } from '../utils/coachRadar';
+import { getMemberLocationIds } from '../utils/workoutUtils';
 
 const LocationInviteCard: React.FC<{
     locationName: string;
@@ -169,25 +171,50 @@ const RoleSwitcher: React.FC<{
 
 const LocationSwitcher: React.FC<{ 
     currentLocationId?: string; 
+    currentLocationIds?: string[];
     memberId: string; 
     isUpdating: boolean;
     locations: { id: string, name: string }[];
-    onUpdate: (locationId: string) => void;
+    onUpdate: (locationIds: string[]) => void;
     canEdit: boolean;
-}> = ({ currentLocationId, memberId, isUpdating, locations, onUpdate, canEdit }) => {
-    const handleClick = (e: React.MouseEvent) => e.stopPropagation();
+}> = ({ currentLocationId, currentLocationIds, memberId, isUpdating, locations, onUpdate, canEdit }) => {
+    const [isOpen, setIsOpen] = useState(false);
+    const dropdownRef = useRef<HTMLDivElement>(null);
 
-    const handleChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-        e.stopPropagation();
-        onUpdate(e.target.value);
-    };
+    const activeLocIds = useMemo(() => {
+        return getMemberLocationIds({ locationId: currentLocationId, locationIds: currentLocationIds });
+    }, [currentLocationId, currentLocationIds]);
+
+    const activeNames = useMemo(() => {
+        return activeLocIds.map(id => locations.find(l => l.id === id)?.name || id);
+    }, [activeLocIds, locations]);
+
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+                setIsOpen(false);
+            }
+        };
+        if (isOpen) {
+            document.addEventListener('mousedown', handleClickOutside);
+        }
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside);
+        };
+    }, [isOpen]);
 
     if (locations.length === 0) return null;
 
-    const currentLoc = locations.find(l => l.id === currentLocationId);
-    const resolvedLocId = currentLoc ? currentLoc.id : (locations.length > 0 ? locations[0].id : '');
-    const label = currentLoc ? currentLoc.name : (locations.length > 0 ? locations[0].name : "Saknar Ort");
-    const labelClass = currentLoc ? "bg-blue-100 text-blue-700 border-blue-200" : "bg-gray-100 text-gray-500 border-gray-200";
+    let label = "Saknar Ort";
+    if (activeNames.length === 1) {
+        label = activeNames[0];
+    } else if (activeNames.length > 1) {
+        label = `${activeNames.length} Orter`;
+    }
+
+    const labelClass = activeNames.length > 0 
+        ? "bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-800" 
+        : "bg-gray-100 text-gray-500 border-gray-200 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-700";
 
     if (!canEdit) {
         return (
@@ -198,25 +225,282 @@ const LocationSwitcher: React.FC<{
     }
 
     return (
-        <div className="relative inline-block" onClick={handleClick}>
-            <div className={`flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full font-black uppercase tracking-wider border shadow-sm cursor-pointer transition-all hover:brightness-95 ${labelClass}`}>
+        <div className="relative inline-block" ref={dropdownRef} onClick={(e) => e.stopPropagation()}>
+            <button
+                type="button"
+                onClick={() => setIsOpen(!isOpen)}
+                disabled={isUpdating}
+                className={`flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full font-black uppercase tracking-wider border shadow-sm transition-all hover:brightness-95 ${labelClass}`}
+            >
                 {isUpdating ? (
-                    <div className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin mr-1"></div>
+                    <div className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin mr-1" />
                 ) : (
-                    <span className="max-w-[100px] truncate">{label}</span>
+                    <span className="max-w-[120px] truncate">{label}</span>
                 )}
                 {!isUpdating && <ChevronDownIcon className="w-3 h-3 opacity-70" />}
+            </button>
+
+            {isOpen && (
+                <div className="absolute left-0 mt-1 w-48 bg-white dark:bg-gray-800 rounded-xl shadow-xl border border-gray-100 dark:border-gray-700 p-2 z-50 text-xs">
+                    <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider px-2 py-1 border-b border-gray-100 dark:border-gray-700 mb-1">
+                        Välj Orter
+                    </div>
+                    <div className="space-y-1 max-h-48 overflow-y-auto">
+                        {locations.map(loc => {
+                            const isChecked = activeLocIds.includes(loc.id);
+                            return (
+                                <label 
+                                    key={loc.id} 
+                                    className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700/50 cursor-pointer text-gray-800 dark:text-gray-200 font-medium"
+                                >
+                                    <input 
+                                        type="checkbox"
+                                        checked={isChecked}
+                                        onChange={() => {
+                                            const updated = isChecked
+                                                ? activeLocIds.filter(id => id !== loc.id)
+                                                : [...activeLocIds, loc.id];
+                                            onUpdate(updated);
+                                        }}
+                                        className="rounded border-gray-300 text-primary focus:ring-primary"
+                                    />
+                                    <span className="truncate">{loc.name}</span>
+                                </label>
+                            );
+                        })}
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+};
+
+const RADAR_FLAGS_ORDER: RadarFlag[] = ['never_started', 'gone', 'lost_tempo', 'plateau', 'celebrate'];
+
+const RADAR_GROUP_CONFIG: Record<RadarFlag, {
+    title: string;
+    badgeStyle: string;
+    headerStyle: string;
+    cardStyle: string;
+}> = {
+    never_started: {
+        title: 'Aldrig kommit igång',
+        badgeStyle: 'bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-300 border-amber-200 dark:border-amber-800/50',
+        headerStyle: 'text-amber-800 dark:text-amber-300',
+        cardStyle: 'bg-amber-50/50 dark:bg-amber-950/10 border-amber-200/60 dark:border-amber-900/30 hover:border-amber-300 dark:hover:border-amber-700/50'
+    },
+    gone: {
+        title: 'Borta',
+        badgeStyle: 'bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-300 border-amber-200 dark:border-amber-800/50',
+        headerStyle: 'text-amber-800 dark:text-amber-300',
+        cardStyle: 'bg-amber-50/50 dark:bg-amber-950/10 border-amber-200/60 dark:border-amber-900/30 hover:border-amber-300 dark:hover:border-amber-700/50'
+    },
+    lost_tempo: {
+        title: 'Tappat tempo',
+        badgeStyle: 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-300 border-yellow-200 dark:border-yellow-800/50',
+        headerStyle: 'text-yellow-800 dark:text-yellow-300',
+        cardStyle: 'bg-yellow-50/30 dark:bg-yellow-950/10 border-yellow-200/50 dark:border-yellow-900/30 hover:border-yellow-300 dark:hover:border-yellow-700/50'
+    },
+    plateau: {
+        title: 'Står stilla',
+        badgeStyle: 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 border-blue-200 dark:border-blue-800/50',
+        headerStyle: 'text-blue-800 dark:text-blue-300',
+        cardStyle: 'bg-blue-50/30 dark:bg-blue-950/10 border-blue-200/50 dark:border-blue-900/30 hover:border-blue-300 dark:hover:border-blue-700/50'
+    },
+    celebrate: {
+        title: 'Fira!',
+        badgeStyle: 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-800 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800/50',
+        headerStyle: 'text-emerald-800 dark:text-emerald-300',
+        cardStyle: 'bg-emerald-50/30 dark:bg-emerald-950/10 border-emerald-200/50 dark:border-emerald-900/30 hover:border-emerald-300 dark:hover:border-emerald-700/50'
+    }
+};
+
+interface CoachRadarSectionProps {
+    members: Member[];
+    organizationId?: string;
+    locations?: { id: string; name: string }[];
+    onSelectMember: (member: Member) => void;
+    isStaff: boolean;
+}
+
+const CoachRadarSection: React.FC<CoachRadarSectionProps> = ({
+    members,
+    organizationId,
+    locations,
+    onSelectMember,
+    isStaff
+}) => {
+    const [hasAnalyzed, setHasAnalyzed] = useState(false);
+    const [isAnalyzing, setIsAnalyzing] = useState(false);
+    const [radarResults, setRadarResults] = useState<RadarResultItem[]>([]);
+    const [analyzedMembersCount, setAnalyzedMembersCount] = useState(0);
+    const [fetchedLogsCount, setFetchedLogsCount] = useState(0);
+    const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({});
+    const [analysisError, setAnalysisError] = useState<string | null>(null);
+
+    if (!isStaff) return null;
+
+    const handleAnalyze = async () => {
+        if (!organizationId) return;
+        setIsAnalyzing(true);
+        setAnalysisError(null);
+        try {
+            const sixtyThreeDaysAgoMs = Date.now() - 63 * 24 * 60 * 60 * 1000;
+            const logs = await getOrganizationLogsSince(organizationId, sixtyThreeDaysAgoMs);
+
+            const logsByMemberId: Record<string, WorkoutLog[]> = {};
+            logs.forEach(log => {
+                if (log.memberId) {
+                    if (!logsByMemberId[log.memberId]) logsByMemberId[log.memberId] = [];
+                    logsByMemberId[log.memberId].push(log);
+                }
+            });
+
+            const results = buildRadar(members, logsByMemberId, new Date());
+            setRadarResults(results);
+            setAnalyzedMembersCount(members.length);
+            setFetchedLogsCount(logs.length);
+            setHasAnalyzed(true);
+        } catch (err: any) {
+            console.error("Coach Radar analysis failed:", err);
+            setAnalysisError("Kunde inte hämta träningsdata för analys. Om detta beror på ett saknat Firestore-index behöver det skapas i databasen.");
+        } finally {
+            setIsAnalyzing(false);
+        }
+    };
+
+    const toggleGroupExpand = (flag: string) => {
+        setExpandedGroups(prev => ({ ...prev, [flag]: !prev[flag] }));
+    };
+
+    return (
+        <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-3xl p-6 sm:p-8 space-y-6 shadow-sm">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                    <h3 className="text-xl font-black uppercase tracking-tight leading-[1.2] pt-[0.1em] text-gray-900 dark:text-white">
+                        BEHÖVER UPPMÄRKSAMHET
+                    </h3>
+                    {hasAnalyzed ? (
+                        <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 mt-1">
+                            Analyserade {analyzedMembersCount} medlemmar · {fetchedLogsCount.toLocaleString('sv-SE')} pass
+                        </p>
+                    ) : (
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                            Identifiera medlemmar som behöver stöd, motivation eller firande.
+                        </p>
+                    )}
+                </div>
+
+                {!hasAnalyzed && (
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+                        <span className="text-xs text-gray-500 dark:text-gray-400 italic">
+                            Hämtar träningsdata för de senaste 63 dagarna.
+                        </span>
+                        <button
+                            onClick={handleAnalyze}
+                            disabled={isAnalyzing}
+                            className="bg-primary hover:brightness-110 text-white font-black text-xs px-5 py-3 rounded-2xl uppercase tracking-wider transition-all shadow-md flex items-center justify-center gap-2 whitespace-nowrap disabled:opacity-50"
+                        >
+                            {isAnalyzing ? (
+                                <>
+                                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                                    <span>Analyserar...</span>
+                                </>
+                            ) : (
+                                <span>Analysera medlemmar</span>
+                            )}
+                        </button>
+                    </div>
+                )}
             </div>
-            <select
-                value={resolvedLocId}
-                onChange={handleChange}
-                disabled={isUpdating}
-                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer appearance-none bg-transparent text-black"
-            >
-                {locations.map(loc => (
-                    <option key={loc.id} value={loc.id} className="text-black bg-white">{loc.name}</option>
-                ))}
-            </select>
+
+            {analysisError && (
+                <div className="p-4 rounded-2xl bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800/40 text-xs text-amber-800 dark:text-amber-300 font-medium">
+                    {analysisError}
+                </div>
+            )}
+
+            {hasAnalyzed && (
+                <div className="space-y-6">
+                    {radarResults.length === 0 ? (
+                        <div className="p-6 text-center text-sm font-semibold text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-800/40 rounded-2xl border border-gray-100 dark:border-gray-800">
+                            Inga medlemmar behöver uppmärksamhet just nu.
+                        </div>
+                    ) : (
+                        <div className="space-y-6">
+                            {RADAR_FLAGS_ORDER.map((flag) => {
+                                const groupItems = radarResults.filter(r => r.flag === flag);
+                                if (groupItems.length === 0) return null;
+
+                                const config = RADAR_GROUP_CONFIG[flag];
+                                const isExpanded = !!expandedGroups[flag];
+                                const visibleItems = isExpanded ? groupItems : groupItems.slice(0, 5);
+                                const hiddenCount = groupItems.length - 5;
+
+                                return (
+                                    <div key={flag} className="space-y-3">
+                                        <div className="flex items-center gap-2">
+                                            <span className={`text-xs font-black uppercase tracking-wider px-2.5 py-1 rounded-lg border ${config.badgeStyle}`}>
+                                                {config.title}
+                                            </span>
+                                            <span className="text-xs font-bold text-gray-400">
+                                                ({groupItems.length})
+                                            </span>
+                                        </div>
+
+                                        <div className="grid grid-cols-1 gap-2">
+                                            {visibleItems.map((item) => {
+                                                const m = item.member;
+                                                const fullName = `${m.firstName || ''} ${m.lastName || ''}`.trim() || 'Namnlös medlem';
+                                                const locObj = m.locationId ? locations?.find(l => l.id === m.locationId) : undefined;
+                                                const locationName = locObj?.name;
+
+                                                return (
+                                                    <div
+                                                        key={m.uid || m.id}
+                                                        onClick={() => onSelectMember(m)}
+                                                        className={`p-3.5 rounded-2xl border cursor-pointer transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-2 shadow-xs ${config.cardStyle}`}
+                                                    >
+                                                        <div className="flex items-center gap-3">
+                                                            <div className="w-8 h-8 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center text-xs font-black text-gray-700 dark:text-gray-200 uppercase flex-shrink-0">
+                                                                {m.firstName ? m.firstName.charAt(0) : 'M'}
+                                                            </div>
+                                                            <div>
+                                                                <div className="flex items-center gap-2">
+                                                                    <span className="font-bold text-sm text-gray-900 dark:text-white">
+                                                                        {fullName}
+                                                                    </span>
+                                                                    {locationName && (
+                                                                        <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md bg-gray-200/60 dark:bg-gray-800 text-gray-600 dark:text-gray-400">
+                                                                            {locationName}
+                                                                        </span>
+                                                                    )}
+                                                                </div>
+                                                                <p className="text-xs text-gray-600 dark:text-gray-300 mt-0.5">
+                                                                    {item.reason}
+                                                                </p>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+
+                                        {!isExpanded && hiddenCount > 0 && (
+                                            <button
+                                                onClick={() => toggleGroupExpand(flag)}
+                                                className="text-xs font-bold text-primary hover:underline pt-1 px-1"
+                                            >
+                                                Visa fler ({hiddenCount})
+                                            </button>
+                                        )}
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    )}
+                </div>
+            )}
         </div>
     );
 };
@@ -253,6 +537,20 @@ export const MemberManagementScreen: React.FC<MemberManagementScreenProps> = ({ 
       setCurrentPage(1);
   }, [searchTerm, roleFilter, locationFilter]);
 
+  const radarMembers = useMemo(() => {
+      return members.filter(m => {
+          const locIds = getMemberLocationIds(m);
+          if (currentUserRole === 'coach' && currentUser?.locationId) {
+              return locIds.includes(currentUser.locationId);
+          } else if (locationFilter === 'none') {
+              return locIds.length === 0;
+          } else if (locationFilter !== 'all') {
+              return locIds.includes(locationFilter);
+          }
+          return true;
+      });
+  }, [members, currentUserRole, currentUser?.locationId, locationFilter]);
+
   const filteredMembers = useMemo(() => {
       return members.filter(m => {
           const matchesSearch = 
@@ -266,18 +564,20 @@ export const MemberManagementScreen: React.FC<MemberManagementScreenProps> = ({ 
           else if (roleFilter === 'admin') matchesRole = m.role === 'organizationadmin' || m.role === 'systemowner';
 
           let matchesLocation = true;
-          const resolvedLocationId = m.locationId || (selectedOrganization?.locations?.[0]?.id);
+          const locIds = getMemberLocationIds(m);
           
           // Coach kan bara se de i sin egen studio (om de har en studio)
           if (currentUserRole === 'coach' && currentUser?.locationId) {
-              matchesLocation = resolvedLocationId === currentUser.locationId;
+              matchesLocation = locIds.includes(currentUser.locationId);
+          } else if (locationFilter === 'none') {
+              matchesLocation = locIds.length === 0;
           } else if (locationFilter !== 'all') {
-              matchesLocation = resolvedLocationId === locationFilter;
+              matchesLocation = locIds.includes(locationFilter);
           }
 
           return matchesSearch && matchesRole && matchesLocation;
       });
-  }, [members, searchTerm, roleFilter, locationFilter]);
+  }, [members, searchTerm, roleFilter, locationFilter, currentUserRole, currentUser?.locationId]);
 
   const totalPages = Math.ceil(filteredMembers.length / ITEMS_PER_PAGE);
   const paginatedMembers = useMemo(() => {
@@ -301,9 +601,26 @@ export const MemberManagementScreen: React.FC<MemberManagementScreenProps> = ({ 
 
   const handleSaveDate = async () => {
       if (!editingDateMember) return;
+      const memberName = `${editingDateMember.firstName || ''} ${editingDateMember.lastName || ''}`.trim() || 'Medlem';
+      const oldDateStr = editingDateMember.endDate || 'inget';
       try {
           await updateMemberEndDate(editingDateMember.id, newDateValue);
           setEditingDateMember(null);
+          if (selectedOrganization) {
+              try {
+                  saveAdminActivity({
+                      organizationId: selectedOrganization.id,
+                      userId: currentUser?.uid || 'unknown',
+                      userName: (currentUser as any)?.firstName || 'Admin',
+                      type: 'MEMBER',
+                      action: 'UPDATE',
+                      description: `Ändrade slutdatum för ${memberName}: ${oldDateStr} → ${newDateValue}`,
+                      timestamp: Date.now()
+                  });
+              } catch (logErr) {
+                  console.warn("Failed to log activity:", logErr);
+              }
+          }
       } catch (e) {
           alert("Kunde inte spara datum.");
       }
@@ -311,9 +628,25 @@ export const MemberManagementScreen: React.FC<MemberManagementScreenProps> = ({ 
 
   const handleClearDate = async () => {
       if (!editingDateMember) return;
+      const memberName = `${editingDateMember.firstName || ''} ${editingDateMember.lastName || ''}`.trim() || 'Medlem';
       try {
           await updateMemberEndDate(editingDateMember.id, null);
           setEditingDateMember(null);
+          if (selectedOrganization) {
+              try {
+                  saveAdminActivity({
+                      organizationId: selectedOrganization.id,
+                      userId: currentUser?.uid || 'unknown',
+                      userName: (currentUser as any)?.firstName || 'Admin',
+                      type: 'MEMBER',
+                      action: 'UPDATE',
+                      description: `Borttog slutdatum för ${memberName}`,
+                      timestamp: Date.now()
+                  });
+              } catch (logErr) {
+                  console.warn("Failed to log activity:", logErr);
+              }
+          }
       } catch (e) {
           alert("Kunde inte ta bort datum.");
       }
@@ -321,8 +654,26 @@ export const MemberManagementScreen: React.FC<MemberManagementScreenProps> = ({ 
 
   const handleQuickRoleUpdate = async (memberId: string, newRole: UserRole) => {
       setUpdatingMembers(prev => ({ ...prev, [memberId]: true }));
+      const targetMember = members.find(m => m.id === memberId || m.uid === memberId);
+      const memberName = targetMember ? `${targetMember.firstName || ''} ${targetMember.lastName || ''}`.trim() : 'Medlem';
+      const oldRole = targetMember?.role || 'member';
       try {
           await updateUserRoleCloud(memberId, newRole);
+          if (selectedOrganization) {
+              try {
+                  saveAdminActivity({
+                      organizationId: selectedOrganization.id,
+                      userId: currentUser?.uid || 'unknown',
+                      userName: (currentUser as any)?.firstName || 'Admin',
+                      type: 'MEMBER',
+                      action: 'UPDATE',
+                      description: `Ändrade roll för ${memberName}: ${oldRole} → ${newRole}`,
+                      timestamp: Date.now()
+                  });
+              } catch (logErr) {
+                  console.warn("Failed to log activity:", logErr);
+              }
+          }
       } catch (e) {
           console.error("Failed to update role", e);
           alert(e instanceof Error ? e.message : "Kunde inte uppdatera rollen.");
@@ -331,10 +682,15 @@ export const MemberManagementScreen: React.FC<MemberManagementScreenProps> = ({ 
       }
   };
 
-  const handleQuickLocationUpdate = async (memberId: string, newLocationId: string) => {
+  const handleQuickLocationUpdate = async (memberId: string, selectedLocIds: string[]) => {
       setUpdatingMembers(prev => ({ ...prev, [memberId]: true }));
       try {
-          await updateUserProfile(memberId, { locationId: newLocationId });
+          const primaryLocId = selectedLocIds[0] || '';
+          const locIdsToSave = selectedLocIds.length > 1 ? selectedLocIds : [];
+          await updateUserProfile(memberId, { 
+              locationId: primaryLocId,
+              locationIds: locIdsToSave
+          });
       } catch (e) {
           console.error("Failed to update location", e);
           alert(e instanceof Error ? e.message : "Kunde inte uppdatera ort.");
@@ -346,8 +702,25 @@ export const MemberManagementScreen: React.FC<MemberManagementScreenProps> = ({ 
   const handleApproveCoach = async (e: React.MouseEvent, memberId: string) => {
       e.stopPropagation();
       setUpdatingMembers(prev => ({ ...prev, [memberId]: true }));
+      const targetMember = members.find(m => m.id === memberId || m.uid === memberId);
+      const memberName = targetMember ? `${targetMember.firstName || ''} ${targetMember.lastName || ''}`.trim() : 'Medlem';
       try {
           await approveCoach(memberId);
+          if (selectedOrganization) {
+              try {
+                  saveAdminActivity({
+                      organizationId: selectedOrganization.id,
+                      userId: currentUser?.uid || 'unknown',
+                      userName: (currentUser as any)?.firstName || 'Admin',
+                      type: 'MEMBER',
+                      action: 'UPDATE',
+                      description: `Godkände ${memberName} som coach`,
+                      timestamp: Date.now()
+                  });
+              } catch (logErr) {
+                  console.warn("Failed to log activity:", logErr);
+              }
+          }
       } catch (e) {
           console.error("Failed to approve coach", e);
           alert(e instanceof Error ? e.message : "Kunde inte godkänna coachen.");
@@ -427,6 +800,15 @@ export const MemberManagementScreen: React.FC<MemberManagementScreenProps> = ({ 
         </div>
       )}
 
+      {/* Coach Radar - Behöver Uppmärksamhet */}
+      <CoachRadarSection
+        members={radarMembers}
+        organizationId={selectedOrganization?.id}
+        locations={selectedOrganization?.locations}
+        onSelectMember={(m) => setSelectedMember(m)}
+        isStaff={currentUserRole === 'coach' || currentUserRole === 'organizationadmin' || currentUserRole === 'systemowner'}
+      />
+
       {/* Search and filters removed the invite cards code above here */}
       <div className="flex flex-col lg:flex-row gap-4 items-center justify-between">
           <div className="flex flex-col lg:flex-row gap-4 w-full">
@@ -459,6 +841,7 @@ export const MemberManagementScreen: React.FC<MemberManagementScreenProps> = ({ 
                           className="w-full bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-2xl shadow-sm px-4 py-3 text-sm font-bold text-gray-900 dark:text-white focus:ring-2 focus:ring-primary outline-none"
                       >
                           <option value="all">Alla Orter/Studios</option>
+                          <option value="none">Utan ort</option>
                           {selectedOrganization.locations.map(loc => (
                               <option key={loc.id} value={loc.id}>
                                   {loc.name}
@@ -558,10 +941,11 @@ export const MemberManagementScreen: React.FC<MemberManagementScreenProps> = ({ 
                               {selectedOrganization?.locations && selectedOrganization.locations.length > 0 && (
                                   <LocationSwitcher
                                       currentLocationId={member.locationId}
+                                      currentLocationIds={member.locationIds}
                                       memberId={member.id}
                                       isUpdating={!!updatingMembers[member.id]}
                                       locations={selectedOrganization.locations}
-                                      onUpdate={(newLocId) => handleQuickLocationUpdate(member.id, newLocId)}
+                                      onUpdate={(selectedLocIds) => handleQuickLocationUpdate(member.id, selectedLocIds)}
                                       canEdit={canEditRoles}
                                   />
                               )}

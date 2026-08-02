@@ -9,7 +9,7 @@ interface TimerSetupModalProps {
   isOpen: boolean;
   onClose: () => void;
   block: WorkoutBlock;
-  onSave: (newSettings: Partial<WorkoutBlock['settings']> & { autoAdvance?: boolean; transitionTime?: number }) => void;
+  onSave: (newSettings: Partial<WorkoutBlock['settings']> & { autoAdvance?: boolean; transitionTime?: number; followMe?: boolean }) => void;
   isLastBlock?: boolean;
 }
 
@@ -69,6 +69,7 @@ export const TimerSetupModal: React.FC<TimerSetupModalProps> = ({ isOpen, onClos
           direction: direction || 'down',
           autoAdvance: block.autoAdvance || false,
           transitionTime: block.transitionTime || 0,
+          followMe: block.followMe || false,
           sequence: sequence || []
       };
   });
@@ -95,6 +96,7 @@ export const TimerSetupModal: React.FC<TimerSetupModalProps> = ({ isOpen, onClos
   const [direction, setDirection] = useState<'up' | 'down'>(initialState.direction);
   const [autoAdvance, setAutoAdvance] = useState(initialState.autoAdvance);
   const [transitionTime, setTransitionTime] = useState(initialState.transitionTime);
+  const [followMe, setFollowMe] = useState(initialState.followMe);
 
   // State for Custom Sequence
   const [sequence, setSequence] = useState<TimerSegment[]>(initialState.sequence);
@@ -104,6 +106,7 @@ export const TimerSetupModal: React.FC<TimerSetupModalProps> = ({ isOpen, onClos
       if (direction !== initialState.direction) return true;
       if (autoAdvance !== initialState.autoAdvance) return true;
       if (transitionTime !== initialState.transitionTime) return true;
+      if (followMe !== initialState.followMe) return true;
 
       switch (mode) {
           case TimerMode.Custom:
@@ -139,7 +142,7 @@ export const TimerSetupModal: React.FC<TimerSetupModalProps> = ({ isOpen, onClos
       }
   }, [
       mode, countMode, varv, intervallerPerVarv, totalOmgångar, totalMinutes, 
-      workMinutes, workSeconds, restMinutes, restSeconds, direction, autoAdvance, transitionTime, initialState, sequence
+      workMinutes, workSeconds, restMinutes, restSeconds, direction, autoAdvance, transitionTime, followMe, initialState, sequence
   ]);
 
   useEffect(() => {
@@ -226,7 +229,8 @@ export const TimerSetupModal: React.FC<TimerSetupModalProps> = ({ isOpen, onClos
     onSave({ 
         ...newSettings, 
         autoAdvance: isLastBlock ? false : autoAdvance, 
-        transitionTime 
+        transitionTime,
+        followMe
     });
     onClose();
   };
@@ -526,11 +530,11 @@ export const TimerSetupModal: React.FC<TimerSetupModalProps> = ({ isOpen, onClos
             </button>
             <button
               type="button"
-              onClick={() => !block.followMe && handleModeChange(TimerMode.Stopwatch)}
-              disabled={!!block.followMe}
-              title={block.followMe ? "Kan inte kombineras med Följ mig-läge" : undefined}
+              onClick={() => !followMe && handleModeChange(TimerMode.Stopwatch)}
+              disabled={!!followMe}
+              title={followMe ? "Kan inte kombineras med Följ mig-läge" : undefined}
               className={`px-4 py-3 text-sm font-bold rounded-xl transition-all duration-200 border-2 ${
-                block.followMe 
+                followMe 
                   ? 'bg-gray-100 dark:bg-gray-900 text-gray-400 dark:text-gray-600 border-gray-200 dark:border-gray-800 cursor-not-allowed opacity-60' 
                   : mode === TimerMode.Stopwatch 
                   ? 'bg-blue-600 text-white border-blue-600 shadow-md shadow-blue-600/20 scale-105' 
@@ -541,11 +545,11 @@ export const TimerSetupModal: React.FC<TimerSetupModalProps> = ({ isOpen, onClos
             </button>
             <button
               type="button"
-              onClick={() => !block.followMe && handleModeChange(TimerMode.Custom)}
-              disabled={!!block.followMe}
-              title={block.followMe ? "Kan inte kombineras med Följ mig-läge" : undefined}
+              onClick={() => !followMe && handleModeChange(TimerMode.Custom)}
+              disabled={!!followMe}
+              title={followMe ? "Kan inte kombineras med Följ mig-läge" : undefined}
               className={`px-4 py-3 text-sm font-bold rounded-xl transition-all duration-200 border-2 ${
-                block.followMe 
+                followMe 
                   ? 'bg-gray-100 dark:bg-gray-900 text-gray-400 dark:text-gray-600 border-gray-200 dark:border-gray-800 cursor-not-allowed opacity-60' 
                   : mode === TimerMode.Custom 
                     ? 'bg-teal-500 text-white border-teal-500 shadow-md shadow-teal-500/20 scale-105' 
@@ -556,11 +560,11 @@ export const TimerSetupModal: React.FC<TimerSetupModalProps> = ({ isOpen, onClos
             </button>
             <button
               type="button"
-              onClick={() => !block.followMe && handleModeChange(TimerMode.NoTimer)}
-              disabled={!!block.followMe}
-              title={block.followMe ? "Kan inte kombineras med Följ mig-läge" : undefined}
+              onClick={() => !followMe && handleModeChange(TimerMode.NoTimer)}
+              disabled={!!followMe}
+              title={followMe ? "Kan inte kombineras med Följ mig-läge" : undefined}
               className={`px-4 py-3 text-sm font-bold rounded-xl transition-all duration-200 border-2 sm:col-span-3 ${
-                block.followMe 
+                followMe 
                   ? 'bg-gray-100 dark:bg-gray-900 text-gray-400 dark:text-gray-600 border-gray-200 dark:border-gray-800 cursor-not-allowed opacity-60' 
                   : mode === TimerMode.NoTimer 
                     ? 'bg-slate-700 text-white border-slate-700 shadow-md shadow-slate-700/20 scale-105' 
@@ -575,6 +579,33 @@ export const TimerSetupModal: React.FC<TimerSetupModalProps> = ({ isOpen, onClos
         <div className="bg-white dark:bg-black rounded-3xl p-6 border border-gray-200 dark:border-gray-700 min-h-[300px] flex flex-col justify-center items-center">
             {renderDirectionToggle()}
             {renderSettingsInputs()}
+        </div>
+
+        {/* --- FOLLOW ME SETTINGS --- */}
+        <div className="mt-8 pt-6 border-t border-gray-200 dark:border-gray-700">
+            {(() => {
+                const hasLinkedExercises = block.exercises?.some(e => e.groupId) || false;
+                const followMeDisabled = mode === TimerMode.Custom || hasLinkedExercises || mode === TimerMode.NoTimer;
+                const followMeDescription = mode === TimerMode.Custom 
+                    ? "Kan inte kombineras med Sekvenstimer" 
+                    : mode === TimerMode.NoTimer
+                        ? "Kan inte kombineras med Ingen Timer"
+                        : hasLinkedExercises 
+                            ? "Kan inte kombineras med länkade övningar" 
+                            : undefined;
+
+                return (
+                    <div className="p-4 rounded-2xl bg-gray-50 dark:bg-gray-800/50 border border-gray-100 dark:border-gray-800">
+                        <ToggleSwitch 
+                            label="'Följ mig'-läge" 
+                            checked={!!followMe} 
+                            onChange={v => setFollowMe(v)} 
+                            disabled={followMeDisabled}
+                            description={followMeDescription}
+                        />
+                    </div>
+                );
+            })()}
         </div>
 
         {/* --- AUTO ADVANCE SETTINGS --- */}
@@ -616,7 +647,7 @@ export const TimerSetupModal: React.FC<TimerSetupModalProps> = ({ isOpen, onClos
 
         <div className="mt-8 flex gap-4">
           <button type="button" onClick={handleSave} className="flex-1 bg-primary hover:brightness-95 text-white font-bold py-3.5 rounded-xl transition-colors shadow-md">Spara</button>
-          <button type="button" onClick={() => { if (!hasUnsavedChanges || window.confirm("Avbryt och kasta ändringar?")) onClose(); }} className="flex-1 bg-gray-650 hover:bg-gray-500 dark:bg-gray-700 text-white font-bold py-3.5 rounded-xl transition-colors">Avbryt</button>
+          <button type="button" onClick={() => { if (!hasUnsavedChanges || window.confirm("Avbryt och kasta ändringar?")) onClose(); }} className="flex-1 bg-gray-600 hover:bg-gray-500 dark:bg-gray-700 text-white font-bold py-3.5 rounded-xl transition-colors">Avbryt</button>
         </div>
       </div>
     </div>,

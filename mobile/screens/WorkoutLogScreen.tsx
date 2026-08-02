@@ -1,1326 +1,30 @@
 
-import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { getMemberLogs, getWorkoutsForOrganization, saveWorkoutLog, uploadImage, updateWorkoutLog, deleteWorkoutLog, getOrganizationExerciseBank, getMemberCustomExercises, addMemberCustomExercise, deleteMemberCustomExercise, updateMemberCustomExercise, listenToPersonalBests } from '../../services/firebaseService';
-import { generateSingleMemberInsight, InsightContent, MemberInsightResponse, generateWorkoutDiploma, generateImage, getExerciseDagsformAdvice, ExerciseDagsformAdvice } from '../../services/geminiService';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import { getMemberLogs, getVisibleWorkoutsForMembers, saveWorkoutLog, updateWorkoutLog, getOrganizationExerciseBank, getMemberCustomExercises, addMemberCustomExercise, deleteMemberCustomExercise, updateMemberCustomExercise, listenToPersonalBests } from '../../services/firebaseService';
+import { generateWorkoutDiploma } from '../../services/geminiService';
 import { useAuth } from '../../context/AuthContext'; 
-import { useWorkout } from '../../context/WorkoutContext'; 
-import { CloseIcon, SparklesIcon, FireIcon, InformationCircleIcon, LightningIcon, PlusIcon, TrashIcon, CheckIcon, ChartBarIcon, HistoryIcon, CalculatorIcon } from '../../components/icons'; 
+import { CloseIcon, InformationCircleIcon, PlusIcon, TrashIcon, CalculatorIcon } from '../../components/icons'; 
 import { Modal } from '../../components/ui/Modal';
 import { ConfirmModal } from '../../components/ui/ConfirmModal';
-import { calculate1RM } from '../../utils/workoutUtils';
-import { ExerciseResult, MemberFeeling, WorkoutDiploma, WorkoutLog, BenchmarkDefinition, BankExercise, Workout, PersonalBest } from '../../types';
+import { calculate1RM, findDuplicateBankExercise, canonicalizeExerciseName, getBlockProfile, getBlockPlanParts, TrainingProfile, getTargetWeightForExercise } from '../../utils/workoutUtils';
+import { playTimerSound } from '../../hooks/useWorkoutTimer';
+import { DuplicateExerciseModal } from '../../components/DuplicateExerciseModal';
+import { ExerciseResult, WorkoutDiploma, WorkoutLog, BankExercise, Workout, PersonalBest } from '../../types';
 import { MOCK_EXERCISE_BANK } from '../../data/mockData';
 import { saveCustomProgram, fetchCustomPrograms } from '../../services/firebaseService';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Confetti } from '../../components/WorkoutCompleteModal';
 import { useStudio } from '../../context/StudioContext';
-import { DailyFormInsightModal } from '../../components/DailyFormInsightModal';
-import { resizeImage } from '../../utils/imageUtils';
+import { BlockGroup, LocalSetDetail, LastPerformanceRecord, LocalExerciseResult, LogData, WorkoutData } from './workout-log/types';
+import { ACTIVE_LOG_STORAGE_KEY, ChevronDownIcon, extractPerformanceFromLogEx, TimeInput, getRandomDiplomaTitle, getFunComparison, isExerciseMatch, GROUP_COLORS, cleanForFirestore } from './workout-log/utils';
+import { CustomActivityForm } from './workout-log/CustomActivityForm';
+import { PostWorkoutForm } from './workout-log/PostWorkoutForm';
+import { OneRMCalculatorModal } from './workout-log/OneRMCalculatorModal';
+import { PreGameView } from './workout-log/PreGameView';
+import { ExerciseLogCard } from './workout-log/ExerciseLogCard';
 
-// --- Local Storage Key ---
-const ACTIVE_LOG_STORAGE_KEY = 'smart-skarm-active-log';
 
-interface BlockGroup {
-  blockId: string;
-  blockTitle: string;
-  exercises: {
-      result: LocalExerciseResult;
-      originalIndex: number;
-  }[];
-}
 
-const ChevronDownIcon = ({ className = "w-4 h-4" }) => (
-    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="2.5" stroke="currentColor" className={className}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
-    </svg>
-);
-
-// --- Local Types for Form State ---
-
-interface LocalSetDetail {
-    weight: string;
-    reps: string;
-    time?: string;
-    distance?: string;
-    kcal?: string;
-    completed: boolean;
-}
-
-interface LastPerformanceRecord {
-    weight?: number | null;
-    reps?: string | number | null;
-    time?: string | number | null;
-    distance?: string | number | null;
-    kcal?: string | number | null;
-    note?: string;
-    trackingFields?: string[];
-}
-
-function formatTimeValue(val: string | number): string {
-    if (!val && val !== 0) return '';
-    const sVal = String(val).trim();
-    if (!sVal) return '';
-    if (sVal.includes(':')) return sVal;
-    const num = parseFloat(sVal);
-    if (isNaN(num) || num <= 0) return '';
-    
-    let totalSec = num;
-    if (num < 100) {
-        totalSec = Math.round(num * 60);
-    }
-    const m = Math.floor(totalSec / 60);
-    const s = Math.round(totalSec % 60);
-    return `${m}:${s.toString().padStart(2, '0')}`;
-}
-
-export function formatLastPerformance(perf: LastPerformanceRecord | null | undefined): string | null {
-    if (!perf) return null;
-
-    const parts: string[] = [];
-
-    const weightNum = perf.weight != null ? parseFloat(String(perf.weight)) : 0;
-    const hasWeight = !isNaN(weightNum) && weightNum > 0;
-
-    const repsStr = perf.reps != null ? String(perf.reps).trim() : '';
-    const repsNum = parseFloat(repsStr);
-    const hasReps = repsStr !== '' && repsStr !== '0' && (!isNaN(repsNum) ? repsNum > 0 : true);
-
-    const kcalStr = perf.kcal != null ? String(perf.kcal).trim() : '';
-    const kcalNum = parseFloat(kcalStr);
-    const hasKcal = kcalStr !== '' && kcalStr !== '0' && !isNaN(kcalNum) && kcalNum > 0;
-
-    const distStr = perf.distance != null ? String(perf.distance).trim() : '';
-    const distNum = parseFloat(distStr);
-    const hasDist = distStr !== '' && distStr !== '0' && !isNaN(distNum) && distNum > 0;
-
-    const timeStr = perf.time != null ? String(perf.time).trim() : '';
-    const timeFormatted = formatTimeValue(timeStr);
-    const hasTime = timeFormatted !== '';
-
-    if (hasReps && hasWeight) {
-        parts.push(`${repsStr} × ${weightNum} kg`);
-    } else if (hasReps) {
-        parts.push(`${repsStr} reps`);
-    } else if (hasWeight) {
-        parts.push(`${weightNum} kg`);
-    }
-
-    if (hasKcal) {
-        parts.push(`${kcalNum} kcal`);
-    }
-
-    if (hasTime) {
-        parts.push(timeFormatted);
-    }
-
-    if (hasDist) {
-        parts.push(`${String(distNum).replace('.', ',')} km`);
-    }
-
-    if (parts.length === 0) return null;
-    return parts.join(' · ');
-}
-
-function extractPerformanceFromLogEx(exMatch: any, note?: string): LastPerformanceRecord {
-    let bestWeight = 0;
-    let bestReps = '0';
-    let bestTime: string | number = '';
-    let bestDistance: string | number = '';
-    let bestKcal: string | number = '';
-    const trackingFields: string[] = exMatch.trackingFields || [];
-
-    if (exMatch.setDetails && exMatch.setDetails.length > 0) {
-        let bestSet = exMatch.setDetails[0];
-        for (let i = 1; i < exMatch.setDetails.length; i++) {
-            const s = exMatch.setDetails[i];
-            const currW = parseFloat(String(s.weight)) || 0;
-            const prevW = parseFloat(String(bestSet.weight)) || 0;
-            if (currW > prevW) {
-                bestSet = s;
-            } else if (currW === prevW) {
-                const currR = parseFloat(String(s.reps)) || 0;
-                const prevR = parseFloat(String(bestSet.reps)) || 0;
-                if (currR > prevR) {
-                    bestSet = s;
-                } else if (currR === prevR) {
-                    const currKcal = parseFloat(String(s.kcal || s.calories)) || 0;
-                    const prevKcal = parseFloat(String(bestSet.kcal || bestSet.calories)) || 0;
-                    if (currKcal > prevKcal) {
-                        bestSet = s;
-                    }
-                }
-            }
-        }
-        bestWeight = parseFloat(String(bestSet.weight)) || 0;
-        bestReps = bestSet.reps != null ? String(bestSet.reps) : '0';
-        bestTime = bestSet.time != null ? bestSet.time : '';
-        bestDistance = bestSet.distance != null ? bestSet.distance : '';
-        bestKcal = bestSet.kcal != null ? bestSet.kcal : (bestSet.calories != null ? bestSet.calories : '');
-    } else {
-        bestWeight = parseFloat(String(exMatch.weight)) || 0;
-        bestReps = exMatch.reps != null ? String(exMatch.reps) : '0';
-        bestTime = exMatch.time != null ? exMatch.time : '';
-        bestDistance = exMatch.distance != null ? exMatch.distance : '';
-        bestKcal = exMatch.kcal != null ? exMatch.kcal : (exMatch.calories != null ? exMatch.calories : '');
-    }
-
-    return {
-        weight: bestWeight,
-        reps: bestReps,
-        time: bestTime,
-        distance: bestDistance,
-        kcal: bestKcal,
-        note,
-        trackingFields
-    };
-}
-
-interface LocalExerciseResult {
-  exerciseId: string;
-  exerciseName: string;
-  setDetails: LocalSetDetail[];
-  isBodyweight?: boolean;
-  blockId: string;
-  blockTitle: string;
-  coachAdvice?: string;
-  note?: string;
-  trackingFields?: ('time' | 'distance' | 'kcal' | 'reps' | 'weight')[];
-  groupId?: string;
-  groupColor?: string;
-}
-
-interface LogData {
-  rpe: number | null;
-  feeling: MemberFeeling | null;
-  tags: string[];
-  comment: string;
-  imageUrl?: string;
-}
-
-interface WorkoutData {
-  id: string;
-  title: string;
-  coachTips?: string;
-  benchmarkId?: string;
-  aiProgressionPrompt?: string;
-  usePreGame?: boolean;
-  blocks: {
-      id: string;
-      title: string;
-      tag: string;
-      exercises: { id: string; name: string; exerciseName?: string; loggingEnabled?: boolean }[];
-      settings: { rounds: number; mode: string };
-  }[];
-}
-
-// --- TIME INPUT COMPONENT ---
-const TimeInput: React.FC<{
-    value: string;
-    onChange: (val: string) => void;
-    placeholder?: string;
-    className?: string;
-    compact?: boolean;
-    error?: boolean;
-}> = ({ value, onChange, placeholder, className, compact, error }) => {
-    const [min, setMin] = useState('');
-    const [sec, setSec] = useState('');
-
-    useEffect(() => {
-        const val = parseFloat(value);
-        if (isNaN(val) && !value) {
-             if (min !== '' || sec !== '') {
-                 setMin('');
-                 setSec('');
-             }
-             return;
-        }
-
-        const currentMin = parseInt(min || '0', 10);
-        const currentSec = parseInt(sec || '0', 10);
-        const currentTotal = currentMin + (currentSec / 60);
-
-        if (!isNaN(val) && Math.abs(val - currentTotal) > 0.001) {
-            const m = Math.floor(val);
-            const s = Math.round((val - m) * 60);
-            setMin(m.toString());
-            setSec(s.toString().padStart(2, '0'));
-        }
-    }, [value]);
-
-    const update = (mStr: string, sStr: string) => {
-        setMin(mStr);
-        setSec(sStr);
-        const m = parseInt(mStr || '0', 10);
-        const s = parseInt(sStr || '0', 10);
-        const total = m + (s / 60);
-        onChange(total.toString());
-    };
-
-    return (
-        <div className={`flex items-center justify-center ${compact ? 'px-2 py-1 bg-gray-50 dark:bg-gray-800/50 rounded-xl border' : 'bg-primary/5 dark:bg-primary/10 rounded-2xl border-2 p-3 shadow-xs'} ${
-            error 
-                ? 'border-red-500 ring-2 ring-red-500/20' 
-                : compact ? 'border-gray-200 dark:border-gray-700' : 'border-primary/30'
-        } focus-within:ring-2 focus-within:ring-primary focus-within:border-primary transition-all ${className}`}>
-             <div className="flex-1 flex flex-col justify-center items-center">
-                <input
-                    type="text"
-                    inputMode="numeric"
-                    pattern="[0-9]*"
-                    value={min}
-                    onChange={(e) => update(e.target.value, sec)}
-                    placeholder={placeholder || "0"}
-                    className={`w-full bg-transparent font-black tabular-nums text-gray-900 dark:text-white focus:outline-none text-center appearance-none ${compact ? 'text-base py-0' : 'text-3xl sm:text-4xl py-2'}`}
-                />
-                {!compact && <span className="text-[10px] font-black uppercase tracking-wider text-gray-400 dark:text-gray-500 leading-[1.2] pt-[0.1em]">Minuter</span>}
-             </div>
-             <span className={`text-primary font-black ${compact ? 'text-base' : 'text-3xl pb-3'}`}>:</span>
-             <div className="flex-1 flex flex-col justify-center items-center">
-                <input
-                    type="text"
-                    inputMode="numeric"
-                    pattern="[0-9]*"
-                    value={sec}
-                    onChange={(e) => update(min, e.target.value)}
-                    placeholder="00"
-                    className={`w-full bg-transparent font-black tabular-nums text-gray-900 dark:text-white focus:outline-none text-center appearance-none ${compact ? 'text-base py-0' : 'text-3xl sm:text-4xl py-2'}`}
-                />
-                {!compact && <span className="text-[10px] font-black uppercase tracking-wider text-gray-400 dark:text-gray-500 leading-[1.2] pt-[0.1em]">Sekunder</span>}
-             </div>
-        </div>
-    );
-};
-
-// --- DIPLOMA TITLES & COMPARISONS ---
-const DIPLOMA_TITLES = [
-    "SNYGGT JOBBAT!", "GRYMT KÖRT!", "VILKEN KÄMPE!", "STARKARE ÄN IGÅR!", "VÄRLDSKLASS!", 
-    "HELT OTROLIGT!", "DU ÄGDE PASSET!", "VILKEN INSATS!", "HELT MAGISKT!", "DU GJORDE DET!", 
-    "GE DIG SJÄLV EN HIGH-FIVE!", "PASSET ÄR DITT!", "EN RIKTIG SEGER!", "TOPPFORM!", "OJ OJ OJ!"
-];
-
-const getRandomDiplomaTitle = () => DIPLOMA_TITLES[Math.floor(Math.random() * DIPLOMA_TITLES.length)];
-
-const WEIGHT_COMPARISONS = [
-    { name: "Hamstrar", singular: "en Hamster", weight: 0.15, emoji: "🐹" },
-    { name: "Fotbollar", singular: "en Fotboll", weight: 0.45, emoji: "⚽" },
-    { name: "Ananasar", singular: "en Ananas", weight: 1, emoji: "🍍" },
-    { name: "Chihuahuas", singular: "en Chihuahua", weight: 2, emoji: "🐕" },
-    { name: "Katter", singular: "en Katt", weight: 5, emoji: "🐈" },
-    { name: "Bildäck", singular: "ett Bildäck", weight: 10, emoji: "🛞" },
-    { name: "Cyklar", singular: "en Cykel", weight: 15, emoji: "🚲" },
-    { name: "Golden Retrievers", singular: "en Golden Retriever", weight: 30, emoji: "🦮" },
-    { name: "Diskmaskiner", singular: "en Diskmaskin", weight: 50, emoji: "🍽️" },
-    { name: "Vuxna Män", singular: "en Genomsnittlig Man", weight: 80, emoji: "👨" },
-    { name: "Pandor", singular: "en Panda", weight: 120, emoji: "🐼" },
-    { name: "Gorillor", singular: "en Gorilla", weight: 180, emoji: "🦍" },
-    { name: "Lejon", singular: "ett Lejon", weight: 200, emoji: "🦁" },
-    { name: "Sibiriska Tigrar", singular: "en Sibirisk Tiger", weight: 300, emoji: "🐅" },
-    { name: "Konsertflyglar", singular: "en Konsertflygel", weight: 500, emoji: "🎹" },
-    { name: "Hästar", singular: "en Häst", weight: 500, emoji: "🐎" },
-    { name: "Giraffer", singular: "en Giraff", weight: 800, emoji: "🦒" },
-    { name: "Personbilar", singular: "en Personbil", weight: 1500, emoji: "🚘" },
-    { name: "Noshörningar", singular: "en Noshörning", weight: 2000, emoji: "🦏" },
-    { name: "Elefanter", singular: "en Elefant", weight: 5000, emoji: "🐘" },
-    { name: "T-Rex", singular: "en T-Rex", weight: 8000, emoji: "🦖" },
-    { name: "Skolbussar", singular: "en Skolbuss", weight: 12000, emoji: "🚌" },
-    { name: "Blåvalar", singular: "en Blåval", weight: 150000, emoji: "🐳" },
-    { name: "Boeing 747", singular: "en Boeing 747", weight: 400000, emoji: "✈️" },
-];
-
-const getFunComparison = (totalWeight: number) => {
-    if (totalWeight <= 0) return null;
-    const suitableComparisons = WEIGHT_COMPARISONS.filter(item => totalWeight >= item.weight);
-    if (suitableComparisons.length === 0) {
-        const item = WEIGHT_COMPARISONS[0];
-        return { count: (totalWeight / item.weight).toFixed(1), name: item.name, singular: item.singular, weight: item.weight, emoji: item.emoji };
-    }
-    const niceMatches = suitableComparisons.filter(item => {
-        const count = totalWeight / item.weight;
-        return count >= 1 && count <= 50;
-    });
-    let bestMatch = niceMatches.length > 0 ? niceMatches[Math.floor(Math.random() * niceMatches.length)] : suitableComparisons[suitableComparisons.length - 1];
-    const rawCount = totalWeight / bestMatch.weight;
-    const formattedCount = rawCount < 10 ? rawCount.toFixed(1) : Math.round(rawCount).toString();
-    return { count: formattedCount, name: bestMatch.name, single: bestMatch.singular, weight: bestMatch.weight, emoji: bestMatch.emoji };
-};
-
-const KROPPSKANSLA_TAGS = ["Pigg", "Stark", "Svag", "Trött", "Seg", "Stel", "Ont", "Stressad", "Taggad", "Bra musik", "Bra pepp", "Grymt pass"];
-const RPE_LEVELS = [
-    { range: '1-2', label: 'Mycket lätt', desc: 'Du kan sjunga eller prata helt obehindrat.', color: 'bg-emerald-500' },
-    { range: '3-4', label: 'Lätt', desc: 'Du börjar bli varm men kan fortfarande prata enkelt.', color: 'bg-green-500' },
-    { range: '5-6', label: 'Måttligt', desc: 'Du börjar bli djupt andfådd.', color: 'bg-yellow-500' },
-    { range: '7-8', label: 'Hårt', desc: 'Det är ansträngande. Du kan bara svara med enstaka ord.', color: 'bg-orange-500' },
-    { range: '9', label: 'Mycket hårt', desc: 'Nära ditt max. Du kan inte prata alls.', color: 'bg-red-500' },
-    { range: '10', label: 'Maximalt', desc: 'Absolut max. Du kan inte göra en enda rep till.', color: 'bg-black' },
-];
-
-const normalizeString = (str: string) => str.toLowerCase().trim().replace(/[^\w\såäöÅÄÖ]/g, ''); 
-
-const isExerciseMatch = (targetName: string, targetId: string, candidateName: string, candidateId: string | undefined): boolean => {
-    if (targetId && candidateId && targetId === candidateId) return true;
-    const nTarget = normalizeString(targetName);
-    const nCandidate = normalizeString(candidateName);
-    if (nTarget === nCandidate) return true;
-    if (nCandidate.includes(nTarget) && nTarget.length > 3) return true;
-    return false;
-};
-
-// --- Mission Header Component (Koncept 2) ---
-const MissionHeader: React.FC<{ strategy: string; feeling: 'good' | 'neutral' | 'bad' }> = ({ strategy, feeling }) => {
-    let gradient = "from-indigo-500 to-purple-600";
-    let icon = "⚡";
-    let title = "Dagens Mission";
-
-    if (feeling === 'good') {
-        gradient = "from-orange-500 to-red-600";
-        icon = "🔥";
-        title = "Attack Mode";
-    } else if (feeling === 'bad') {
-        gradient = "from-teal-500 to-emerald-600";
-        icon = "🛡️";
-        title = "Smart & Stabilt";
-    }
-
-    return (
-        <motion.div 
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className={`relative overflow-hidden rounded-2xl bg-gradient-to-r ${gradient} p-5 text-white shadow-md mb-6`}
-        >
-            <div className="relative z-10 flex items-start gap-4">
-                <div className="text-3xl bg-white/20 rounded-xl p-2 h-12 w-12 flex items-center justify-center backdrop-blur-xs shrink-0">
-                    {icon}
-                </div>
-                <div>
-                    <h3 className="font-black uppercase tracking-wider text-xs text-white/90 mb-1 leading-[1.2] pt-[0.1em]">{title}</h3>
-                    <p className="font-bold text-lg leading-tight text-white">{strategy}</p>
-                </div>
-            </div>
-            
-            {/* Background decoration */}
-            <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full blur-2xl -mr-10 -mt-10"></div>
-        </motion.div>
-    );
-};
-
-// --- Pre-Game Strategy View ---
-
-const PreGameView: React.FC<{
-    workoutTitle: string;
-    insight: InsightContent | null;
-    isGenerating: boolean;
-    onStart: () => void;
-    onCancel: () => void;
-    onFeelingChange: (feeling: 'good' | 'neutral' | 'bad') => void;
-    currentFeeling: 'good' | 'neutral' | 'bad' | null;
-}> = ({ workoutTitle, insight, isGenerating, onStart, onCancel, onFeelingChange, currentFeeling }) => {
-    
-    const displayStrategy = insight?.strategy || insight?.readiness?.message || "Laddar strategi...";
-    
-    let themeClass = "from-indigo-50 dark:from-indigo-900/20";
-    
-    if (currentFeeling === 'good') {
-        themeClass = "from-orange-100 dark:from-orange-900/20";
-    } else if (currentFeeling === 'bad') {
-        themeClass = "from-blue-100 dark:from-blue-900/20";
-    }
-
-    return (
-        <div className="flex flex-col h-full bg-white dark:bg-gray-900 text-gray-900 dark:text-white relative overflow-hidden animate-fade-in">
-            {/* Background Gradient */}
-            <div className={`absolute inset-0 bg-gradient-to-b ${themeClass} via-white/50 dark:via-gray-900/50 to-white dark:to-gray-900 z-0 transition-colors duration-500 pointer-events-none`}></div>
-            
-            {/* Scrollable Content Area */}
-            <div className="relative z-10 flex-1 overflow-y-auto p-6 scrollbar-hide">
-                <div className="flex justify-between items-start mb-6">
-                    <button onClick={onCancel} className="min-h-[44px] min-w-[44px] flex items-center justify-center text-gray-400 dark:text-white/50 hover:text-gray-900 dark:hover:text-white font-bold text-xs uppercase tracking-widest px-3 py-1 transition-all active:scale-95 leading-[1.2] pt-[0.1em]">Avbryt</button>
-                </div>
-                
-                <div className="text-center mb-8">
-                    <span className="inline-block py-1.5 px-3.5 rounded-full bg-primary/10 dark:bg-white/10 border border-primary/20 dark:border-white/20 text-xs font-black uppercase tracking-wider text-primary mb-4 leading-[1.2] pt-[0.1em]">Pre-Game Strategy</span>
-                    <h1 className="text-3xl font-black leading-[1.2] pt-[0.1em] mb-2 text-gray-900 dark:text-white uppercase tracking-tight">{workoutTitle}</h1>
-                    <p className="text-gray-500 dark:text-gray-400 text-sm font-medium">Din personliga plan för dagens pass</p>
-                </div>
-                
-                <div className="mb-8">
-                    <p className="text-center text-xs font-black uppercase text-gray-400 dark:text-gray-500 mb-3 tracking-wider leading-[1.2] pt-[0.1em]">Hur känns kroppen?</p>
-                    <div className="flex gap-3 justify-center">
-                        {['good', 'neutral', 'bad'].map((f) => (
-                            <button 
-                                key={f} 
-                                onClick={() => onFeelingChange(f as any)} 
-                                disabled={isGenerating}
-                                className={`min-h-[52px] min-w-[52px] p-4 rounded-2xl border-2 transition-all active:scale-95 focus:outline-none focus:ring-2 focus:ring-primary ${currentFeeling === f ? 'bg-white dark:bg-gray-800 border-primary scale-105 shadow-md z-10' : 'bg-white/50 dark:bg-gray-800/50 border-gray-200 dark:border-gray-700 hover:bg-white dark:hover:bg-gray-800'} ${isGenerating ? 'opacity-50 cursor-not-allowed' : ''}`}
-                            >
-                                <span className="text-2xl block">{f === 'good' ? '🔥' : f === 'bad' ? '🤕' : '🙂'}</span>
-                            </button>
-                        ))}
-                    </div>
-                    {!currentFeeling && !isGenerating && (
-                        <p className="text-center text-sm text-gray-400 dark:text-gray-500 mt-4 animate-pulse font-medium">Klicka på en emoji för att få din strategi</p>
-                    )}
-                    {isGenerating && (
-                        <p className="text-center text-sm text-primary mt-4 animate-pulse font-bold">Genererar din personliga strategi...</p>
-                    )}
-                </div>
-
-                {currentFeeling && insight && !isGenerating && (
-                    <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-xs border border-gray-100 dark:border-gray-700 rounded-2xl p-6 shadow-lg mb-6 transition-all animate-fade-in">
-                        <div className="flex items-start gap-4 mb-6">
-                            <div className={`w-12 h-12 rounded-xl bg-gradient-to-br flex items-center justify-center flex-shrink-0 shadow-md ${currentFeeling === 'good' ? 'from-orange-500 to-red-600' : currentFeeling === 'bad' ? 'from-green-500 to-blue-600' : 'from-indigo-500 to-purple-600'}`}>
-                                <SparklesIcon className="w-6 h-6 text-white" />
-                            </div>
-                            <div>
-                                <h3 className="font-black text-lg text-gray-900 dark:text-white mb-1 uppercase tracking-tight leading-[1.2] pt-[0.1em]">Dagens Fokus</h3>
-                                <p className="text-sm text-gray-600 dark:text-gray-300 leading-relaxed font-medium italic">"{displayStrategy}"</p>
-                            </div>
-                        </div>
-                        
-                        <div className="space-y-4">
-                            {insight?.suggestions && Object.keys(insight.suggestions).length > 0 && (
-                                <div className={`p-4 rounded-xl border ${currentFeeling === 'good' ? 'bg-orange-50 dark:bg-orange-900/10 border-orange-200 dark:border-orange-800/30' : 'bg-gray-50 dark:bg-gray-900/30 border-gray-100 dark:border-gray-700'}`}>
-                                    <h4 className={`text-xs font-black uppercase tracking-wider mb-3 flex items-center gap-2 leading-[1.2] pt-[0.1em] ${currentFeeling === 'good' ? 'text-orange-600 dark:text-orange-400' : 'text-gray-400 dark:text-gray-500'}`}>
-                                        {currentFeeling === 'good' && <FireIcon className="w-4 h-4" />}
-                                        Smart Load (Dina resultatmål)
-                                    </h4>
-                                    <div className="space-y-2">
-                                        {Object.entries(insight.suggestions).slice(0, 3).map(([exercise, suggestion]) => (
-                                            <div key={exercise} className="flex justify-between items-center bg-white dark:bg-black/20 p-2.5 rounded-lg border border-gray-100 dark:border-white/5">
-                                                <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">{exercise}</span>
-                                                <span className={`text-sm font-black tabular-nums ${currentFeeling === 'good' ? 'text-orange-600 dark:text-orange-400' : 'text-primary'}`}>{String(suggestion)}</span>
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
-                            )}
-                            
-                            {insight?.scaling && Object.keys(insight.scaling).length > 0 && (
-                                <div className="mt-4">
-                                    <h4 className="text-xs font-black text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-2 flex items-center gap-1 leading-[1.2] pt-[0.1em]">
-                                        <LightningIcon className="w-3 h-3" /> Alternativ / Skalning
-                                    </h4>
-                                    <div className="space-y-2">
-                                        {Object.entries(insight.scaling).map(([exercise, alternative]) => (
-                                            <div key={exercise} className="bg-white/50 dark:bg-white/5 p-3 rounded-xl border border-gray-100 dark:border-white/5">
-                                                <div className="text-xs text-gray-500 line-through mb-0.5">{exercise}</div>
-                                                <div className="text-sm font-bold text-gray-900 dark:text-white">👉 {String(alternative)}</div>
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
-                            )}
-                        </div>
-                    </div>
-                )}
-
-                {/* --- START BUTTON IN SCROLL FLOW --- */}
-                <div className="mt-8 pb-12">
-                    <button onClick={onStart} className="w-full min-h-[52px] bg-primary hover:brightness-110 text-white font-black text-lg py-4 rounded-xl shadow-lg shadow-primary/20 transition-all transform active:scale-95 flex items-center justify-center gap-2 focus:ring-2 focus:ring-primary uppercase tracking-tight">
-                        <span className="leading-[1.2] pt-[0.1em]">Starta passet</span>
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                            <path fillRule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clipRule="evenodd" />
-                        </svg>
-                    </button>
-                </div>
-            </div>
-        </div>
-    );
-};
-
-const GROUP_COLORS = [
-    { bg: 'bg-blue-500', border: 'border-blue-500', text: 'text-blue-500', lightBg: 'bg-blue-50 dark:bg-blue-900/20', lightBorder: 'border-blue-200 dark:border-blue-800' },
-    { bg: 'bg-pink-500', border: 'border-pink-500', text: 'text-pink-500', lightBg: 'bg-pink-50 dark:bg-pink-900/20', lightBorder: 'border-pink-200 dark:border-pink-800' },
-    { bg: 'bg-lime-500', border: 'border-lime-500', text: 'text-lime-500', lightBg: 'bg-lime-50 dark:bg-lime-900/20', lightBorder: 'border-lime-200 dark:border-lime-800' },
-    { bg: 'bg-orange-500', border: 'border-orange-500', text: 'text-orange-500', lightBg: 'bg-orange-50 dark:bg-orange-900/20', lightBorder: 'border-orange-200 dark:border-orange-800' },
-    { bg: 'bg-purple-500', border: 'border-purple-500', text: 'text-purple-500', lightBg: 'bg-purple-50 dark:bg-purple-900/20', lightBorder: 'border-purple-200 dark:border-purple-800' },
-];
-
-const GRID_COLS_MAP: Record<number, string> = {
-    1: 'grid-cols-[36px_repeat(1,_1fr)_40px_48px]',
-    2: 'grid-cols-[36px_repeat(2,_1fr)_40px_48px]',
-    3: 'grid-cols-[36px_repeat(3,_1fr)_40px_48px]',
-    4: 'grid-cols-[36px_repeat(4,_1fr)_40px_48px]',
-    5: 'grid-cols-[36px_repeat(5,_1fr)_40px_48px]',
-};
-
-export const ExerciseLogCard: React.FC<{
-  name: string;
-  result: LocalExerciseResult;
-  onUpdate: (updates: Partial<LocalExerciseResult>) => void;
-  onRemove?: () => void;
-  aiSuggestion?: string; // Koncept 1: Coach Whisper
-  scaling?: string;      // Koncept 1: Alternativ
-  lastPerformance?: LastPerformanceRecord | null;
-  personalBest?: PersonalBest | null;
-  isLastInGroup?: boolean;
-  onAddGroupSet?: () => void;
-  onOpenCalculator?: (context: { exerciseName: string, current1RM?: number }) => void;
-}> = ({ name, result, onUpdate, onRemove, aiSuggestion, scaling, lastPerformance, personalBest, isLastInGroup, onAddGroupSet, onOpenCalculator }) => {
-    
-    const trackingFields = result.trackingFields || ['reps', 'weight'];
-    const showReps = trackingFields.includes('reps');
-    const showWeight = trackingFields.includes('weight');
-    const showTime = trackingFields.includes('time');
-    const showDistance = trackingFields.includes('distance');
-    const showKcal = trackingFields.includes('kcal');
-
-    const dynamicColsCount = [showReps, showWeight, showTime, showDistance, showKcal].filter(Boolean).length;
-    const gridColsClass = GRID_COLS_MAP[dynamicColsCount] || 'grid-cols-[36px_repeat(2,_1fr)_40px_48px]';
-
-    // Extract tailwind color classes from groupColor (e.g. "bg-pink-500")
-    const groupColorObj = result.groupColor ? GROUP_COLORS.find(c => c.bg === result.groupColor) : null;
-    const borderColorClass = groupColorObj ? groupColorObj.border : 'border-gray-100 dark:border-gray-800';
-    const textColorClass = groupColorObj ? groupColorObj.text : 'text-primary';
-    const lightBgClass = groupColorObj ? groupColorObj.lightBg : 'bg-primary/5';
-    const lightBorderClass = groupColorObj ? groupColorObj.lightBorder : 'border-primary/20';
-
-    const handleSetChange = (index: number, field: keyof LocalSetDetail, value: string) => {
-        const newSets = [...result.setDetails];
-        newSets[index] = { ...newSets[index], [field]: value };
-        onUpdate({ setDetails: newSets });
-    };
-
-    const handleToggleComplete = (index: number) => {
-         if (window.navigator.vibrate) {
-             window.navigator.vibrate(result.setDetails[index].completed ? 5 : 15);
-         }
-         
-         const newSets = [...result.setDetails];
-         newSets[index] = { ...newSets[index], completed: !newSets[index].completed };
-         onUpdate({ setDetails: newSets });
-    }
-
-    const handleAddSet = () => {
-        const lastSet = result.setDetails[result.setDetails.length - 1];
-        const newSet = lastSet ? { ...lastSet, completed: false } : { weight: '', reps: '', time: '', distance: '', kcal: '', completed: false };
-        onUpdate({ setDetails: [...result.setDetails, newSet] });
-    };
-
-    const handleRemoveSet = (index: number) => {
-        if (result.setDetails.length <= 1) return;
-        onUpdate({ setDetails: result.setDetails.filter((_, i) => i !== index) });
-    };
-
-    const [showTip, setShowTip] = useState(true);
-    const [showScaling, setShowScaling] = useState(false);
-    const [isEditingFields, setIsEditingFields] = useState(false);
-    const [showMoreFields, setShowMoreFields] = useState(false);
-    const [isNoteActive, setIsNoteActive] = useState(true);
-    const [isNoteExpanded, setIsNoteExpanded] = useState(false);
-
-    const ALL_TRACKING_FIELDS = [
-        { id: 'reps', label: 'Reps' },
-        { id: 'weight', label: 'Vikt' },
-        { id: 'time', label: 'Tid' },
-        { id: 'distance', label: 'Distans' },
-        { id: 'kcal', label: 'Kcal' },
-    ] as const;
-
-    const inactiveFields = ALL_TRACKING_FIELDS.filter(f => !trackingFields.includes(f.id));
-
-    const toggleField = (field: 'reps' | 'weight' | 'time' | 'distance' | 'kcal') => {
-        const current = [...trackingFields];
-        const has = current.includes(field);
-        if (has) {
-            if (current.length <= 1) return; // Block unchecking the last field
-            onUpdate({ trackingFields: current.filter(f => f !== field) });
-        } else {
-            onUpdate({ trackingFields: [...current, field] });
-        }
-    };
-
-    return (
-        <div className={`bg-white dark:bg-gray-900 rounded-2xl p-4 mb-1 border shadow-sm transition-all ${result.groupColor ? `border-l-4 ${borderColorClass} border-y-gray-100 border-r-gray-100 dark:border-y-gray-800 dark:border-r-gray-800` : 'border-gray-100 dark:border-gray-800'}`}>
-            <div className="flex flex-col gap-2 mb-4">
-                <div className="flex justify-between items-center">
-                    <div className="flex-1 min-w-0">
-                        <h4 className="font-black text-gray-900 dark:text-white text-xl truncate leading-[1.2] pt-[0.1em]">{name}</h4>
-                        {(() => {
-                            const formatted = formatLastPerformance(lastPerformance);
-                            if (formatted) {
-                                return (
-                                    <div className="inline-flex items-center gap-1.5 bg-gray-100/80 dark:bg-gray-800/80 border border-gray-200/60 dark:border-gray-700/60 px-2.5 py-1 rounded-lg mt-1.5 text-xs font-medium text-gray-500 dark:text-gray-400">
-                                        <span className="text-[10px] font-black uppercase tracking-wider text-gray-400 dark:text-gray-500 leading-[1.2] pt-[0.1em]">Senast:</span>
-                                        <span className="text-gray-900 dark:text-white font-black tabular-nums">
-                                            {formatted}
-                                        </span>
-                                    </div>
-                                );
-                            }
-                            return (
-                                <p className="text-[11px] text-gray-400 dark:text-gray-500 uppercase font-black tracking-wider mt-1.5 leading-[1.2] pt-[0.1em]">
-                                   Ingen historik
-                                </p>
-                            );
-                        })()}
-                    </div>
-                    {/* Gear / Edit / Delete buttons */}
-                    <div className="flex items-center gap-2">
-                        {onOpenCalculator && (
-                            <button 
-                                onClick={() => {
-                                    let estimatedOneRM: number | undefined = undefined;
-                                    if (personalBest) {
-                                        if (personalBest.calculated1RM !== undefined) {
-                                            estimatedOneRM = personalBest.calculated1RM > 0 ? personalBest.calculated1RM : undefined;
-                                        } else if (personalBest.weight > 0) {
-                                            estimatedOneRM = calculate1RM(personalBest.weight, personalBest.reps || 1) || undefined;
-                                        }
-                                    } else if (lastPerformance) {
-                                        const lastWeight = parseFloat(lastPerformance.weight as any) || 0;
-                                        const lastReps = parseFloat(lastPerformance.reps as any) || 0;
-                                        if (lastWeight > 0 && lastReps > 0 && lastReps <= 10) {
-                                            estimatedOneRM = calculate1RM(lastWeight, lastReps) || undefined;
-                                        }
-                                    }
-                                    onOpenCalculator({ exerciseName: name, current1RM: estimatedOneRM });
-                                }}
-                                className="p-3 rounded-2xl transition-all active:scale-90 bg-gray-50 dark:bg-gray-800 text-primary hover:bg-primary/20 dark:hover:bg-primary/20 shadow-sm"
-                            >
-                                <CalculatorIcon className="w-5 h-5" />
-                            </button>
-                        )}
-                        <button 
-                            onClick={() => setIsEditingFields(!isEditingFields)}
-                            className={`p-3 rounded-2xl transition-all active:scale-90 shadow-sm ${isEditingFields ? 'bg-primary/10 text-primary' : 'bg-gray-50 dark:bg-gray-800 text-gray-400 hover:text-gray-650 dark:hover:text-gray-200'}`}
-                        
-                        >
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                            </svg>
-                        </button>
-                        {onRemove && (
-                            <button 
-                                onClick={onRemove}
-                                className="p-3 rounded-2xl bg-gray-50 dark:bg-gray-800 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 transition-all active:scale-90 shadow-sm"
-                            >
-                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"></path><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path></svg>
-                            </button>
-                        )}
-                    </div>
-                </div>
-
-                {inactiveFields.length > 0 && !isEditingFields && (
-                    <div className="mt-1">
-                        {!showMoreFields ? (
-                            <button
-                                type="button"
-                                onClick={() => setShowMoreFields(true)}
-                                className="inline-flex items-center gap-1 text-[11px] font-extrabold text-gray-400 dark:text-gray-500 hover:text-primary dark:hover:text-primary-light bg-gray-50/80 dark:bg-gray-800/80 hover:bg-primary/10 px-2.5 py-1 rounded-full transition-all border border-gray-150 dark:border-gray-700/60 active:scale-95"
-                            >
-                                <PlusIcon className="w-3 h-3" />
-                                <span>+ fler fält</span>
-                            </button>
-                        ) : (
-                            <div className="flex items-center gap-1.5 flex-wrap p-2 bg-gray-50 dark:bg-gray-800/60 rounded-xl border border-gray-150 dark:border-gray-700/80 animate-fade-in">
-                                <span className="text-[10px] font-extrabold uppercase tracking-widest text-gray-400 mr-1">Lägg till:</span>
-                                {inactiveFields.map(f => (
-                                    <button
-                                        key={f.id}
-                                        type="button"
-                                        onClick={() => {
-                                            toggleField(f.id as any);
-                                            if (inactiveFields.length <= 1) {
-                                                setShowMoreFields(false);
-                                            }
-                                        }}
-                                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 text-primary dark:text-primary-light hover:bg-primary hover:text-white transition-all shadow-2xs active:scale-95"
-                                    >
-                                        <PlusIcon className="w-3 h-3" />
-                                        {f.label}
-                                    </button>
-                                ))}
-                                <button
-                                    type="button"
-                                    onClick={() => setShowMoreFields(false)}
-                                    className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 ml-1 rounded-lg"
-                                    title="Dölj"
-                                >
-                                    <CloseIcon className="w-3.5 h-3.5" />
-                                </button>
-                            </div>
-                        )}
-                    </div>
-                )}
-
-                {isEditingFields && (
-                    <div className="flex flex-wrap gap-2 mt-2 p-3 bg-gray-50 dark:bg-gray-800/50 rounded-xl border border-gray-100 dark:border-gray-800">
-                        <div className="w-full text-[10px] font-black uppercase tracking-widest text-gray-500 mb-1">Välj fält att logga</div>
-                        {[
-                            { id: 'reps', label: 'Reps' },
-                            { id: 'weight', label: 'Vikt' },
-                            { id: 'time', label: 'Tid' },
-                            { id: 'distance', label: 'Distans' },
-                            { id: 'kcal', label: 'Kcal' },
-                        ].map(f => (
-                            <button
-                                key={f.id}
-                                onClick={() => toggleField(f.id as any)}
-                                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
-                                    trackingFields.includes(f.id as any) 
-                                        ? 'bg-primary text-white shadow-sm' 
-                                        : 'bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:border-gray-300 dark:hover:border-gray-600'
-                                 }`}
-                            >
-                                {f.label}
-                            </button>
-                        ))}
-                    </div>
-                )}
-
-                {/* Koncept 1: Coach Whisper & Scaling */}
-                {(aiSuggestion || scaling) && (
-                    <div className="flex flex-col gap-2">
-                        {scaling && (
-                            <div className="relative">
-                                <button 
-                                    onClick={() => setShowScaling(!showScaling)}
-                                    className="flex items-center gap-2 text-yellow-700 dark:text-yellow-400 text-xs font-bold bg-yellow-50/70 dark:bg-yellow-950/20 px-3 py-1.5 rounded-lg hover:bg-yellow-100 dark:hover:bg-yellow-900/40 transition-colors w-full sm:w-auto"
-                                >
-                                    <LightningIcon className="w-3.5 h-3.5" />
-                                    <span>{showScaling ? 'Dölj alternativ' : 'Visa alternativ'}</span>
-                                </button>
-                                <AnimatePresence>
-                                    {showScaling && (
-                                        <motion.div 
-                                            initial={{ opacity: 0, height: 0 }}
-                                            animate={{ opacity: 1, height: 'auto' }}
-                                            exit={{ opacity: 0, height: 0 }}
-                                            className="overflow-hidden"
-                                        >
-                                            <div className="mt-2 flex items-center gap-2 bg-yellow-50 dark:bg-yellow-900/20 px-3 py-2 rounded-lg border border-yellow-100 dark:border-yellow-800/30">
-                                                <LightningIcon className="w-4 h-4 text-yellow-600 dark:text-yellow-400 flex-shrink-0" />
-                                                <p className="text-xs text-yellow-800 dark:text-yellow-200 font-medium leading-tight">
-                                                    <span className="font-bold">Alternativ:</span> {scaling}
-                                                </p>
-                                            </div>
-                                        </motion.div>
-                                    )}
-                                </AnimatePresence>
-                            </div>
-                        )}
-                        
-                        {aiSuggestion && (
-                            <div className="relative">
-                                <button 
-                                    onClick={() => setShowTip(!showTip)}
-                                    className="flex items-center gap-2 text-indigo-600 dark:text-indigo-400 text-xs font-bold bg-indigo-50 dark:bg-indigo-900/20 px-3 py-1.5 rounded-lg hover:bg-indigo-100 dark:hover:bg-indigo-900/40 transition-colors w-full sm:w-auto"
-                                >
-                                    <SparklesIcon className="w-3.5 h-3.5" />
-                                    <span>{showTip ? 'Dölj coachtips' : 'Visa coachtips'}</span>
-                                </button>
-                                <AnimatePresence>
-                                    {showTip && (
-                                        <motion.div 
-                                            initial={{ opacity: 0, height: 0 }}
-                                            animate={{ opacity: 1, height: 'auto' }}
-                                            exit={{ opacity: 0, height: 0 }}
-                                            className="overflow-hidden"
-                                        >
-                                            <div className="mt-2 bg-white dark:bg-black/20 p-3 rounded-lg border border-indigo-100 dark:border-indigo-800/30 text-xs text-gray-700 dark:text-gray-300 italic shadow-sm">
-                                                "{aiSuggestion}"
-                                            </div>
-                                        </motion.div>
-                                    )}
-                                </AnimatePresence>
-                            </div>
-                        )}
-                    </div>
-                )}
-            </div>
-
-            <div className="space-y-4">
-                <div className="space-y-2">
-                    <div className={`grid ${gridColsClass} gap-2 px-1 text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider`}>
-                        <div className="text-center">Set</div>
-                        {showReps && <div className="text-center">Reps</div>}
-                        {showWeight && <div className="text-center">Vikt</div>}
-                        {showTime && <div className="text-center">Tid</div>}
-                        {showDistance && <div className="text-center">Distans</div>}
-                        {showKcal && <div className="text-center">Kcal</div>}
-                        <div></div>
-                        <div className="text-center">Klar</div>
-                    </div>
-
-                    {result.setDetails.map((set, index) => {
-                        const oneRm = (showWeight && showReps) ? calculate1RM(set.weight, set.reps) : null;
-                        return (
-                            <div key={index} className={`grid ${gridColsClass} gap-2 items-center transition-all ${set.completed ? 'opacity-50' : 'opacity-100'}`}>
-                                <div className="flex justify-center items-center">
-                                    <span className={`text-sm font-black rounded-full w-8 h-8 flex items-center justify-center transition-colors shadow-sm ${set.completed ? 'bg-green-100 dark:bg-green-900/30 text-green-600' : 'bg-gray-100 dark:bg-gray-800 text-gray-500'}`}>{index + 1}</span>
-                                </div>
-                                
-                                {showReps && (
-                                    <div className="bg-gray-50 dark:bg-gray-800 rounded-xl p-3.5 border border-gray-100 dark:border-gray-700 shadow-inner">
-                                        <input type="text" inputMode="numeric" value={set.reps} onChange={(e) => handleSetChange(index, 'reps', e.target.value)} placeholder="0" className="w-full bg-transparent text-gray-900 dark:text-white font-black text-xl focus:outline-none text-center" disabled={set.completed} />
-                                    </div>
-                                )}
-                                
-                                {showWeight && (
-                                    <div className="relative">
-                                        <div className="bg-gray-50 dark:bg-gray-800 rounded-xl p-3.5 border border-gray-100 dark:border-gray-700 shadow-inner">
-                                            <input type="number" value={set.weight} onChange={(e) => handleSetChange(index, 'weight', e.target.value)} placeholder="0" className="w-full bg-transparent text-gray-900 dark:text-white font-black text-xl focus:outline-none text-center" disabled={set.completed} />
-                                        </div>
-                                        {oneRm && !set.completed && (
-                                            <motion.div 
-                                                initial={{ scale: 0.8, opacity: 0, y: 5 }}
-                                                animate={{ scale: 1, opacity: 1, y: 0 }}
-                                                exit={{ scale: 0.8, opacity: 0 }}
-                                                className="absolute -top-9 left-1/2 -translate-x-1/2 bg-gray-900 text-white text-xs font-black px-3 py-1.5 rounded-xl shadow-xl border border-gray-700 whitespace-nowrap z-20 pointer-events-none"
-                                            >
-                                                🔥 1RM: <span className="text-yellow-400">{oneRm}</span>
-                                            </motion.div>
-                                        )}
-                                    </div>
-                                )}
-
-                                {showTime && (
-                                    <div className="bg-gray-50 dark:bg-gray-800 rounded-xl p-3.5 border border-gray-100 dark:border-gray-700 shadow-inner">
-                                        <input type="number" value={set.time || ''} onChange={(e) => handleSetChange(index, 'time', e.target.value)} placeholder="0" className="w-full bg-transparent text-gray-900 dark:text-white font-black text-xl focus:outline-none text-center" disabled={set.completed} />
-                                    </div>
-                                )}
-
-                                {showDistance && (
-                                    <div className="bg-gray-50 dark:bg-gray-800 rounded-xl p-3.5 border border-gray-100 dark:border-gray-700 shadow-inner">
-                                        <input type="number" value={set.distance || ''} onChange={(e) => handleSetChange(index, 'distance', e.target.value)} placeholder="0" className="w-full bg-transparent text-gray-900 dark:text-white font-black text-xl focus:outline-none text-center" disabled={set.completed} />
-                                    </div>
-                                )}
-
-                                {showKcal && (
-                                    <div className="bg-gray-50 dark:bg-gray-800 rounded-xl p-3.5 border border-gray-100 dark:border-gray-700 shadow-inner">
-                                        <input type="number" value={set.kcal || ''} onChange={(e) => handleSetChange(index, 'kcal', e.target.value)} placeholder="0" className="w-full bg-transparent text-gray-900 dark:text-white font-black text-xl focus:outline-none text-center" disabled={set.completed} />
-                                    </div>
-                                )}
-
-                                <div className="flex justify-center">
-                                    {result.setDetails.length > 1 && (
-                                        <button 
-                                            onClick={() => handleRemoveSet(index)} 
-                                            className="w-10 h-10 rounded-xl bg-gray-50 dark:bg-gray-800 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 flex items-center justify-center p-2 active:scale-95 transition-all shadow-sm" 
-                                            disabled={set.completed}
-                                        >
-                                            <CloseIcon className="w-5 h-5" />
-                                        </button>
-                                    )}
-                                </div>
-                                <div className="flex justify-center">
-                                    <button 
-                                        onClick={() => handleToggleComplete(index)} 
-                                        className={`w-11 h-11 rounded-xl flex items-center justify-center transition-all shadow-md transform active:scale-90 ${set.completed ? 'bg-green-600 text-white' : 'bg-gray-50 dark:bg-gray-800 text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'}`}
-                                    >
-                                        {set.completed ? <CheckIcon className="w-6 h-6" /> : <div className="w-3.5 h-3.5 rounded-full border-2 border-current opacity-45" />}
-                                    </button>
-                                </div>
-                            </div>
-                        );
-                    })}
-                    {(!result.groupId) && (
-                        <button onClick={handleAddSet} className="w-full mt-3 py-3.5 flex items-center justify-center gap-2 text-sm font-black text-primary bg-primary/10 hover:bg-primary/15 rounded-xl transition-all border border-primary/30 border-dashed shadow-sm"><PlusIcon className="w-4 h-4" /> Lägg till set</button>
-                    )}
-                    {(result.groupId && isLastInGroup && onAddGroupSet) && (
-                        <button 
-                            onClick={onAddGroupSet} 
-                            className={`w-full mt-3 py-3.5 flex items-center justify-center gap-2 text-sm font-black rounded-xl transition-all border border-dashed shadow-sm ${textColorClass} ${lightBorderClass} ${lightBgClass}`}
-                        >
-                            <PlusIcon className="w-4 h-4" /> Lägg till set för gruppen
-                        </button>
-                    )}
-                </div>
-                
-                {/* Anteckningar för övningen */}
-                {isNoteActive && (
-                    <AnimatePresence initial={false} mode="wait">
-                        {isNoteExpanded ? (
-                            <motion.div 
-                                key="expanded"
-                                initial={{ height: 0, opacity: 0 }}
-                                animate={{ height: "auto", opacity: 1 }}
-                                exit={{ height: 0, opacity: 0 }}
-                                className="pt-3 border-t border-gray-100 dark:border-gray-800 overflow-hidden"
-                            >
-                                {lastPerformance?.note && (
-                                    <div className="mb-3 bg-blue-50/50 dark:bg-blue-900/10 p-4 rounded-xl border border-blue-100/50 dark:border-blue-800/30 shadow-sm">
-                                        <span className="block text-xs font-bold uppercase tracking-wider text-blue-500 dark:text-blue-400 mb-1">Anteckning:</span>
-                                        <p className="text-sm text-blue-900/80 dark:text-blue-200/80 italic leading-relaxed">
-                                            "{lastPerformance.note}"
-                                        </p>
-                                    </div>
-                                )}
-                                <div className="flex justify-between items-center pl-1 mb-2">
-                                    <label className="block text-xs font-bold text-gray-550 dark:text-gray-400 uppercase tracking-widest">Din anteckning</label>
-                                    <button 
-                                        onClick={() => setIsNoteExpanded(false)}
-                                        className="text-gray-400 hover:text-gray-650 dark:hover:text-gray-200 p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-850 transition-all flex items-center justify-center active:scale-95"
-                                        title="Fäll ihop"
-                                    >
-                                        <span className="transform rotate-180 block text-gray-400 dark:text-gray-500">
-                                            <ChevronDownIcon className="w-5 h-5 stroke-[2.5]" />
-                                        </span>
-                                    </button>
-                                </div>
-                                <textarea 
-                                    value={result.note || ''} 
-                                    onChange={(e) => onUpdate({ note: e.target.value })}
-                                    placeholder="Lägg till en kommentar..."
-                                    className="w-full bg-gray-50/50 dark:bg-gray-800/50 text-sm text-gray-900 dark:text-gray-100 p-4 rounded-2xl border border-gray-100 dark:border-gray-800 focus:outline-none focus:border-primary/55 focus:ring-1 focus:ring-primary/55 transition-all resize-none min-h-[85px] shadow-sm font-medium"
-                                />
-                            </motion.div>
-                        ) : (
-                            <motion.div 
-                                key="collapsed"
-                                initial={{ opacity: 0 }}
-                                animate={{ opacity: 1 }}
-                                exit={{ opacity: 0 }}
-                                className="pt-3 border-t border-dashed border-gray-100 dark:border-gray-800"
-                            >
-                                <button 
-                                    onClick={() => setIsNoteExpanded(true)}
-                                    className="w-full flex justify-between items-center pl-1 group focus:outline-none"
-                                >
-                                    <span className="text-xs font-bold text-gray-550 dark:text-gray-400 uppercase tracking-widest group-hover:text-primary transition-colors flex items-center gap-1.5">
-                                        Anteckning
-                                        {result.note && <span className="w-2 h-2 bg-amber-500 rounded-full" />}
-                                    </span>
-                                    <span className="text-gray-400 dark:text-gray-500 group-hover:text-primary transition-colors p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-850 flex items-center justify-center active:scale-95 transition-all">
-                                        <ChevronDownIcon className="w-5 h-5 stroke-[2.5]" />
-                                    </span>
-                                </button>
-                            </motion.div>
-                        )}
-                    </AnimatePresence>
-                )}
-            </div>
-        </div>
-    );
-};
-
-const CustomActivityForm: React.FC<{
-  activityName: string; duration: string; distance: string; calories: string; onUpdate: (field: string, value: string) => void; isQuickMode?: boolean; hasExercises?: boolean; organizationConfig?: any; attemptedSubmit?: boolean;
-}> = ({ activityName, duration, distance, calories, onUpdate, isQuickMode, hasExercises, organizationConfig, attemptedSubmit }) => {
-    const [isExpanded, setIsExpanded] = useState(!hasExercises);
-    const commonActivities = organizationConfig?.commonActivities || ["Funktionell Träning", "HIIT", "Löpning", "Promenad", "Workout", "Yoga", "Cykling", "Simning", "Racketsport", "Vardagsmotion", "Styrketräning"];
-
-    useEffect(() => {
-        setIsExpanded(!hasExercises);
-    }, [hasExercises]);
-
-    const isNameInvalid = !!(attemptedSubmit && !hasExercises && activityName.trim() === '');
-    const isDurationInvalid = !!(attemptedSubmit && !hasExercises && (duration.trim() === '' || duration.trim() === '0' || duration.trim() === '00:00'));
-
-    if (hasExercises && !isExpanded) {
-        return (
-            <div className="py-2 animate-fade-in">
-                <button 
-                    onClick={() => setIsExpanded(true)}
-                    className="w-full bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 shadow-sm p-4 rounded-3xl flex items-center justify-between text-left transition-all active:scale-95"
-                >
-                    <div>
-                        <h3 className="text-sm font-black text-gray-800 dark:text-gray-200 uppercase tracking-widest">Generell Aktivitet</h3>
-                        <p className="text-xs text-gray-500 font-medium mt-1">
-                            Frivilligt: Ange namn, konditionstid eller distans för passet
-                        </p>
-                    </div>
-                    <div className="w-8 h-8 rounded-full bg-gray-50 dark:bg-gray-800 flex items-center justify-center text-gray-400">
-                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                        </svg>
-                    </div>
-                </button>
-            </div>
-        );
-    }
-
-    return (
-        <div className="space-y-6 py-2 animate-fade-in">
-            <div className="bg-white dark:bg-gray-900 p-5 rounded-[2rem] border border-gray-100 dark:border-gray-800 shadow-sm relative">
-                {hasExercises && (
-                    <button 
-                        onClick={() => setIsExpanded(false)}
-                        className="absolute top-4 right-4 w-8 h-8 rounded-full bg-gray-50 dark:bg-gray-800 flex items-center justify-center text-gray-400 hover:text-gray-650 dark:hover:text-gray-200 transition-colors"
-                    >
-                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
-                        </svg>
-                    </button>
-                )}
-                
-                {!isQuickMode && (
-                    <>
-                        <h3 className="text-xs font-extrabold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-4">Vanliga aktiviteter</h3>
-                        <div className="flex flex-wrap gap-2.5">
-                            {commonActivities.map((act: string) => (
-                                <button key={act} onClick={() => onUpdate('name', act)} className={`px-4.5 py-3 rounded-2xl text-sm font-extrabold border-2 transition-all active:scale-95 ${activityName === act ? 'bg-primary border-primary text-white shadow-lg shadow-primary/20 scale-102 font-black' : 'bg-gray-50 dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-transparent hover:bg-gray-100 dark:hover:bg-gray-700'}`}>{act}</button>
-                            ))}
-                        </div>
-                    </>
-                )}
-                <div className={`mt-4 space-y-5 ${isQuickMode ? 'mt-0' : 'mt-8'}`}>
-                    <div>
-                        <label className="block text-xs font-extrabold text-gray-400 dark:text-gray-500 uppercase tracking-widest pl-1 mb-2">Aktivitet {!hasExercises && '*'}</label>
-                        <input value={activityName} onChange={(e) => onUpdate('name', e.target.value)} placeholder={hasExercises ? "T.ex. Funktionellt (Frivilligt)" : "T.ex. Powerwalk"} disabled={isQuickMode} className={`w-full text-xl font-black text-gray-900 dark:text-white focus:outline-none bg-gray-50 dark:bg-gray-800/50 p-4 rounded-2xl border-2 shadow-sm focus:ring-2 transition-all ${
-                            isNameInvalid 
-                                ? 'border-red-500 focus:ring-red-500 shadow-sm shadow-red-500/10 focus:border-red-500' 
-                                : 'border-gray-100 dark:border-gray-700 focus:ring-primary'
-                        } ${isQuickMode ? 'opacity-70' : ''}`} />
-                        {isNameInvalid && (
-                            <p className="text-red-500 dark:text-red-400 text-xs font-bold pl-1 mt-1.5 flex items-center gap-1 animate-fade-in">
-                                <span>●</span> Du måste ange aktivitetens namn (t.ex. Powerwalk).
-                            </p>
-                        )}
-                    </div>
-                    <div>
-                        <label className="block text-xs font-extrabold text-gray-400 dark:text-gray-500 uppercase tracking-widest pl-1 mb-2">Tid (min:sek) {!hasExercises && '*'}</label>
-                        <TimeInput value={duration} onChange={(val) => onUpdate('duration', val)} placeholder="60" className="w-full" error={isDurationInvalid} />
-                        {isDurationInvalid && (
-                            <p className="text-red-500 dark:text-red-400 text-xs font-bold pl-1 mt-1.5 flex items-center gap-1 animate-fade-in">
-                                <span>●</span> Du måste ange en tid i minuter (t.ex. 45).
-                            </p>
-                        )}
-                    </div>
-                    <div className="grid grid-cols-2 gap-4">
-                        <div>
-                            <label className="block text-xs font-extrabold text-gray-400 dark:text-gray-500 uppercase tracking-widest pl-1 mb-2">Kcal</label>
-                            <input type="number" value={calories} onChange={(e) => onUpdate('calories', e.target.value)} placeholder="T.ex. 350" className="w-full font-black text-xl text-gray-900 dark:text-white focus:outline-none bg-gray-50 dark:bg-gray-800/50 p-4 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm" />
-                        </div>
-                        <div>
-                            <label className="block text-xs font-extrabold text-gray-400 dark:text-gray-500 uppercase tracking-widest pl-1 mb-2">Distans (km)</label>
-                            <input type="number" value={distance} onChange={(e) => onUpdate('distance', e.target.value)} placeholder="T.ex. 5.3" className="w-full font-black text-xl text-gray-900 dark:text-white focus:outline-none bg-gray-50 dark:bg-gray-800/50 p-4 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm" />
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    );
-};
-
-const PostWorkoutForm: React.FC<{ data: LogData; onUpdate: (updates: Partial<LogData>) => void; userId?: string; isSummerChallengeOn?: boolean; }> = ({ data, onUpdate, userId, isSummerChallengeOn = false }) => {
-    const [showRpeInfo, setShowRpeInfo] = useState(false);
-    const [isUploading, setIsUploading] = useState(false);
-    const toggleTag = (tag: string) => onUpdate({ tags: data.tags.includes(tag) ? data.tags.filter(t => t !== tag) : [...data.tags, tag] });
-    const getRpeColor = (num: number) => num <= 4 ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300' : num <= 7 ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300' : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300';
-    
-    const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0];
-        if (!file) return;
-        setIsUploading(true);
-        try {
-            const resized = await resizeImage(file, 800, 800, 0.8);
-            const path = `workouts/${userId || 'unknown'}/workout_${Date.now()}.jpg`;
-            const url = await uploadImage(path, resized);
-            onUpdate({ imageUrl: url });
-        } catch (err) {
-            console.error("Upload image for workout failed:", err);
-            alert("Det gick inte att ladda upp bilden. Försök igen!");
-        } finally {
-            setIsUploading(false);
-        }
-    };
-
-    return (
-        <div className="mt-8 space-y-8 animate-fade-in">
-            <div>
-                <h4 className="text-2xl font-black text-gray-900 dark:text-white uppercase tracking-tight mb-6 leading-[1.2] pt-[0.1em]">Hur kändes passet?</h4>
-                <div className="space-y-4">
-                    <div className="flex items-center gap-2">
-                        <h5 className="text-[11px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-wider leading-[1.2] pt-[0.1em]">Ansträngning (RPE 1-10)</h5>
-                        <button onClick={() => setShowRpeInfo(true)} className="p-1.5 -m-1.5 text-gray-400 hover:text-primary transition-colors focus:ring-2 focus:ring-primary rounded-lg">
-                            <InformationCircleIcon className="w-4 h-4" />
-                        </button>
-                    </div>
-                    <div className="flex justify-between gap-1 sm:gap-2">
-                        {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(num => (
-                            <button 
-                                key={num} 
-                                onClick={() => onUpdate({ rpe: num })} 
-                                className={`flex-1 min-h-[44px] rounded-xl flex items-center justify-center font-black text-sm tabular-nums transition-all active:scale-95 focus:outline-none focus:ring-2 focus:ring-primary ${data.rpe === num ? 'bg-primary text-white scale-105 shadow-md shadow-primary/30 z-10' : `${getRpeColor(num)} opacity-70 hover:opacity-100`}`}
-                            >
-                                {num}
-                            </button>
-                        ))}
-                    </div>
-                </div>
-                <div className="mt-10">
-                    <h5 className="text-[11px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-4 leading-[1.2] pt-[0.1em]">Kroppskänsla</h5>
-                    <div className="flex flex-wrap gap-2">
-                        {KROPPSKANSLA_TAGS.map(tag => (
-                            <button 
-                                key={tag} 
-                                onClick={() => toggleTag(tag)} 
-                                className={`min-h-[44px] px-5 py-2.5 rounded-xl text-xs font-bold border transition-all active:scale-95 focus:outline-none focus:ring-2 focus:ring-primary ${data.tags.includes(tag) ? 'bg-gray-900 dark:bg-white text-white dark:text-gray-900 border-gray-900 dark:border-white shadow-sm' : 'bg-white dark:bg-gray-800 text-gray-500 dark:text-gray-400 border-gray-200 dark:border-gray-700'}`}
-                            >
-                                {tag}
-                            </button>
-                        ))}
-                    </div>
-                </div>
-                
-                {/* --- Sommarpepp Bild-uppladdning (visas endast under sommarutmaningen) --- */}
-                {isSummerChallengeOn && (
-                    <div className="mt-10 border-2 border-dashed border-gray-200 dark:border-gray-800 rounded-2xl p-6 text-center bg-gray-50/50 dark:bg-gray-900/10 hover:border-primary/50 transition-colors animate-fade-in">
-                        <h5 className="text-[11px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-2 leading-[1.2] pt-[0.1em]">📸 Dela en sommarbild</h5>
-                        <p className="text-xs text-gray-500 dark:text-gray-400 mb-4 max-w-sm mx-auto font-medium">Bifoga en bild till ditt pass så visas den i Sommarfeeden på SmartStudio och Topplistan! ☀️</p>
-                        {data.imageUrl ? (
-                            <div className="relative inline-block mt-2">
-                                <img src={data.imageUrl} alt="Bifogad sommarbild" className="w-32 h-32 object-cover rounded-2xl shadow-md border-2 border-primary" />
-                                <button 
-                                    onClick={(e) => { e.preventDefault(); onUpdate({ imageUrl: '' }); }}
-                                    className="absolute -top-2 -right-2 bg-red-500 hover:bg-red-600 text-white p-2 rounded-full shadow-lg transition-transform hover:scale-110 active:scale-95 min-h-[44px] min-w-[44px] flex items-center justify-center"
-                                >
-                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="2.5" stroke="currentColor" className="w-4 h-4">
-                                        <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
-                                    </svg>
-                                </button>
-                            </div>
-                        ) : (
-                            <div className="flex justify-center">
-                                <label className={`cursor-pointer min-h-[44px] px-6 py-2.5 bg-gray-900 dark:bg-white text-white dark:text-gray-900 text-xs font-black uppercase tracking-wider rounded-xl transition-all shadow hover:bg-primary dark:hover:bg-primary dark:hover:text-white hover:text-white active:scale-95 flex items-center gap-2 focus:ring-2 focus:ring-primary ${isUploading ? 'opacity-50 pointer-events-none' : ''}`}>
-                                    {isUploading ? (
-                                        <>
-                                            <div className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin"></div>
-                                            Laddar upp...
-                                        </>
-                                    ) : (
-                                        <>
-                                            <span>Bifoga bild</span>
-                                        </>
-                                    )}
-                                    <input type="file" accept="image/*" className="hidden" onChange={handleFileChange} disabled={isUploading} />
-                                </label>
-                            </div>
-                        )}
-                    </div>
-                )}
-
-                <div className="mt-10">
-                    <h5 className="text-[11px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-3 ml-1 leading-[1.2] pt-[0.1em]">Kommentar</h5>
-                    <textarea value={data.comment} onChange={(e) => onUpdate({ comment: e.target.value })} placeholder="Anteckningar..." rows={4} className="w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl p-4 text-gray-900 dark:text-white text-base focus:ring-2 focus:ring-primary outline-none transition-all shadow-inner font-medium" />
-                </div>
-            </div>
-            <Modal isOpen={showRpeInfo} onClose={() => setShowRpeInfo(false)} title="Vad är RPE?" size="sm">
-                <div className="space-y-6">
-                    <p className="text-sm text-gray-600 dark:text-gray-300 leading-relaxed font-medium">RPE (Rate of Perceived Exertion) är en skala mellan 1-10 som hjälper dig att skatta din ansträngning.</p>
-                    <div className="space-y-2">
-                        {RPE_LEVELS.map(level => (
-                            <div key={level.range} className="flex gap-4 p-3 rounded-xl bg-gray-50 dark:bg-gray-900/50 border border-gray-100 dark:border-gray-800">
-                                <div className={`w-12 h-12 rounded-xl ${level.color} flex items-center justify-center text-white font-black tabular-nums flex-shrink-0 shadow-xs`}>{level.range}</div>
-                                <div>
-                                    <h6 className="font-bold text-gray-900 dark:text-white text-sm">{level.label}</h6>
-                                    <p className="text-xs text-gray-500 dark:text-gray-400">{level.desc}</p>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                    <button onClick={() => setShowRpeInfo(false)} className="w-full min-h-[44px] bg-gray-900 dark:bg-white text-white dark:text-gray-900 font-black py-3.5 rounded-xl uppercase tracking-wider text-xs active:scale-95 transition-all">Jag förstår</button>
-                </div>
-            </Modal>
-        </div>
-    );
-};
-
-const cleanForFirestore = (obj: any): any => {
-  if (Array.isArray(obj)) return obj.map(v => (v && typeof v === 'object' ? cleanForFirestore(v) : v)).filter(v => v !== undefined);
-  const result: any = {};
-  Object.keys(obj).forEach(key => {
-    const val = obj[key];
-    if (val !== undefined && val !== null) {
-        if (typeof val === 'number' && isNaN(val)) return;
-        result[key] = (val && typeof val === 'object' && !(val instanceof Date)) ? cleanForFirestore(val) : val;
-    }
-  });
-  return result;
-};
-
-const OneRMCalculatorModal: React.FC<{
-    isOpen: boolean;
-    onClose: () => void;
-    context: { exerciseName?: string, current1RM?: number, onSelectWeight?: (w: number) => void } | null;
-}> = ({ isOpen, onClose, context }) => {
-    const [calcWeight, setCalcWeight] = useState<string>('');
-    const [calcReps, setCalcReps] = useState<string>('');
-    
-    useEffect(() => {
-        if (isOpen) {
-            setCalcWeight('');
-            setCalcReps('');
-        }
-    }, [isOpen]);
-
-    let calculated1RM = null;
-    if (calcWeight && calcReps) {
-        calculated1RM = calculate1RM(calcWeight, calcReps);
-    } else if (context?.current1RM) {
-        calculated1RM = context.current1RM;
-    }
-
-    const percentages = [60, 65, 70, 75, 80, 85, 90, 95];
-
-    return (
-        <Modal isOpen={isOpen} onClose={onClose} title={context?.exerciseName ? `1RM: ${context.exerciseName}` : "1RM Kalkylator"} size="sm">
-            <div className="space-y-6">
-                {(context?.exerciseName && context?.current1RM && !calcWeight) ? (
-                    <div className="bg-primary/10 border border-primary/20 p-4 rounded-2xl text-center">
-                        <p className="text-[10px] text-primary font-black uppercase tracking-widest mb-1">Uppskattat 1RM</p>
-                        <p className="text-4xl font-black text-gray-900 dark:text-white">{context.current1RM} <span className="text-lg opacity-50">kg</span></p>
-                    </div>
-                ) : null}
-
-                <div className="bg-gray-50 dark:bg-gray-800/50 p-4 rounded-2xl border border-gray-100 dark:border-gray-700">
-                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3 text-center">Räkna ut (nytt) 1RM</p>
-                    <div className="flex gap-4">
-                        <div className="flex-1">
-                            <label className="block text-[10px] uppercase font-bold text-gray-400 mb-1 ml-1">Vikt (kg)</label>
-                            <input type="number" inputMode="decimal" value={calcWeight} onChange={e => setCalcWeight(e.target.value)} className="w-full bg-white dark:bg-gray-900 text-gray-900 dark:text-white font-black text-lg p-3 rounded-xl border border-gray-200 dark:border-gray-700 outline-none focus:border-primary text-center transition-colors" placeholder="Ex. 100" />
-                        </div>
-                        <div className="flex-1">
-                            <label className="block text-[10px] uppercase font-bold text-gray-400 mb-1 ml-1">Reps (max 10)</label>
-                            <input type="number" inputMode="numeric" value={calcReps} onChange={e => setCalcReps(e.target.value)} className="w-full bg-white dark:bg-gray-900 text-gray-900 dark:text-white font-black text-lg p-3 rounded-xl border border-gray-200 dark:border-gray-700 outline-none focus:border-primary text-center transition-colors" placeholder="Ex. 5" />
-                        </div>
-                    </div>
-                    {calcWeight && calcReps && calculated1RM && (
-                        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="mt-4 bg-gray-900 dark:bg-white text-white dark:text-gray-900 p-4 rounded-xl text-center shadow-lg">
-                            <p className="text-[10px] uppercase font-black tracking-widest opacity-70 mb-0.5">Ditt nya 1RM</p>
-                            <p className="text-3xl font-black">{calculated1RM} <span className="text-sm opacity-70">kg</span></p>
-                        </motion.div>
-                    )}
-                </div>
-
-                {calculated1RM && (
-                    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 ml-1 text-center">Procent av 1RM</p>
-                        <div className="grid grid-cols-2 gap-2">
-                            {percentages.map(p => {
-                                const weight = Math.round((calculated1RM as number) * (p / 100) * 2) / 2;
-                                return (
-                                    <button 
-                                        key={p} 
-                                        onClick={() => {
-                                            if (context?.onSelectWeight) {
-                                                context.onSelectWeight(weight);
-                                                onClose();
-                                            }
-                                        }}
-                                        disabled={!context?.onSelectWeight}
-                                        className={`p-3 rounded-xl flex justify-between items-center transition-all ${context?.onSelectWeight ? 'bg-primary/5 border border-primary/20 hover:bg-primary/10 active:scale-[0.98]' : 'bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 shadow-sm'}`}
-                                    >
-                                        <div className="flex items-center justify-between w-full">
-                                            <span className={`text-sm font-black ${context?.onSelectWeight ? 'text-primary' : 'text-gray-400'}`}>{p}%</span>
-                                            <span className="text-lg font-black text-gray-900 dark:text-white">{weight} <span className="text-xs opacity-50">kg</span></span>
-                                        </div>
-                                    </button>
-                                );
-                            })}
-                        </div>
-                    </motion.div>
-                )}
-                
-                <div className="pt-2">
-                    <button onClick={onClose} className="w-full py-4 rounded-xl bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 font-bold hover:bg-gray-200 dark:hover:bg-gray-700 transition">Stäng kalkylator</button>
-                </div>
-            </div>
-        </Modal>
-    );
-};
 
 export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, navigation, route, workouts: contextWorkouts = [] }: any) => {
   const { currentUser, userData } = useAuth();
@@ -1401,8 +105,47 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
   const [logDate, setLogDate] = useState(getLocalDateString(new Date()));
   const [allLogs, setAllLogs] = useState<WorkoutLog[]>([]);
   const [viewMode, setViewMode] = useState<'pre-game' | 'logging'>(isManualMode ? 'logging' : 'pre-game');
-  const [dailyFeeling, setDailyFeeling] = useState<'good' | 'neutral' | 'bad' | null>(null);
+  const [sessionMode, setSessionMode] = useState<'normal' | 'fatigued'>('normal');
+  const [sessionPctMap, setSessionPctMap] = useState<Record<string, number | null>>({});
+  const [sessionPctByBlock, setSessionPctByBlock] = useState<Record<string, number | null>>({});
   const [customActivity, setCustomActivity] = useState({ name: '', duration: '', distance: '', calories: '' });
+
+  const blockProfilesMap = useMemo(() => {
+      if (!workout || !workout.blocks) return {};
+      const map: Record<string, TrainingProfile | null> = {};
+      workout.blocks.forEach(block => {
+          if (block.id) {
+              map[block.id] = getBlockProfile(block as any);
+          }
+      });
+      return map;
+  }, [workout]);
+
+  const preGameBlocks = useMemo(() => {
+      if (!workout?.blocks) return [];
+      return workout.blocks
+          .map(b => ({
+              blockId: b.id,
+              title: b.title,
+              planPct: blockProfilesMap[b.id]?.targetPct || 0,
+              hasWeightMath: blockProfilesMap[b.id]?.hasWeightMath !== false,
+          }))
+          .filter(b => b.hasWeightMath && b.planPct > 0);
+  }, [workout, blockProfilesMap]);
+
+  const canEditTrackingFields = useMemo(() => {
+      if (isManualMode) return true;
+      const id = workout?.id || wId;
+      return !!(id && typeof id === 'string' && id.startsWith('custom-'));
+  }, [isManualMode, workout, wId]);
+
+  const handleSelectSessionPct = (exerciseName: string, pct: number | null) => {
+      const canonKey = canonicalizeExerciseName(exerciseName);
+      setSessionPctMap(prev => ({
+          ...prev,
+          [canonKey]: pct
+      }));
+  };
   const [sessionStats, setSessionStats] = useState({ distance: '', calories: '', time: '', rounds: '' });
   const [activeSummaryFields, setActiveSummaryFields] = useState<string[]>([]);
   const [showSummaryMoreFields, setShowSummaryMoreFields] = useState(false);
@@ -1411,6 +154,167 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
   const [saveAsProgram, setSaveAsProgram] = useState(false);
   const [programName, setProgramName] = useState('');
   const [attemptedSubmit, setAttemptedSubmit] = useState(false);
+
+  // --- Rest Timer State & Controls ---
+  const restTimerStorageKey = `rest_timer_enabled_${userId || 'user'}`;
+  const [restTimerEnabled, setRestTimerEnabled] = useState<boolean>(() => {
+    try {
+      const saved = localStorage.getItem(restTimerStorageKey);
+      return saved !== null ? saved === 'true' : true;
+    } catch {
+      return true;
+    }
+  });
+
+  const toggleRestTimer = () => {
+    setRestTimerEnabled(prev => {
+      const next = !prev;
+      try {
+        localStorage.setItem(restTimerStorageKey, String(next));
+      } catch (e) {
+        console.error('Failed to save rest timer setting:', e);
+      }
+      return next;
+    });
+  };
+
+  const [restTimer, setRestTimer] = useState<{
+    endTime: number;
+    totalSeconds: number;
+    status: 'running' | 'completed';
+  } | null>(null);
+
+  const [remainingRestSeconds, setRemainingRestSeconds] = useState<number>(0);
+  const restWakeLockSentinelRef = useRef<any>(null);
+
+  const startRestTimer = useCallback((seconds: number) => {
+    if (!restTimerEnabled || seconds <= 0) return;
+    const endTime = Date.now() + seconds * 1000;
+    setRestTimer({
+      endTime,
+      totalSeconds: seconds,
+      status: 'running'
+    });
+    setRemainingRestSeconds(seconds);
+  }, [restTimerEnabled]);
+
+  const handleAdd30Seconds = useCallback(() => {
+    setRestTimer(prev => {
+      if (!prev) return null;
+      const newEndTime = prev.endTime + 30000;
+      return {
+        ...prev,
+        endTime: newEndTime,
+        status: 'running'
+      };
+    });
+  }, []);
+
+  const handleSkipRestTimer = useCallback(() => {
+    setRestTimer(null);
+  }, []);
+
+  // Timer Tick & Visibility Effect
+  useEffect(() => {
+    if (!restTimer || restTimer.status !== 'running') return;
+
+    const checkTimer = () => {
+      const now = Date.now();
+      const diffMs = restTimer.endTime - now;
+      const remaining = Math.max(0, Math.ceil(diffMs / 1000));
+      setRemainingRestSeconds(remaining);
+
+      if (remaining <= 0) {
+        setRestTimer(prev => prev ? { ...prev, status: 'completed' } : null);
+
+        try {
+          playTimerSound((studioConfig?.soundProfile as any) || 'boxing', 1);
+        } catch (e) {
+          console.error('Error playing rest timer sound:', e);
+        }
+
+        try {
+          if (typeof navigator !== 'undefined' && 'vibrate' in navigator && navigator.vibrate) {
+            navigator.vibrate([200, 100, 200]);
+          }
+        } catch (e) {
+          console.error('Error vibrating:', e);
+        }
+      }
+    };
+
+    checkTimer();
+    const intervalId = setInterval(checkTimer, 500);
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        checkTimer();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      clearInterval(intervalId);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [restTimer, studioConfig?.soundProfile]);
+
+  // Auto-hide when completed after 5 seconds
+  useEffect(() => {
+    if (restTimer && restTimer.status === 'completed') {
+      const timeoutId = setTimeout(() => {
+        setRestTimer(null);
+      }, 5000);
+      return () => clearTimeout(timeoutId);
+    }
+  }, [restTimer]);
+
+  // WakeLock while timer is running
+  useEffect(() => {
+    let isMounted = true;
+    const requestWakeLock = async () => {
+      if (restTimer && restTimer.status === 'running' && 'wakeLock' in navigator) {
+        try {
+          if (!restWakeLockSentinelRef.current) {
+            const wl = await (navigator as any).wakeLock.request('screen');
+            if (isMounted) {
+              restWakeLockSentinelRef.current = wl;
+              wl.addEventListener('release', () => {
+                restWakeLockSentinelRef.current = null;
+              });
+            } else {
+              wl.release();
+            }
+          }
+        } catch (err) {
+          console.error('WakeLock error in rest timer:', err);
+        }
+      }
+    };
+
+    const releaseWakeLock = async () => {
+      if (restWakeLockSentinelRef.current) {
+        try {
+          await restWakeLockSentinelRef.current.release();
+        } catch (err) {
+          console.error('WakeLock release error:', err);
+        }
+        restWakeLockSentinelRef.current = null;
+      }
+    };
+
+    if (restTimer && restTimer.status === 'running') {
+      requestWakeLock();
+    } else {
+      releaseWakeLock();
+    }
+
+    return () => {
+      isMounted = false;
+      releaseWakeLock();
+    };
+  }, [restTimer]);
   
   const scanSource = source || route?.params?.source;
   const [inStudio, setInStudio] = useState<boolean | null>(scanSource === 'qr_scan' ? true : null);
@@ -1427,7 +331,27 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
                   const pbMap: Record<string, PersonalBest> = {};
                   data.forEach(pb => {
                       if (pb && pb.exerciseName) {
-                          pbMap[pb.exerciseName.toLowerCase().trim()] = pb;
+                          const canonicalKey = canonicalizeExerciseName(pb.exerciseName);
+                          const rawKey = pb.exerciseName.toLowerCase().trim();
+                          const existing = pbMap[canonicalKey];
+
+                          const pb1RM = (typeof pb.calculated1RM === 'number' && pb.calculated1RM > 0)
+                              ? pb.calculated1RM
+                              : (calculate1RM(pb.weight, pb.reps) || pb.weight || 0);
+
+                          if (!existing) {
+                              pbMap[canonicalKey] = pb;
+                              pbMap[rawKey] = pb;
+                          } else {
+                              const existing1RM = (typeof existing.calculated1RM === 'number' && existing.calculated1RM > 0)
+                                  ? existing.calculated1RM
+                                  : (calculate1RM(existing.weight, existing.reps) || existing.weight || 0);
+
+                              if (pb1RM > existing1RM) {
+                                  pbMap[canonicalKey] = pb;
+                                  pbMap[rawKey] = pb;
+                              }
+                          }
                       }
                   });
                   setPersonalBests(pbMap);
@@ -1442,12 +366,17 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
       }
   }, [userId]);
 
-  const [aiInsight, setAiInsight] = useState<InsightContent | null>(null);
-  const [isGeneratingInsight, setIsGeneratingInsight] = useState(false);
   const [exerciseBank, setExerciseBank] = useState<BankExercise[]>(MOCK_EXERCISE_BANK);
   
   const [showCalculator, setShowCalculator] = useState(false);
-  const [calculatorContext, setCalculatorContext] = useState<{ exerciseName?: string, current1RM?: number, onSelectWeight?: (w: number) => void } | null>(null);
+  const [calculatorContext, setCalculatorContext] = useState<{
+    exerciseName?: string,
+    current1RM?: number,
+    activeTargetPct?: number | null,
+    activePctSource?: 'coach' | 'session' | 'none',
+    onSelectTargetPct?: (pct: number | null) => void,
+    onSelectWeight?: (w: number) => void
+  } | null>(null);
   const [exerciseToEdit, setExerciseToEdit] = useState<BankExercise | null>(null);
   const [editExerciseName, setEditExerciseName] = useState("");
   const [exerciseToDelete, setExerciseToDelete] = useState<BankExercise | null>(null);
@@ -1461,6 +390,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
   const [expandedSubGroups, setExpandedSubGroups] = useState<Record<string, boolean>>({});
   const [logStep, setLogStep] = useState<'exercises' | 'summary'>('exercises');
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
+  const hasAutoExpandedRef = useRef(false);
 
   const blockGroups = useMemo(() => {
       const groups: BlockGroup[] = [];
@@ -1480,6 +410,19 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
       });
       return groups;
   }, [exerciseResults]);
+
+  useEffect(() => {
+      if (hasAutoExpandedRef.current) return;
+      if (viewMode !== 'logging') return;
+      if (blockGroups.length === 0) return;
+      const firstUnfinished = blockGroups.find(g =>
+          g.exercises.some(e => e.result.setDetails.some(s => !s.completed))
+      ) || blockGroups[0];
+      if (firstUnfinished) {
+          setExpandedBlockId(firstUnfinished.blockId);
+          hasAutoExpandedRef.current = true;
+      }
+  }, [blockGroups, viewMode]);
 
   const getBlockCompletionInfo = (group: BlockGroup) => {
       let totalSets = 0;
@@ -1521,7 +464,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
   const getValidationErrors = () => {
       const errors: string[] = [];
       if (inStudio === null) {
-          errors.push("Du måste välja om du tränat på gymmet eller på annan plats.");
+          errors.push("Välj var passet genomfördes — knapparna finns ovanför felrutan.");
       }
       if (isManualMode) {
           if (exerciseResults.length === 0) {
@@ -1568,7 +511,11 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
         wakeLockRef.current = await (navigator as any).wakeLock.request('screen');
       }
     } catch (err: any) {
-      console.error(`Wake Lock error: ${err.name}, ${err.message}`);
+      if (err?.name === 'NotAllowedError' || err?.name === 'SecurityError') {
+        console.warn(`Wake Lock not allowed: ${err.name}, ${err.message}`);
+      } else {
+        console.warn(`Wake Lock error: ${err?.name}, ${err?.message}`);
+      }
     }
   };
 
@@ -1612,17 +559,16 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
 
     const init = async () => {
         // Reset state for new workout
-        setAiInsight(null);
-        setIsGeneratingInsight(false);
         setViewMode(isManualMode ? 'logging' : 'pre-game');
-        setDailyFeeling(null);
         setLogStep('exercises');
+        setSessionPctMap({});
+        setSessionPctByBlock({});
         
         try {
             let foundWorkout: any = null;
 
             if (!isManualMode) {
-                const orgWorkouts = await getWorkoutsForOrganization(finalOrgId);
+                const orgWorkouts = await getVisibleWorkoutsForMembers(finalOrgId);
                 foundWorkout = orgWorkouts.find(w => w.id === wId);
                 
                 if (!foundWorkout) {
@@ -1632,6 +578,10 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
                 if (!foundWorkout && wId && wId.startsWith('custom-')) {
                      const customPrograms = await fetchCustomPrograms(userId);
                      foundWorkout = customPrograms.find(w => w.id === wId);
+                }
+
+                if (!foundWorkout && wId) {
+                    console.error("Passet kunde inte hämtas", wId);
                 }
             }
             
@@ -1674,16 +624,24 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
                     block.exercises.forEach(ex => {
                         if (ex.loggingEnabled === true) {
                             const savedRes = loadedResults?.find(lr => lr.exerciseId === ex.id);
-                            exercises.push(savedRes || {
-                                exerciseId: ex.id,
-                                exerciseName: ex.name,
-                                setDetails: [...defaultSets],
-                                blockId: block.id,
-                                blockTitle: block.title,
-                                trackingFields: ex.trackingFields,
-                                groupId: ex.groupId,
-                                groupColor: ex.groupColor
-                            });
+                            if (savedRes) {
+                                exercises.push({
+                                    ...savedRes,
+                                    originalBankId: savedRes.originalBankId ?? ex.originalBankId ?? null
+                                });
+                            } else {
+                                exercises.push({
+                                    exerciseId: ex.id,
+                                    exerciseName: ex.name,
+                                    setDetails: [...defaultSets],
+                                    blockId: block.id,
+                                    blockTitle: block.title,
+                                    trackingFields: ex.trackingFields,
+                                    groupId: ex.groupId,
+                                    groupColor: ex.groupColor,
+                                    originalBankId: ex.originalBankId ?? null
+                                });
+                            }
                         }
                     });
                 });
@@ -1848,31 +806,6 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
     init();
 }, [wId, finalOrgId, userId, isManualMode]);
 
-  const handleFeelingChange = async (feeling: 'good' | 'neutral' | 'bad') => {
-      setDailyFeeling(feeling);
-      setIsGeneratingInsight(true);
-      
-      try {
-          const exercises = workout?.blocks.flatMap(b => b.exercises) || [];
-          const exerciseNames = exercises.map(e => e.exerciseName || e.name || '');
-          const logs = await getMemberLogs(userId!);
-          
-          const insight = await generateSingleMemberInsight(
-              logs, 
-              workout?.title || 'Träningspass', 
-              exerciseNames, 
-              feeling, 
-              workout?.aiProgressionPrompt, 
-              history
-          );
-          setAiInsight(insight);
-      } catch (error) {
-          console.error("AI Insight Error", error);
-      } finally {
-          setIsGeneratingInsight(false);
-      }
-  };
-
   // --- AUTO-SAVE LOGIC ---
   useEffect(() => {
     if (loading || isSubmitting || !userId || (!wId && !isManualMode)) return;
@@ -1893,6 +826,8 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
   }, [exerciseResults, logData, sessionStats, customActivity, loading, isSubmitting, userId, wId, finalOrgId, isManualMode, workout]);
 
   const handleCancel = (isSuccess = false, diploma: WorkoutDiploma | null = null) => {
+    setSessionPctMap({});
+    setSessionPctByBlock({});
     if (isSuccess) {
         localStorage.removeItem(ACTIVE_LOG_STORAGE_KEY);
     }
@@ -1900,31 +835,55 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
     else if (navigation) navigation.goBack();
   };
 
-  const handleAddManualExercise = async (exerciseName: string) => {
+  const [duplicateWarning, setDuplicateWarning] = useState<{
+      inputName: string;
+      existing: BankExercise;
+  } | null>(null);
+
+  const handleAddManualExercise = async (exerciseName: string, forceCreateAnyway = false) => {
       if (!exerciseName.trim()) return;
+
+      const duplicate = findDuplicateBankExercise(exerciseName, exerciseBank);
+
+      if (duplicate && duplicate.name.toLowerCase().trim() === exerciseName.trim().toLowerCase()) {
+          forceCreateAnyway = false;
+          exerciseName = duplicate.name;
+      } else if (duplicate && !forceCreateAnyway) {
+          setDuplicateWarning({
+              inputName: exerciseName,
+              existing: duplicate
+          });
+          return;
+      }
 
       const existingInBank = exerciseBank.find(ex => ex.name.toLowerCase() === exerciseName.trim().toLowerCase());
       let newExerciseId = 'manual-' + Date.now();
+      let bankId: string | null = null;
+      let finalName = exerciseName.trim();
       
       if (!existingInBank && userId) {
           try {
-              const savedEx = await addMemberCustomExercise(userId, exerciseName.trim());
+              const savedEx = await addMemberCustomExercise(userId, finalName);
               setExerciseBank(prev => [...prev, savedEx].sort((a, b) => a.name.localeCompare(b.name, 'sv')));
               newExerciseId = savedEx.id;
+              bankId = savedEx.id;
           } catch (e) {
               console.error("Failed to add custom exercise", e);
           }
       } else if (existingInBank) {
           newExerciseId = existingInBank.id;
+          bankId = existingInBank.id;
+          finalName = existingInBank.name;
       }
 
       const newEx: LocalExerciseResult = {
           exerciseId: newExerciseId,
-          exerciseName: exerciseName.trim(),
+          exerciseName: finalName,
           blockId: 'manual-block',
           blockTitle: 'Valda övningar',
           trackingFields: ['weight', 'reps'],
-          setDetails: [{ weight: '', reps: '', completed: false }]
+          setDetails: [{ weight: '', reps: '', completed: false }],
+          originalBankId: bankId
       };
 
       const match = allLogs.find(log => log.exerciseResults?.some(logEx => logEx.exerciseName.toLowerCase() === exerciseName.trim().toLowerCase()));
@@ -2009,7 +968,8 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
       });
   };
 
-  const handleStartWorkout = () => {
+  const handleStartWorkout = (mode: 'normal' | 'fatigued' = 'normal') => {
+      setSessionMode(mode);
       setViewMode('logging');
   };
 
@@ -2067,16 +1027,34 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
               const uniqueReps = [...new Set(repsValues)];
               const repsSummary = uniqueReps.length === 1 ? uniqueReps[0] : (uniqueReps.length > 0 ? 'Mixed' : null);
 
+              const blockProfile = r.blockId ? blockProfilesMap[r.blockId] : undefined;
+              const prescribedPct = (blockProfile && blockProfile.hasWeightMath !== false && blockProfile.targetPct !== undefined && blockProfile.targetPct > 0)
+                  ? blockProfile.targetPct
+                  : null;
+              const canonName = canonicalizeExerciseName(r.exerciseName);
+              const sessionPctForEx = sessionPctMap[canonName] ?? sessionPctMap[r.exerciseName] ?? (r.blockId ? sessionPctByBlock[r.blockId] : undefined) ?? null;
+              const savedTargetInfo = getTargetWeightForExercise({
+                  exerciseName: r.exerciseName,
+                  personalBests,
+                  history,
+                  userId,
+                  mode: sessionMode,
+                  prescribedPct,
+                  sessionPct: sessionPctForEx
+              });
+
               return {
                   exerciseId: r.exerciseId,
                   exerciseName: r.exerciseName,
+                  originalBankId: r.originalBankId ?? null,
                   trackingFields: r.trackingFields,
                   setDetails: r.setDetails.map(s => ({
                       weight: parseFloat(s.weight) || null,
                       reps: s.reps || null,
                       time: s.time ? parseFloat(s.time) : null,
                       distance: s.distance ? parseFloat(s.distance) : null,
-                      kcal: s.kcal ? parseFloat(s.kcal) : null
+                      kcal: s.kcal ? parseFloat(s.kcal) : null,
+                      rir: s.rir !== undefined && s.rir !== null ? Number(s.rir) : null
                   })),
                   weight: maxWeight, 
                   reps: repsSummary, 
@@ -2085,6 +1063,10 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
                   distance: totalDistance > 0 ? totalDistance : null,
                   kcal: totalKcal > 0 ? totalKcal : null,
                   blockId: r.blockId,
+                  prescribedPct: prescribedPct,
+                  appliedPct: savedTargetInfo.targetPct ?? null,
+                  pctSource: savedTargetInfo.pctSource,
+                  estimated1RM: savedTargetInfo.current1RM ?? null,
                   coachAdvice: r.coachAdvice,
                   note: r.note
               };
@@ -2119,6 +1101,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
               benchmarkId: benchmarkDefinition?.id,
               totalVolume: totalVolume > 0 ? totalVolume : undefined,
               inStudio: inStudio,
+              sessionMode: sessionMode,
               locationId: userData?.locationId,
           };
 
@@ -2327,22 +1310,26 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
       return (
           <PreGameView 
               workoutTitle={workout?.title || 'Träningspass'}
-              insight={aiInsight}
-              isGenerating={isGeneratingInsight}
+              exercises={exerciseResults.map(e => ({ id: e.exerciseId, name: e.exerciseName, exerciseName: e.exerciseName, blockId: e.blockId }))}
+              blocks={preGameBlocks}
+              blockPct={sessionPctByBlock}
+              onChangeBlockPct={(blockId, pct) => setSessionPctByBlock(prev => {
+                  const next = { ...prev };
+                  if (pct === null) { delete next[blockId]; } else { next[blockId] = pct; }
+                  return next;
+              })}
+              aiProgressionPrompt={workout?.aiProgressionPrompt}
+              history={history}
+              personalBests={personalBests}
+              userId={userId}
               onStart={handleStartWorkout}
               onCancel={() => handleCancel(false)}
-              onFeelingChange={handleFeelingChange}
-              currentFeeling={dailyFeeling}
           />
       );
   }
 
-  // --- KONCEPT 2: MISSION BANNER (Sticky Header) ---
-  const activeInsight = aiInsight || undefined;
-  const missionTitle = dailyFeeling === 'good' ? 'Attack Mode' : dailyFeeling === 'bad' ? 'Rehab Mode' : 'Maintenance Mode';
-
   return (
-    <div className="bg-gray-5 dark:bg-black text-gray-900 dark:text-white flex flex-col relative h-full">
+    <div className="bg-gray-50 dark:bg-black text-gray-900 dark:text-white flex flex-col relative h-full">
       {isSubmitting && (
           <div className="absolute inset-0 z-[1000] bg-white/10 dark:bg-black/10 pointer-events-auto" />
       )}
@@ -2392,6 +1379,19 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
             <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Registrera dina resultat</p>
         </div>
         <div className="flex items-center gap-2">
+            <button
+                type="button"
+                onClick={toggleRestTimer}
+                className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 shadow-sm active:scale-95 border ${
+                    restTimerEnabled 
+                        ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/30 dark:bg-emerald-500/20' 
+                        : 'bg-gray-100 dark:bg-gray-800 text-gray-400 border-gray-200 dark:border-gray-700'
+                }`}
+                title="Slå på/av vilotimer mellan set"
+            >
+                <span className={`w-2 h-2 rounded-full ${restTimerEnabled ? 'bg-emerald-500' : 'bg-gray-400'}`} />
+                <span>Vilotimer</span>
+            </button>
             <button 
                 onClick={() => {
                     setCalculatorContext(null);
@@ -2408,9 +1408,28 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
         </div>
       </div>
 
-      <div ref={scrollContainerRef} className="flex-1 overflow-y-auto bg-gray-5 dark:bg-black scrollbar-hide">
+      <div ref={scrollContainerRef} className="flex-1 overflow-y-auto bg-gray-50 dark:bg-black scrollbar-hide">
           <div className="p-2 sm:p-4 max-w-2xl mx-auto w-full">
               
+              {/* Banner when session is fatigued */}
+              {sessionMode === 'fatigued' && (
+                  <div className="mb-4 p-4 rounded-2xl bg-amber-500/10 dark:bg-amber-500/20 border border-amber-500/30 flex items-center justify-between gap-3 text-amber-900 dark:text-amber-200 shadow-sm animate-fade-in">
+                      <div className="flex items-center gap-2.5 min-w-0">
+                          <span className="text-xl flex-shrink-0">⚡</span>
+                          <span className="text-xs font-bold leading-snug">
+                              Sliten idag — vikterna är ca 10 % lägre idag.
+                          </span>
+                      </div>
+                      <button
+                          type="button"
+                          onClick={() => setSessionMode('normal')}
+                          className="flex-shrink-0 px-3.5 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-extrabold uppercase tracking-wider transition shadow-sm active:scale-95"
+                      >
+                          Kör som vanligt
+                      </button>
+                  </div>
+              )}
+
               {/* Steg-indikator */}
               <div className="mb-6 flex gap-2 select-none">
                   <button
@@ -2421,7 +1440,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
                               scrollContainerRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
                           }, 50);
                       }}
-                      className={`flex-1 p-3.5 rounded-2xl text-xs font-black uppercase tracking-wider border transition-all flex items-center justify-center gap-2 ${logStep === 'exercises' ? 'bg-primary/15 text-primary border-primary/25 shadow-sm' : 'bg-white dark:bg-gray-900 text-gray-400 dark:text-gray-500 border-gray-150 dark:border-gray-800'}`}
+                      className={`flex-1 p-3.5 rounded-2xl text-xs font-black uppercase tracking-wider border transition-all flex items-center justify-center gap-2 ${logStep === 'exercises' ? 'bg-primary/15 text-primary border-primary/25 shadow-sm' : 'bg-white dark:bg-gray-900 text-gray-400 dark:text-gray-500 border-gray-200 dark:border-gray-800'}`}
                   >
                       <span className={`flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-bold ${logStep === 'exercises' ? 'bg-primary text-white' : 'bg-gray-100 dark:bg-gray-800 text-gray-400'}`}>1</span>
                       <span>Övningar ({exerciseResults.length})</span>
@@ -2434,7 +1453,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
                               scrollContainerRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
                           }, 50);
                       }}
-                      className={`flex-1 p-3.5 rounded-2xl text-xs font-black uppercase tracking-wider border transition-all flex items-center justify-center gap-2 ${logStep === 'summary' ? 'bg-primary/15 text-primary border-primary/25 shadow-sm' : 'bg-white dark:bg-gray-900 text-gray-400 dark:text-gray-500 border-gray-150 dark:border-gray-800'}`}
+                      className={`flex-1 p-3.5 rounded-2xl text-xs font-black uppercase tracking-wider border transition-all flex items-center justify-center gap-2 ${logStep === 'summary' ? 'bg-primary/15 text-primary border-primary/25 shadow-sm' : 'bg-white dark:bg-gray-900 text-gray-400 dark:text-gray-500 border-gray-200 dark:border-gray-800'}`}
                   >
                       <span className={`flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-bold ${logStep === 'summary' ? 'bg-primary text-white' : 'bg-gray-100 dark:bg-gray-800 text-gray-400'}`}>2</span>
                       <span>Sammanfattning</span>
@@ -2466,14 +1485,6 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
                               />
                           </div>
                       </div>
-
-                      {/* MISSION BANNER (KONCEPT 2) */}
-                      {!isManualMode && activeInsight && dailyFeeling && (
-                          <MissionHeader 
-                              strategy={activeInsight.strategy || activeInsight.readiness.message} 
-                              feeling={dailyFeeling} 
-                          />
-                      )}
                       
                       {isManualMode && (
                           <CustomActivityForm 
@@ -2526,14 +1537,19 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
                                                 key={result.exerciseId}
                                                 name={result.exerciseName}
                                                 result={result}
+                                                canEditFields={canEditTrackingFields || result.blockId === 'manual-block'}
+                                                userId={currentUser?.uid}
+                                                sessionMode={sessionMode}
+                                                history={history}
+                                                personalBests={personalBests}
                                                 onUpdate={(updates) => handleUpdateResult(index, updates)}
+                                                onStartRestTimer={startRestTimer}
                                                 onRemove={() => setExerciseResults(prev => prev.filter((_, i) => i !== index))}
-                                                aiSuggestion={activeInsight?.suggestions?.[result.exerciseName]} 
-                                                scaling={activeInsight?.scaling?.[result.exerciseName]} 
                                                 lastPerformance={history[result.exerciseName]} 
                                                 personalBest={personalBests[result.exerciseName.toLowerCase().trim()]}
                                                 isLastInGroup={isLastInGroup}
                                                 onAddGroupSet={() => handleAddGroupSet(result.groupId!)}
+                                                sessionPct={sessionPctMap[canonicalizeExerciseName(result.exerciseName)] ?? sessionPctMap[result.exerciseName] ?? (result.blockId ? sessionPctByBlock[result.blockId] : undefined) ?? null}
                                                 onOpenCalculator={(ctx) => {
                                                     setCalculatorContext({
                                                         ...ctx,
@@ -2589,15 +1605,15 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
                                         lineClass = 'bg-green-500';
                                         statusTextClass = 'text-green-600 dark:text-green-400 font-bold';
                                     } else if (isStarted) {
-                                        headerBgClass = 'bg-amber-50/30 hover:bg-amber-100/40 dark:bg-amber-955/5 dark:hover:bg-amber-955/10 border-amber-200/40 dark:border-amber-900/30 shadow-sm';
+                                        headerBgClass = 'bg-amber-50/30 hover:bg-amber-100/40 dark:bg-amber-950/5 dark:hover:bg-amber-950/10 border-amber-200/40 dark:border-amber-900/30 shadow-sm';
                                         lineClass = 'bg-amber-500';
                                         statusTextClass = 'text-amber-600 dark:text-amber-400 font-bold';
                                     } else {
                                         headerBgClass = isExpanded
-                                            ? 'bg-gray-100/75 hover:bg-gray-100 dark:bg-slate-900/90 dark:hover:bg-slate-900 border-gray-200/50 dark:border-gray-850/40 shadow-sm'
-                                            : 'bg-white hover:bg-gray-50 dark:bg-gray-900 dark:hover:bg-slate-900/60 border-gray-150 dark:border-gray-800/40 shadow-sm';
-                                        lineClass = 'bg-gray-300 dark:bg-gray-750';
-                                        statusTextClass = 'text-gray-500 dark:text-gray-450';
+                                            ? 'bg-gray-100/75 hover:bg-gray-100 dark:bg-slate-900/90 dark:hover:bg-slate-900 border-gray-200/50 dark:border-gray-800/40 shadow-sm'
+                                            : 'bg-white hover:bg-gray-50 dark:bg-gray-900 dark:hover:bg-slate-900/60 border-gray-200 dark:border-gray-800/40 shadow-sm';
+                                        lineClass = 'bg-gray-300 dark:bg-gray-700';
+                                        statusTextClass = 'text-gray-500 dark:text-gray-400';
                                     }
 
                                     return (
@@ -2634,6 +1650,20 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
                                                                 </>
                                                             )}
                                                         </div>
+                                                        {(() => {
+                                                            const group_block = workout?.blocks?.find(b => b.id === group.blockId);
+                                                            if (group_block && (group_block as any).showBlockPlan === false) return null;
+                                                            const parts = getBlockPlanParts(
+                                                                blockProfilesMap[group.blockId],
+                                                                (group_block as any)?.showIntensity !== false
+                                                            );
+                                                            if (parts.length === 0) return null;
+                                                            return (
+                                                                <div className="text-[11px] text-gray-500 dark:text-gray-400 mt-1">
+                                                                    {parts.join(' · ')}
+                                                                </div>
+                                                            );
+                                                        })()}
                                                     </div>
                                                 </div>
                                                 <div className="flex items-center gap-2 pr-1">
@@ -2643,7 +1673,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
                                                         </span>
                                                     )}
                                                     {isStarted && (
-                                                        <span className="text-[10px] bg-amber-100 dark:bg-amber-955/45 text-amber-700 dark:text-amber-400 font-extrabold px-2.5 py-0.5 rounded-full uppercase tracking-wider">
+                                                        <span className="text-[10px] bg-amber-100 dark:bg-amber-950/45 text-amber-700 dark:text-amber-400 font-extrabold px-2.5 py-0.5 rounded-full uppercase tracking-wider">
                                                             Pågår ⚡
                                                         </span>
                                                     )}
@@ -2767,6 +1797,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
                                                                                         className="p-1 space-y-1 bg-gray-50/25 dark:bg-gray-950/5"
                                                                                     >
                                                                                         {subGroup.exercises.map(({ result, originalIndex }, idxInsideSub) => {
+                                                                                             // superset session mode
                                                                                             const isLastInGroup = idxInsideSub === subGroup.exercises.length - 1;
                                                                                             
                                                                                             return (
@@ -2775,12 +1806,19 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
                                                                                                     name={result.exerciseName}
                                                                                                     result={result}
                                                                                                     onUpdate={(updates) => handleUpdateResult(originalIndex, updates)}
-                                                                                                    aiSuggestion={activeInsight?.suggestions?.[result.exerciseName]} 
-                                                                                                    scaling={activeInsight?.scaling?.[result.exerciseName]} 
                                                                                                     lastPerformance={history[result.exerciseName]} 
                                                                                                     personalBest={personalBests[result.exerciseName.toLowerCase().trim()]}
                                                                                                     isLastInGroup={isLastInGroup}
+                                                                                                    canEditFields={canEditTrackingFields || result.blockId === 'manual-block'}
                                                                                                     onAddGroupSet={() => handleAddGroupSet(result.groupId!)}
+                                                                                                    userId={userId}
+                                                                                                    history={history}
+                                                                                                    personalBests={personalBests}
+                                                                                                    sessionMode={sessionMode}
+                                                                                                    blockProfile={result.blockId ? blockProfilesMap[result.blockId] : undefined}
+                                                                                                    sessionPct={sessionPctMap[canonicalizeExerciseName(result.exerciseName)] ?? sessionPctMap[result.exerciseName] ?? (result.blockId ? sessionPctByBlock[result.blockId] : undefined) ?? null}
+                                                                                                    onSelectSessionPct={(pct) => handleSelectSessionPct(result.exerciseName, pct)}
+                                                                                                    onStartRestTimer={startRestTimer}
                                                                                                     onOpenCalculator={(ctx) => {
                                                                                                         setCalculatorContext({
                                                                                                             ...ctx,
@@ -2809,11 +1847,11 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
                                                                                         })}
                                                                                     </motion.div>
                                                                                 )}
-                                                                            </AnimatePresence>
-                                                                        </div>
-                                                                    );
-                                                                } else {
-                                                                    // Det här är en helt vanlig, fristående övning (subGroup har inget groupId)
+                                                                                                                                                                                      </AnimatePresence>
+                                                                         </div>
+                                                                     );
+                                                                 } else {
+                                                                     // Det här är en helt vanlig, fristående övning (subGroup har inget groupId)
                                                                     const { result, originalIndex } = subGroup.exercises[0];
                                                                     return (
                                                                         <ExerciseLogCard
@@ -2821,14 +1859,21 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
                                                                             name={result.exerciseName}
                                                                             result={result}
                                                                             onUpdate={(updates) => handleUpdateResult(originalIndex, updates)}
-                                                                            aiSuggestion={activeInsight?.suggestions?.[result.exerciseName]} 
-                                                                            scaling={activeInsight?.scaling?.[result.exerciseName]} 
                                                                             lastPerformance={history[result.exerciseName]} 
                                                                             personalBest={personalBests[result.exerciseName.toLowerCase().trim()]}
+                                                                             canEditFields={canEditTrackingFields || result.blockId === 'manual-block'}
                                                                             isLastInGroup={false}
-                                                                            onOpenCalculator={(ctx) => {
-                                                                                setCalculatorContext({
-                                                                                    ...ctx,
+                                                                            userId={userId}
+                                                                            history={history}
+                                                                            personalBests={personalBests}
+                                                                            sessionMode={sessionMode}
+                                                                            blockProfile={result.blockId ? blockProfilesMap[result.blockId] : undefined}
+                                                                            sessionPct={sessionPctMap[canonicalizeExerciseName(result.exerciseName)] ?? sessionPctMap[result.exerciseName] ?? (result.blockId ? sessionPctByBlock[result.blockId] : undefined) ?? null}
+                                                                            onSelectSessionPct={(pct) => handleSelectSessionPct(result.exerciseName, pct)}
+                                                                            onStartRestTimer={startRestTimer}
+                                                                             onOpenCalculator={(ctx) => {
+                                                                                 setCalculatorContext({
+                                                                                     ...ctx,
                                                                                     onSelectWeight: (weight: number) => {
                                                                                         setExerciseResults(prev => {
                                                                                             const newResults = [...prev];
@@ -2918,7 +1963,11 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
                                       scrollContainerRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
                                   }, 50);
                               }}
-                              className="w-full bg-primary hover:brightness-110 text-white font-black py-5 rounded-2xl shadow-xl shadow-primary/20 transition-all transform active:scale-95 text-lg uppercase tracking-tight flex items-center justify-center gap-2"
+                              className={`w-full font-black py-5 rounded-2xl transition-all transform active:scale-95 text-lg uppercase tracking-tight flex items-center justify-center gap-2 ${
+                                  !isManualMode && uncheckedSetsCount > 0
+                                      ? 'bg-transparent border-2 border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400'
+                                      : 'bg-primary hover:brightness-110 text-white shadow-xl shadow-primary/20'
+                              }`}
                           >
                               <span>Gå vidare till sammanfattning</span>
                               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="3" stroke="currentColor" className="w-5 h-5">
@@ -3024,13 +2073,13 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
                                               <button
                                                   type="button"
                                                   onClick={() => setShowSummaryMoreFields(true)}
-                                                  className="inline-flex items-center gap-1 text-[11px] font-extrabold text-gray-400 dark:text-gray-500 hover:text-primary dark:hover:text-primary-light bg-gray-50/80 dark:bg-gray-800/80 hover:bg-primary/10 px-2.5 py-1 rounded-full transition-all border border-gray-150 dark:border-gray-700/60 active:scale-95"
+                                                  className="inline-flex items-center gap-1 text-[11px] font-extrabold text-gray-400 dark:text-gray-500 hover:text-primary dark:hover:text-primary-light bg-gray-50/80 dark:bg-gray-800/80 hover:bg-primary/10 px-2.5 py-1 rounded-full transition-all border border-gray-200 dark:border-gray-700/60 active:scale-95"
                                               >
                                                   <PlusIcon className="w-3 h-3" />
                                                   <span>+ fler fält</span>
                                               </button>
                                           ) : (
-                                              <div className="flex items-center gap-1.5 flex-wrap p-2 bg-gray-50 dark:bg-gray-800/60 rounded-xl border border-gray-150 dark:border-gray-700/80 animate-fade-in">
+                                              <div className="flex items-center gap-1.5 flex-wrap p-2 bg-gray-50 dark:bg-gray-800/60 rounded-xl border border-gray-200 dark:border-gray-700/80 animate-fade-in">
                                                   <span className="text-[10px] font-extrabold uppercase tracking-widest text-gray-400 mr-1">Lägg till:</span>
                                                   {inactiveSummaryFields.map(f => (
                                                       <button
@@ -3078,14 +2127,26 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
                                   <button
                                       type="button"
                                       onClick={() => setInStudio(true)}
-                                      className={`py-4 px-3 rounded-2xl border-2 font-bold text-sm transition-all ${inStudio === true ? 'border-primary bg-primary/10 text-primary' : 'border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800'}`}
+                                      className={`py-4 px-3 rounded-2xl border-2 font-bold text-sm transition-all ${
+                                          inStudio === true
+                                              ? 'border-primary bg-primary/10 text-primary'
+                                              : (attemptedSubmit && inStudio !== false)
+                                                  ? 'border-red-500 bg-white dark:bg-gray-900 text-gray-600 dark:text-gray-400'
+                                                  : 'border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800'
+                                      }`}
                                   >
                                       {selectedOrganization?.name || 'På Gymmet'}
                                   </button>
                                   <button
                                       type="button"
                                       onClick={() => setInStudio(false)}
-                                      className={`py-4 px-3 rounded-2xl border-2 font-bold text-sm transition-all ${inStudio === false ? 'border-primary bg-primary/10 text-primary' : 'border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800'}`}
+                                      className={`py-4 px-3 rounded-2xl border-2 font-bold text-sm transition-all ${
+                                          inStudio === false
+                                              ? 'border-primary bg-primary/10 text-primary'
+                                              : (attemptedSubmit && inStudio !== true)
+                                                  ? 'border-red-500 bg-white dark:bg-gray-900 text-gray-600 dark:text-gray-400'
+                                                  : 'border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800'
+                                      }`}
                                   >
                                       Annan plats
                                   </button>
@@ -3100,7 +2161,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
                                        </svg>
                                        Kvar att fylla i innan du kan spara:
                                    </p>
-                                   <ul className="list-disc pl-5 space-y-1 text-xs font-bold text-red-650 dark:text-red-350">
+                                   <ul className="list-disc pl-5 space-y-1 text-xs font-bold text-red-600 dark:text-red-300">
                                        {getValidationErrors().map((err, idx) => (
                                            <li key={idx}>{err}</li>
                                        ))}
@@ -3130,7 +2191,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
                                   <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="3" stroke="currentColor" className="w-4 h-4">
                                       <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18" />
                                   </svg>
-                                  <span>Gå tillbaka</span>
+                                  <span>Tillbaka till övningarna</span>
                               </button>
                               
                               <div className="flex-[2] flex flex-col items-center gap-3">
@@ -3168,6 +2229,62 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
               )}
           </div>
       </div>
+
+      {/* REST TIMER FLOATING BAR */}
+      {restTimer && (
+          <div className="fixed bottom-6 left-4 right-4 z-50 max-w-md mx-auto pointer-events-auto animate-fade-in">
+              <div 
+                  onClick={() => {
+                      if (restTimer.status === 'completed') setRestTimer(null);
+                  }}
+                  className={`flex items-center justify-between gap-3 px-4 py-3 rounded-2xl shadow-xl border backdrop-blur-md transition-all ${
+                      restTimer.status === 'completed'
+                          ? 'bg-work text-white border-work cursor-pointer'
+                          : 'bg-rest text-white border-rest'
+                  }`}
+              >
+                  {restTimer.status === 'running' ? (
+                      <>
+                          <div className="flex items-center gap-2.5">
+                              <div className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
+                              <span className="text-xs font-black uppercase tracking-wider text-gray-300">Vila</span>
+                              <span className="text-xl font-black font-mono tabular-nums tracking-tight text-white">
+                                  {Math.floor(remainingRestSeconds / 60)}:{String(remainingRestSeconds % 60).padStart(2, '0')}
+                              </span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                              <button
+                                  type="button"
+                                  onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleAdd30Seconds();
+                                  }}
+                                  className="px-3 py-1.5 rounded-xl bg-gray-800 dark:bg-gray-700 hover:bg-gray-700 dark:hover:bg-gray-600 text-xs font-bold text-gray-100 border border-gray-600/50 transition active:scale-95"
+                              >
+                                  +30 s
+                              </button>
+                              <button
+                                  type="button"
+                                  onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleSkipRestTimer();
+                                  }}
+                                  className="px-3 py-1.5 rounded-xl bg-gray-800/60 dark:bg-gray-700/60 hover:bg-gray-700 text-xs font-semibold text-gray-300 hover:text-white transition active:scale-95"
+                              >
+                                  Hoppa över
+                              </button>
+                          </div>
+                      </>
+                  ) : (
+                      <div className="flex items-center justify-between w-full font-bold text-sm py-0.5">
+                          <span className="uppercase tracking-wide font-black">VILA KLAR</span>
+                          <span className="text-xs opacity-90 font-normal">Tryck för att stänga</span>
+                      </div>
+                  )}
+              </div>
+          </div>
+      )}
+
 {showExerciseSearch && (
           <Modal isOpen={showExerciseSearch} onClose={() => setShowExerciseSearch(false)} size="lg">
               <div className="flex flex-col items-center w-full h-[85vh]">
@@ -3316,6 +2433,25 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
                   />
               </div>
           </Modal>
+      )}
+
+      {duplicateWarning && (
+          <DuplicateExerciseModal
+              isOpen={!!duplicateWarning}
+              existingName={duplicateWarning.existing.name}
+              inputName={duplicateWarning.inputName}
+              onUseExisting={() => {
+                  const ex = duplicateWarning.existing;
+                  setDuplicateWarning(null);
+                  handleAddManualExercise(ex.name, true);
+              }}
+              onCreateAnyway={() => {
+                  const input = duplicateWarning.inputName;
+                  setDuplicateWarning(null);
+                  handleAddManualExercise(input, true);
+              }}
+              onClose={() => setDuplicateWarning(null)}
+          />
       )}
     </div>
   );

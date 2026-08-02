@@ -11,7 +11,7 @@ import { useAuth } from '../context/AuthContext';
 import { parseSettingsFromTitle } from '../hooks/useWorkoutTimer';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Toast } from './ui/ToastNotification';
-import { sanitizeWorkoutWithBank } from '../utils/workoutUtils';
+import { sanitizeWorkoutWithBank, getDefaultLoggingForBlockTag } from '../utils/workoutUtils';
 
 // --- Helpers ---
 const parseExerciseLine = (line: string): { reps: string; name: string } => {
@@ -38,10 +38,12 @@ const createNewWorkout = (): Workout => ({
 const createNewBlock = (index: number): WorkoutBlock => ({
   id: `block-${Date.now()}`,
   title: `Block ${index}`,
-  tag: 'Styrka',
+  tag: '',
   setupDescription: '',
   showDescriptionInTimer: false,
   followMe: false,
+  useTrainingProfile: false,
+  progressionModel: 'none',
   settings: {
     mode: TimerMode.NoTimer,
     workTime: 0,
@@ -94,8 +96,9 @@ interface ExerciseItemProps {
     onMove: (direction: 'up' | 'down') => void;
     enableWorkoutLogging?: boolean;
     onShowToast: (message: string) => void;
+    blockTag?: string;
 }
-const ExerciseItem: React.FC<ExerciseItemProps> = ({ exercise, onUpdate, onRemove, exerciseBank, index, total, onMove, enableWorkoutLogging, onShowToast }) => {
+const ExerciseItem: React.FC<ExerciseItemProps> = ({ exercise, onUpdate, onRemove, exerciseBank, index, total, onMove, enableWorkoutLogging, onShowToast, blockTag }) => {
     const [searchQuery, setSearchQuery] = useState('');
     const [isSearchVisible, setIsSearchVisible] = useState(false);
     const searchContainerRef = useRef<HTMLDivElement>(null);
@@ -168,7 +171,7 @@ const ExerciseItem: React.FC<ExerciseItemProps> = ({ exercise, onUpdate, onRemov
             imageUrl: bankExercise.imageUrl,
             reps: exercise.reps,
             isFromBank: true,
-            loggingEnabled: false
+            loggingEnabled: getDefaultLoggingForBlockTag(blockTag)
         });
         setIsSearchVisible(false);
         setSearchQuery('');
@@ -176,7 +179,7 @@ const ExerciseItem: React.FC<ExerciseItemProps> = ({ exercise, onUpdate, onRemov
 
     const handleToggleLogging = () => {
         if (!enableWorkoutLogging) {
-            onShowToast("Aktivera Passloggning i inställningarna för att använda detta.");
+            onShowToast("Aktivera Medlemsappen i inställningarna för att använda detta.");
             return;
         }
         if (window.navigator.vibrate) window.navigator.vibrate(5);
@@ -384,7 +387,7 @@ const BlockCard: React.FC<BlockCardProps> = ({ block, index, totalBlocks, onUpda
     
     const handleToggleAllLogging = () => {
         if (!enableWorkoutLogging) {
-            onShowToast("Aktivera Passloggning i inställningarna för att använda detta.");
+            onShowToast("Aktivera Medlemsappen i inställningarna för att använda detta.");
             return;
         }
 
@@ -450,11 +453,17 @@ const BlockCard: React.FC<BlockCardProps> = ({ block, index, totalBlocks, onUpda
                     <div className="w-full sm:w-48">
                         <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-2 block ml-1">Kategori (Tagg)</label>
                         <select
-                            value={block.tag || 'Styrka'}
+                            value={['Styrka', 'Hypertrofi', 'Kondition', 'Rörlighet', 'Teknik', 'Core/Bål', 'Balans', 'Uppvärmning', 'Nedvarvning', 'Finisher'].find(opt => opt.toLowerCase() === (block.tag || '').toLowerCase()) || block.tag || ''}
                             onChange={e => handleFieldChange('tag', e.target.value)}
-                            className={`${inputBaseClasses} w-full text-lg cursor-pointer`}
+                            className={`${inputBaseClasses} w-full text-lg cursor-pointer ${
+                                !block.tag
+                                    ? '!bg-amber-500 !text-gray-900 !border-amber-500 dark:!bg-amber-500 dark:!text-gray-900'
+                                    : ''
+                            }`}
                         >
+                            <option value="">Välj blocktyp</option>
                             <option value="Styrka">Styrka</option>
+                            <option value="Hypertrofi">Hypertrofi</option>
                             <option value="Kondition">Kondition</option>
                             <option value="Rörlighet">Rörlighet</option>
                             <option value="Teknik">Teknik</option>
@@ -515,6 +524,26 @@ const BlockCard: React.FC<BlockCardProps> = ({ block, index, totalBlocks, onUpda
                         );
                     })()}
                 </div>
+
+                <div className="p-4 rounded-2xl bg-gray-50 dark:bg-gray-800/50 border border-gray-100 dark:border-gray-800">
+                    <ToggleSwitch 
+                        label="Visa upplägget" 
+                        checked={!!block.useTrainingProfile} 
+                        onChange={v => handleFieldChange('useTrainingProfile', v)} 
+                        description="Reps, intensitet, reps i reserv och vila visas i appen och på skärmen, hämtat från blockets typ."
+                    />
+                </div>
+
+                {block.useTrainingProfile && (
+                    <div className="p-4 rounded-2xl bg-gray-50 dark:bg-gray-800/50 border border-gray-100 dark:border-gray-800">
+                        <ToggleSwitch 
+                            label="Visa intensiteten" 
+                            checked={block.showIntensity !== false} 
+                            onChange={v => handleFieldChange('showIntensity', v)} 
+                            description="Stäng av om era medlemmar inte loggar — då säger procenten dem ingenting."
+                        />
+                    </div>
+                )}
                 
                 {!isLastBlock && (
                      <div className={`col-span-1 sm:col-span-2 p-4 rounded-2xl bg-purple-50/30 dark:bg-purple-900/10 border border-purple-100 dark:border-purple-800/50 flex flex-col gap-4 ${block.settings.mode === TimerMode.NoTimer ? 'opacity-50' : ''}`}>
@@ -578,6 +607,7 @@ const BlockCard: React.FC<BlockCardProps> = ({ block, index, totalBlocks, onUpda
                         exerciseBank={exerciseBank} index={i} total={block.exercises.length} onMove={dir => moveEx(i, dir)} organizationId=""
                         enableWorkoutLogging={enableWorkoutLogging}
                         onShowToast={onShowToast}
+                        blockTag={block.tag}
                     />
                 ))}
                 <button 
@@ -767,16 +797,16 @@ export const SimpleWorkoutBuilderScreen: React.FC<{ initialWorkout: Workout | nu
                             {showAdminFields && (
                                 <div>
                                     <label className="text-[10px] font-black text-purple-500 uppercase tracking-[0.3em] mb-2 block ml-2 flex items-center gap-2">
-                                        <SparklesIcon className="w-4 h-4" /> AI-instruktioner (Frivilligt)
+                                        <SparklesIcon className="w-4 h-4" /> Instruktion till medlemmen
                                     </label>
                                     <textarea 
                                         value={workout.aiProgressionPrompt || ''} 
                                         onChange={e => setWorkout({ ...workout, aiProgressionPrompt: e.target.value })} 
-                                        placeholder="T.ex. 'Fokusera på att peppa användaren att öka vikten i knäböj nästa gång'..." 
+                                        placeholder="Din instruktion till medlemmen..." 
                                         className={`${inputBaseClasses} w-full text-lg h-24 resize-none !bg-white dark:!bg-gray-900 border-purple-200 dark:border-purple-900 focus:border-purple-500 focus:ring-purple-500`} 
                                         rows={2}
                                     />
-                                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-2 ml-2">Denna text skickas till AI:n när en medlem loggar passet och ber om feedback.</p>
+                                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-2 ml-2">Visas för medlemmen före passet. Används inte för att räkna fram vikter.</p>
                                 </div>
                             )}
                         </div>

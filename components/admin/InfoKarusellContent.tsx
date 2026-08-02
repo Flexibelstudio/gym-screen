@@ -371,8 +371,8 @@ export const InfoKarusellContent: React.FC<InfoKarusellContentProps> = ({ organi
 
                     <div className="bg-gray-50 dark:bg-gray-900/50 p-4 rounded-xl border border-gray-100 dark:border-gray-700 mb-8 flex items-center justify-between">
                         <div>
-                            <h4 className="font-bold text-gray-900 dark:text-white text-sm">Bli medlem — skanna koden (QR-slide)</h4>
-                            <p className="text-xs text-gray-500 dark:text-gray-400">Rullar automatiskt med i karusellen med ortens QR-kod för skanning från golvet.</p>
+                            <h4 className="font-bold text-gray-900 dark:text-white text-sm">Börja logga din träning (QR-slide)</h4>
+                            <p className="text-xs text-gray-500 dark:text-gray-400">Rullar automatiskt med i karusellen med ortens QR-kod, så att medlemmarna kan skanna sig in i Medlemsappen direkt från golvet.</p>
                         </div>
                         <div className="flex items-center gap-3">
                             <span className={`text-xs font-bold ${carousel.enableJoinSlide ? 'text-green-600' : 'text-gray-500'}`}>

@@ -7,6 +7,8 @@ import { generateExerciseDescription } from '../../services/geminiService';
 import { parseSettingsFromTitle } from '../../hooks/useWorkoutTimer';
 import { motion, AnimatePresence } from 'framer-motion';
 import { saveExerciseToBank } from '../../services/firebaseService';
+import { findDuplicateBankExercise, getBlockProfile, getDefaultLoggingForBlockTag } from '../../utils/workoutUtils';
+import { DuplicateExerciseModal } from '../DuplicateExerciseModal';
 import { useDroppable } from '@dnd-kit/core';
 import { SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
@@ -25,6 +27,7 @@ interface ExerciseItemProps {
     onShowToast: (message: string) => void;
     onUpdateGroupColor?: (groupId: string, newColor: string) => void;
     blockId: string;
+    blockTag?: string;
 }
 
 export const GROUP_COLORS = [
@@ -36,7 +39,7 @@ export const GROUP_COLORS = [
     { bg: 'bg-yellow-400', border: 'border-yellow-400', lightBg: 'bg-yellow-50 dark:bg-yellow-900/20' }
 ];
 
-const ExerciseItem: React.FC<ExerciseItemProps> = ({ exercise, onUpdate, onRemove, exerciseBank, index, total, onMove, organizationId, onExerciseSavedToBank, enableWorkoutLogging, onShowToast, onUpdateGroupColor, blockId }) => {
+const ExerciseItem: React.FC<ExerciseItemProps> = ({ exercise, onUpdate, onRemove, exerciseBank, index, total, onMove, organizationId, onExerciseSavedToBank, enableWorkoutLogging, onShowToast, onUpdateGroupColor, blockId, blockTag }) => {
     const [searchQuery, setSearchQuery] = useState('');
     const [isSearchVisible, setIsSearchVisible] = useState(false);
     const searchContainerRef = useRef<HTMLDivElement>(null);
@@ -113,7 +116,7 @@ const ExerciseItem: React.FC<ExerciseItemProps> = ({ exercise, onUpdate, onRemov
             imageUrl: bankExercise.imageUrl,
             reps: exercise.reps, 
             isFromBank: true,
-            loggingEnabled: false // Default false
+            loggingEnabled: getDefaultLoggingForBlockTag(blockTag)
         });
         setIsSearchVisible(false);
         setSearchQuery('');
@@ -121,19 +124,36 @@ const ExerciseItem: React.FC<ExerciseItemProps> = ({ exercise, onUpdate, onRemov
 
     const handleToggleLogging = () => {
         if (!enableWorkoutLogging) {
-            onShowToast("Aktivera Passloggning i inställningarna för att använda detta.");
+            onShowToast("Aktivera Medlemsappen i inställningarna för att använda detta.");
             return;
         }
         if (window.navigator.vibrate) window.navigator.vibrate(5);
         onUpdate(exercise.id, { loggingEnabled: !exercise.loggingEnabled });
     };
 
-    const handleSaveToBank = async () => {
+    const [duplicateWarning, setDuplicateWarning] = useState<BankExercise | null>(null);
+
+    const handleSaveToBank = async (forceAnyway = false) => {
         if (!organizationId) {
             alert("Ingen organisation vald. Kan inte spara lokalt.");
             return;
         }
         if (!exercise.name.trim()) return;
+
+        const duplicate = findDuplicateBankExercise(exercise.name, exerciseBank);
+        if (duplicate && duplicate.name.toLowerCase().trim() === exercise.name.trim().toLowerCase()) {
+            onUpdate(exercise.id, {
+                originalBankId: duplicate.id,
+                isFromBank: true,
+                name: duplicate.name,
+                loggingEnabled: getDefaultLoggingForBlockTag(blockTag)
+            });
+            onShowToast("Länkad till befintlig övning i banken!");
+            return;
+        } else if (duplicate && !forceAnyway) {
+            setDuplicateWarning(duplicate);
+            return;
+        }
 
         // 1. Skapa unikt ID för custom exercise
         const newId = `custom_${organizationId}_${Date.now()}`;
@@ -160,7 +180,7 @@ const ExerciseItem: React.FC<ExerciseItemProps> = ({ exercise, onUpdate, onRemov
             onUpdate(exercise.id, { 
                 originalBankId: newId, 
                 isFromBank: true, 
-                loggingEnabled: false
+                loggingEnabled: getDefaultLoggingForBlockTag(blockTag)
             });
 
             onShowToast("Övningen sparades som en egen övning!");
@@ -249,7 +269,7 @@ const ExerciseItem: React.FC<ExerciseItemProps> = ({ exercise, onUpdate, onRemov
                             className={`px-2 py-1 text-[10px] font-black rounded-md transition-all h-full flex items-center justify-center ${
                                 exercise.side === 'V'
                                 ? 'bg-orange-500 text-white shadow-sm'
-                                : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-150 dark:hover:bg-gray-700'
+                                : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
                             }`}
                             title="Vänster"
                         >
@@ -261,7 +281,7 @@ const ExerciseItem: React.FC<ExerciseItemProps> = ({ exercise, onUpdate, onRemov
                             className={`px-2 py-1 text-[10px] font-black rounded-md transition-all h-full flex items-center justify-center ${
                                 exercise.side === 'H'
                                 ? 'bg-orange-500 text-white shadow-sm'
-                                : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-150 dark:hover:bg-gray-700'
+                                : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
                             }`}
                             title="Höger"
                         >
@@ -273,7 +293,7 @@ const ExerciseItem: React.FC<ExerciseItemProps> = ({ exercise, onUpdate, onRemov
                             className={`px-1.5 py-1 text-[9px] font-black rounded-md transition-all h-full flex items-center justify-center ${
                                 exercise.side === 'V/H'
                                 ? 'bg-orange-500 text-white shadow-sm'
-                                : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-150 dark:hover:bg-gray-700'
+                                : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
                             }`}
                             title="Per sida (alla reps på ena sidan, sedan andra)"
                         >
@@ -285,7 +305,7 @@ const ExerciseItem: React.FC<ExerciseItemProps> = ({ exercise, onUpdate, onRemov
                             className={`px-1.5 py-1 text-[9px] font-black rounded-md transition-all h-full flex items-center justify-center ${
                                 exercise.side === 'ALT'
                                 ? 'bg-orange-500 text-white shadow-sm'
-                                : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-150 dark:hover:bg-gray-700'
+                                : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
                             }`}
                             title="Alternerande (växla sida varje rep)"
                         >
@@ -308,7 +328,7 @@ const ExerciseItem: React.FC<ExerciseItemProps> = ({ exercise, onUpdate, onRemov
                             placeholder={isGlobal ? exercise.name : "Sök eller skriv övningsnamn"}
                             className={`appearance-none w-full border border-gray-300 dark:border-gray-600 rounded-lg p-2 focus:ring-2 focus:ring-primary focus:outline-none transition-all font-semibold placeholder-gray-400 dark:placeholder-gray-500 pr-8 ${
                                 isGlobal 
-                                ? 'bg-gray-150 dark:bg-gray-800/80 cursor-not-allowed text-gray-500 dark:text-gray-400 select-none' 
+                                ? 'bg-gray-200 dark:bg-gray-800/80 cursor-not-allowed text-gray-500 dark:text-gray-400 select-none' 
                                 : '!bg-white dark:!bg-gray-700 !text-gray-900 dark:!text-white'
                             }`}
                         />
@@ -363,7 +383,7 @@ const ExerciseItem: React.FC<ExerciseItemProps> = ({ exercise, onUpdate, onRemov
                                         EGEN
                                     </div>
                                     <button
-                                        onClick={handleSaveToBank}
+                                        onClick={() => handleSaveToBank()}
                                         className="flex items-center gap-1 px-2 py-1.5 rounded-lg border border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400 hover:bg-green-100 dark:hover:bg-green-900/40 transition-colors text-[9px] font-black uppercase tracking-wider"
                                         title="Spara som lokal övning för att kunna logga"
                                     >
@@ -402,7 +422,10 @@ const ExerciseItem: React.FC<ExerciseItemProps> = ({ exercise, onUpdate, onRemov
                                     <span className="opacity-70">Spara först</span>
                                 </>
                             ) : (
-                                <ChartBarIcon className={`w-3.5 h-3.5 ${exercise.loggingEnabled ? 'text-white' : 'text-current'}`} />
+                                <>
+                                    <ChartBarIcon className={`w-3.5 h-3.5 ${exercise.loggingEnabled ? 'text-white' : 'text-current'}`} />
+                                    <span>{exercise.loggingEnabled ? 'Loggas' : 'Loggas ej'}</span>
+                                </>
                             )}
                         </button>
                         
@@ -471,6 +494,28 @@ const ExerciseItem: React.FC<ExerciseItemProps> = ({ exercise, onUpdate, onRemov
                     </div>
                 )}
             </div>
+
+            {duplicateWarning && (
+                <DuplicateExerciseModal
+                    isOpen={!!duplicateWarning}
+                    existingName={duplicateWarning.name}
+                    onUseExisting={() => {
+                        onUpdate(exercise.id, {
+                            originalBankId: duplicateWarning.id,
+                            isFromBank: true,
+                            name: duplicateWarning.name,
+                            loggingEnabled: getDefaultLoggingForBlockTag(blockTag)
+                        });
+                        setDuplicateWarning(null);
+                        onShowToast("Länkad till befintlig övning i banken!");
+                    }}
+                    onCreateAnyway={() => {
+                        setDuplicateWarning(null);
+                        handleSaveToBank(true);
+                    }}
+                    onClose={() => setDuplicateWarning(null)}
+                />
+            )}
         </div>
     );
 };
@@ -517,12 +562,21 @@ export const EditableBlockCard: React.FC<EditableBlockCardProps> = ({
                 updatedBlock.settings = { ...updatedBlock.settings, ...settingsFromTitle };
             }
         }
+        if (field === 'setupDescription' && typeof value === 'string') {
+            const newValueHasContent = value.trim().length > 0;
+            const oldValueWasEmpty = !block.setupDescription || !block.setupDescription.trim();
+            const isToggleUndefined = block.showDescriptionInTimer === undefined;
+
+            if (newValueHasContent && oldValueWasEmpty && isToggleUndefined) {
+                updatedBlock.showDescriptionInTimer = true;
+            }
+        }
         onUpdate(updatedBlock);
     };
 
     const handleToggleAllLogging = () => {
         if (!enableWorkoutLogging) {
-            onShowToast("Aktivera Passloggning i inställningarna för att använda detta.");
+            onShowToast("Aktivera Medlemsappen i inställningarna för att använda detta.");
             return;
         }
 
@@ -670,11 +724,17 @@ export const EditableBlockCard: React.FC<EditableBlockCardProps> = ({
                     </div>
                     <div className="w-full sm:w-auto sm:min-w-[160px] ml-8 sm:ml-0">
                         <select
-                            value={block.tag || 'Styrka'}
+                            value={['Styrka', 'Hypertrofi', 'Kondition', 'Rörlighet', 'Teknik', 'Core/Bål', 'Balans', 'Uppvärmning', 'Nedvarvning', 'Finisher'].find(opt => opt.toLowerCase() === (block.tag || '').toLowerCase()) || block.tag || ''}
                             onChange={e => handleFieldChange('tag', e.target.value)}
-                            className="w-full bg-transparent text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 font-bold uppercase tracking-widest text-xs border-b border-transparent hover:border-gray-300 dark:hover:border-gray-600 focus:border-primary focus:outline-none focus:text-primary transition-colors cursor-pointer py-1"
+                            className={`w-full appearance-none font-bold uppercase tracking-widest text-xs transition-colors cursor-pointer focus:outline-none ${
+                                !block.tag
+                                    ? 'bg-amber-500 text-gray-900 border border-amber-500 rounded-md px-2 py-1 shadow-sm'
+                                    : 'bg-transparent text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 border-b border-transparent hover:border-gray-300 dark:hover:border-gray-600 focus:border-primary focus:text-primary py-1'
+                            }`}
                         >
+                            <option value="">Välj blocktyp</option>
                             <option value="Styrka">Styrka</option>
+                            <option value="Hypertrofi">Hypertrofi</option>
                             <option value="Kondition">Kondition</option>
                             <option value="Rörlighet">Rörlighet</option>
                             <option value="Teknik">Teknik</option>
@@ -689,6 +749,145 @@ export const EditableBlockCard: React.FC<EditableBlockCardProps> = ({
                 <button onClick={onRemove} className="text-red-500 hover:text-red-400 ml-4 flex-shrink-0 font-semibold p-2">
                     <TrashIcon className="w-5 h-5" />
                 </button>
+            </div>
+
+            {/* Toggle Switch: Styr intensitet och progression */}
+            <div className="my-3 p-3 bg-gray-50/80 dark:bg-gray-800/40 rounded-xl border border-gray-200 dark:border-gray-700/60 text-xs">
+                <div className="flex items-center justify-between">
+                    <div>
+                        <span className="font-bold text-gray-800 dark:text-gray-200 block text-xs">
+                            Styr intensitet och progression
+                        </span>
+                        <span className="text-[11px] text-gray-500 dark:text-gray-400 block mt-0.5">
+                            När den är av påverkar blocket inte medlemmens målvikter.
+                        </span>
+                    </div>
+                    <label className="relative inline-flex items-center cursor-pointer ml-3 flex-shrink-0">
+                        <input
+                            type="checkbox"
+                            checked={!!block.useTrainingProfile}
+                            onChange={e => handleFieldChange('useTrainingProfile', e.target.checked)}
+                            className="sr-only peer"
+                        />
+                        <div className="w-9 h-5 bg-gray-300 peer-focus:outline-none rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all dark:after:border-gray-600 peer-checked:bg-primary"></div>
+                    </label>
+                </div>
+
+                {/* Profilraden visas ENDAST när växeln är på */}
+                {block.useTrainingProfile && (() => {
+                    const profile = getBlockProfile({ ...block, useTrainingProfile: true });
+                    if (!profile) return null;
+
+                    const currentRepMin = block.profileOverrides?.repMin ?? profile.repMin;
+                    const currentRepMax = block.profileOverrides?.repMax ?? profile.repMax;
+                    const currentTargetPct = profile.targetPct ?? 0;
+                    const currentRirTarget = block.profileOverrides?.rirTarget ?? profile.rirTarget;
+                    const currentRestSeconds = block.profileOverrides?.restSeconds ?? profile.restSeconds;
+                    const hasOverrides = block.profileOverrides && Object.keys(block.profileOverrides).length > 0;
+
+                    const handleProfileOverrideChange = (field: string, value: number) => {
+                        const existing = block.profileOverrides || {};
+                        handleFieldChange('profileOverrides', { ...existing, [field]: value });
+                    };
+
+                    return (
+                        <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700/60 space-y-3">
+                            {/* Profilraden (Reps / Intensitet / Reps i reserv / Vila) */}
+                            <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-gray-700 dark:text-gray-300">
+                                <div className="flex items-center gap-1.5">
+                                    <span className="font-bold text-gray-500 dark:text-gray-400">Reps</span>
+                                    <span className="font-mono font-bold">{currentRepMin}–{currentRepMax}</span>
+                                </div>
+
+                                {profile.hasWeightMath && (
+                                    <>
+                                        <div className="flex items-center gap-1.5">
+                                            <span className="font-bold text-gray-500 dark:text-gray-400">Intensitet</span>
+                                            <input
+                                                type="number"
+                                                value={currentTargetPct}
+                                                onChange={e => handleProfileOverrideChange('targetPct', parseInt(e.target.value, 10) || 0)}
+                                                className="w-12 px-1.5 py-0.5 bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded font-mono font-bold text-center focus:outline-none focus:ring-1 focus:ring-primary"
+                                            />
+                                            <span className="font-medium">% av 1RM</span>
+                                        </div>
+
+                                        <div className="flex items-center gap-1.5">
+                                            <span className="font-bold text-gray-500 dark:text-gray-400">Reps i reserv</span>
+                                            <input
+                                                type="number"
+                                                value={currentRirTarget}
+                                                onChange={e => handleProfileOverrideChange('rirTarget', parseInt(e.target.value, 10) || 0)}
+                                                className="w-12 px-1.5 py-0.5 bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded font-mono font-bold text-center focus:outline-none focus:ring-1 focus:ring-primary"
+                                            />
+                                        </div>
+                                    </>
+                                )}
+
+                                <div className="flex items-center gap-1.5">
+                                    <span className="font-bold text-gray-500 dark:text-gray-400">Vila</span>
+                                    <input
+                                        type="number"
+                                        value={currentRestSeconds}
+                                        onChange={e => handleProfileOverrideChange('restSeconds', parseInt(e.target.value, 10) || 0)}
+                                        className="w-14 px-1.5 py-0.5 bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded font-mono font-bold text-center focus:outline-none focus:ring-1 focus:ring-primary"
+                                    />
+                                    <span className="font-medium">s</span>
+                                </div>
+
+                                {hasOverrides && (
+                                    <button
+                                        type="button"
+                                        onClick={() => handleFieldChange('profileOverrides', undefined)}
+                                        className="text-[11px] text-primary hover:underline font-semibold ml-auto"
+                                    >
+                                        Återställ till standard för {block.tag || 'Styrka'}
+                                    </button>
+                                )}
+                            </div>
+
+                            <div className="pt-3 border-t border-gray-200 dark:border-gray-700/60 flex items-center justify-between">
+                                <div>
+                                    <span className="font-bold text-gray-800 dark:text-gray-200 block text-xs">
+                                        Visa upplägget för medlemmen
+                                    </span>
+                                    <span className="text-[11px] text-gray-500 dark:text-gray-400 block mt-0.5">
+                                        Reps, intensitet, reps i reserv och vila visas i appen och på studioskärmen.
+                                    </span>
+                                </div>
+                                <label className="relative inline-flex items-center cursor-pointer ml-3 flex-shrink-0">
+                                    <input
+                                        type="checkbox"
+                                        checked={block.showBlockPlan !== false}
+                                        onChange={e => handleFieldChange('showBlockPlan', e.target.checked)}
+                                        className="sr-only peer"
+                                    />
+                                    <div className="w-9 h-5 bg-gray-300 peer-focus:outline-none rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all dark:after:border-gray-600 peer-checked:bg-primary"></div>
+                                </label>
+                            </div>
+
+                            <div className="pt-3 border-t border-gray-200 dark:border-gray-700/60 flex items-center justify-between">
+                                <div>
+                                    <span className="font-bold text-gray-800 dark:text-gray-200 block text-xs">
+                                        Visa intensiteten
+                                    </span>
+                                    <span className="text-[11px] text-gray-500 dark:text-gray-400 block mt-0.5">
+                                        Visar procenten av 1RM i upplägget. Reps, reps i reserv och vila visas fortfarande.
+                                    </span>
+                                </div>
+                                <label className="relative inline-flex items-center cursor-pointer ml-3 flex-shrink-0">
+                                    <input
+                                        type="checkbox"
+                                        checked={block.showIntensity !== false}
+                                        onChange={e => handleFieldChange('showIntensity', e.target.checked)}
+                                        className="sr-only peer"
+                                    />
+                                    <div className="w-9 h-5 bg-gray-300 peer-focus:outline-none rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all dark:after:border-gray-600 peer-checked:bg-primary"></div>
+                                </label>
+                            </div>
+                        </div>
+                    );
+                })()}
             </div>
 
             <EditableField
@@ -815,6 +1014,7 @@ export const EditableBlockCard: React.FC<EditableBlockCardProps> = ({
                                             onShowToast={onShowToast}
                                             onUpdateGroupColor={updateGroupColor}
                                             blockId={block.id}
+                                            blockTag={block.tag}
                                         />
                                     </div>
                                     {i < block.exercises.length - 1 && (

@@ -1,12 +1,15 @@
-import { Page, Workout, WorkoutBlock, Passkategori, UserRole, Organization } from '../../types';
-import { deepCopyAndPrepareAsNew } from '../../utils/workoutUtils';
-import { saveCustomProgram } from '../../services/firebaseService';
+import { Page, Workout, WorkoutBlock, Passkategori, UserRole, Organization, StudioConfig } from '../../types';
+import { deepCopyAndPrepareAsNew, isWorkoutVisibleNow, getMemberLocationIds, isWorkoutVisibleForLocations, getDefaultLoggingForBlockTag } from '../../utils/workoutUtils';
+import { saveCustomProgram, saveAdminActivity } from '../../services/firebaseService';
+import { useConfirm } from '../../components/ConfirmContext';
 
 export interface UseWorkoutActionsDeps {
   sessionRole: UserRole;
   isStudioMode: boolean;
   currentUser: { uid: string } | null;
   selectedOrganization: Organization | null;
+  selectedStudio?: { locationId?: string } | null;
+  userData?: { locationId?: string; locationIds?: string[] } | null;
   workouts: Workout[];
   activeWorkout: Workout | null;
   page: Page;
@@ -14,6 +17,7 @@ export interface UseWorkoutActionsDeps {
   returnToAdminOnSave: boolean;
   isSearchWorkoutOpen: boolean;
   isPickingForLog: boolean;
+  studioConfig?: StudioConfig;
 
   setActiveWorkout: (workout: Workout | null) => void;
   setFocusedBlockId: (id: string | null) => void;
@@ -34,6 +38,7 @@ export interface UseWorkoutActionsDeps {
 }
 
 export function useWorkoutActions(deps: UseWorkoutActionsDeps) {
+  const confirm = useConfirm();
   const {
     sessionRole,
     isStudioMode,
@@ -75,7 +80,7 @@ export function useWorkoutActions(deps: UseWorkoutActionsDeps) {
     setActiveWorkout(workout);
     setFocusedBlockId(blockId || null);
     setIsEditingNewDraft(false);
-    if (sessionRole === 'member') navigateTo(Page.SimpleWorkoutBuilder);
+    if (sessionRole === 'member' || isStudioMode) navigateTo(Page.SimpleWorkoutBuilder);
     else navigateTo(Page.WorkoutBuilder);
   };
 
@@ -148,7 +153,54 @@ export function useWorkoutActions(deps: UseWorkoutActionsDeps) {
 
   const handleTogglePublishStatus = async (workoutId: string, isPublished: boolean, silentPublish?: boolean) => {
     const workoutToToggle = workouts.find((w) => w.id === workoutId);
-    if (workoutToToggle) await saveWorkout({ ...workoutToToggle, isPublished, silentPublish });
+    if (workoutToToggle) {
+      if (isPublished) {
+        const untaggedBlocks = workoutToToggle.blocks?.filter(b => !(b.tag || '').trim()) || [];
+        if (untaggedBlocks.length > 0) {
+          const blockTitles = untaggedBlocks.map(b => b.title || 'Namnlöst block').join(', ');
+          await confirm({
+            title: "Blocktyp saknas",
+            message: `Blockets typ styr loggning, målvikter och vilotider och måste därför vara vald innan passet publiceras. Följande block saknar typ: ${blockTitles}`,
+            confirmText: "Gå tillbaka",
+            cancelText: "Avbryt"
+          });
+          return;
+        }
+
+        const hasLoggingEligibleBlock = workoutToToggle.blocks?.some(b => getDefaultLoggingForBlockTag(b.tag)) || false;
+        const hasAnyLoggingEnabled = workoutToToggle.blocks?.some(b => b.exercises?.some(e => e.loggingEnabled === true)) || false;
+
+        if (hasLoggingEligibleBlock && !hasAnyLoggingEnabled) {
+          const userConfirmed = await confirm({
+            title: "Inget går att logga",
+            message: "Det här passet innehåller styrke- eller konditionsblock, men ingen övning är markerad för loggning. Medlemmarna kommer inte kunna registrera några resultat. Vill du publicera ändå?",
+            confirmText: "Publicera ändå",
+            cancelText: "Gå tillbaka"
+          });
+
+          if (!userConfirmed) {
+            return;
+          }
+        }
+      }
+
+      await saveWorkout({ ...workoutToToggle, isPublished, silentPublish });
+      if (selectedOrganization) {
+        try {
+          saveAdminActivity({
+            organizationId: selectedOrganization.id,
+            userId: currentUser?.uid || 'unknown',
+            userName: (currentUser as any)?.firstName || 'Coach',
+            type: 'WORKOUT',
+            action: isPublished ? 'PUBLISH' : 'UNPUBLISH',
+            description: `${isPublished ? 'Publicerade' : 'Avpublicerade'} passet "${workoutToToggle.title}"`,
+            timestamp: Date.now()
+          });
+        } catch (logErr) {
+          console.warn("Failed to log activity:", logErr);
+        }
+      }
+    }
   };
 
   const handleToggleFavoriteStatus = async (workoutId: string) => {
@@ -157,7 +209,24 @@ export function useWorkoutActions(deps: UseWorkoutActionsDeps) {
   };
 
   const handleDeleteWorkout = async (workoutId: string) => {
+    const workoutToDelete = workouts.find((w) => w.id === workoutId);
+    const title = workoutToDelete?.title || 'Pass';
     await deleteWorkout(workoutId);
+    if (selectedOrganization) {
+      try {
+        saveAdminActivity({
+          organizationId: selectedOrganization.id,
+          userId: currentUser?.uid || 'unknown',
+          userName: (currentUser as any)?.firstName || 'Coach',
+          type: 'WORKOUT',
+          action: 'DELETE',
+          description: `Raderade passet "${title}"`,
+          timestamp: Date.now()
+        });
+      } catch (logErr) {
+        console.warn("Failed to log activity:", logErr);
+      }
+    }
     if (activeWorkout?.id === workoutId && page === Page.WorkoutDetail) {
       handleBack();
     }
@@ -207,7 +276,30 @@ export function useWorkoutActions(deps: UseWorkoutActionsDeps) {
   };
 
   const handleSelectPasskategori = (passkategori: Passkategori) => {
-    const categoryWorkouts = workouts.filter((w) => w.category === passkategori && w.isPublished && !w.isMemberDraft);
+    const now = Date.now();
+    const activeLocationIds = deps.isStudioMode
+      ? getMemberLocationIds({ locationId: deps.selectedStudio?.locationId })
+      : getMemberLocationIds(deps.userData);
+
+    let categoryWorkouts = workouts.filter((w) => 
+      w.category === passkategori && 
+      isWorkoutVisibleForLocations(w, activeLocationIds, now) && 
+      !w.isMemberDraft
+    );
+
+    const catConfig = deps.studioConfig?.customCategories?.find(c => c.name === passkategori);
+    if (catConfig?.showOnlyLatestPublished && categoryWorkouts.length > 1) {
+      let best = categoryWorkouts[0];
+      for (let i = 1; i < categoryWorkouts.length; i++) {
+        const cur = categoryWorkouts[i];
+        const curTime = cur.publishAt ?? cur.createdAt ?? 0;
+        const bestTime = best.publishAt ?? best.createdAt ?? 0;
+        if (curTime > bestTime) {
+          best = cur;
+        }
+      }
+      categoryWorkouts = [best];
+    }
 
     if (categoryWorkouts.length === 1 && !isPickingForLog) {
       if (isStudioMode) {
@@ -240,7 +332,9 @@ export function useWorkoutActions(deps: UseWorkoutActionsDeps) {
     const workoutWithOrg = {
       ...workout,
       organizationId: selectedOrganization?.id || '',
-      isMemberDraft: true,
+      isMemberDraft: false,
+      isPublished: true,
+      silentPublish: true,
     };
     setActiveWorkout(workoutWithOrg);
     setIsEditingNewDraft(true);

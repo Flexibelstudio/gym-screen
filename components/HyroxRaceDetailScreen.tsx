@@ -48,7 +48,7 @@ export const HyroxRaceDetailScreen: React.FC<HyroxRaceDetailScreenProps> = ({ ra
     const activeDivisions = useMemo(() => {
         if (!race) return [];
         const divs = new Set<string>();
-        race.results.forEach(r => {
+        (race.results || []).forEach(r => {
             if (r.division) divs.add(r.division);
         });
         return Array.from(divs).sort();
@@ -56,7 +56,7 @@ export const HyroxRaceDetailScreen: React.FC<HyroxRaceDetailScreenProps> = ({ ra
 
     const filteredResults = useMemo(() => {
         if (!race) return [];
-        const list = [...race.results].sort((a, b) => a.time - b.time);
+        const list = [...(race.results || [])].sort((a, b) => a.time - b.time);
         if (selectedDivision === 'all') return list;
         return list.filter(r => r.division === selectedDivision);
     }, [race, selectedDivision]);
@@ -87,7 +87,7 @@ export const HyroxRaceDetailScreen: React.FC<HyroxRaceDetailScreenProps> = ({ ra
             
             <div className={`grid grid-cols-1 ${isPublicView ? 'lg:grid-cols-1' : 'lg:grid-cols-3'} gap-4 sm:gap-8 items-start`}>
                 {/* RESULTS TABLE */}
-                <div className={`${isPublicView ? 'lg:col-span-1' : 'lg:col-span-2'} bg-white dark:bg-gray-800 rounded-2xl sm:rounded-[2rem] p-2.5 sm:p-8 shadow-xl border border-gray-150 dark:border-gray-700`}>
+                <div className={`${isPublicView ? 'lg:col-span-1' : 'lg:col-span-2'} bg-white dark:bg-gray-800 rounded-2xl sm:rounded-[2rem] p-2.5 sm:p-8 shadow-xl border border-gray-200 dark:border-gray-700`}>
                     <h2 className="text-xl sm:text-2xl font-black tracking-tight text-gray-950 dark:text-gray-50 mb-3 uppercase px-1 sm:px-0">Placeringar</h2>
                     
                     {activeDivisions.length > 0 && (
@@ -97,7 +97,7 @@ export const HyroxRaceDetailScreen: React.FC<HyroxRaceDetailScreenProps> = ({ ra
                                 className={`px-2.5 py-1.5 rounded-xl text-[10px] sm:text-xs font-bold transition-all uppercase tracking-wider ${
                                     selectedDivision === 'all'
                                         ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/25 font-black'
-                                        : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-250 dark:hover:bg-gray-600/80'
+                                        : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600/80'
                                 }`}
                             >
                                 Alla klasser
@@ -109,7 +109,7 @@ export const HyroxRaceDetailScreen: React.FC<HyroxRaceDetailScreenProps> = ({ ra
                                     className={`px-2.5 py-1.5 rounded-xl text-[10px] sm:text-xs font-bold transition-all uppercase tracking-wider ${
                                         selectedDivision === div
                                             ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/25 font-black'
-                                            : 'bg-gray-100 dark:bg-gray-700 text-gray-655 dark:text-gray-300 hover:bg-gray-250 dark:hover:bg-gray-600/80'
+                                            : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600/80'
                                     }`}
                                 >
                                     {div}
@@ -120,7 +120,7 @@ export const HyroxRaceDetailScreen: React.FC<HyroxRaceDetailScreenProps> = ({ ra
 
                     {filteredResults.length > 0 ? (
                         <>
-                            <div className="overflow-x-auto rounded-xl border border-gray-150 dark:border-gray-700">
+                            <div className="overflow-x-auto rounded-xl border border-gray-200 dark:border-gray-700">
                                 <table className="w-full text-left border-collapse">
                                     <thead className="border-b border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-900/50">
                                         <tr>
@@ -140,7 +140,7 @@ export const HyroxRaceDetailScreen: React.FC<HyroxRaceDetailScreenProps> = ({ ra
                                             );
                                             const finalTeamName = result.teamName || matchedParticipant?.teamName;
                                             
-                                            let rowClass = "border-b border-gray-150 dark:border-gray-700 last:border-b-0 hover:bg-gray-50 dark:hover:bg-gray-700/50";
+                                            let rowClass = "border-b border-gray-200 dark:border-gray-700 last:border-b-0 hover:bg-gray-50 dark:hover:bg-gray-700/50";
                                             let textClass = "text-gray-900 dark:text-white";
                                             
                                             switch(index) {
@@ -169,7 +169,7 @@ export const HyroxRaceDetailScreen: React.FC<HyroxRaceDetailScreenProps> = ({ ra
                                                     <td className={`py-2 px-1.5 sm:p-4 text-xs sm:text-sm font-bold ${textClass}`}>
                                                         {finalTeamName ? (
                                                             <div className="flex flex-col leading-tight">
-                                                                <span className={`text-xs sm:text-sm font-black ${index <= 2 ? 'text-black font-black' : 'text-indigo-650 dark:text-indigo-400'}`}>{finalTeamName}</span>
+                                                                <span className={`text-xs sm:text-sm font-black ${index <= 2 ? 'text-black font-black' : 'text-indigo-600 dark:text-indigo-400'}`}>{finalTeamName}</span>
                                                                 <span className={`text-[10px] sm:text-xs font-semibold ${index <= 2 ? 'text-black/75 font-semibold' : 'text-gray-500 dark:text-gray-400'}`}>
                                                                     {result.participant.includes(' & ') ? (
                                                                         <span>
@@ -192,7 +192,7 @@ export const HyroxRaceDetailScreen: React.FC<HyroxRaceDetailScreenProps> = ({ ra
                                                             </span>
                                                         )}
                                                     </td>
-                                                    <td className={`py-2 px-1.5 sm:p-4 text-xs sm:text-sm ${index > 2 ? 'text-gray-650 dark:text-gray-300 font-medium' : `${textClass}`}`}>
+                                                    <td className={`py-2 px-1.5 sm:p-4 text-xs sm:text-sm ${index > 2 ? 'text-gray-600 dark:text-gray-300 font-medium' : `${textClass}`}`}>
                                                         <div className="flex flex-col leading-tight">
                                                             <span>{group?.name || 'Okänd'}</span>
                                                             {selectedDivision === 'all' && result.division && (

@@ -258,7 +258,7 @@ export const Leaderboard: React.FC<LeaderboardProps> = React.memo(({ organizatio
 
             {/* Platsväljare som snygga pills/capsules - visas endast om användaren inte har en tilldelad studio */}
             {!userData?.locationId && selectedOrganization?.locations && selectedOrganization.locations.length > 1 && (
-                <div className="flex flex-wrap gap-1.5 mb-4 p-1 bg-gray-50 dark:bg-gray-850 rounded-xl border border-gray-150 dark:border-gray-800">
+                <div className="flex flex-wrap gap-1.5 mb-4 p-1 bg-gray-50 dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-800">
                     <button
                         onClick={() => setSelectedLocationId('all')}
                         className={`flex-1 py-1.5 px-3 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all ${

@@ -2,13 +2,13 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { Organization, Workout, UserData, BenchmarkDefinition } from '../../types';
-import { DumbbellIcon, BuildingIcon, UsersIcon, SpeakerphoneIcon, SparklesIcon, CopyIcon, PencilIcon, TrashIcon, ShuffleIcon, SearchIcon, ChevronLeftIcon, ChevronRightIcon, ChevronUpIcon, ChevronDownIcon, TrophyIcon, EyeIcon } from '../icons';
+import { DumbbellIcon, BuildingIcon, UsersIcon, SpeakerphoneIcon, SparklesIcon, CopyIcon, PencilIcon, TrashIcon, ShuffleIcon, SearchIcon, ChevronLeftIcon, ChevronRightIcon, ChevronUpIcon, ChevronDownIcon, TrophyIcon, EyeIcon, ChartBarIcon } from '../icons';
 import { motion, AnimatePresence } from 'framer-motion';
 import { AIGeneratorScreen } from '../AIGeneratorScreen';
 import { WorkoutBuilderScreen } from '../WorkoutBuilderScreen';
-import { deepCopyAndPrepareAsNew } from '../../utils/workoutUtils';
-import { ManageBenchmarksModal } from './AdminModals';
-import { updateOrganizationBenchmarks, resolveAndCreateExercises, updateGlobalConfig, listenToGlobalSummerChallenge, listenToMembers, listenToCommunityLogs } from '../../services/firebaseService';
+import { deepCopyAndPrepareAsNew, getWorkoutStatusInfo, getWorkoutVisibilityIssues } from '../../utils/workoutUtils';
+import { ManageBenchmarksModal, FeatureInfoModal } from './AdminModals';
+import { updateOrganizationBenchmarks, resolveAndCreateExercises, updateGlobalConfig, listenToGlobalSummerChallenge, listenToMembers, listenToCommunityLogs, listenToCommunityLogsByLocations, getOrganizationLogs, getSmartScreenPricing } from '../../services/firebaseService';
 import { WorkoutPresentationModal } from '../WorkoutDetailScreen';
 
 // ... (Types and Interfaces remain same)
@@ -17,7 +17,7 @@ type AdminTab =
     'dashboard' | 
     'pass-program' | 'infosidor' | 'info-karusell' |
     'globala-installningar' | 'studios' | 'varumarke' | 'company-info' |
-    'medlemmar' | 'ovningsbank';
+    'medlemmar' | 'ovningsbank' | 'analytics';
 
 interface DashboardContentProps {
     organization: Organization;
@@ -28,6 +28,7 @@ interface DashboardContentProps {
     coaches?: UserData[];
     usersLoading?: boolean;
     onQuickGenerate?: (prompt: string) => Promise<void>;
+    onTriggerUpgrade?: () => void;
 }
 
 // ... (WelcomeBanner, SetupProgressWidget, QuickAIWidget, DashboardContent components remain the same)
@@ -173,7 +174,10 @@ const ChallengePromoWidget: React.FC<{ org: Organization }> = ({ org }) => {
     useEffect(() => {
         if (!org.id || !localEnabled) return;
         const unsubMembers = listenToMembers(org.id, (data) => setMembers(data));
-        const unsubLogs = listenToCommunityLogs(org.id, (data) => setLogs(data));
+        const locIds = org.locations?.map(l => l.id) || [];
+        const unsubLogs = locIds.length > 0 
+            ? listenToCommunityLogsByLocations(org.id, locIds, (data) => setLogs(data))
+            : listenToCommunityLogs(org.id, (data) => setLogs(data));
         return () => {
             unsubMembers();
             unsubLogs();
@@ -427,12 +431,160 @@ const ChallengePromoWidget: React.FC<{ org: Organization }> = ({ org }) => {
     );
 };
 
-const DashboardContent: React.FC<DashboardContentProps> = ({ organization, workouts, workoutsLoading, setActiveTab, admins, coaches, usersLoading, onQuickGenerate }) => {
+const MemberAppSalesCard: React.FC<{ onTriggerUpgrade?: () => void; onShowInfo: () => void }> = ({ onTriggerUpgrade, onShowInfo }) => {
+    const [baseCost, setBaseCost] = useState(19);
+    const customerPrice = 39;
+
+    useEffect(() => {
+        getSmartScreenPricing().then(pricing => {
+            if (pricing && pricing.workoutLoggingPricePerMember !== undefined) {
+                setBaseCost(pricing.workoutLoggingPricePerMember);
+            }
+        }).catch(() => {});
+    }, []);
+
+    const gymShare = Math.max(0, customerPrice - baseCost);
+
+    return (
+        <div className="bg-white dark:bg-gray-800 rounded-3xl p-8 shadow-sm border border-gray-100 dark:border-gray-700">
+            <div className="flex items-start gap-4 mb-5">
+                <div className="w-12 h-12 rounded-2xl bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 flex items-center justify-center flex-shrink-0">
+                    <ChartBarIcon className="w-6 h-6" />
+                </div>
+                <div>
+                    <h3 className="text-2xl font-black text-gray-900 dark:text-white tracking-tight mb-1">
+                        Den som ser att det går framåt säger inte upp sitt medlemskap.
+                    </h3>
+                    <p className="text-gray-500 dark:text-gray-400">
+                        Medlemsappen ger era medlemmar svart på vitt att träningen ger resultat — och er en bild av vem som är på väg bort, medan ni fortfarande kan göra något åt det.
+                    </p>
+                </div>
+            </div>
+
+            <ul className="space-y-3 mb-6 text-sm text-gray-600 dark:text-gray-300">
+                <li className="flex gap-3">
+                    <span className="text-indigo-500 font-black">›</span>
+                    <span><strong className="text-gray-900 dark:text-white">Se vilka som håller i.</strong> Registret visar vem som loggat den senaste tiden och vem som inte synts på tre veckor. I tid för att höra av er.</span>
+                </li>
+                <li className="flex gap-3">
+                    <span className="text-indigo-500 font-black">›</span>
+                    <span><strong className="text-gray-900 dark:text-white">Medlemmen ser sin egen utveckling.</strong> Vikter, reps och personbästa pass för pass, i grafer som gör framstegen svåra att missa. Och hur styrkan ligger till mot Strength Levels databas — nybörjare, motionär, stark, mycket stark, elit — i deras egen ålders- och viktklass.</span>
+                </li>
+                <li className="flex gap-3">
+                    <span className="text-indigo-500 font-black">›</span>
+                    <span><strong className="text-gray-900 dark:text-white">Ge dem något att sikta på.</strong> Lägg upp era egna benchmarks: 2 000 m på roddmaskinen, max antal armhävningar, vad ni vill. Medlemmarna testar sig, ser sin tid och jagar den nästa gång.</span>
+                </li>
+                <li className="flex gap-3">
+                    <span className="text-indigo-500 font-black">›</span>
+                    <span><strong className="text-gray-900 dark:text-white">Och tjäna på det.</strong> {gymShare} kr per ansluten medlem och månad, rakt in till er.</span>
+                </li>
+            </ul>
+
+            <div className="flex flex-col sm:flex-row gap-3">
+                <button onClick={() => onTriggerUpgrade && onTriggerUpgrade()} className="flex-1 bg-primary hover:brightness-110 text-white font-bold py-3 px-6 rounded-xl shadow-lg shadow-primary/20 transition-all transform active:scale-95">
+                    Räkna på vad det ger
+                </button>
+                <button onClick={onShowInfo} className="flex-1 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-900 dark:text-white font-bold py-3 px-6 rounded-xl transition-colors">
+                    Så funkar Medlemsappen
+                </button>
+            </div>
+        </div>
+    );
+};
+
+const MemberAppStatsPanel: React.FC<{ organizationId: string; joinSlideActive: boolean; onOpenAnalytics?: () => void; onOpenInfoCarousel?: () => void }> = ({ organizationId, joinSlideActive, onOpenAnalytics, onOpenInfoCarousel }) => {
+    const [logs, setLogs] = useState<any[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
+
+    useEffect(() => {
+        if (!organizationId) return;
+        let cancelled = false;
+        setIsLoading(true);
+        getOrganizationLogs(organizationId, 500)
+            .then(data => { if (!cancelled) { setLogs(data || []); setIsLoading(false); } })
+            .catch(() => { if (!cancelled) { setLogs([]); setIsLoading(false); } });
+        return () => { cancelled = true; };
+    }, [organizationId]);
+
+    const summary = useMemo(() => {
+        const cutoff = Date.now() - 30 * 24 * 60 * 60 * 1000;
+        const recent = logs.filter(l => (l.date || 0) >= cutoff);
+        const members = new Set(recent.map(l => l.memberId).filter(Boolean));
+        const rpeValues = recent.map(l => l.rpe).filter(r => typeof r === 'number' && r > 0);
+        const avgRpe = rpeValues.length > 0 ? rpeValues.reduce((a, b) => a + b, 0) / rpeValues.length : null;
+        return { passCount: recent.length, memberCount: members.size, avgRpe };
+    }, [logs]);
+
+    const cells = [
+        { label: 'Loggade pass', value: isLoading ? '...' : String(summary.passCount) },
+        { label: 'Medlemmar som loggat', value: isLoading ? '...' : String(summary.memberCount) },
+        { label: 'Snitt-RPE', value: isLoading ? '...' : (summary.avgRpe !== null ? summary.avgRpe.toFixed(1) : '–') }
+    ];
+
+    return (
+        <div className="bg-white dark:bg-gray-800 rounded-3xl p-8 shadow-sm border border-gray-100 dark:border-gray-700">
+            <div className="flex items-start justify-between gap-4 mb-6">
+                <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 flex items-center justify-center flex-shrink-0">
+                        <ChartBarIcon className="w-5 h-5" />
+                    </div>
+                    <div>
+                        <h3 className="text-lg font-bold text-gray-900 dark:text-white">Medlemsappen</h3>
+                        <p className="text-xs text-gray-400 uppercase tracking-widest font-bold">Senaste 30 dagarna</p>
+                    </div>
+                </div>
+                {onOpenAnalytics && (
+                    <button onClick={onOpenAnalytics} className="text-sm font-bold text-primary hover:underline flex-shrink-0">
+                        Analys &amp; Trender →
+                    </button>
+                )}
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                {cells.map(cell => (
+                    <div key={cell.label} className="bg-gray-50 dark:bg-gray-900/50 p-5 rounded-2xl border border-gray-100 dark:border-gray-700">
+                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">{cell.label}</p>
+                        <p className="text-3xl font-black text-gray-900 dark:text-white tracking-tight">{cell.value}</p>
+                    </div>
+                ))}
+            </div>
+
+            {!isLoading && summary.passCount === 0 && (
+                <p className="text-sm text-gray-500 dark:text-gray-400 mt-4">
+                    Inga loggade pass den senaste månaden än. Bjud in era medlemmar under Studios/Orter så börjar siffrorna fyllas på.
+                </p>
+            )}
+
+            <div className="mt-5 pt-5 border-t border-gray-100 dark:border-gray-700 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                {joinSlideActive ? (
+                    <p className="text-sm text-gray-600 dark:text-gray-300">
+                        <span className="font-bold text-green-600 dark:text-green-400">QR-sliden rullar på skärmen.</span> Nya medlemmar kan skanna sig in i appen direkt från golvet.
+                    </p>
+                ) : (
+                    <p className="text-sm text-gray-600 dark:text-gray-300">
+                        <span className="font-bold text-amber-600 dark:text-amber-400">QR-sliden är avstängd.</span> Slå på den så visar skärmen en kod som medlemmarna kan skanna för att komma igång i appen.
+                    </p>
+                )}
+                {onOpenInfoCarousel && (
+                    <button onClick={onOpenInfoCarousel} className="text-sm font-bold text-primary hover:underline flex-shrink-0 self-start sm:self-auto">
+                        Info-karusell →
+                    </button>
+                )}
+            </div>
+        </div>
+    );
+};
+
+const DashboardContent: React.FC<DashboardContentProps> = ({ organization, workouts, workoutsLoading, setActiveTab, admins, coaches, usersLoading, onQuickGenerate, onTriggerUpgrade }) => {
     
     // Filtrera bort medlems-utkast (justeringar) från admin-översikten
     const officialWorkouts = useMemo(() => workouts.filter(w => !w.isMemberDraft), [workouts]);
     const publishedWorkouts = useMemo(() => officialWorkouts.filter(w => w.isPublished), [officialWorkouts]);
     const recentWorkouts = useMemo(() => [...officialWorkouts].sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)).slice(0, 5), [officialWorkouts]);
+
+    const [showMemberAppInfo, setShowMemberAppInfo] = useState(false);
+    const hasMemberApp = !!organization.globalConfig?.enableWorkoutLogging;
+    const joinSlideActive = !!(organization.infoCarousel?.isEnabled && organization.infoCarousel?.enableJoinSlide);
 
     const stats = [
         { label: 'Publicerade Pass', value: workoutsLoading ? '...' : publishedWorkouts.length, icon: DumbbellIcon, color: 'text-blue-600', bg: 'bg-blue-50 dark:bg-blue-900/20' },
@@ -445,6 +597,20 @@ const DashboardContent: React.FC<DashboardContentProps> = ({ organization, worko
             <WelcomeBanner name={organization.name} />
 
             <ChallengePromoWidget org={organization} />
+
+            {hasMemberApp ? (
+                <MemberAppStatsPanel
+                    organizationId={organization.id}
+                    joinSlideActive={joinSlideActive}
+                    onOpenAnalytics={setActiveTab ? () => setActiveTab('analytics') : undefined}
+                    onOpenInfoCarousel={setActiveTab ? () => setActiveTab('info-karusell') : undefined}
+                />
+            ) : (
+                <MemberAppSalesCard
+                    onTriggerUpgrade={onTriggerUpgrade}
+                    onShowInfo={() => setShowMemberAppInfo(true)}
+                />
+            )}
             
             <SetupProgressWidget 
                 org={organization} 
@@ -519,6 +685,8 @@ const DashboardContent: React.FC<DashboardContentProps> = ({ organization, worko
                     </div>
                 </div>
             </div>
+
+            <FeatureInfoModal isOpen={showMemberAppInfo} onClose={() => setShowMemberAppInfo(false)} />
         </div>
     );
 };
@@ -576,13 +744,16 @@ const PassProgramModule: React.FC<{
 
 const ManageWorkoutsView: React.FC<{
     workouts: Workout[];
+    locations?: { id: string; name: string }[];
+    organization?: Organization;
     onEdit: (workout: Workout) => void;
     onDelete: (id: string) => void;
     onDuplicate: (workout: Workout, origin?: string) => void;
     onTogglePublish: (id: string, isPublished: boolean, silentPublish?: boolean) => void;
     onCopyToLibrary: (workout: Workout) => void;
+    onMoveToLibrary: (workout: Workout) => void;
     onBack: () => void;
-}> = ({ workouts, onEdit, onDelete, onDuplicate, onTogglePublish, onCopyToLibrary, onBack }) => {
+}> = ({ workouts, locations, organization, onEdit, onDelete, onDuplicate, onTogglePublish, onCopyToLibrary, onMoveToLibrary, onBack }) => {
     
     const [activeTab, setActiveTab] = useState<'official' | 'drafts'>('official');
     const [searchTerm, setSearchTerm] = useState('');
@@ -754,7 +925,38 @@ const ManageWorkoutsView: React.FC<{
                                     >
                                         <td className="p-5">
                                             <p className="font-bold text-gray-900 dark:text-white text-base truncate max-w-xs">{workout.title}</p>
-                                            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 truncate max-w-xs">{workout.coachTips}</p>
+                                            {workout.coachTips && (
+                                                <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 truncate max-w-xs">{workout.coachTips}</p>
+                                            )}
+                                            {(() => {
+                                                const locIds = workout.locationIds || [];
+                                                let locLabel = "Alla orter";
+                                                if (locIds.length > 0 && locations && locations.length > 0) {
+                                                    const names = locIds.map(id => locations.find(l => l.id === id)?.name || id);
+                                                    locLabel = names.join(', ');
+                                                }
+                                                return (
+                                                    <div className="inline-flex items-center gap-1 text-[11px] font-medium text-gray-500 dark:text-gray-400 mt-1">
+                                                        <svg xmlns="http://www.w3.org/2000/svg" className="w-3 h-3 text-gray-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                                            <path strokeLinecap="round" strokeLinejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                                                            <path strokeLinecap="round" strokeLinejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                                                        </svg>
+                                                        <span className="truncate max-w-xs">{locLabel}</span>
+                                                    </div>
+                                                );
+                                            })()}
+                                            {(() => {
+                                                const vis = getWorkoutVisibilityIssues(workout, organization?.globalConfig?.customCategories);
+                                                if (vis.issues.length === 0) return null;
+                                                return (
+                                                    <div className="flex items-start gap-1.5 mt-1">
+                                                        <span className="text-amber-500 text-xs leading-4">⚠</span>
+                                                        <span className="text-[11px] text-amber-600 dark:text-amber-400 leading-4">
+                                                            {vis.issues.join(' ')}
+                                                        </span>
+                                                    </div>
+                                                );
+                                            })()}
                                         </td>
                                         <td className="p-5">
                                             <div className="flex flex-wrap items-center gap-2">
@@ -772,37 +974,47 @@ const ManageWorkoutsView: React.FC<{
                                             {new Date(workout.createdAt || 0).toLocaleDateString('sv-SE', { year: 'numeric', month: 'short', day: 'numeric' })}
                                         </td>
                                         <td className="p-5">
-                                            <button 
-                                                onClick={() => {
-                                                    if (!workout.isPublished) {
-                                                        setPublishConfirmWorkoutId(workout.id);
-                                                    } else {
-                                                        onTogglePublish(workout.id, false);
-                                                    }
-                                                }}
-                                                className={`text-xs font-bold px-2 py-1 rounded transition-colors uppercase tracking-wider ${
-                                                    workout.isPublished 
-                                                    ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300 hover:bg-green-200' 
-                                                    : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400 hover:bg-gray-200'
-                                                }`}
-                                            >
-                                                {workout.isPublished ? 'Publicerad' : 'Utkast'}
-                                            </button>
+                                            {(() => {
+                                                const statusInfo = getWorkoutStatusInfo(workout, Date.now(), organization?.globalConfig?.customCategories);
+                                                return (
+                                                    <button 
+                                                        onClick={() => {
+                                                            if (!workout.isPublished) {
+                                                                setPublishConfirmWorkoutId(workout.id);
+                                                            } else {
+                                                                onTogglePublish(workout.id, false);
+                                                            }
+                                                        }}
+                                                        className={`text-xs font-bold px-2 py-1 rounded transition-colors uppercase tracking-wider ${statusInfo.styleClass}`}
+                                                    >
+                                                        {statusInfo.label}
+                                                    </button>
+                                                );
+                                            })()}
                                         </td>
                                         <td className="p-5 text-right">
                                             <div className="flex justify-end gap-2">
                                                 {activeTab === 'drafts' && (
-                                                    <button 
-                                                        onClick={() => {
-                                                            setCopyConfirmWorkoutId(workout.id);
-                                                        }}
-                                                        className="p-2 text-gray-400 hover:text-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 rounded-lg transition-colors" 
-                                                        title="Spara som permanent mall"
-                                                    >
-                                                        <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                                            <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                                        </svg>
-                                                    </button>
+                                                    <>
+                                                        <button 
+                                                            onClick={() => onMoveToLibrary(workout)}
+                                                            className="p-2 text-gray-400 hover:text-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 rounded-lg transition-colors" 
+                                                            title="Flytta till gymmets bibliotek"
+                                                        >
+                                                            <ChevronRightIcon className="w-5 h-5" />
+                                                        </button>
+                                                        <button 
+                                                            onClick={() => {
+                                                                setCopyConfirmWorkoutId(workout.id);
+                                                            }}
+                                                            className="p-2 text-gray-400 hover:text-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 rounded-lg transition-colors" 
+                                                            title="Spara som permanent mall"
+                                                        >
+                                                            <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                                                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                                            </svg>
+                                                        </button>
+                                                    </>
                                                 )}
                                                 <button 
                                                     onClick={() => setPreviewWorkout(workout)} 
@@ -898,6 +1110,27 @@ const ManageWorkoutsView: React.FC<{
                                 <p className="text-gray-600 dark:text-gray-300 mb-6">
                                     Vill du skicka en pushnotis till medlemmarna om att passet är publicerat?
                                 </p>
+                                {(() => {
+                                    const wToPub = workouts.find(w => w.id === publishConfirmWorkoutId);
+                                    if (!wToPub) return null;
+                                    const vis = getWorkoutVisibilityIssues(wToPub, organization?.globalConfig?.customCategories);
+                                    if (vis.issues.length === 0) return null;
+                                    return (
+                                        <div className="mb-6 p-3 bg-amber-50 dark:bg-amber-900/20 rounded-xl border border-amber-200 dark:border-amber-800/60">
+                                            <div className="flex items-start gap-1.5">
+                                                <span className="text-amber-500 text-xs leading-4">⚠</span>
+                                                <span className="text-xs font-bold text-amber-700 dark:text-amber-400">
+                                                    Upplysning:
+                                                </span>
+                                            </div>
+                                            <ul className="mt-1 list-disc list-inside text-xs text-amber-800 dark:text-amber-300 space-y-1">
+                                                {vis.issues.map((issue, idx) => (
+                                                    <li key={idx}>{issue}</li>
+                                                ))}
+                                            </ul>
+                                        </div>
+                                    );
+                                })()}
                                 <div className="flex flex-col gap-3">
                                     <button 
                                         onClick={() => {
@@ -1070,6 +1303,10 @@ const PassProgramContent: React.FC<DashboardContentProps & {
         setSubView('manage'); 
     };
 
+    const handleMoveToLibrary = async (workout: Workout) => {
+        await onSaveWorkout({ ...workout, isMemberDraft: false });
+    };
+
     const handleCopyToLibrary = async (workout: Workout) => {
         let copy = deepCopyAndPrepareAsNew(workout);
         copy.isMemberDraft = false;
@@ -1133,11 +1370,14 @@ const PassProgramContent: React.FC<DashboardContentProps & {
         return (
             <ManageWorkoutsView 
                 workouts={workouts}
+                locations={organization?.locations}
+                organization={organization}
                 onEdit={handleEditWorkout}
                 onDelete={onDeleteWorkout}
                 onDuplicate={onDuplicateWorkout}
                 onTogglePublish={onTogglePublish}
                 onCopyToLibrary={handleCopyToLibrary}
+                onMoveToLibrary={handleMoveToLibrary}
                 onBack={onReturnToHub}
             />
         );

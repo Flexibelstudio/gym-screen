@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { StudioConfig, Organization, ThemeOption, TimerSoundProfile } from '../../types';
-import { ToggleSwitch, SparklesIcon, InformationCircleIcon, SpeakerphoneIcon } from '../icons';
+import { ToggleSwitch, InformationCircleIcon, SpeakerphoneIcon, LockIcon } from '../icons';
 import { SelectField } from './AdminShared';
 import { CategoryPromptManager } from '../CategoryPromptManager';
 import { FeatureInfoModal } from './AdminModals';
@@ -25,13 +25,6 @@ export const GlobalSettingsContent: React.FC<GlobalSettingsContentProps> = ({
     const { userData } = useAuth();
     const [showFeatureInfo, setShowFeatureInfo] = useState(false);
 
-    const handleAiChange = (field: 'instructions' | 'tone', value: string) => {
-        handleUpdateConfigField('aiSettings', {
-            ...(config.aiSettings || {}),
-            [field]: value
-        });
-    };
-
     const handleTestSound = () => {
         const sound = config.soundProfile || 'airhorn';
         playTimerSound(sound, 2); // Play twice
@@ -53,7 +46,7 @@ export const GlobalSettingsContent: React.FC<GlobalSettingsContentProps> = ({
                 <section>
                     <h4 className="text-sm font-bold uppercase tracking-wider text-gray-400 mb-4">Funktioner & Moduler</h4>
                     <div className="space-y-4">
-                        <div className="bg-gray-5 dark:bg-gray-900/50 p-4 rounded-xl border border-gray-100 dark:border-gray-700">
+                        <div className="bg-gray-50 dark:bg-gray-900/50 p-4 rounded-xl border border-gray-100 dark:border-gray-700">
                             <ToggleSwitch 
                                 label="Fristående Timer" 
                                 checked={config.enableTimer !== false} // Default true
@@ -62,7 +55,7 @@ export const GlobalSettingsContent: React.FC<GlobalSettingsContentProps> = ({
                             <p className="text-xs text-gray-500 mt-2 pl-2">Aktiverar den fristående timern på startsidan.</p>
                         </div>
 
-                        <div className="bg-gray-5 dark:bg-gray-900/50 p-4 rounded-xl border border-gray-100 dark:border-gray-700">
+                        <div className="bg-gray-50 dark:bg-gray-900/50 p-4 rounded-xl border border-gray-100 dark:border-gray-700">
                             <ToggleSwitch 
                                 label="Övriga Pass" 
                                 checked={config.enableOtherWorkouts !== false} // Default true
@@ -71,25 +64,50 @@ export const GlobalSettingsContent: React.FC<GlobalSettingsContentProps> = ({
                             <p className="text-xs text-gray-500 mt-2 pl-2">Visar knappen för "Övriga Pass" på startsidan.</p>
                         </div>
 
-                        <div className="bg-gray-5 dark:bg-gray-900/50 p-4 rounded-xl border border-gray-100 dark:border-gray-700">
+                        <div className="bg-gray-50 dark:bg-gray-900/50 p-4 rounded-xl border border-gray-100 dark:border-gray-700">
                             <ToggleSwitch 
                                 label="Träningslekar (Smart Play)" 
                                 checked={!!config.enableWorkoutGames} 
                                 onChange={(checked) => handleUpdateConfigField('enableWorkoutGames', checked)} 
                             />
-                            <p className="text-xs text-gray-500 mt-2 pl-2">Aktiverar kortlekar, tärningar och andra träningsspel på skärmen.</p>
+                            <p className="text-xs text-gray-500 mt-2 pl-2">Aktiverar kortlek, svetthjul och andra träningsspel på skärmen.</p>
                         </div>
 
-                        <div className="bg-gray-5 dark:bg-gray-900/50 p-4 rounded-xl border border-gray-100 dark:border-gray-700">
+                        {organization?.globalConfig?.enableEventsModule ? (
+                            <div className="bg-gray-50 dark:bg-gray-900/50 p-4 rounded-xl border border-gray-100 dark:border-gray-700">
+                                <ToggleSwitch 
+                                    label="Visa Event & Tävlingar" 
+                                    checked={!!config.enableHyrox} 
+                                    onChange={(checked) => handleUpdateConfigField('enableHyrox', checked)} 
+                                />
+                                <p className="text-xs text-gray-500 mt-2 pl-2">Visar planerade event och tävlingar samt tillhörande tidtagning på studioskärmen.</p>
+                            </div>
+                        ) : (
+                            <div className="bg-gray-50 dark:bg-gray-900/50 p-4 rounded-xl border border-gray-100 dark:border-gray-700">
+                                <ToggleSwitch 
+                                    label="Event & Tävlingar" 
+                                    checked={false} 
+                                    onChange={() => {}} 
+                                    disabled 
+                                />
+                                <p className="text-xs text-gray-500 mt-2 pl-2">Planera event och tävlingar, kör tidtagning med startgrupper och visa liveresultat på studioskärmen.</p>
+                                <p className="text-xs text-blue-600 dark:text-blue-400 font-bold mt-2 pl-2 flex items-center gap-1.5">
+                                    <LockIcon className="w-3.5 h-3.5 flex-shrink-0" />
+                                    Ingår inte i er plan — hör av er så aktiverar vi den.
+                                </p>
+                            </div>
+                        )}
+
+                        <div className="bg-gray-50 dark:bg-gray-900/50 p-4 rounded-xl border border-gray-100 dark:border-gray-700">
                             <ToggleSwitch 
-                                label="HYROX-modul" 
-                                checked={!!config.enableHyrox} 
-                                onChange={(checked) => handleUpdateConfigField('enableHyrox', checked)} 
+                                label="Styrka & Kondition (jämförelser)" 
+                                checked={config.enableFitnessBenchmarks !== false} 
+                                onChange={(checked) => handleUpdateConfigField('enableFitnessBenchmarks', checked)} 
                             />
-                            <p className="text-xs text-gray-500 mt-2 pl-2">Aktiverat verktyg för tävlingar och HYROX-pass.</p>
+                            <p className="text-xs text-gray-500 mt-2 pl-2">Visar medlemmarnas styrke- och konditionsnivåer jämfört med andra i samma ålder och kön. Påslaget som standard.</p>
                         </div>
 
-                        <div className="bg-gray-5 dark:bg-gray-900/50 p-4 rounded-xl border border-gray-100 dark:border-gray-700">
+                        <div className="bg-gray-50 dark:bg-gray-900/50 p-4 rounded-xl border border-gray-100 dark:border-gray-700">
                             <ToggleSwitch 
                                 label="Sommarutmaning (Sommar-Sisu)" 
                                 checked={!!config.enableSummerChallenge} 
@@ -101,7 +119,7 @@ export const GlobalSettingsContent: React.FC<GlobalSettingsContentProps> = ({
                         <div className="bg-gray-50 dark:bg-gray-900/50 p-4 rounded-xl border border-gray-100 dark:border-gray-700">
                             <div className="flex items-center gap-2">
                                 <ToggleSwitch 
-                                    label="Medlemsupplevelse & Loggning" 
+                                    label="Medlemsappen" 
                                     checked={!!config.enableWorkoutLogging} 
                                     onChange={async (checked) => {
                                         if (checked) {
@@ -125,7 +143,7 @@ export const GlobalSettingsContent: React.FC<GlobalSettingsContentProps> = ({
                                 </button>
                             </div>
                             <p className="text-xs text-gray-500 mt-2 pl-2">
-                                Låser upp medlemsappen, träningsdagbok, AI-coach och medlemsregister.
+                                Låser upp träningsdagbok, personbästa, styrkenivåer och medlemsregister.
                             </p>
                             {!config.enableWorkoutLogging && (
                                 <button onClick={onTriggerUpgrade} className="text-xs text-blue-600 dark:text-blue-400 font-bold mt-2 pl-2 hover:underline">
@@ -137,36 +155,10 @@ export const GlobalSettingsContent: React.FC<GlobalSettingsContentProps> = ({
                         {config.enableWorkoutLogging && (
                             <div className="ml-8 p-4 bg-white dark:bg-black/20 rounded-xl border border-blue-100 dark:border-blue-900/30 animate-fade-in">
                                 <h4 className="font-bold text-sm text-gray-900 dark:text-white mb-3 flex items-center gap-2">
-                                    <SparklesIcon className="w-4 h-4 text-purple-500" />
-                                    AI-Coach & Loggning
+                                    Loggning
                                 </h4>
-                                <div className="space-y-6">
-                                    <div>
-                                        <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Systeminstruktioner</label>
-                                        <textarea 
-                                            rows={3}
-                                            value={config.aiSettings?.instructions || ''}
-                                            onChange={(e) => handleAiChange('instructions', e.target.value)}
-                                            placeholder="T.ex: Påminn alltid om att boka PT om resultaten planar ut..."
-                                            className="w-full p-2 text-sm rounded bg-gray-5 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 focus:ring-2 focus:ring-primary outline-none resize-none"
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Tonläge</label>
-                                        <select 
-                                            value={config.aiSettings?.tone || 'neutral'}
-                                            onChange={(e) => handleAiChange('tone', e.target.value)}
-                                            className="w-full p-2 text-sm rounded bg-gray-5 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 focus:ring-2 focus:ring-primary outline-none"
-                                        >
-                                            <option value="neutral">Neutral & Professionell</option>
-                                            <option value="enthusiastic">Peppande & Entusiastisk</option>
-                                            <option value="strict">Sträng & Militärisk</option>
-                                            <option value="sales">Säljande & Serviceinriktad</option>
-                                        </select>
-                                    </div>
-
-                                    <div className="pt-4 border-t border-blue-100 dark:border-blue-900/30">
-                                        <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Pass för egen loggning (Vanliga val)</label>
+                                <div>
+                                    <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Pass för egen loggning (Vanliga val)</label>
                                         <p className="text-xs text-gray-400 mb-3">Dessa aktiviteter visas som snabbval när medlemmen loggar egenträning.</p>
                                         
                                         <div className="flex flex-wrap gap-2 mb-3">
@@ -188,7 +180,7 @@ export const GlobalSettingsContent: React.FC<GlobalSettingsContentProps> = ({
                                                 id="new-activity-input" 
                                                 type="text" 
                                                 placeholder="T.ex. Padel" 
-                                                className="flex-1 p-2 text-sm rounded bg-gray-5 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 focus:ring-2 focus:ring-primary outline-none" 
+                                                className="flex-1 p-2 text-sm rounded bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 focus:ring-2 focus:ring-primary outline-none" 
                                                 onKeyDown={(e) => {
                                                     if (e.key === 'Enter') {
                                                         e.preventDefault();
@@ -217,10 +209,9 @@ export const GlobalSettingsContent: React.FC<GlobalSettingsContentProps> = ({
                                         </div>
                                     </div>
                                 </div>
-                            </div>
                         )}
 
-                        <div className="bg-gray-5 dark:bg-gray-900/50 p-4 rounded-xl border border-gray-100 dark:border-gray-700">
+                        <div className="bg-gray-50 dark:bg-gray-900/50 p-4 rounded-xl border border-gray-100 dark:border-gray-700">
                             <ToggleSwitch label="AI Whiteboard" checked={!!config.enableNotes} onChange={(checked) => handleUpdateConfigField('enableNotes', checked)} />
                             <p className="text-xs text-gray-500 mt-2 pl-2">Digital rityta för att skissa pass och idéer.</p>
                         </div>

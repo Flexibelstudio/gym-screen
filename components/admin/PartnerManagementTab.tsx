@@ -119,7 +119,7 @@ export const PartnerManagementTab: React.FC = () => {
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-6">
                     {partners.map(partner => (
                         <div key={partner.id} className="relative group rounded-lg p-4 border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 flex flex-col items-center justify-between min-h-[160px]">
-                            <div className="w-full h-20 flex items-center justify-center bg-white dark:bg-gray-850 rounded-md p-2 mb-2 border border-gray-150 dark:border-gray-800">
+                            <div className="w-full h-20 flex items-center justify-center bg-white dark:bg-gray-800 rounded-md p-2 mb-2 border border-gray-200 dark:border-gray-800">
                                 <img src={partner.logoUrl} alt={partner.name} className="max-w-full max-h-full object-contain" />
                             </div>
                             <div className="text-center w-full">

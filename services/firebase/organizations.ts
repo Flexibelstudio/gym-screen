@@ -250,6 +250,12 @@ export const updateOrganizationAllowMemberPromotionCode = async (id: string, all
     return getOrganizationById(id);
 };
 
+export const updateOrganizationMembersPaidByGym = async (id: string, value: boolean) => {
+    if(isOffline || !db || !id) return;
+    await updateDoc(doc(db, 'organizations', id), { membersPaidByGym: value });
+    return getOrganizationById(id);
+};
+
 export const updateOrganizationMemberPromotionCode = async (id: string, code: string) => {
     if(isOffline || !db || !id) return;
     await updateDoc(doc(db, 'organizations', id), { memberPromotionCode: code.trim() });
