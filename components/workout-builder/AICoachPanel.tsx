@@ -14,7 +14,14 @@ interface ChatMessage {
     previousWorkoutState?: Workout; // Store the state before AI modified it
 }
 
-const DraggableSuggestedExercise: React.FC<{ exercise: { name: string; description: string } }> = ({ exercise }) => {
+const DraggableSuggestedExercise: React.FC<{
+    exercise: { name: string; description: string };
+    blocks: { id: string; title: string }[];
+    onAdd?: (exercise: { name: string; description: string }, blockId: string) => void;
+}> = ({ exercise, blocks, onAdd }) => {
+    const [isPickingBlock, setIsPickingBlock] = useState(false);
+    const [addedTo, setAddedTo] = useState<string | null>(null);
+
     const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
         id: `ai-${exercise.name}`,
         data: {
@@ -28,28 +35,73 @@ const DraggableSuggestedExercise: React.FC<{ exercise: { name: string; descripti
         }
     });
 
+    const addToBlock = (blockId: string, blockTitle: string) => {
+        if (!onAdd) return;
+        onAdd(exercise, blockId);
+        setIsPickingBlock(false);
+        setAddedTo(blockTitle || 'blocket');
+    };
+
+    const handleAddClick = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        if (!onAdd || blocks.length === 0) return;
+        if (blocks.length === 1) {
+            addToBlock(blocks[0].id, blocks[0].title);
+            return;
+        }
+        setIsPickingBlock(prev => !prev);
+    };
+
     return (
-        <div
-            ref={setNodeRef}
-            {...listeners}
-            {...attributes}
-            title="Dra in övningen i passet"
-            className={`w-full text-left bg-gray-50 dark:bg-gray-700/50 border border-dashed border-purple-300 dark:border-purple-700 rounded-lg p-2 flex items-center gap-2 cursor-grab active:cursor-grabbing transition-colors hover:border-purple-500 hover:bg-purple-50 dark:hover:bg-purple-900/20 group ${isDragging ? 'opacity-50 ring-2 ring-purple-400' : ''}`}
-        >
-            {/* Grip-handtag som signalerar dragbarhet */}
-            <div className="flex-shrink-0 text-purple-400 group-hover:text-purple-600 transition-colors">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                    <circle cx="9" cy="5" r="1" /><circle cx="9" cy="12" r="1" /><circle cx="9" cy="19" r="1" />
-                    <circle cx="15" cy="5" r="1" /><circle cx="15" cy="12" r="1" /><circle cx="15" cy="19" r="1" />
-                </svg>
+        <div className="space-y-2">
+            <div
+                ref={setNodeRef}
+                {...listeners}
+                {...attributes}
+                title="Dra in övningen i passet, eller tryck på Lägg till"
+                className={`w-full text-left bg-gray-50 dark:bg-gray-700/50 border border-dashed border-purple-300 dark:border-purple-700 rounded-lg p-2 flex items-center gap-2 cursor-grab active:cursor-grabbing transition-colors hover:border-purple-500 hover:bg-purple-50 dark:hover:bg-purple-900/20 group ${isDragging ? 'opacity-50 ring-2 ring-purple-400' : ''}`}
+            >
+                <div className="flex-shrink-0 text-purple-400 group-hover:text-purple-600 transition-colors" title="Dra för att placera exakt">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                        <circle cx="9" cy="5" r="1" /><circle cx="9" cy="12" r="1" /><circle cx="9" cy="19" r="1" />
+                        <circle cx="15" cy="5" r="1" /><circle cx="15" cy="12" r="1" /><circle cx="15" cy="19" r="1" />
+                    </svg>
+                </div>
+                <div className="flex-grow min-w-0">
+                    <p className="text-sm font-bold text-gray-900 dark:text-white">{exercise.name}</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-1">{exercise.description}</p>
+                </div>
+                <button
+                    type="button"
+                    onPointerDown={(e) => e.stopPropagation()}
+                    onClick={handleAddClick}
+                    className="flex-shrink-0 text-[10px] font-black uppercase tracking-wider text-white bg-purple-600 hover:bg-purple-500 rounded-lg px-3 py-2 whitespace-nowrap active:scale-95 transition-all"
+                >
+                    {isPickingBlock ? 'Avbryt' : 'Lägg till'}
+                </button>
             </div>
-            <div className="flex-grow min-w-0">
-                <p className="text-sm font-bold text-gray-900 dark:text-white">{exercise.name}</p>
-                <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-1">{exercise.description}</p>
-            </div>
-            <span className="flex-shrink-0 text-[9px] font-black uppercase tracking-wider text-purple-500 dark:text-purple-400 bg-purple-100 dark:bg-purple-900/30 border border-purple-200 dark:border-purple-800 rounded px-1.5 py-0.5 whitespace-nowrap">
-                Dra in i passet
-            </span>
+
+            {isPickingBlock && blocks.length > 1 && (
+                <div className="pl-2 space-y-1">
+                    <p className="text-[10px] font-black uppercase tracking-wider text-gray-500 dark:text-gray-400">Lägg till i vilket block?</p>
+                    {blocks.map((b, i) => (
+                        <button
+                            key={b.id}
+                            type="button"
+                            onClick={() => addToBlock(b.id, b.title)}
+                            className="w-full text-left text-sm font-bold text-gray-800 dark:text-gray-200 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2.5 hover:border-purple-400 active:scale-[0.99] transition-all"
+                        >
+                            {b.title || `Block ${i + 1}`}
+                        </button>
+                    ))}
+                </div>
+            )}
+
+            {addedTo && (
+                <p className="pl-2 text-xs font-bold text-emerald-600 dark:text-emerald-400">
+                    {exercise.name} tillagd i {addedTo}.
+                </p>
+            )}
         </div>
     );
 };
@@ -58,7 +110,8 @@ export const AICoachSidebar: React.FC<{
     workout: Workout;
     onUpdateWorkout: (workout: Workout) => void;
     availableExercises: string[];
-}> = ({ workout, onUpdateWorkout, availableExercises }) => {
+    onAddSuggestedExercise?: (exercise: { name: string; description: string }, blockId: string) => void;
+}> = ({ workout, onUpdateWorkout, availableExercises, onAddSuggestedExercise }) => {
     const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
     const [chatInput, setChatInput] = useState('');
     const [isChatting, setIsChatting] = useState(false);
@@ -191,9 +244,14 @@ export const AICoachSidebar: React.FC<{
                                         {/* Suggested Exercises Buttons */}
                                         {msg.suggestedExercises && msg.suggestedExercises.length > 0 && (
                                             <div className="mt-3 space-y-2">
-                                                <p className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Förslag — dra in dem i passet:</p>
+                                                <p className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Förslag — lägg till i passet:</p>
                                                 {msg.suggestedExercises.map((ex, i) => (
-                                                    <DraggableSuggestedExercise key={i} exercise={ex} />
+                                                    <DraggableSuggestedExercise
+                                                        key={i}
+                                                        exercise={ex}
+                                                        blocks={(workout.blocks || []).map(b => ({ id: b.id, title: b.title }))}
+                                                        onAdd={onAddSuggestedExercise}
+                                                    />
                                                 ))}
                                             </div>
                                         )}

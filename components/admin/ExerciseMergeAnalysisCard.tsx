@@ -28,10 +28,25 @@ interface GroupAffected {
     examples: ExampleData[];
 }
 
+interface SkippedDoc {
+    name: string;
+    weight: number;
+    reps: number;
+    calculated1RM: number;
+}
+
+interface GroupSkipped {
+    memberName: string;
+    canonical: string;
+    names: string[];
+    docs: SkippedDoc[];
+}
+
 interface AnalysisReport {
     membersExamined: number;
     pbDocsExamined: number;
     groupsAffected: GroupAffected[];
+    groupsSkipped?: GroupSkipped[];
     pbDocsToWrite: number;
     pbDocsToDelete: number;
     logsExamined: number;
@@ -255,6 +270,31 @@ export const ExerciseMergeAnalysisCard: React.FC<ExerciseMergeAnalysisCardProps>
                             </div>
                         )}
                     </div>
+
+                    {report.groupsSkipped && report.groupsSkipped.length > 0 && (
+                        <div className="space-y-3 bg-amber-50 dark:bg-amber-950/30 p-4 rounded-2xl border border-amber-300 dark:border-amber-800">
+                            <h5 className="font-bold text-sm text-amber-800 dark:text-amber-300 uppercase tracking-wider">
+                                Överhoppade grupper ({report.groupsSkipped.length})
+                            </h5>
+                            <p className="text-xs text-amber-800/80 dark:text-amber-300/80 leading-relaxed">
+                                I dessa grupper saknar samtliga poster jämförbar data — noll repetitioner och inget beräknat 1RM. Migreringen kan inte avgöra vilken post som ska överleva och rör dem därför inte alls. Varken skrivningar eller raderingar sker. Titta på dem manuellt och rätta eller ta bort posterna innan ni kör om.
+                            </p>
+                            <div className="space-y-2">
+                                {report.groupsSkipped.map((grp, idx) => (
+                                    <div key={idx} className="text-xs bg-white dark:bg-slate-900 p-3 rounded-lg border border-amber-200 dark:border-amber-900/60 space-y-1">
+                                        <div className="font-bold text-slate-800 dark:text-slate-200">
+                                            {grp.canonical} — {grp.memberName}
+                                        </div>
+                                        {grp.docs.map((d, dIdx) => (
+                                            <div key={dIdx} className="text-slate-600 dark:text-slate-400 font-mono">
+                                                {d.name}: {d.weight} kg, {d.reps} reps, 1RM {d.calculated1RM}
+                                            </div>
+                                        ))}
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
 
                     {/* Rå JSON-utskrift */}
                     <details className="mt-4 text-xs">

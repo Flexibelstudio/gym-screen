@@ -304,7 +304,7 @@ export const AppRouter: React.FC<AppRouterProps> = (props) => {
                         />;
 
                     case Page.CoachNotes:
-                        return <CoachNotesScreen onBack={handleBack} onWorkoutInterpreted={functions.handleGeneratedWorkout} />;
+                        return <CoachNotesScreen onBack={handleBack} onWorkoutInterpreted={functions.handleWorkoutInterpreted} />;
 
                     case Page.IdeaBoard:
                         return <NotesScreen 

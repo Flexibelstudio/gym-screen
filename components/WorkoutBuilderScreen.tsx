@@ -202,6 +202,21 @@ interface WorkoutBuilderScreenProps {
   setCustomBackHandler?: (handler: (() => void) | null) => void;
 }
 
+const buildExerciseForBlock = (
+    source: { name: string; description?: string; isFromBank?: boolean; id?: string; imageUrl?: string },
+    targetBlock: WorkoutBlock | undefined,
+    treatAsBankExercise: boolean
+): Exercise => ({
+    id: `ex-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+    name: source.name,
+    description: source.description || '',
+    reps: '',
+    isFromBank: source.isFromBank || treatAsBankExercise,
+    originalBankId: (source.isFromBank || treatAsBankExercise) ? source.id : undefined,
+    loggingEnabled: getDefaultLoggingForBlockTag(targetBlock?.tag),
+    imageUrl: source.imageUrl
+});
+
 export const WorkoutBuilderScreen: React.FC<WorkoutBuilderScreenProps> = ({ initialWorkout, onSave, onCancel, focusedBlockId: initialFocusedBlockId, studioConfig, sessionRole, isNewDraft = false, organization, isAdminView = false, setCustomBackHandler }) => {
   const { selectedOrganization } = useStudio();
   const { userData } = useAuth();
@@ -356,16 +371,11 @@ export const WorkoutBuilderScreen: React.FC<WorkoutBuilderScreenProps> = ({ init
         
         if (targetBlockId) {
             const targetBlock = workout.blocks.find(b => b.id === targetBlockId);
-            const newExercise: Exercise = {
-                id: `ex-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-                name: activeData.exercise.name,
-                description: activeData.exercise.description || '',
-                reps: '',
-                isFromBank: activeData.exercise.isFromBank || activeData.type === 'bank-exercise',
-                originalBankId: activeData.exercise.isFromBank || activeData.type === 'bank-exercise' ? activeData.exercise.id : undefined,
-                loggingEnabled: getDefaultLoggingForBlockTag(targetBlock?.tag),
-                imageUrl: activeData.exercise.imageUrl
-            };
+            const newExercise: Exercise = buildExerciseForBlock(
+                activeData.exercise,
+                targetBlock,
+                activeData.type === 'bank-exercise'
+            );
 
             setWorkout(prev => {
                 const newBlocks = prev.blocks.map(block => {
@@ -450,6 +460,25 @@ export const WorkoutBuilderScreen: React.FC<WorkoutBuilderScreenProps> = ({ init
             });
         }
     }
+  };
+
+  const handleAddSuggestedExercise = (
+      exercise: { name: string; description: string },
+      blockId: string
+  ) => {
+      setWorkout(prev => {
+          const targetBlock = prev.blocks.find(b => b.id === blockId);
+          if (!targetBlock) return prev;
+          const newExercise = buildExerciseForBlock(exercise, targetBlock, false);
+          return {
+              ...prev,
+              blocks: prev.blocks.map(b =>
+                  b.id === blockId
+                      ? { ...b, exercises: [...b.exercises, newExercise] }
+                      : b
+              )
+          };
+      });
   };
 
   // Toast state
@@ -1200,6 +1229,7 @@ export const WorkoutBuilderScreen: React.FC<WorkoutBuilderScreenProps> = ({ init
                             workout={workout} 
                             onUpdateWorkout={setWorkout}
                             availableExercises={exerciseBank.map(e => e.name)}
+                            onAddSuggestedExercise={handleAddSuggestedExercise}
                         />
                     )}
                 </div>

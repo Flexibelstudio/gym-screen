@@ -32,7 +32,7 @@ export const StudiosContent: React.FC<StudiosContentProps> = ({ organization, on
 
         setIsCreating(true);
         try {
-            const defaultLocationId = organization.locations && organization.locations.length > 0 ? organization.locations[0].id : undefined;
+            const defaultLocationId = organization.locations && organization.locations.length === 1 ? organization.locations[0].id : undefined;
             await onCreateStudio(organization.id, newStudioName.trim(), defaultLocationId);
             setNewStudioName('');
         } catch (error) {
@@ -63,16 +63,27 @@ export const StudiosContent: React.FC<StudiosContentProps> = ({ organization, on
                             <div>
                                 <p className="font-bold text-lg text-gray-900 dark:text-white truncate">{studio.name}</p>
                                 {organization.locations && organization.locations.length > 0 && (
-                                    <select
-                                        value={studio.locationId || organization.locations[0].id}
-                                        onChange={(e) => onUpdateStudio(organization.id, studio.id, studio.name, e.target.value || undefined)}
-                                        className="mt-1 text-sm bg-gray-50 dark:bg-gray-700 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-600 rounded-md px-2 py-1 outline-none focus:ring-2 focus:ring-primary/50"
-                                    >
-                                        <option value="">-- Välj ort/studio för skärmen --</option>
-                                        {organization.locations.map(loc => (
-                                            <option key={loc.id} value={loc.id}>{loc.name}</option>
-                                        ))}
-                                    </select>
+                                    <>
+                                        <select
+                                            value={studio.locationId || ''}
+                                            onChange={(e) => onUpdateStudio(organization.id, studio.id, studio.name, e.target.value || undefined)}
+                                            className={`mt-1 text-sm rounded-md px-2 py-1 outline-none focus:ring-2 focus:ring-primary/50 border ${
+                                                studio.locationId
+                                                    ? 'bg-gray-50 dark:bg-gray-700 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-600'
+                                                    : 'bg-amber-50 dark:bg-amber-900/20 text-amber-800 dark:text-amber-300 border-amber-400 dark:border-amber-600'
+                                            }`}
+                                        >
+                                            <option value="">-- Välj ort/studio för skärmen --</option>
+                                            {organization.locations.map(loc => (
+                                                <option key={loc.id} value={loc.id}>{loc.name}</option>
+                                            ))}
+                                        </select>
+                                        {!studio.locationId && (
+                                            <p className="mt-1 text-[11px] font-semibold text-amber-600 dark:text-amber-400">
+                                                Ingen ort vald. Skärmen visar hela organisationens flöde i stället för ortens.
+                                            </p>
+                                        )}
+                                    </>
                                 )}
                             </div>
                         </div>

@@ -11,9 +11,10 @@ import { useAuth } from '../context/AuthContext';
 import { parseSettingsFromTitle } from '../hooks/useWorkoutTimer';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Toast } from './ui/ToastNotification';
-import { sanitizeWorkoutWithBank, getDefaultLoggingForBlockTag } from '../utils/workoutUtils';
+import { sanitizeWorkoutWithBank, getDefaultLoggingForBlockTag, getBlockProfile } from '../utils/workoutUtils';
 
 // --- Helpers ---
+const BLOCK_TAGS = ['Uppvärmning', 'Styrka', 'Hypertrofi', 'Kondition', 'Teknik', 'Core/Bål', 'Balans', 'Rörlighet', 'Finisher', 'Nedvarvning'];
 const parseExerciseLine = (line: string): { reps: string; name: string } => {
     const trimmedLine = line.trim();
     const match = trimmedLine.match(/^(\d+)\s+(.*)/);
@@ -440,45 +441,47 @@ const BlockCard: React.FC<BlockCardProps> = ({ block, index, totalBlocks, onUpda
     return (
         <div className="bg-white dark:bg-gray-900 rounded-[2.5rem] p-6 sm:p-8 shadow-xl border border-gray-100 dark:border-gray-800 space-y-6">
             <div className="flex justify-between items-start">
-                <div className="flex-grow max-w-2xl flex flex-col sm:flex-row gap-4">
-                    <div className="flex-grow">
-                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-2 block ml-1">Block {index}</label>
-                        <input 
-                            type="text" value={block.title} 
-                            onChange={e => handleFieldChange('title', e.target.value)} 
-                            placeholder="Blockets titel..." 
-                            className={`${inputBaseClasses} w-full text-2xl tracking-tight`} 
-                        />
-                    </div>
-                    <div className="w-full sm:w-48">
-                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-2 block ml-1">Kategori (Tagg)</label>
-                        <select
-                            value={['Styrka', 'Hypertrofi', 'Kondition', 'Rörlighet', 'Teknik', 'Core/Bål', 'Balans', 'Uppvärmning', 'Nedvarvning', 'Finisher'].find(opt => opt.toLowerCase() === (block.tag || '').toLowerCase()) || block.tag || ''}
-                            onChange={e => handleFieldChange('tag', e.target.value)}
-                            className={`${inputBaseClasses} w-full text-lg cursor-pointer ${
-                                !block.tag
-                                    ? '!bg-amber-500 !text-gray-900 !border-amber-500 dark:!bg-amber-500 dark:!text-gray-900'
-                                    : ''
-                            }`}
-                        >
-                            <option value="">Välj blocktyp</option>
-                            <option value="Styrka">Styrka</option>
-                            <option value="Hypertrofi">Hypertrofi</option>
-                            <option value="Kondition">Kondition</option>
-                            <option value="Rörlighet">Rörlighet</option>
-                            <option value="Teknik">Teknik</option>
-                            <option value="Core/Bål">Core/Bål</option>
-                            <option value="Balans">Balans</option>
-                            <option value="Uppvärmning">Uppvärmning</option>
-                            <option value="Nedvarvning">Nedvarvning</option>
-                            <option value="Finisher">Finisher</option>
-                        </select>
-                    </div>
+                <div className="flex-grow max-w-2xl">
+                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-2 block ml-1">Block {index}</label>
+                    <input 
+                        type="text" value={block.title} 
+                        onChange={e => handleFieldChange('title', e.target.value)} 
+                        placeholder="Blockets titel..." 
+                        className={`${inputBaseClasses} w-full text-2xl tracking-tight`} 
+                    />
                 </div>
                 {totalBlocks > 1 && (
                     <button onClick={onRemove} className="text-red-500 p-3 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-full transition-colors ml-4">
                         <TrashIcon className="w-6 h-6" />
                     </button>
+                )}
+            </div>
+
+            <div>
+                <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-2 block ml-1">Blocktyp</label>
+                <div className="flex flex-wrap gap-2">
+                    {BLOCK_TAGS.map(tagOption => {
+                        const isSelected = (block.tag || '').toLowerCase() === tagOption.toLowerCase();
+                        return (
+                            <button
+                                key={tagOption}
+                                type="button"
+                                onClick={() => handleFieldChange('tag', tagOption)}
+                                className={`px-4 py-2.5 rounded-xl text-sm font-bold border-2 transition-all active:scale-95 ${
+                                    isSelected
+                                        ? 'bg-primary text-white border-primary shadow-lg shadow-primary/20'
+                                        : 'bg-gray-50 dark:bg-gray-800 text-gray-600 dark:text-gray-300 border-transparent hover:border-gray-300 dark:hover:border-gray-600'
+                                }`}
+                            >
+                                {tagOption}
+                            </button>
+                        );
+                    })}
+                </div>
+                {!block.tag && (
+                    <p className="mt-2 ml-1 text-xs font-bold text-amber-600 dark:text-amber-400">
+                        Välj blocktyp. Den styr reps, intensitet och om övningarna ska loggas.
+                    </p>
                 )}
             </div>
 
@@ -544,6 +547,64 @@ const BlockCard: React.FC<BlockCardProps> = ({ block, index, totalBlocks, onUpda
                         />
                     </div>
                 )}
+
+                {block.useTrainingProfile && block.showIntensity !== false && (() => {
+                    const profile = getBlockProfile({ ...block, useTrainingProfile: true });
+                    if (!profile || profile.hasWeightMath === false) return null;
+
+                    const currentPct = profile.targetPct ?? 0;
+                    const hasOverride = block.profileOverrides?.targetPct !== undefined;
+
+                    const setPct = (value: number) => {
+                        const clamped = Math.max(0, Math.min(100, value));
+                        handleFieldChange('profileOverrides', { ...(block.profileOverrides || {}), targetPct: clamped });
+                    };
+
+                    const resetPct = () => {
+                        const rest = { ...(block.profileOverrides || {}) };
+                        delete rest.targetPct;
+                        handleFieldChange('profileOverrides', Object.keys(rest).length > 0 ? rest : undefined);
+                    };
+
+                    return (
+                        <div className="p-4 rounded-2xl bg-gray-50 dark:bg-gray-800/50 border border-gray-100 dark:border-gray-800">
+                            <div className="flex items-center justify-between gap-4">
+                                <div className="min-w-0">
+                                    <p className="text-sm font-bold text-gray-900 dark:text-white">Intensitet</p>
+                                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Andel av medlemmens eget maxlyft. Appen räknar fram vikten åt var och en.</p>
+                                </div>
+                                <div className="flex items-center gap-2 flex-shrink-0">
+                                    <button
+                                        type="button"
+                                        onClick={() => setPct(currentPct - 5)}
+                                        className="w-10 h-10 flex items-center justify-center bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 text-lg font-black active:scale-95 transition-transform"
+                                    >
+                                        −
+                                    </button>
+                                    <div className="min-w-[64px] text-center font-mono font-black text-lg text-primary">
+                                        {currentPct} %
+                                    </div>
+                                    <button
+                                        type="button"
+                                        onClick={() => setPct(currentPct + 5)}
+                                        className="w-10 h-10 flex items-center justify-center bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 text-lg font-black active:scale-95 transition-transform"
+                                    >
+                                        +
+                                    </button>
+                                </div>
+                            </div>
+                            {hasOverride && (
+                                <button
+                                    type="button"
+                                    onClick={resetPct}
+                                    className="mt-3 text-xs font-bold text-primary hover:underline"
+                                >
+                                    Återställ till standard för {block.tag}
+                                </button>
+                            )}
+                        </div>
+                    );
+                })()}
                 
                 {!isLastBlock && (
                      <div className={`col-span-1 sm:col-span-2 p-4 rounded-2xl bg-purple-50/30 dark:bg-purple-900/10 border border-purple-100 dark:border-purple-800/50 flex flex-col gap-4 ${block.settings.mode === TimerMode.NoTimer ? 'opacity-50' : ''}`}>
@@ -706,7 +767,28 @@ export const SimpleWorkoutBuilderScreen: React.FC<{ initialWorkout: Workout | nu
         }
         if (!workout.title.trim()) { alert("Passet måste ha ett namn."); return; }
         if (setCustomBackHandler) setCustomBackHandler(null);
-        onSave({ ...workout, organizationId: selectedOrganization?.id || '' });
+
+        const workoutToSave: Workout = {
+            ...workout,
+            organizationId: selectedOrganization?.id || ''
+        };
+
+        // Ett nytt pass som skapats här ska vara publicerat direkt. Annars blir det
+        // osynligt i Anteckningar och i Kolla in passen, och går bara att nå genom
+        // att publicera det manuellt i adminvyn.
+        //
+        // Undantag: justeringar. handleAdjustWorkout sätter medvetet isMemberDraft
+        // true och isPublished false på sin kopia och anropar ändå
+        // setIsEditingNewDraft(true) — utan kontrollen nedan skulle varje
+        // "Justering:"-kopia från skärmen publiceras till hela gymmet.
+        //
+        // Ett befintligt pass rörs inte heller; det kan ha avpublicerats med flit.
+        if (isNewDraft && workoutToSave.isMemberDraft !== true) {
+            workoutToSave.isPublished = true;
+            workoutToSave.isMemberDraft = false;
+        }
+
+        onSave(workoutToSave);
     };
     
     const handleAddBlock = () => {
@@ -784,6 +866,38 @@ export const SimpleWorkoutBuilderScreen: React.FC<{ initialWorkout: Workout | nu
                                     className={`${inputBaseClasses} w-full text-4xl tracking-tight !bg-white dark:!bg-gray-900`} 
                                 />
                             </div>
+                            {studioConfig.customCategories && studioConfig.customCategories.length > 0 && (() => {
+                                const hasValidCategory = studioConfig.customCategories.some(c => c.name === workout.category);
+                                return (
+                                    <div>
+                                        <label className="text-[10px] font-black text-primary uppercase tracking-[0.3em] mb-2 block ml-2">Kategori</label>
+                                        <div className="flex flex-wrap gap-2">
+                                            {studioConfig.customCategories.map(cat => {
+                                                const isSelected = workout.category === cat.name;
+                                                return (
+                                                    <button
+                                                        key={cat.id || cat.name}
+                                                        type="button"
+                                                        onClick={() => setWorkout({ ...workout, category: cat.name })}
+                                                        className={`px-4 py-2.5 rounded-xl text-sm font-bold border-2 transition-all active:scale-95 ${
+                                                            isSelected
+                                                                ? 'bg-primary text-white border-primary shadow-lg shadow-primary/20'
+                                                                : 'bg-white dark:bg-gray-900 text-gray-600 dark:text-gray-300 border-transparent hover:border-gray-300 dark:hover:border-gray-600'
+                                                        }`}
+                                                    >
+                                                        {cat.name}
+                                                    </button>
+                                                );
+                                            })}
+                                        </div>
+                                        {!hasValidCategory && (
+                                            <p className="mt-2 ml-2 text-xs font-bold text-amber-600 dark:text-amber-400">
+                                                Välj kategori. Utan den hittar varken medlemmarna eller skärmen passet.
+                                            </p>
+                                        )}
+                                    </div>
+                                );
+                            })()}
                             <div>
                                 <label className="text-[10px] font-black text-primary uppercase tracking-[0.3em] mb-2 block ml-2">Tips till deltagare</label>
                                 <textarea 
