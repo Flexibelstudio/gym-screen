@@ -2,13 +2,13 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { Organization, Workout, UserData, BenchmarkDefinition } from '../../types';
-import { DumbbellIcon, BuildingIcon, UsersIcon, SpeakerphoneIcon, SparklesIcon, CopyIcon, PencilIcon, TrashIcon, ShuffleIcon, SearchIcon, ChevronLeftIcon, ChevronRightIcon, ChevronUpIcon, ChevronDownIcon, TrophyIcon, EyeIcon } from '../icons';
+import { DumbbellIcon, BuildingIcon, UsersIcon, SpeakerphoneIcon, SparklesIcon, CopyIcon, PencilIcon, TrashIcon, ShuffleIcon, SearchIcon, ChevronLeftIcon, ChevronRightIcon, ChevronUpIcon, ChevronDownIcon, TrophyIcon, EyeIcon, ChartBarIcon } from '../icons';
 import { motion, AnimatePresence } from 'framer-motion';
 import { AIGeneratorScreen } from '../AIGeneratorScreen';
 import { WorkoutBuilderScreen } from '../WorkoutBuilderScreen';
 import { deepCopyAndPrepareAsNew, getWorkoutStatusInfo, getWorkoutVisibilityIssues } from '../../utils/workoutUtils';
-import { ManageBenchmarksModal } from './AdminModals';
-import { updateOrganizationBenchmarks, resolveAndCreateExercises, updateGlobalConfig, listenToGlobalSummerChallenge, listenToMembers, listenToCommunityLogs, listenToCommunityLogsByLocations } from '../../services/firebaseService';
+import { ManageBenchmarksModal, FeatureInfoModal } from './AdminModals';
+import { updateOrganizationBenchmarks, resolveAndCreateExercises, updateGlobalConfig, listenToGlobalSummerChallenge, listenToMembers, listenToCommunityLogs, listenToCommunityLogsByLocations, getOrganizationLogs, getSmartScreenPricing } from '../../services/firebaseService';
 import { WorkoutPresentationModal } from '../WorkoutDetailScreen';
 
 // ... (Types and Interfaces remain same)
@@ -17,7 +17,7 @@ type AdminTab =
     'dashboard' | 
     'pass-program' | 'infosidor' | 'info-karusell' |
     'globala-installningar' | 'studios' | 'varumarke' | 'company-info' |
-    'medlemmar' | 'ovningsbank';
+    'medlemmar' | 'ovningsbank' | 'analytics';
 
 interface DashboardContentProps {
     organization: Organization;
@@ -28,6 +28,7 @@ interface DashboardContentProps {
     coaches?: UserData[];
     usersLoading?: boolean;
     onQuickGenerate?: (prompt: string) => Promise<void>;
+    onTriggerUpgrade?: () => void;
 }
 
 // ... (WelcomeBanner, SetupProgressWidget, QuickAIWidget, DashboardContent components remain the same)
@@ -430,12 +431,160 @@ const ChallengePromoWidget: React.FC<{ org: Organization }> = ({ org }) => {
     );
 };
 
-const DashboardContent: React.FC<DashboardContentProps> = ({ organization, workouts, workoutsLoading, setActiveTab, admins, coaches, usersLoading, onQuickGenerate }) => {
+const MemberAppSalesCard: React.FC<{ onTriggerUpgrade?: () => void; onShowInfo: () => void }> = ({ onTriggerUpgrade, onShowInfo }) => {
+    const [baseCost, setBaseCost] = useState(19);
+    const customerPrice = 39;
+
+    useEffect(() => {
+        getSmartScreenPricing().then(pricing => {
+            if (pricing && pricing.workoutLoggingPricePerMember !== undefined) {
+                setBaseCost(pricing.workoutLoggingPricePerMember);
+            }
+        }).catch(() => {});
+    }, []);
+
+    const gymShare = Math.max(0, customerPrice - baseCost);
+
+    return (
+        <div className="bg-white dark:bg-gray-800 rounded-3xl p-8 shadow-sm border border-gray-100 dark:border-gray-700">
+            <div className="flex items-start gap-4 mb-5">
+                <div className="w-12 h-12 rounded-2xl bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 flex items-center justify-center flex-shrink-0">
+                    <ChartBarIcon className="w-6 h-6" />
+                </div>
+                <div>
+                    <h3 className="text-2xl font-black text-gray-900 dark:text-white tracking-tight mb-1">
+                        Den som ser att det går framåt säger inte upp sitt medlemskap.
+                    </h3>
+                    <p className="text-gray-500 dark:text-gray-400">
+                        Medlemsappen ger era medlemmar svart på vitt att träningen ger resultat — och er en bild av vem som är på väg bort, medan ni fortfarande kan göra något åt det.
+                    </p>
+                </div>
+            </div>
+
+            <ul className="space-y-3 mb-6 text-sm text-gray-600 dark:text-gray-300">
+                <li className="flex gap-3">
+                    <span className="text-indigo-500 font-black">›</span>
+                    <span><strong className="text-gray-900 dark:text-white">Se vilka som håller i.</strong> Registret visar vem som loggat den senaste tiden och vem som inte synts på tre veckor. I tid för att höra av er.</span>
+                </li>
+                <li className="flex gap-3">
+                    <span className="text-indigo-500 font-black">›</span>
+                    <span><strong className="text-gray-900 dark:text-white">Medlemmen ser sin egen utveckling.</strong> Vikter, reps och personbästa pass för pass, i grafer som gör framstegen svåra att missa. Och hur styrkan ligger till mot Strength Levels databas — nybörjare, motionär, stark, mycket stark, elit — i deras egen ålders- och viktklass.</span>
+                </li>
+                <li className="flex gap-3">
+                    <span className="text-indigo-500 font-black">›</span>
+                    <span><strong className="text-gray-900 dark:text-white">Ge dem något att sikta på.</strong> Lägg upp era egna benchmarks: 2 000 m på roddmaskinen, max antal armhävningar, vad ni vill. Medlemmarna testar sig, ser sin tid och jagar den nästa gång.</span>
+                </li>
+                <li className="flex gap-3">
+                    <span className="text-indigo-500 font-black">›</span>
+                    <span><strong className="text-gray-900 dark:text-white">Och tjäna på det.</strong> {gymShare} kr per ansluten medlem och månad, rakt in till er.</span>
+                </li>
+            </ul>
+
+            <div className="flex flex-col sm:flex-row gap-3">
+                <button onClick={() => onTriggerUpgrade && onTriggerUpgrade()} className="flex-1 bg-primary hover:brightness-110 text-white font-bold py-3 px-6 rounded-xl shadow-lg shadow-primary/20 transition-all transform active:scale-95">
+                    Räkna på vad det ger
+                </button>
+                <button onClick={onShowInfo} className="flex-1 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-900 dark:text-white font-bold py-3 px-6 rounded-xl transition-colors">
+                    Så funkar Medlemsappen
+                </button>
+            </div>
+        </div>
+    );
+};
+
+const MemberAppStatsPanel: React.FC<{ organizationId: string; joinSlideActive: boolean; onOpenAnalytics?: () => void; onOpenInfoCarousel?: () => void }> = ({ organizationId, joinSlideActive, onOpenAnalytics, onOpenInfoCarousel }) => {
+    const [logs, setLogs] = useState<any[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
+
+    useEffect(() => {
+        if (!organizationId) return;
+        let cancelled = false;
+        setIsLoading(true);
+        getOrganizationLogs(organizationId, 500)
+            .then(data => { if (!cancelled) { setLogs(data || []); setIsLoading(false); } })
+            .catch(() => { if (!cancelled) { setLogs([]); setIsLoading(false); } });
+        return () => { cancelled = true; };
+    }, [organizationId]);
+
+    const summary = useMemo(() => {
+        const cutoff = Date.now() - 30 * 24 * 60 * 60 * 1000;
+        const recent = logs.filter(l => (l.date || 0) >= cutoff);
+        const members = new Set(recent.map(l => l.memberId).filter(Boolean));
+        const rpeValues = recent.map(l => l.rpe).filter(r => typeof r === 'number' && r > 0);
+        const avgRpe = rpeValues.length > 0 ? rpeValues.reduce((a, b) => a + b, 0) / rpeValues.length : null;
+        return { passCount: recent.length, memberCount: members.size, avgRpe };
+    }, [logs]);
+
+    const cells = [
+        { label: 'Loggade pass', value: isLoading ? '...' : String(summary.passCount) },
+        { label: 'Medlemmar som loggat', value: isLoading ? '...' : String(summary.memberCount) },
+        { label: 'Snitt-RPE', value: isLoading ? '...' : (summary.avgRpe !== null ? summary.avgRpe.toFixed(1) : '–') }
+    ];
+
+    return (
+        <div className="bg-white dark:bg-gray-800 rounded-3xl p-8 shadow-sm border border-gray-100 dark:border-gray-700">
+            <div className="flex items-start justify-between gap-4 mb-6">
+                <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 flex items-center justify-center flex-shrink-0">
+                        <ChartBarIcon className="w-5 h-5" />
+                    </div>
+                    <div>
+                        <h3 className="text-lg font-bold text-gray-900 dark:text-white">Medlemsappen</h3>
+                        <p className="text-xs text-gray-400 uppercase tracking-widest font-bold">Senaste 30 dagarna</p>
+                    </div>
+                </div>
+                {onOpenAnalytics && (
+                    <button onClick={onOpenAnalytics} className="text-sm font-bold text-primary hover:underline flex-shrink-0">
+                        Analys &amp; Trender →
+                    </button>
+                )}
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                {cells.map(cell => (
+                    <div key={cell.label} className="bg-gray-50 dark:bg-gray-900/50 p-5 rounded-2xl border border-gray-100 dark:border-gray-700">
+                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">{cell.label}</p>
+                        <p className="text-3xl font-black text-gray-900 dark:text-white tracking-tight">{cell.value}</p>
+                    </div>
+                ))}
+            </div>
+
+            {!isLoading && summary.passCount === 0 && (
+                <p className="text-sm text-gray-500 dark:text-gray-400 mt-4">
+                    Inga loggade pass den senaste månaden än. Bjud in era medlemmar under Studios/Orter så börjar siffrorna fyllas på.
+                </p>
+            )}
+
+            <div className="mt-5 pt-5 border-t border-gray-100 dark:border-gray-700 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                {joinSlideActive ? (
+                    <p className="text-sm text-gray-600 dark:text-gray-300">
+                        <span className="font-bold text-green-600 dark:text-green-400">QR-sliden rullar på skärmen.</span> Nya medlemmar kan skanna sig in i appen direkt från golvet.
+                    </p>
+                ) : (
+                    <p className="text-sm text-gray-600 dark:text-gray-300">
+                        <span className="font-bold text-amber-600 dark:text-amber-400">QR-sliden är avstängd.</span> Slå på den så visar skärmen en kod som medlemmarna kan skanna för att komma igång i appen.
+                    </p>
+                )}
+                {onOpenInfoCarousel && (
+                    <button onClick={onOpenInfoCarousel} className="text-sm font-bold text-primary hover:underline flex-shrink-0 self-start sm:self-auto">
+                        Info-karusell →
+                    </button>
+                )}
+            </div>
+        </div>
+    );
+};
+
+const DashboardContent: React.FC<DashboardContentProps> = ({ organization, workouts, workoutsLoading, setActiveTab, admins, coaches, usersLoading, onQuickGenerate, onTriggerUpgrade }) => {
     
     // Filtrera bort medlems-utkast (justeringar) från admin-översikten
     const officialWorkouts = useMemo(() => workouts.filter(w => !w.isMemberDraft), [workouts]);
     const publishedWorkouts = useMemo(() => officialWorkouts.filter(w => w.isPublished), [officialWorkouts]);
     const recentWorkouts = useMemo(() => [...officialWorkouts].sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)).slice(0, 5), [officialWorkouts]);
+
+    const [showMemberAppInfo, setShowMemberAppInfo] = useState(false);
+    const hasMemberApp = !!organization.globalConfig?.enableWorkoutLogging;
+    const joinSlideActive = !!(organization.infoCarousel?.isEnabled && organization.infoCarousel?.enableJoinSlide);
 
     const stats = [
         { label: 'Publicerade Pass', value: workoutsLoading ? '...' : publishedWorkouts.length, icon: DumbbellIcon, color: 'text-blue-600', bg: 'bg-blue-50 dark:bg-blue-900/20' },
@@ -448,6 +597,20 @@ const DashboardContent: React.FC<DashboardContentProps> = ({ organization, worko
             <WelcomeBanner name={organization.name} />
 
             <ChallengePromoWidget org={organization} />
+
+            {hasMemberApp ? (
+                <MemberAppStatsPanel
+                    organizationId={organization.id}
+                    joinSlideActive={joinSlideActive}
+                    onOpenAnalytics={setActiveTab ? () => setActiveTab('analytics') : undefined}
+                    onOpenInfoCarousel={setActiveTab ? () => setActiveTab('info-karusell') : undefined}
+                />
+            ) : (
+                <MemberAppSalesCard
+                    onTriggerUpgrade={onTriggerUpgrade}
+                    onShowInfo={() => setShowMemberAppInfo(true)}
+                />
+            )}
             
             <SetupProgressWidget 
                 org={organization} 
@@ -522,6 +685,8 @@ const DashboardContent: React.FC<DashboardContentProps> = ({ organization, worko
                     </div>
                 </div>
             </div>
+
+            <FeatureInfoModal isOpen={showMemberAppInfo} onClose={() => setShowMemberAppInfo(false)} />
         </div>
     );
 };

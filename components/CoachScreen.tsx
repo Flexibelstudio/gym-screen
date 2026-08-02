@@ -172,7 +172,7 @@ export const CoachScreen: React.FC<CoachScreenProps> = ({ role, navigateTo, onSe
                 </div>
                 <h3 className="text-2xl font-black mb-2 uppercase tracking-tight">Världens modernaste medlemsupplevelse</h3>
                 <p className="text-indigo-100 leading-relaxed">
-                    Denna funktion ingår i tilläggstjänsten <strong>Smart Medlemsupplevelse</strong>.
+                    Denna funktion ingår i tilläggstjänsten <strong>Medlemsappen</strong>.
                 </p>
             </div>
 

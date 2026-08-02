@@ -119,7 +119,7 @@ export const GlobalSettingsContent: React.FC<GlobalSettingsContentProps> = ({
                         <div className="bg-gray-50 dark:bg-gray-900/50 p-4 rounded-xl border border-gray-100 dark:border-gray-700">
                             <div className="flex items-center gap-2">
                                 <ToggleSwitch 
-                                    label="Medlemsupplevelse & Loggning" 
+                                    label="Medlemsappen" 
                                     checked={!!config.enableWorkoutLogging} 
                                     onChange={async (checked) => {
                                         if (checked) {
@@ -143,7 +143,7 @@ export const GlobalSettingsContent: React.FC<GlobalSettingsContentProps> = ({
                                 </button>
                             </div>
                             <p className="text-xs text-gray-500 mt-2 pl-2">
-                                Låser upp medlemsappen, träningsdagbok, AI-coach och medlemsregister.
+                                Låser upp träningsdagbok, personbästa, styrkenivåer och medlemsregister.
                             </p>
                             {!config.enableWorkoutLogging && (
                                 <button onClick={onTriggerUpgrade} className="text-xs text-blue-600 dark:text-blue-400 font-bold mt-2 pl-2 hover:underline">

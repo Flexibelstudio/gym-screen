@@ -179,7 +179,7 @@ const ExerciseItem: React.FC<ExerciseItemProps> = ({ exercise, onUpdate, onRemov
 
     const handleToggleLogging = () => {
         if (!enableWorkoutLogging) {
-            onShowToast("Aktivera Passloggning i inställningarna för att använda detta.");
+            onShowToast("Aktivera Medlemsappen i inställningarna för att använda detta.");
             return;
         }
         if (window.navigator.vibrate) window.navigator.vibrate(5);
@@ -387,7 +387,7 @@ const BlockCard: React.FC<BlockCardProps> = ({ block, index, totalBlocks, onUpda
     
     const handleToggleAllLogging = () => {
         if (!enableWorkoutLogging) {
-            onShowToast("Aktivera Passloggning i inställningarna för att använda detta.");
+            onShowToast("Aktivera Medlemsappen i inställningarna för att använda detta.");
             return;
         }
 

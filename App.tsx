@@ -471,9 +471,9 @@ const App: React.FC = () => {
         if (code) {
             const joinSlideMsg: InfoMessage & { isJoinSlide?: boolean; joinUrl?: string; orgName?: string; locationName?: string; logoUrl?: string } = {
                 id: 'join-slide-auto',
-                internalTitle: 'Bli medlem — skanna koden',
-                headline: `Bli medlem i ${orgName}${locName ? ` — ${locName}` : ''}`,
-                body: 'Skanna QR-koden med din mobil för att skapa konto och komma igång direkt!',
+                internalTitle: 'Börja logga din träning — skanna koden',
+                headline: `Börja logga din träning hos ${orgName}${locName ? ` — ${locName}` : ''}`,
+                body: 'Skanna QR-koden med mobilen så är du igång på en minut.',
                 durationSeconds: 15,
                 animation: 'fade',
                 layout: 'image-left',

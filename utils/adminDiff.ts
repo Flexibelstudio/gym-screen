@@ -9,7 +9,7 @@ export const FIELD_LABELS: Record<string, string> = {
   enableHyrox: 'Visa Event & Tävlingar',
   enableFitnessBenchmarks: 'Styrka & Kondition (jämförelser)',
   enableSummerChallenge: 'Sommarutmaning (Sommar-Sisu)',
-  enableWorkoutLogging: 'Medlemsupplevelse & Loggning',
+  enableWorkoutLogging: 'Medlemsappen',
   commonActivities: 'Pass för egen loggning',
   enableNotes: 'AI Whiteboard',
   enableExerciseBank: 'Övningsbank',

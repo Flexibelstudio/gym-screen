@@ -442,16 +442,16 @@ export const SuperAdminScreen: React.FC<SuperAdminScreenProps> = (props) => {
             case 'dashboard':
                 return (
                     <div className="space-y-8">
-                        <DashboardContent {...props} setActiveTab={setActiveTab} admins={admins} coaches={coaches} usersLoading={usersLoading} onQuickGenerate={handleQuickGenerate} />
+                        <DashboardContent {...props} setActiveTab={setActiveTab} admins={admins} coaches={coaches} usersLoading={usersLoading} onQuickGenerate={handleQuickGenerate} onTriggerUpgrade={() => setIsUpgradeModalOpen(true)} />
                     </div>
                 );
             case 'analytics':
                 if (!organization.globalConfig.enableWorkoutLogging) {
                     return (
                         <FeatureLockedView 
-                            title="Analys & Trender ingår i Passloggning 🚀"
-                            description="Få djupa insikter i hur dina medlemmar presterar och mår. Se trender över tid och optimera ditt träningsutbud."
-                            features={["Fullständig passanalys 📊", "Medlemsregister 👥", "Generera intäkter 💰", "AI-Coaching för medlemmar 🤖"]}
+                            title="Analys & Trender ingår i Medlemsappen 🚀"
+                            description="Se hur era medlemmar presterar och mår över tid, och vilka som håller i och vilka som glidit iväg."
+                            features={["Fullständig passanalys 📊", "Medlemsregister 👥", "Styrkenivåer mot Strength Level 💪", "Ny intäkt per medlem 💰"]}
                             onActivate={() => setIsUpgradeModalOpen(true)}
                         />
                     );

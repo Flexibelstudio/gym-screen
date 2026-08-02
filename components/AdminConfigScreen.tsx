@@ -291,7 +291,7 @@ export const StudioConfigModal: React.FC<StudioConfigModalProps> = ({ isOpen, on
                 return (
                     <div className="space-y-4 animate-fade-in">
                         <h3 className="font-semibold text-gray-900 dark:text-white mb-2 px-2">Funktioner</h3>
-                        {renderToggle('enableWorkoutLogging', "Aktivera Passloggning", "Låt medlemmar logga sina resultat via QR-kod.", () => setShowPricingModal(true))}
+                        {renderToggle('enableWorkoutLogging', "Medlemsappen", "Låt medlemmar logga sina resultat via QR-kod.", () => setShowPricingModal(true))}
                         {renderToggle('enableNotes', "Aktivera AI Whiteboard", "Digital whiteboard för att skissa upp pass och spara anteckningar.")}
                         {renderToggle('enableExerciseBank', "Aktivera Övningsbank", "Tillgång till globala övningar.")}
                         {renderToggle('enableFitnessBenchmarks', "Styrka & Kondition (jämförelser)", "Visar medlemmarnas styrke- och konditionsnivåer jämfört med andra i samma ålder och kön. Påslaget som standard.")}
@@ -460,13 +460,13 @@ export const StudioConfigModal: React.FC<StudioConfigModalProps> = ({ isOpen, on
                 <div className="bg-white dark:bg-gray-900 rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden" onClick={e => e.stopPropagation()}>
                     {/* ... Pricing modal content ... */}
                     <div className="p-6 bg-gradient-to-br from-blue-600 to-indigo-700 text-white text-center">
-                        <h3 className="text-2xl font-black mb-1">Aktivera Passloggning 🚀</h3>
+                        <h3 className="text-2xl font-black mb-1">Aktivera Medlemsappen 🚀</h3>
                         <p className="text-blue-100 text-sm">Ge dina medlemmar en modern träningsupplevelse</p>
                     </div>
                     
                     <div className="p-6 space-y-6">
                         <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-xl text-sm space-y-2 text-gray-700 dark:text-gray-300">
-                            <p>✅ <strong>För medlemmar:</strong> Logga resultat, se progression och få AI-feedback.</p>
+                            <p>✅ <strong>För medlemmar:</strong> Logga resultat, se sin progression och spara sin träningshistorik.</p>
                             <p>✅ <strong>För gymmet:</strong> Ökad retention, data och automatisk merförsäljning.</p>
                         </div>
                          {/* ... costs ... */}
@@ -524,7 +524,7 @@ export const StudioConfigModal: React.FC<StudioConfigModalProps> = ({ isOpen, on
                                     setOverrides(newOverrides);
                                     try {
                                         await onSave(organization.id, studio.id, newOverrides);
-                                        setToast({ message: "Passloggning aktiverad!", visible: true });
+                                        setToast({ message: "Medlemsappen aktiverad!", visible: true });
                                     } catch(e) { console.error(e); }
                                     setIsConnectingStripe(false);
                                     setShowPricingModal(false);
