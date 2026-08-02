@@ -427,6 +427,7 @@ export interface UserData {
   photoUrl?: string;
   stripeCustomerId?: string;
   termsAcceptedAt?: number;
+  hasSeenWelcome?: boolean; // Välkomstrutan i medlemsappen har visats en gång.
   age?: number;
   birthDate?: string;
   gender?: string;

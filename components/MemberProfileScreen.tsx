@@ -4,7 +4,8 @@ import { deleteField } from 'firebase/firestore';
 import { WorkoutLog, UserData, MemberGoals, Page, UserRole, SmartGoalDetail, WorkoutDiploma, StudioConfig, BenchmarkDefinition, PersonalBest } from '../types';
 import { listenToMemberLogs, listenToPersonalBests, updateUserGoals, updateUserProfile, uploadImage, updateWorkoutLog, deleteWorkoutLog, requestPushNotificationPermission, auth, getPastRaces, toggleWorkoutLogLike, calculateBodyWeightHistory, saveWorkoutLog } from '../services/firebaseService';
 import { LEVEL_NAMES, ROWING_LEVEL_NAMES } from '../data/fitnessStandards';
-import { getAgeFromBirthDate, getRowingAssessment, getRowingScore, formatRowingTime } from '../utils/fitnessBenchmarks';
+import { getAgeFromBirthDate, getRowingAssessment, formatRowingTime, findLift1RM, getStrengthScore } from '../utils/fitnessBenchmarks';
+import { buildRowingScoreHistory } from '../utils/memberProgress';
 import { calculateMonthlyStats, MonthlyWrappedModal } from './MonthlyWrapped';
 import { ChartBarIcon, DumbbellIcon, PencilIcon, SparklesIcon, UserIcon, FireIcon, LightningIcon, TrashIcon, CloseIcon, TrophyIcon, ToggleSwitch, ClockIcon, HistoryIcon, FlagIcon, StarIcon, ChevronRightIcon, SunIcon, InformationCircleIcon } from './icons';
 import { Modal } from './ui/Modal';
@@ -449,27 +450,65 @@ const getGoalCoachingAdvice = (goals: MemberGoals, logs: WorkoutLog[]): { status
     };
 };
 
-const getLevelInfo = (count: number) => {
-    const workoutsPerLevel = 10;
-    const level = Math.floor(count / workoutsPerLevel) + 1;
-    const workoutsInCurrentLevel = count % workoutsPerLevel;
-    const progressToNext = (workoutsInCurrentLevel / workoutsPerLevel) * 100;
-    return { level, progressToNext, workoutsInCurrentLevel, workoutsPerLevel };
+const MILESTONES: { count: number; name: string }[] = [
+    { count: 10, name: 'Igång' },
+    { count: 25, name: 'Vanan sitter' },
+    { count: 50, name: 'Stammis' },
+    { count: 100, name: 'Hundraklubben' },
+    { count: 250, name: 'Veteran' },
+    { count: 500, name: 'Legendarisk' },
+    { count: 1000, name: 'Tusenklubben' },
+];
+
+const getMilestoneInfo = (count: number) => {
+    const reached = MILESTONES.filter(m => count >= m.count).pop() || null;
+    const next = MILESTONES.find(m => count < m.count) || null;
+    const from = reached ? reached.count : 0;
+    const span = next ? next.count - from : 0;
+    const progress = next && span > 0
+        ? Math.min(100, Math.max(0, ((count - from) / span) * 100))
+        : 100;
+
+    return {
+        reachedName: reached ? reached.name : null,
+        nextName: next ? next.name : null,
+        workoutsToNext: next ? next.count - count : 0,
+        progress
+    };
 };
 
-const getAthleteArchetype = (logs: WorkoutLog[]) => {
-    if (logs.length < 3) return { title: "Nykomling", icon: <SparklesIcon className="w-5 h-5" />, color: "from-blue-500 to-cyan-500", desc: "Du är i början av din resa. Fortsätt såhär!" };
-    let strengthCount = 0, cardioCount = 0, hyroxCount = 0;
-    logs.forEach(l => {
-        const t = (l.workoutTitle + (l.tags?.join(' ') || '')).toLowerCase();
-        if (t.includes('styrka') || t.includes('gym') || t.includes('power')) strengthCount++;
-        if (t.includes('kondition') || t.includes('flås') || t.includes('löpning')) cardioCount++;
-        if (t.includes('hyrox')) hyroxCount++;
-    });
-    if (hyroxCount > 3) return { title: "HYROX-Krigare", icon: <LightningIcon className="w-5 h-5" />, color: "from-yellow-500 to-orange-500", desc: "Du älskar funktionell fitness och tävlingsmomentet!" };
-    if (strengthCount > cardioCount + 2) return { title: "Lyftaren", icon: <DumbbellIcon className="w-5 h-5" />, color: "from-red-500 to-pink-600", desc: "Tunga lyft är din grej. Starkt jobbat!" };
-    if (cardioCount > strengthCount + 2) return { title: "Maskinen", icon: <FireIcon className="w-5 h-5" />, color: "from-orange-400 to-red-500", desc: "Uthållighet av stål. Du slutar aldrig!" };
-    return { title: "Hybridatlet", icon: <UserIcon className="w-5 h-5" />, color: "from-indigo-500 to-purple-600", desc: "Du behärskar både styrka och kondition. Den kompletta atleten." };
+const getAthleteArchetype = (
+    strengthScore: number | null,
+    conditioningScore: number | null,
+    logCount: number
+) => {
+    if (strengthScore !== null && conditioningScore !== null) {
+        const detail = `Styrka ${strengthScore} · Kondition ${conditioningScore}`;
+        const diff = strengthScore - conditioningScore;
+
+        if (diff > 10) {
+            return { title: "Lyftaren", icon: <DumbbellIcon className="w-5 h-5" />, color: "from-red-500 to-pink-600", desc: `Tunga lyft är din grej. ${detail}.` };
+        }
+        if (diff < -10) {
+            return { title: "Maskinen", icon: <FireIcon className="w-5 h-5" />, color: "from-orange-400 to-red-500", desc: `Uthållighet av stål. ${detail}.` };
+        }
+        return { title: "Hybridatlet", icon: <UserIcon className="w-5 h-5" />, color: "from-indigo-500 to-purple-600", desc: `Du håller ihop styrka och kondition. ${detail}.` };
+    }
+
+    if (logCount < 3) {
+        return { title: "Nykomling", icon: <SparklesIcon className="w-5 h-5" />, color: "from-blue-500 to-cyan-500", desc: "Du är i början av din resa. Logga några pass så visar vi din profil." };
+    }
+
+    const missing: string[] = [];
+    if (strengthScore === null) missing.push('knäböj, bänkpress och marklyft');
+    if (conditioningScore === null) missing.push('ett 2000 m roddtest');
+
+    return {
+        title: "På gång",
+        icon: <SparklesIcon className="w-5 h-5" />,
+        color: "from-slate-500 to-slate-700",
+        desc: `Logga ${missing.join(' och ')} så kan vi visa din träningsprofil.`
+    };
 };
 
 const BenchmarkDetailModal: React.FC<{ 
@@ -619,23 +658,10 @@ const Rowing2000mCard: React.FC<{
     const age = getAgeFromBirthDate(userData?.birthDate);
     const gender = userData?.gender;
 
-    const rowingScoreHistory = useMemo(() => {
-        if ((gender !== 'male' && gender !== 'female') || age === null) return [];
-        return [...rowingLogs]
-            .filter(l => (l.benchmarkDistance ?? 2000) === 2000)
-            .sort((a, b) => a.date - b.date)
-            .map(l => {
-                const score = getRowingScore(gender, age, l.benchmarkValue!);
-                if (score === null) return null;
-                return {
-                    date: new Date(l.date).toLocaleDateString('sv-SE', { month: 'short', day: 'numeric' }),
-                    timestamp: l.date,
-                    score,
-                    timeLabel: formatRowingTime(l.benchmarkValue!)
-                };
-            })
-            .filter(Boolean) as { date: string; timestamp: number; score: number; timeLabel: string }[];
-    }, [rowingLogs, gender, age]);
+    const rowingScoreHistory = useMemo(
+        () => buildRowingScoreHistory(logs, gender, age),
+        [logs, gender, age]
+    );
 
     const latestRowingScore = rowingScoreHistory.length > 0
         ? rowingScoreHistory[rowingScoreHistory.length - 1].score
@@ -891,7 +917,7 @@ const Rowing2000mCard: React.FC<{
                                     <YAxis domain={[0, 100]} axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#9ca3af' }} />
                                     <Tooltip
                                         contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)', fontSize: '12px', fontWeight: 'bold' }}
-                                        formatter={(value: number, _name: string, props: any) => [`${value} poäng · ${props?.payload?.timeLabel ?? ''}`, 'Konditionspoäng']}
+                                        formatter={(value: number, _name: string, props: any) => [`${value} poäng · ${props?.payload?.label ?? ''}`, 'Konditionspoäng']}
                                         labelStyle={{ color: '#6b7280', marginBottom: '4px' }}
                                     />
                                     <Line type="monotone" dataKey="score" stroke="#14b8a6" strokeWidth={3} dot={{ r: 4, fill: '#14b8a6', strokeWidth: 2, stroke: '#fff' }} activeDot={{ r: 6, fill: '#14b8a6', strokeWidth: 0 }} />
@@ -1682,15 +1708,27 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
         return summerLeaderboardData.reduce((acc, curr) => acc + curr.totalPoints, 0);
     }, [summerLeaderboardData]);
 
-    const [activeTab, setActiveTab] = useState<'overview' | 'goals' | 'strength' | 'benchmarks'>(() => {
-        const saved = localStorage.getItem('smart-skarm-profile-active-tab');
-        if (saved === 'summer') return 'overview';
-        return (saved as any) || 'overview';
-    });
+    const [activeTab, setActiveTab] = useState<'overview' | 'goals' | 'strength' | 'benchmarks'>('overview');
+
+    const [showWelcome, setShowWelcome] = useState(false);
+    const welcomeDismissedRef = useRef(false);
 
     useEffect(() => {
-        localStorage.setItem('smart-skarm-profile-active-tab', activeTab);
-    }, [activeTab]);
+        if (welcomeDismissedRef.current) return;
+        if (!userData?.uid) return;
+        setShowWelcome(userData.hasSeenWelcome !== true);
+    }, [userData?.uid, userData?.hasSeenWelcome]);
+
+    const handleCloseWelcome = async () => {
+        welcomeDismissedRef.current = true;
+        setShowWelcome(false);
+        if (!userData?.uid) return;
+        try {
+            await updateUserProfile(userData.uid, { hasSeenWelcome: true });
+        } catch (e) {
+            console.error('hasSeenWelcome update failed', e);
+        }
+    };
 
 
     const [summerTabLeaderboard, setSummerTabLeaderboard] = useState<'weekly' | 'overall'>('weekly');
@@ -2062,8 +2100,36 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
         return Math.min(100, Math.max(0, percent));
     }, [userData.goals]);
 
-    const archetype = useMemo(() => getAthleteArchetype(logs), [logs]);
-    const { level, progressToNext, workoutsInCurrentLevel, workoutsPerLevel } = useMemo(() => getLevelInfo(logs.length), [logs]);
+    const profileAge = getAgeFromBirthDate(userData?.birthDate);
+    const profileBodyWeight = typeof userData?.bodyWeight === 'number' && userData.bodyWeight > 0 ? userData.bodyWeight : null;
+    const profileGender = userData?.gender;
+
+    const memberStrengthScore = useMemo(() => {
+        const result = getStrengthScore(
+            {
+                squat: findLift1RM(personalBests, 'squat'),
+                bench: findLift1RM(personalBests, 'bench'),
+                deadlift: findLift1RM(personalBests, 'deadlift')
+            },
+            profileGender, profileAge, profileBodyWeight
+        );
+        return result ? result.score : null;
+    }, [personalBests, profileGender, profileAge, profileBodyWeight]);
+
+    const memberConditioningScore = useMemo(() => {
+        const history = buildRowingScoreHistory(logs, profileGender, profileAge);
+        return history.length > 0 ? history[history.length - 1].score : null;
+    }, [logs, profileGender, profileAge]);
+
+    const archetype = useMemo(
+        () => getAthleteArchetype(memberStrengthScore, memberConditioningScore, logs.length),
+        [memberStrengthScore, memberConditioningScore, logs.length]
+    );
+
+    const milestone = useMemo(
+        () => getMilestoneInfo(logs.length + (userData?.migratedStats?.totalWorkouts || 0)),
+        [logs.length, userData?.migratedStats?.totalWorkouts]
+    );
 
     const handleResumeWorkout = () => {
         if (activeSession && functions.handleLogWorkoutRequest) {
@@ -2734,16 +2800,20 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                         </div>
                     )}
 
-                    {/* Level Meter */}
+                    {/* Milstolpe */}
                     <div className="bg-white dark:bg-gray-900 rounded-2xl p-3 sm:p-4 shadow-sm border border-gray-100 dark:border-gray-800">
-                        <div className="flex items-center justify-between mb-2">
-                            <span className="text-sm font-black text-gray-900 dark:text-white uppercase tracking-widest">Nivå {level}</span>
-                            <span className="text-xs font-bold text-gray-400">
-                                {workoutsInCurrentLevel} av {workoutsPerLevel} pass till nivå {level + 1}
+                        <div className="flex items-center justify-between mb-2 gap-3">
+                            <span className="text-sm font-black text-gray-900 dark:text-white uppercase tracking-widest">
+                                {milestone.reachedName || 'På väg mot första milstolpen'}
+                            </span>
+                            <span className="text-xs font-bold text-gray-400 text-right">
+                                {milestone.nextName
+                                    ? `${milestone.workoutsToNext} pass till ${milestone.nextName}`
+                                    : 'Alla milstolpar avklarade'}
                             </span>
                         </div>
                         <div className="w-full h-3 bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden">
-                            <div className="h-full bg-primary transition-all duration-1000" style={{ width: `${progressToNext}%` }}></div>
+                            <div className="h-full bg-primary transition-all duration-1000" style={{ width: `${milestone.progress}%` }}></div>
                         </div>
                     </div>
 
@@ -3791,7 +3861,7 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                 <Modal isOpen={true} onClose={() => setShowArchetypeInfo(false)} title="Träningsprofiler">
                     <div className="space-y-4">
                         <p className="text-sm text-gray-600 dark:text-gray-400 mb-6">
-                            Din träningsprofil baseras på vilken typ av pass du loggar mest. Här är de olika profilerna du kan uppnå:
+                            Din träningsprofil bygger på din styrkepoäng och din konditionspoäng, som räknas fram ur de vikter och tider du loggat. Här är de olika profilerna:
                         </p>
                         
                         <div className="space-y-3">
@@ -3799,7 +3869,7 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                                 <h4 className="font-black flex items-center gap-2 mb-1">
                                     Nykomling <SparklesIcon className="w-4 h-4" />
                                 </h4>
-                                <p className="text-sm text-white/90">Du är i början av din resa. Fortsätt såhär!</p>
+                                <p className="text-sm text-white/90">Du är i början av din resa. Logga några pass så visar vi din profil.</p>
                             </div>
                             
                             <div className="bg-gradient-to-br from-red-500 to-pink-600 p-4 rounded-xl text-white">
@@ -3816,18 +3886,18 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                                 <p className="text-sm text-white/90">Uthållighet av stål. Du slutar aldrig!</p>
                             </div>
                             
-                            <div className="bg-gradient-to-br from-yellow-500 to-orange-500 p-4 rounded-xl text-white">
-                                <h4 className="font-black flex items-center gap-2 mb-1">
-                                    HYROX-Krigare <LightningIcon className="w-4 h-4" />
-                                </h4>
-                                <p className="text-sm text-white/90">Du älskar funktionell fitness och tävlingsmomentet!</p>
-                            </div>
-                            
                             <div className="bg-gradient-to-br from-indigo-500 to-purple-600 p-4 rounded-xl text-white">
                                 <h4 className="font-black flex items-center gap-2 mb-1">
                                     Hybridatlet <UserIcon className="w-4 h-4" />
                                 </h4>
                                 <p className="text-sm text-white/90">Du behärskar både styrka och kondition. Den kompletta atleten.</p>
+                            </div>
+
+                            <div className="bg-gradient-to-br from-slate-500 to-slate-700 p-4 rounded-xl text-white">
+                                <h4 className="font-black flex items-center gap-2 mb-1">
+                                    På gång <SparklesIcon className="w-4 h-4" />
+                                </h4>
+                                <p className="text-sm text-white/90">Vi behöver dina tre baslyft och ett roddtest för att kunna placera dig. Kortet visar vad som fattas.</p>
                             </div>
                         </div>
                         
@@ -3866,6 +3936,51 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                 gymLogoUrl={selectedOrganization?.logoUrlDark || selectedOrganization?.logoUrlLight}
                 referenceDate={selectedWrappedDate}
             />
+
+            <Modal
+                isOpen={showWelcome}
+                onClose={handleCloseWelcome}
+                title={`Välkommen${userData?.firstName ? `, ${userData.firstName}` : ''}!`}
+                size="md"
+            >
+                <div className="space-y-6 text-gray-800 dark:text-gray-200">
+                    <p className="text-base leading-relaxed">
+                        Det här är din träningsdagbok. Här samlas allt du gör på {selectedOrganization?.name || 'ditt gym'}.
+                    </p>
+
+                    <ul className="space-y-4">
+                        <li className="flex gap-3">
+                            <span className="text-primary font-black">›</span>
+                            <span className="text-sm leading-relaxed">
+                                <strong className="text-gray-900 dark:text-white">Logga dina pass.</strong> Skanna QR-koden på skärmen i lokalen, eller lägg till egen träning direkt i appen.
+                            </span>
+                        </li>
+                        <li className="flex gap-3">
+                            <span className="text-primary font-black">›</span>
+                            <span className="text-sm leading-relaxed">
+                                <strong className="text-gray-900 dark:text-white">Se att det går framåt.</strong> Vikter, reps och personbästa sparas pass för pass och ritas upp i grafer.
+                            </span>
+                        </li>
+                        <li className="flex gap-3">
+                            <span className="text-primary font-black">›</span>
+                            <span className="text-sm leading-relaxed">
+                                <strong className="text-gray-900 dark:text-white">Ta reda på var du står.</strong> Din styrka jämförs med andra i din ålder och viktklass, och du kan testa dig mot gymmets egna utmaningar.
+                            </span>
+                        </li>
+                    </ul>
+
+                    <p className="text-sm text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-800/50 p-4 rounded-xl border border-gray-100 dark:border-gray-700">
+                        Fyll i ålder, kön och kroppsvikt i din profil så kan vi räkna ut din styrkenivå.
+                    </p>
+
+                    <button
+                        onClick={handleCloseWelcome}
+                        className="w-full bg-primary hover:brightness-110 text-white font-bold py-4 rounded-xl shadow-lg shadow-primary/20 transition-all transform active:scale-95"
+                    >
+                        Sätt igång
+                    </button>
+                </div>
+            </Modal>
         </div>
     );
 };

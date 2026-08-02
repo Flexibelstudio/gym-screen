@@ -11,7 +11,8 @@ import { calculate1RM } from '../utils/workoutUtils';
 import { canonicalizeExerciseName } from '../data/exerciseAliases';
 import { useConfirm } from './ConfirmContext';
 import { LEVEL_NAMES } from '../data/fitnessStandards';
-import { getAgeFromBirthDate, getStrengthAssessment, findLift1RM, getStrengthScore, matchesLift } from '../utils/fitnessBenchmarks';
+import { getAgeFromBirthDate, getStrengthAssessment, findLift1RM, getStrengthScore } from '../utils/fitnessBenchmarks';
+import { buildStrengthScoreHistory } from '../utils/memberProgress';
 import { useStudio } from '../context/StudioContext';
 
 export interface MyStrengthScreenProps {
@@ -311,65 +312,10 @@ export const MyStrengthScreen: React.FC<MyStrengthScreenProps> = ({ userData, lo
             .map(lift => labels[lift]);
     }, [sortedPbs]);
 
-    const strengthScoreHistory = useMemo(() => {
-        if (!gender || age === null || bodyWeight === null) return [];
-        const sortedLogs = [...(logs || [])].sort((a, b) => a.date - b.date);
-        const best: Record<string, number> = {};
-        const points: { date: string; timestamp: number; score: number }[] = [];
-
-        sortedLogs.forEach(log => {
-            if (!log.exerciseResults) return;
-            let changed = false;
-
-            log.exerciseResults.forEach((ex: any) => {
-                (['squat', 'bench', 'deadlift'] as const).forEach(lift => {
-                    if (!matchesLift(ex.exerciseName, lift)) return;
-
-                    let best1RM = 0;
-                    const sets = ex.setDetails || [];
-                    if (sets.length > 0) {
-                        sets.forEach((s: any) => {
-                            const w = parseFloat(s.weight);
-                            const r = parseFloat(s.reps);
-                            if (!isNaN(w) && !isNaN(r) && w > 0 && r > 0 && r <= 10) {
-                                const oneRm = calculate1RM(w, r);
-                                if (oneRm && oneRm > best1RM) best1RM = oneRm;
-                            }
-                        });
-                    } else {
-                        const w = parseFloat(ex.weight);
-                        const r = parseFloat(ex.reps);
-                        if (!isNaN(w) && !isNaN(r) && w > 0 && r > 0 && r <= 10) {
-                            const oneRm = calculate1RM(w, r);
-                            if (oneRm && oneRm > best1RM) best1RM = oneRm;
-                        }
-                    }
-
-                    if (best1RM > (best[lift] || 0)) {
-                        best[lift] = best1RM;
-                        changed = true;
-                    }
-                });
-            });
-
-            if (!changed) return;
-            if (!best.squat || !best.bench || !best.deadlift) return;
-
-            const result = getStrengthScore(
-                { squat: best.squat, bench: best.bench, deadlift: best.deadlift },
-                gender, age, bodyWeight
-            );
-            if (!result) return;
-
-            points.push({
-                date: new Date(log.date).toLocaleDateString('sv-SE', { month: 'short', day: 'numeric' }),
-                timestamp: log.date,
-                score: result.score
-            });
-        });
-
-        return points;
-    }, [logs, gender, age, bodyWeight]);
+    const strengthScoreHistory = useMemo(
+        () => buildStrengthScoreHistory(logs, gender, age, bodyWeight),
+        [logs, gender, age, bodyWeight]
+    );
 
     return (
         <div className="w-full animate-fade-in">
