@@ -337,7 +337,7 @@ export const MyStrengthScreen: React.FC<MyStrengthScreenProps> = ({ userData, lo
                         </div>
                     </div>
                     <p className="text-xs text-gray-500 dark:text-gray-400 font-medium mb-3">
-                        Din nivå jämförs med andra som tränar — i din ålder, ditt kön och din kroppsvikt.
+                        Du jämförs med andra som loggar sin träning — inte med befolkningen i stort. Alla nivåer här är därför bra nivåer.
                     </p>
 
                     <div className="mb-4 bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 p-5 shadow-sm">
@@ -454,7 +454,7 @@ export const MyStrengthScreen: React.FC<MyStrengthScreenProps> = ({ userData, lo
                                         </div>
                                     ) : (gender !== 'male' && gender !== 'female') ? (
                                         <div className="space-y-3">
-                                            <LevelIndicator level={0} levelName="På väg" />
+                                            <LevelIndicator level={0} levelName="Igång" />
                                             <p className="text-[11px] text-gray-400 dark:text-gray-500 italic leading-snug">
                                                 Jämförelser finns för man/kvinna. Din progression räknas ändå.
                                             </p>
@@ -694,8 +694,8 @@ export const MyStrengthScreen: React.FC<MyStrengthScreenProps> = ({ userData, lo
                     <div>
                         <h4 className="font-bold text-gray-900 dark:text-white text-base mb-1">Nivåerna</h4>
                         <ul className="space-y-1">
-                            <li><strong className="font-bold text-gray-900 dark:text-white">Nybörjare</strong> — starkare än ungefär 5 % av dem som tränar</li>
-                            <li><strong className="font-bold text-gray-900 dark:text-white">Motionär</strong> — starkare än ungefär 20 %</li>
+                            <li><strong className="font-bold text-gray-900 dark:text-white">Grundstyrka</strong> — starkare än ungefär 5 % av dem som tränar</li>
+                            <li><strong className="font-bold text-gray-900 dark:text-white">Vältränad</strong> — starkare än ungefär 20 %</li>
                             <li><strong className="font-bold text-gray-900 dark:text-white">Stark</strong> — starkare än ungefär hälften. Det här är en riktigt bra nivå.</li>
                             <li><strong className="font-bold text-gray-900 dark:text-white">Mycket stark</strong> — starkare än ungefär 80 %</li>
                             <li><strong className="font-bold text-gray-900 dark:text-white">Elit</strong> — starkare än ungefär 95 %. Tävlingsnivå.</li>
@@ -703,13 +703,13 @@ export const MyStrengthScreen: React.FC<MyStrengthScreenProps> = ({ userData, lo
                     </div>
 
                     <p>
-                        Ligger du under Nybörjare står det "På väg" — för det är precis vad du är.
+                        Ligger du under Grundstyrka står det "Igång". Alla nivåer här bygger på människor som redan tränar, så även den lägsta är en bra nivå.
                     </p>
 
                     <div>
                         <h4 className="font-bold text-gray-900 dark:text-white text-base mb-1">Var kommer siffrorna ifrån?</h4>
                         <p>
-                            Från en av världens största databaser över loggade lyft, med hundratals miljoner registrerade set. Det är alltså jämförelser mot andra som tränar — inte mot befolkningen i stort. Mot en genomsnittlig vuxen är även "Nybörjare" imponerande.
+                            Från en av världens största databaser över loggade lyft, med hundratals miljoner registrerade set. Det är alltså jämförelser mot andra som tränar — inte mot befolkningen i stort. Mot en genomsnittlig vuxen är även "Grundstyrka" imponerande.
                         </p>
                     </div>
 

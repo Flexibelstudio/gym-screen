@@ -724,7 +724,7 @@ const SeasonalThemesTab: React.FC = () => {
     );
 };
 
-const OrgChallengeStatsRow: React.FC<{ org: Organization; challengeId: string }> = ({ org, challengeId }) => {
+const OrgChallengeStatsRow: React.FC<{ org: Organization; challengeId: string; fallbackStartDate?: number | null; fallbackEndDate?: number | null }> = ({ org, challengeId, fallbackStartDate, fallbackEndDate }) => {
     const [members, setMembers] = useState<any[]>([]);
     const [logs, setLogs] = useState<any[]>([]);
 
@@ -741,8 +741,14 @@ const OrgChallengeStatsRow: React.FC<{ org: Organization; challengeId: string }>
         };
     }, [org.id]);
 
-    const dynamicChallengeId = org.globalConfig?.summerChallengeStartDate && org.globalConfig?.summerChallengeEndDate
-        ? `summer_${org.globalConfig.summerChallengeStartDate}_${org.globalConfig.summerChallengeEndDate}`
+    // Organisationens egna datum är en override. Saknas de gäller det globala
+    // utmaningsdokumentets datum — samma källa som medlemsappen läser, så att
+    // joinedChallengeId matchar.
+    const effectiveStart = org.globalConfig?.summerChallengeStartDate ?? fallbackStartDate ?? null;
+    const effectiveEnd = org.globalConfig?.summerChallengeEndDate ?? fallbackEndDate ?? null;
+
+    const dynamicChallengeId = effectiveStart && effectiveEnd
+        ? `summer_${effectiveStart}_${effectiveEnd}`
         : (challengeId || 'default');
 
     const activeChallengeMembers = members.filter(m => 
@@ -758,8 +764,8 @@ const OrgChallengeStatsRow: React.FC<{ org: Organization; challengeId: string }>
         const logMember = activeChallengeMembers.find(m => m.uid === uid);
         if (!logMember) return;
         const logTime = log.date || 0;
-        const challengeStart = org.globalConfig?.summerChallengeStartDate;
-        const challengeEnd = org.globalConfig?.summerChallengeEndDate;
+        const challengeStart = effectiveStart;
+        const challengeEnd = effectiveEnd;
         if (challengeStart && logTime < challengeStart) return;
         if (challengeEnd && logTime > challengeEnd) return;
         if (logTime < (logMember.joinedSummerChallengeAt || 0)) return;
@@ -807,6 +813,8 @@ const ChallengesTab: React.FC<{
     const [description, setDescription] = useState('');
     const [startDate, setStartDate] = useState('');
     const [endDate, setEndDate] = useState('');
+    const [globalStartTs, setGlobalStartTs] = useState<number | null>(null);
+    const [globalEndTs, setGlobalEndTs] = useState<number | null>(null);
     const [isPublished, setIsPublished] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
@@ -829,6 +837,8 @@ const ChallengesTab: React.FC<{
 
                     setStartDate(data.startDate ? toLocalDateString(data.startDate) : '');
                     setEndDate(data.endDate ? toLocalDateString(data.endDate) : '');
+                    setGlobalStartTs(typeof data.startDate === 'number' ? data.startDate : null);
+                    setGlobalEndTs(typeof data.endDate === 'number' ? data.endDate : null);
                     setIsPublished(data.isPublished || false);
                 }
                 setIsLoading(false);
@@ -982,7 +992,7 @@ const ChallengesTab: React.FC<{
                                         Subdomän: <span className="font-mono">{org.subdomain || 'saknas'}</span>
                                     </p>
                                     {isOrgEnabled && (
-                                        <OrgChallengeStatsRow org={org} challengeId="summerChallenge" />
+                                        <OrgChallengeStatsRow org={org} challengeId="summerChallenge" fallbackStartDate={globalStartTs} fallbackEndDate={globalEndTs} />
                                     )}
                                 </div>
 
@@ -1216,7 +1226,7 @@ export const SystemOwnerScreen: React.FC<SystemOwnerScreenProps> = ({ allOrganiz
                                 <h3 className="text-2xl font-bold text-gray-900 dark:text-white border-b border-slate-300 dark:border-gray-700 pb-3 mb-4">Mina Kunder</h3>
                                 <p className="text-xs text-slate-500 dark:text-slate-400 bg-slate-200/50 dark:bg-gray-900/50 p-3 rounded-xl flex items-center gap-2 mb-4">
                                     <span>💡</span>
-                                    <span><strong>Hitta tidsinställningar för Sommarutmaningen:</strong> Vi har skapat en helt egen flik "Sommarutmaning ☀️" i toppmenyn för att du enkelt ska kunna ställa in start- och slutdatum för alla gym på ett ställe! Men du kan också styra det per gym här nedan genom att expandera inställningarna.</span>
+                                    <span><strong>Tidsinställningar för Sommarutmaningen:</strong> Datumen sätts för hela systemet i fliken "Sommarutmaning ☀️" i toppmenyn, och gäller alla gym. Behöver ett enskilt gym andra datum kan du åsidosätta dem här nedan genom att expandera inställningarna — annars behöver du inte fylla i något per gym.</span>
                                 </p>
                                 
                                 <div className="space-y-6">

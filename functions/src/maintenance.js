@@ -24,6 +24,17 @@ const calculatePBScore = (doc) => {
 };
 
 /**
+ * En PB-post är användbar om den har antingen ett beräknat 1RM eller minst en
+ * repetition. Poster med reps 0 och 1RM 0 saknar jämförbar prestandadata — de kan
+ * inte rankas mot andra och får därför aldrig utses till vinnare.
+ */
+const isUsablePB = (doc) => {
+  const c1rm = parseFloat(doc.calculated1RM) || 0;
+  const r = parseFloat(doc.reps) || 0;
+  return c1rm > 0 || r > 0;
+};
+
+/**
  * mergeDuplicateExerciseNames
  * Engångsfunktion för att slå ihop dubbletter av övningsnamn i medlemmars personbästa och historik.
  */
@@ -65,6 +76,7 @@ const mergeDuplicateExerciseNames = onCall(
     let exerciseResultEntriesToRewrite = 0;
 
     const groupsAffectedMap = {}; // canonical -> { canonical, memberCount, docCount, examples: [] }
+    const groupsSkipped = []; // grupper där ingen post hade jämförbar data
 
     // Samling av batch-operationer om dryRun === false
     const batchOps = [];
@@ -126,8 +138,13 @@ const mergeDuplicateExerciseNames = onCall(
             continue;
           }
 
-          // Sortera för att utse vinnare baserat på exakt samma poängsättning som saveWorkoutLog
+          // Sortera för att utse vinnare. Poster utan jämförbar data rankas alltid sist,
+          // oavsett poäng, så att de aldrig kan slå ett äkta resultat.
           matchingDocs.sort((a, b) => {
+            const usableA = isUsablePB(a);
+            const usableB = isUsablePB(b);
+            if (usableA !== usableB) return usableA ? -1 : 1;
+
             const scoreA = calculatePBScore(a);
             const scoreB = calculatePBScore(b);
             if (scoreB !== scoreA) return scoreB - scoreA;
@@ -136,6 +153,25 @@ const mergeDuplicateExerciseNames = onCall(
             if (b.id === targetId) return 1;
             return (b.date || 0) - (a.date || 0);
           });
+
+          // Har ingen post i gruppen jämförbar data går det inte att avgöra vilken som
+          // ska överleva. Rör då ingenting och rapportera gruppen i stället.
+          if (!isUsablePB(matchingDocs[0])) {
+            if (groupsSkipped.length < 100) {
+              groupsSkipped.push({
+                memberName,
+                canonical: canonicalName,
+                names: matchingDocs.map((d) => d.exerciseName),
+                docs: matchingDocs.map((d) => ({
+                  name: d.exerciseName,
+                  weight: parseFloat(d.weight) || 0,
+                  reps: parseFloat(d.reps) || 0,
+                  calculated1RM: parseFloat(d.calculated1RM) || 0
+                }))
+              });
+            }
+            continue;
+          }
 
           const winner = matchingDocs[0];
           const targetDocId = getPBId(canonicalName);
@@ -298,6 +334,7 @@ const mergeDuplicateExerciseNames = onCall(
       membersExamined,
       pbDocsExamined,
       groupsAffected,
+      groupsSkipped,
       pbDocsToWrite,
       pbDocsToDelete,
       logsExamined,

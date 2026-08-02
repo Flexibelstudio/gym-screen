@@ -52,6 +52,11 @@ export const CommunityFeed: React.FC<CommunityFeedProps> = ({ onExpand, isExpand
         });
     }, [selectedOrganization]);
 
+    const photoForLog = (log: any): string | undefined => {
+        const member = members.find(m => m.uid === log?.memberId || m.id === log?.memberId);
+        return member?.photoUrl || log?.memberPhotoUrl || undefined;
+    };
+
     useEffect(() => {
         if (!selectedOrganization) return;
         setIsLoading(true);
@@ -448,8 +453,8 @@ export const CommunityFeed: React.FC<CommunityFeedProps> = ({ onExpand, isExpand
                                     style={{ height: 'var(--feed-item-height, 64px)' }}
                                 >
                                     <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-indigo-500 to-purple-500 flex items-center justify-center text-white font-black text-sm shadow-lg flex-shrink-0 overflow-hidden border border-white/10">
-                                        {log.memberPhotoUrl ? (
-                                            <img src={log.memberPhotoUrl} alt="" className="w-full h-full object-cover" />
+                                        {photoForLog(log) ? (
+                                            <img src={photoForLog(log)} alt="" className="w-full h-full object-cover" />
                                         ) : (
                                             <span>{log.memberName ? log.memberName[0].toUpperCase() : '?'}</span>
                                         )}

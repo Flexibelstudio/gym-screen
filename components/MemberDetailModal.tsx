@@ -10,7 +10,7 @@ import { calculateAge } from '../utils/dateUtils';
 import { getYearWeek, getMemberLocationIds } from '../utils/workoutUtils';
 import { getAgeFromBirthDate, findLift1RM, getStrengthScore } from '../utils/fitnessBenchmarks';
 import { buildStrengthScoreHistory, buildRowingScoreHistory, getDaysSinceLastLog, getSessionsPerWeek } from '../utils/memberProgress';
-import { LEVEL_NAMES } from '../data/fitnessStandards';
+import { LEVEL_NAMES, ROWING_LEVEL_NAMES } from '../data/fitnessStandards';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 interface MemberDetailModalProps {
@@ -75,7 +75,8 @@ const ScoreCard: React.FC<{
     emptyText: string;
     history: { date: string; score: number; label?: string }[];
     tooltipName: string;
-}> = ({ label, score, accent, emptyText, history, tooltipName }) => (
+    levelNames: string[];
+}> = ({ label, score, accent, emptyText, history, tooltipName, levelNames }) => (
     <div className="bg-white dark:bg-gray-900 rounded-2xl p-5 border border-gray-100 dark:border-gray-800 shadow-sm">
         <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">{label}</p>
         {score !== null ? (
@@ -84,7 +85,7 @@ const ScoreCard: React.FC<{
                     <span className="text-4xl font-black text-gray-900 dark:text-white tracking-tight leading-none">{score}</span>
                     <span className="text-sm font-bold text-gray-400">/ 100</span>
                     <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded-md text-xs font-bold bg-primary/10 text-primary border border-primary/20">
-                        {LEVEL_NAMES[Math.min(5, Math.floor(score / 20))] || LEVEL_NAMES[0]}
+                        {levelNames[Math.min(5, Math.floor(score / 20))] || levelNames[0]}
                     </span>
                 </div>
                 {history.length >= 2 ? (
@@ -372,6 +373,7 @@ export const MemberDetailModal: React.FC<MemberDetailModalProps> = ({ visible, m
                             emptyText="Kräver loggade resultat i knäböj, bänkpress och marklyft, samt kön, födelsedatum och kroppsvikt i medlemmens profil."
                             history={strengthHistory}
                             tooltipName="Styrkepoäng"
+                            levelNames={LEVEL_NAMES}
                         />
 
                         <ScoreCard
@@ -381,6 +383,7 @@ export const MemberDetailModal: React.FC<MemberDetailModalProps> = ({ visible, m
                             emptyText="Kräver ett genomfört 2000 m roddtest, samt kön och födelsedatum i medlemmens profil."
                             history={rowingHistory}
                             tooltipName="Konditionspoäng"
+                            levelNames={ROWING_LEVEL_NAMES}
                         />
 
                         <div className="bg-white dark:bg-gray-900 rounded-2xl p-5 border border-gray-100 dark:border-gray-800 shadow-sm">

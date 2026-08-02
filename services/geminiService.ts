@@ -489,7 +489,7 @@ export async function parseWorkoutFromImage(base64Image: string, additionalText?
       "blocks": [
         {
           "title": "Blockets namn (t.ex. Uppvärmning)",
-          "tag": "Styrka",
+          "tag": "En av: Uppvärmning, Styrka, Hypertrofi, Kondition, Teknik, Core/Bål, Balans, Rörlighet, Finisher, Nedvarvning — vald efter vad blocket faktiskt innehåller",
           "setupDescription": "Vad medlemmen ska fokusera på i blocket — teknik, tempo, vanliga misstag eller hur det ska kännas. Upprepa ALDRIG tider, antal varv eller vila; det visas redan av timern.",
           "followMe": false,
           "aiMagicPenSuggestions": [],

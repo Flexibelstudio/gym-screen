@@ -1,6 +1,6 @@
-// Nivåer (percentiler bland tränande): 1 Nybörjare (5%), 2 Motionär (20%), 3 Stark (50%), 4 Mycket stark (80%), 5 Elit (95%). Under nivå 1 = nivå 0 ("På väg").
-export const LEVEL_NAMES = ['På väg', 'Nybörjare', 'Motionär', 'Stark', 'Mycket stark', 'Elit'];
-export const ROWING_LEVEL_NAMES = ['På väg', 'Nybörjare', 'Motionär', 'Vältränad', 'Mycket vältränad', 'Elit'];
+// Nivåer (percentiler bland tränande): 1 Grundstyrka (5%), 2 Vältränad (20%), 3 Stark (50%), 4 Mycket stark (80%), 5 Elit (95%). Under nivå 1 = nivå 0 ("Igång").
+export const LEVEL_NAMES = ['Igång', 'Grundstyrka', 'Vältränad', 'Stark', 'Mycket stark', 'Elit'];
+export const ROWING_LEVEL_NAMES = ['Igång', 'Grundkondition', 'Vältränad', 'Uthållig', 'Mycket uthållig', 'Elit'];
 
 // Trösklar som andel av kroppsvikt (1RM / kroppsvikt), ordning [nivå1..nivå5]. Källa: Strength Level community standards.
 export const STRENGTH_RATIO_STANDARDS: Record<string, { male: number[]; female: number[] }> = {

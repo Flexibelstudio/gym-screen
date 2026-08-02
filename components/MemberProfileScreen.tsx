@@ -837,7 +837,7 @@ const Rowing2000mCard: React.FC<{
                                         Nivå
                                     </span>
                                     <span className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-bold bg-primary/10 text-primary border border-primary/20">
-                                        På väg
+                                        Igång
                                     </span>
                                 </div>
                                 <div className="grid grid-cols-5 gap-1.5 h-2">
@@ -2292,7 +2292,7 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                                 <label className="block text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-2 ml-1">Din Studio / Ort</label>
                                 <input 
                                     readOnly 
-                                    value={selectedOrganization.locations.find(l => l.id === userData.locationId)?.name || selectedOrganization.locations[0]?.name || 'Ingen'} 
+                                    value={selectedOrganization.locations.find(l => l.id === userData.locationId)?.name || 'Ingen vald'} 
                                     className="w-full bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl p-4 text-gray-500 dark:text-gray-400 outline-none shadow-sm font-bold cursor-not-allowed" 
                                 />
                             </div>
