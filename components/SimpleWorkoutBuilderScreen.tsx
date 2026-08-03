@@ -221,10 +221,10 @@ const ExerciseItem: React.FC<ExerciseItemProps> = ({ exercise, onUpdate, onRemov
             </div>
 
             <div className="flex-grow space-y-2">
-                <div className="flex items-center gap-2">
-                    {/* Bredden ligger på wrappern. Staplas w-24 på inputBaseClasses
-                        krockar breddklasserna och reps-fältet äter upp hela raden. */}
-                    <div className="flex-shrink-0 w-20">
+                <div className="flex flex-wrap items-center gap-2">
+                    {/* Bredden ligger på wrappern så att inputen kan använda w-full.
+                        Namnfältet bryter till egen rad under sm — raden är för smal i en mobil för att rymma reps, namn och två knappar. */}
+                    <div className="order-1 flex-shrink-0 w-20">
                         <input
                             type="text"
                             value={exercise.reps || ''}
@@ -233,7 +233,7 @@ const ExerciseItem: React.FC<ExerciseItemProps> = ({ exercise, onUpdate, onRemov
                             className={`${inputBaseClasses} w-full`}
                         />
                     </div>
-                    <div className="relative flex-1 min-w-0">
+                    <div className="relative order-4 w-full min-w-0 sm:order-2 sm:w-auto sm:flex-1">
                         <input
                             type="text"
                             value={exercise.name}
@@ -273,7 +273,7 @@ const ExerciseItem: React.FC<ExerciseItemProps> = ({ exercise, onUpdate, onRemov
                     <button 
                         onClick={handleToggleLogging}
                         disabled={!isBanked}
-                        className={`flex-shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-xl transition-all border font-black text-[10px] uppercase tracking-wider transform active:scale-95 ${
+                        className={`order-2 sm:order-3 ml-auto sm:ml-0 flex-shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-xl transition-all border font-black text-[10px] uppercase tracking-wider transform active:scale-95 ${
                             exercise.loggingEnabled 
                             ? 'bg-green-500 border-green-600 text-white shadow-lg' 
                             : isBanked
@@ -305,7 +305,7 @@ const ExerciseItem: React.FC<ExerciseItemProps> = ({ exercise, onUpdate, onRemov
                         )}
                     </button>
 
-                    <button onClick={() => onRemove(exercise.id)} className="text-red-500 p-2" title="Ta bort">
+                    <button onClick={() => onRemove(exercise.id)} className="order-3 sm:order-4 text-red-500 p-2" title="Ta bort">
                         <TrashIcon className="w-5 h-5" />
                     </button>
                 </div>
@@ -809,6 +809,10 @@ export const SimpleWorkoutBuilderScreen: React.FC<{ initialWorkout: Workout | nu
                 workoutToSave.isPublished = true;
                 workoutToSave.isMemberDraft = false;
                 workoutToSave.category = placement;
+                // Placeringsraden svarar på var passet ska ligga, inte om hela gymmet
+                // ska få en pushnotis. Notisen är ett medvetet val och görs med
+                // publiceringsknappen i WorkoutDetailScreen, som har en egen kryssruta.
+                workoutToSave.silentPublish = true;
             } else {
                 workoutToSave.isPublished = false;
                 workoutToSave.isMemberDraft = true;
