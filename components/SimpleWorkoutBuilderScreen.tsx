@@ -233,7 +233,7 @@ const ExerciseItem: React.FC<ExerciseItemProps> = ({ exercise, onUpdate, onRemov
                             className={`${inputBaseClasses} w-full`}
                         />
                     </div>
-                    <div className="relative order-4 w-full min-w-0 sm:order-2 sm:w-auto sm:flex-1">
+                    <div className="relative order-5 w-full min-w-0 sm:order-2 sm:w-auto sm:flex-1">
                         <input
                             type="text"
                             value={exercise.name}
@@ -269,11 +269,28 @@ const ExerciseItem: React.FC<ExerciseItemProps> = ({ exercise, onUpdate, onRemov
                             </ul>
                         )}
                     </div>
-                    
+
+                    <button
+                        type="button"
+                        onClick={() => {
+                            const cycle: Array<'V' | 'H' | 'V/H' | 'ALT' | null> = [null, 'V', 'H', 'V/H', 'ALT'];
+                            const next = cycle[(cycle.indexOf(exercise.side ?? null) + 1) % cycle.length];
+                            onUpdate(exercise.id, { side: next });
+                        }}
+                        className={`order-2 sm:order-3 ml-auto sm:ml-0 flex-shrink-0 px-2.5 py-2 rounded-xl border font-black text-[11px] uppercase tracking-wider transition-all transform active:scale-95 ${
+                            exercise.side
+                            ? 'bg-primary border-primary text-white shadow-lg'
+                            : 'bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 border-dashed text-gray-400'
+                        }`}
+                        title="Sida: vänster, höger, båda eller alternerande"
+                    >
+                        {exercise.side || 'Sida'}
+                    </button>
+
                     <button 
                         onClick={handleToggleLogging}
                         disabled={!isBanked}
-                        className={`order-2 sm:order-3 ml-auto sm:ml-0 flex-shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-xl transition-all border font-black text-[10px] uppercase tracking-wider transform active:scale-95 ${
+                        className={`order-3 sm:order-4 flex-shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-xl transition-all border font-black text-[10px] uppercase tracking-wider transform active:scale-95 ${
                             exercise.loggingEnabled 
                             ? 'bg-green-500 border-green-600 text-white shadow-lg' 
                             : isBanked
@@ -305,7 +322,7 @@ const ExerciseItem: React.FC<ExerciseItemProps> = ({ exercise, onUpdate, onRemov
                         )}
                     </button>
 
-                    <button onClick={() => onRemove(exercise.id)} className="order-3 sm:order-4 text-red-500 p-2" title="Ta bort">
+                    <button onClick={() => onRemove(exercise.id)} className="order-4 sm:order-5 text-red-500 p-2" title="Ta bort">
                         <TrashIcon className="w-5 h-5" />
                     </button>
                 </div>
