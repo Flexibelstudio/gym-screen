@@ -510,13 +510,108 @@ export const updateWorkoutLog = async (logId: string, updates: Partial<WorkoutLo
     } catch (e) { console.error("updateWorkoutLog failed", e); }
 };
 
+/**
+ * Räknar om personbästa för angivna övningar utifrån medlemmens kvarvarande loggar.
+ * Används när en logg raderas eller ändras, så att ett felregistrerat resultat inte
+ * blir kvar som personbästa.
+ *
+ * Poängsättningen är identisk med saveWorkoutLog: bästa set per övning väljs med
+ * getSetScore, och 1RM räknas med calculate1RM inklusive RIR.
+ *
+ * resetAt respekteras. Har medlemmen nollställt övningen räknas bara loggar som är
+ * nyare än nollställningen — annars skulle gamla rekord återuppstå.
+ *
+ * Finns inget resultat kvar nollställs posten på samma sätt som resetPersonalBest,
+ * alltså med dokumentet kvar och värdena satta till noll.
+ */
+export const recalculatePersonalBestsForExercises = async (userId: string, exerciseNames: string[]) => {
+    if (isOffline || !db || !userId || !exerciseNames || exerciseNames.length === 0) return;
+
+    try {
+        const logs = await getMemberLogs(userId);
+
+        const uniqueIds = new Map<string, string>();
+        exerciseNames.forEach(n => {
+            if (!n) return;
+            uniqueIds.set(getPBId(n), n.trim());
+        });
+
+        for (const [pbId, displayName] of uniqueIds) {
+            const pbRef = doc(db, 'users', userId, 'personalBests', pbId);
+            const pbSnap = await getDoc(pbRef);
+            const resetAt = pbSnap.exists() ? (parseFloat(pbSnap.data()?.resetAt) || 0) : 0;
+
+            let best: { weight: number; reps: number; oneRm: number; date: number; name: string } | null = null;
+
+            for (const log of logs) {
+                if (resetAt > 0 && (log.date || 0) <= resetAt) continue;
+                if (!log.exerciseResults) continue;
+
+                for (const exResult of log.exerciseResults) {
+                    if (!exResult.exerciseName) continue;
+                    if (getPBId(exResult.exerciseName) !== pbId) continue;
+
+                    const consider = (wVal: any, rVal: any, rirVal?: any) => {
+                        const w = parseFloat(wVal) || 0;
+                        const r = parseFloat(rVal) || 0;
+                        if (r <= 0 && w <= 0) return;
+                        const oneRm = (w > 0 && r > 0) ? (calculate1RM(w, r, rirVal) || 0) : 0;
+                        const score = getSetScore(w, r, oneRm);
+                        const bestScore = best ? getSetScore(best.weight, best.reps, best.oneRm) : -1;
+                        if (score > bestScore) {
+                            best = { weight: w, reps: r, oneRm, date: log.date || Date.now(), name: exResult.exerciseName.trim() };
+                        }
+                    };
+
+                    if (exResult.setDetails && exResult.setDetails.length > 0) {
+                        exResult.setDetails.forEach((s: any) => consider(s.weight, s.reps, s.rir));
+                    } else if (exResult.weight || exResult.reps) {
+                        consider(exResult.weight, exResult.reps, (exResult as any).rir);
+                    }
+                }
+            }
+
+            if (best) {
+                await setDoc(pbRef, {
+                    id: pbId,
+                    exerciseName: best.name,
+                    weight: best.weight,
+                    reps: best.reps,
+                    calculated1RM: best.oneRm,
+                    date: best.date
+                }, { merge: true });
+            } else if (pbSnap.exists()) {
+                await setDoc(pbRef, {
+                    id: pbId,
+                    exerciseName: displayName,
+                    weight: 0,
+                    reps: 0,
+                    calculated1RM: 0,
+                    date: Date.now()
+                }, { merge: true });
+            }
+        }
+    } catch (e) {
+        console.warn("recalculatePersonalBestsForExercises failed", e);
+    }
+};
+
 export const deleteWorkoutLog = async (logId: string) => {
     if (isOffline || !db || !logId) return;
     try {
         const logSnap = await getDoc(doc(db, 'workoutLogs', logId));
         const memberId = logSnap.exists() ? logSnap.data()?.memberId : null;
+        const affectedExercises: string[] = logSnap.exists()
+            ? ((logSnap.data()?.exerciseResults || []) as any[])
+                .map(ex => ex?.exerciseName)
+                .filter((n: any) => typeof n === 'string' && n.trim() !== '')
+            : [];
 
         await deleteDoc(doc(db, 'workoutLogs', logId));
+
+        if (memberId && affectedExercises.length > 0) {
+            await recalculatePersonalBestsForExercises(memberId, affectedExercises);
+        }
 
         if (memberId) {
             try {
