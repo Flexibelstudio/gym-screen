@@ -160,7 +160,9 @@ export const saveWorkoutLog = async (logData: any): Promise<{ log: any, newRecor
                     const w = parseFloat(wVal) || 0;
                     const r = parseFloat(rVal) || 0;
                     
-                    if (r > 0 || w > 0) {
+                    // Reps krävs. En set med enbart vikt går inte att jämföra mot
+                    // något och ska inte kunna bli personbästa.
+                    if (r > 0) {
                         let oneRm = 0;
                         if (w > 0 && r > 0) {
                             oneRm = calculate1RM(w, r, rirVal) || 0;
@@ -554,7 +556,8 @@ export const recalculatePersonalBestsForExercises = async (userId: string, exerc
                     const consider = (wVal: any, rVal: any, rirVal?: any) => {
                         const w = parseFloat(wVal) || 0;
                         const r = parseFloat(rVal) || 0;
-                        if (r <= 0 && w <= 0) return;
+                        // Samma regel som i saveWorkoutLog: reps krävs.
+                        if (r <= 0) return;
                         const oneRm = (w > 0 && r > 0) ? (calculate1RM(w, r, rirVal) || 0) : 0;
                         const score = getSetScore(w, r, oneRm);
                         const bestScore = best ? getSetScore(best.weight, best.reps, best.oneRm) : -1;

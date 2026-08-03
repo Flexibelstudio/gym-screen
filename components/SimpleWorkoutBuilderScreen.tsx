@@ -222,14 +222,18 @@ const ExerciseItem: React.FC<ExerciseItemProps> = ({ exercise, onUpdate, onRemov
 
             <div className="flex-grow space-y-2">
                 <div className="flex items-center gap-2">
-                    <input
-                        type="text"
-                        value={exercise.reps || ''}
-                        onChange={e => onUpdate(exercise.id, { reps: e.target.value })}
-                        placeholder="Antal"
-                        className={`${inputBaseClasses} w-24`}
-                    />
-                    <div className="relative flex-grow">
+                    {/* Bredden ligger på wrappern. Staplas w-24 på inputBaseClasses
+                        krockar breddklasserna och reps-fältet äter upp hela raden. */}
+                    <div className="flex-shrink-0 w-20">
+                        <input
+                            type="text"
+                            value={exercise.reps || ''}
+                            onChange={e => onUpdate(exercise.id, { reps: e.target.value })}
+                            placeholder="Antal"
+                            className={`${inputBaseClasses} w-full`}
+                        />
+                    </div>
+                    <div className="relative flex-1 min-w-0">
                         <input
                             type="text"
                             value={exercise.name}
@@ -238,7 +242,7 @@ const ExerciseItem: React.FC<ExerciseItemProps> = ({ exercise, onUpdate, onRemov
                                 setIsSearchVisible(true);
                                 setSearchQuery(exercise.name);
                             }}
-                            placeholder="Sök eller skriv övning..."
+                            placeholder="Övning..."
                             className={`${inputBaseClasses} w-full pr-8`}
                         />
                          {/* Visual Indicator inside input */}
@@ -695,9 +699,17 @@ export const SimpleWorkoutBuilderScreen: React.FC<{ initialWorkout: Workout | nu
     // Övriga pass förvalt.
     const [placement, setPlacement] = useState<string>(() => {
         const w = initialWorkout;
-        if (!w || w.isMemberDraft === true) return 'other';
+        // Övriga pass förvalt om passet är ett utkast ELLER inte publicerat. Ett pass
+        // kan vara opublicerat utan att vara medlemsutkast — det ska inte öppnas med
+        // en kategori förvald och publiceras vid nästa sparning.
+        if (!w || w.isMemberDraft === true || w.isPublished !== true) return 'other';
         return w.category || 'other';
     });
+    // Hälsningen är ett undantagsfält. Den ligger öppen bara om den redan används,
+    // annars fälls den ut med knappen nedanför beskrivningen.
+    const [showMemberGreeting, setShowMemberGreeting] = useState<boolean>(
+        !!(initialWorkout?.aiProgressionPrompt || '').trim()
+    );
     const [initialSnapshot, setInitialSnapshot] = useState<string>('');
     const [editingBlockId, setEditingBlockId] = useState<string | null>(null);
     const [exerciseBank, setExerciseBank] = useState<BankExercise[]>([]);
@@ -783,16 +795,17 @@ export const SimpleWorkoutBuilderScreen: React.FC<{ initialWorkout: Workout | nu
             organizationId: selectedOrganization?.id || ''
         };
 
-        // Placeringen avgör om passet publiceras. Den gäller bara nya pass —
-        // ett befintligt pass rörs aldrig, det kan ha avpublicerats med flit.
+        // Placeringen avgör var passet hamnar, och gäller både nya och befintliga
+        // pass när en coach sparar. Knappraden visar i klartext vad valet innebär,
+        // så publiceringen är aldrig en tyst sidoeffekt.
         //
-        // En medlem kan inte publicera. Allt hen skapar blir ett utkast under
-        // Övriga pass, oavsett vad som stod i passet när det kom hit.
+        // Justeringar och andra opublicerade pass kommer in med 'other' förvalt och
+        // förblir utkast om coachen inte aktivt väljer en kategori.
         //
-        // Justeringar kommer in med isMemberDraft true och får därför 'other'
-        // förvalt, så en "Justering:"-kopia publiceras aldrig av misstag.
-        if (isNewDraft) {
-            if (isCoachSession && placement !== 'other') {
+        // En medlem kan inte publicera. Allt hen skapar blir ett utkast under Övriga
+        // pass. Befintliga pass rör en medlem inte alls.
+        if (isCoachSession) {
+            if (placement !== 'other') {
                 workoutToSave.isPublished = true;
                 workoutToSave.isMemberDraft = false;
                 workoutToSave.category = placement;
@@ -800,6 +813,9 @@ export const SimpleWorkoutBuilderScreen: React.FC<{ initialWorkout: Workout | nu
                 workoutToSave.isPublished = false;
                 workoutToSave.isMemberDraft = true;
             }
+        } else if (isNewDraft) {
+            workoutToSave.isPublished = false;
+            workoutToSave.isMemberDraft = true;
         }
 
         onSave(workoutToSave);
@@ -924,28 +940,40 @@ export const SimpleWorkoutBuilderScreen: React.FC<{ initialWorkout: Workout | nu
                                 </div>
                             )}
                             <div>
-                                <label className="text-[10px] font-black text-primary uppercase tracking-[0.3em] mb-2 block ml-2">Tips till deltagare</label>
+                                <label className="text-[10px] font-black text-primary uppercase tracking-[0.3em] mb-2 block ml-2">Om passet</label>
                                 <textarea 
                                     value={workout.coachTips || ''} 
                                     onChange={e => setWorkout({ ...workout, coachTips: e.target.value })} 
-                                    placeholder="T.ex. utrustning som behövs eller fokusområden..." 
+                                    placeholder="T.ex. utrustning som behövs, upplägg eller fokusområden..." 
                                     className={`${inputBaseClasses} w-full text-lg h-32 resize-none !bg-white dark:!bg-gray-900`} 
                                     rows={3}
                                 />
+                                <p className="text-xs text-gray-500 dark:text-gray-400 mt-2 ml-2">
+                                    Visas i passlistan, på skärmen under passet och i appen. Går att söka på.
+                                </p>
                             </div>
-                            {showAdminFields && (
+                            {showAdminFields && !showMemberGreeting && (
+                                <button
+                                    type="button"
+                                    onClick={() => setShowMemberGreeting(true)}
+                                    className="mt-4 ml-2 text-sm font-bold text-purple-500 hover:text-purple-600 transition-colors"
+                                >
+                                    + Lägg till en hälsning till medlemmen
+                                </button>
+                            )}
+                            {showAdminFields && showMemberGreeting && (
                                 <div>
                                     <label className="text-[10px] font-black text-purple-500 uppercase tracking-[0.3em] mb-2 block ml-2 flex items-center gap-2">
-                                        <SparklesIcon className="w-4 h-4" /> Instruktion till medlemmen
+                                        <SparklesIcon className="w-4 h-4" /> Hälsning till medlemmen
                                     </label>
                                     <textarea 
                                         value={workout.aiProgressionPrompt || ''} 
                                         onChange={e => setWorkout({ ...workout, aiProgressionPrompt: e.target.value })} 
-                                        placeholder="Din instruktion till medlemmen..." 
+                                        placeholder="T.ex. fokusera på tekniken idag, inte vikten..." 
                                         className={`${inputBaseClasses} w-full text-lg h-24 resize-none !bg-white dark:!bg-gray-900 border-purple-200 dark:border-purple-900 focus:border-purple-500 focus:ring-purple-500`} 
                                         rows={2}
                                     />
-                                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-2 ml-2">Visas för medlemmen före passet. Används inte för att räkna fram vikter.</p>
+                                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-2 ml-2">Visas i appen precis före passet och påverkar tonen i diplomet efteråt. Används inte för att räkna fram vikter.</p>
                                 </div>
                             )}
                         </div>
