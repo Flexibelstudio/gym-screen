@@ -24,6 +24,8 @@ interface NotesScreenProps {
     initialWorkoutToDraw: Workout | null;
     onBack: () => void;
     remoteCommand?: { type: string, timestamp: number } | null;
+    sessionRole?: string;
+    onRequestCoachAccess?: () => void;
 }
 
 const BoilingCauldron: React.FC<{ className?: string }> = ({ className }) => (
@@ -1033,7 +1035,7 @@ const CompactTimer: React.FC<{
 
 // --- Main Component ---
 
-export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, studioConfig, initialWorkoutToDraw, onBack, remoteCommand }) => {
+export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, studioConfig, initialWorkoutToDraw, onBack, remoteCommand, sessionRole, onRequestCoachAccess }) => {
     const { selectedOrganization, selectedStudio } = useStudio();
     const [savedNotes, setSavedNotes] = useState<Note[]>([]);
     const [smartObjects, setSmartObjects] = useState<SmartObject[]>([]);
@@ -1119,11 +1121,31 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
     const [fullscreenImage, setFullscreenImage] = useState<string | null>(null);
 
     // --- COACH NOTES ON IDEA BOARD ---
+    const isCoachSession = sessionRole === 'coach' || sessionRole === 'organizationadmin' || sessionRole === 'systemowner';
+    const [pendingOpenNotes, setPendingOpenNotes] = useState(false);
     const [coachNotes, setCoachNotes] = useState<CoachNote[]>([]);
     const [isCoachNotesModalOpen, setIsCoachNotesModalOpen] = useState(false);
     const [activeNotesTab, setActiveNotesTab] = useState<'coach' | 'idea'>('coach');
     const [activeCoachNote, setActiveCoachNote] = useState<CoachNote | null>(null);
     const [selectedCoachFilter, setSelectedCoachFilter] = useState<string | null>(null);
+
+    useEffect(() => {
+        if (pendingOpenNotes && isCoachSession) {
+            setPendingOpenNotes(false);
+            setIsCoachNotesModalOpen(true);
+        }
+    }, [pendingOpenNotes, isCoachSession]);
+
+    const handleOpenCoachNotes = () => {
+        if (isCoachSession) {
+            setIsCoachNotesModalOpen(true);
+        } else {
+            setPendingOpenNotes(true);
+            if (onRequestCoachAccess) {
+                onRequestCoachAccess();
+            }
+        }
+    };
 
     useEffect(() => {
         if (!selectedOrganization?.id) return;
@@ -1857,7 +1879,13 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
                         
                         {isMenuOpen && (
                             <div className="absolute top-0 right-full mr-4 w-56 bg-gray-800/95 backdrop-blur-md shadow-2xl rounded-xl border border-gray-700 py-2 flex flex-col pointer-events-auto">
-                                <button onClick={() => { setIsCoachNotesModalOpen(true); setIsMenuOpen(false); }} className="px-4 py-3 text-left text-white hover:bg-gray-700 font-semibold transition-colors rounded-t-xl">Anteckningar</button>
+                                <button 
+                                    onClick={() => { handleOpenCoachNotes(); setIsMenuOpen(false); }} 
+                                    className="px-4 py-3 text-left text-white hover:bg-gray-700 font-semibold transition-colors rounded-t-xl flex items-center justify-between"
+                                >
+                                    <span>Anteckningar</span>
+                                    {!isCoachSession && <span className="text-xs opacity-60">🔒</span>}
+                                </button>
                                 <button onClick={() => { handleSaveNote(); setIsMenuOpen(false); }} disabled={(history.length === 0 && smartObjects.length === 0) || saveState !== 'idle'} className="px-4 py-3 text-left text-white hover:bg-gray-700 font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
                                     {saveState === 'saving' ? 'Sparar...' : saveState === 'saved' ? 'Sparad!' : 'Spara & Arkivera'}
                                 </button>

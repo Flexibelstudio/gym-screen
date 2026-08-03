@@ -683,11 +683,21 @@ const BlockCard: React.FC<BlockCardProps> = ({ block, index, totalBlocks, onUpda
 };
 
 // --- Main Component ---
-export const SimpleWorkoutBuilderScreen: React.FC<{ initialWorkout: Workout | null; onSave: (w: Workout) => void; onCancel: () => void; isNewDraft?: boolean; isAdminView?: boolean; setCustomBackHandler?: (handler: (() => void) | null) => void }> = ({ initialWorkout, onSave, onCancel, isNewDraft, isAdminView, setCustomBackHandler }) => {
+export const SimpleWorkoutBuilderScreen: React.FC<{ initialWorkout: Workout | null; onSave: (w: Workout) => void; onCancel: () => void; isNewDraft?: boolean; isAdminView?: boolean; sessionRole?: string; setCustomBackHandler?: (handler: (() => void) | null) => void }> = ({ initialWorkout, onSave, onCancel, isNewDraft, isAdminView, sessionRole, setCustomBackHandler }) => {
     const { selectedOrganization, studioConfig } = useStudio();
     const { isStudioMode } = useAuth();
     const showAdminFields = isAdminView ?? !isStudioMode;
     const [workout, setWorkout] = useState<Workout>(() => initialWorkout ? JSON.parse(JSON.stringify(initialWorkout)) : createNewWorkout());
+    const isCoachSession = sessionRole === 'coach' || sessionRole === 'organizationadmin' || sessionRole === 'systemowner';
+
+    // Placering: 'other' betyder Övriga pass (utkast), annars namnet på en kategori
+    // (publicerat). Kommer passet in som utkast, eller utan giltig kategori, är
+    // Övriga pass förvalt.
+    const [placement, setPlacement] = useState<string>(() => {
+        const w = initialWorkout;
+        if (!w || w.isMemberDraft === true) return 'other';
+        return w.category || 'other';
+    });
     const [initialSnapshot, setInitialSnapshot] = useState<string>('');
     const [editingBlockId, setEditingBlockId] = useState<string | null>(null);
     const [exerciseBank, setExerciseBank] = useState<BankExercise[]>([]);
@@ -773,19 +783,23 @@ export const SimpleWorkoutBuilderScreen: React.FC<{ initialWorkout: Workout | nu
             organizationId: selectedOrganization?.id || ''
         };
 
-        // Ett nytt pass som skapats här ska vara publicerat direkt. Annars blir det
-        // osynligt i Anteckningar och i Kolla in passen, och går bara att nå genom
-        // att publicera det manuellt i adminvyn.
+        // Placeringen avgör om passet publiceras. Den gäller bara nya pass —
+        // ett befintligt pass rörs aldrig, det kan ha avpublicerats med flit.
         //
-        // Undantag: justeringar. handleAdjustWorkout sätter medvetet isMemberDraft
-        // true och isPublished false på sin kopia och anropar ändå
-        // setIsEditingNewDraft(true) — utan kontrollen nedan skulle varje
-        // "Justering:"-kopia från skärmen publiceras till hela gymmet.
+        // En medlem kan inte publicera. Allt hen skapar blir ett utkast under
+        // Övriga pass, oavsett vad som stod i passet när det kom hit.
         //
-        // Ett befintligt pass rörs inte heller; det kan ha avpublicerats med flit.
-        if (isNewDraft && workoutToSave.isMemberDraft !== true) {
-            workoutToSave.isPublished = true;
-            workoutToSave.isMemberDraft = false;
+        // Justeringar kommer in med isMemberDraft true och får därför 'other'
+        // förvalt, så en "Justering:"-kopia publiceras aldrig av misstag.
+        if (isNewDraft) {
+            if (isCoachSession && placement !== 'other') {
+                workoutToSave.isPublished = true;
+                workoutToSave.isMemberDraft = false;
+                workoutToSave.category = placement;
+            } else {
+                workoutToSave.isPublished = false;
+                workoutToSave.isMemberDraft = true;
+            }
         }
 
         onSave(workoutToSave);
@@ -866,38 +880,49 @@ export const SimpleWorkoutBuilderScreen: React.FC<{ initialWorkout: Workout | nu
                                     className={`${inputBaseClasses} w-full text-4xl tracking-tight !bg-white dark:!bg-gray-900`} 
                                 />
                             </div>
-                            {studioConfig.customCategories && studioConfig.customCategories.length > 0 && (() => {
-                                const hasValidCategory = studioConfig.customCategories.some(c => c.name === workout.category);
-                                return (
-                                    <div>
-                                        <label className="text-[10px] font-black text-primary uppercase tracking-[0.3em] mb-2 block ml-2">Kategori</label>
-                                        <div className="flex flex-wrap gap-2">
-                                            {studioConfig.customCategories.map(cat => {
-                                                const isSelected = workout.category === cat.name;
-                                                return (
-                                                    <button
-                                                        key={cat.id || cat.name}
-                                                        type="button"
-                                                        onClick={() => setWorkout({ ...workout, category: cat.name })}
-                                                        className={`px-4 py-2.5 rounded-xl text-sm font-bold border-2 transition-all active:scale-95 ${
-                                                            isSelected
-                                                                ? 'bg-primary text-white border-primary shadow-lg shadow-primary/20'
-                                                                : 'bg-white dark:bg-gray-900 text-gray-600 dark:text-gray-300 border-transparent hover:border-gray-300 dark:hover:border-gray-600'
-                                                        }`}
-                                                    >
-                                                        {cat.name}
-                                                    </button>
-                                                );
-                                            })}
-                                        </div>
-                                        {!hasValidCategory && (
-                                            <p className="mt-2 ml-2 text-xs font-bold text-amber-600 dark:text-amber-400">
-                                                Välj kategori. Utan den hittar varken medlemmarna eller skärmen passet.
-                                            </p>
-                                        )}
+                            {isCoachSession ? (
+                                <div>
+                                    <label className="text-[10px] font-black text-primary uppercase tracking-[0.3em] mb-2 block ml-2">Var ska passet ligga?</label>
+                                    <div className="flex flex-wrap gap-2">
+                                        <button
+                                            type="button"
+                                            onClick={() => setPlacement('other')}
+                                            className={`px-4 py-2.5 rounded-xl text-sm font-bold border-2 transition-all active:scale-95 ${
+                                                placement === 'other'
+                                                    ? 'bg-primary text-white border-primary shadow-lg shadow-primary/20'
+                                                    : 'bg-white dark:bg-gray-900 text-gray-600 dark:text-gray-300 border-transparent hover:border-gray-300 dark:hover:border-gray-600'
+                                            }`}
+                                        >
+                                            Övriga pass
+                                        </button>
+                                        {(studioConfig.customCategories || []).map(cat => (
+                                            <button
+                                                key={cat.id || cat.name}
+                                                type="button"
+                                                onClick={() => setPlacement(cat.name)}
+                                                className={`px-4 py-2.5 rounded-xl text-sm font-bold border-2 transition-all active:scale-95 ${
+                                                    placement === cat.name
+                                                        ? 'bg-primary text-white border-primary shadow-lg shadow-primary/20'
+                                                        : 'bg-white dark:bg-gray-900 text-gray-600 dark:text-gray-300 border-transparent hover:border-gray-300 dark:hover:border-gray-600'
+                                                }`}
+                                            >
+                                                {cat.name}
+                                            </button>
+                                        ))}
                                     </div>
-                                );
-                            })()}
+                                    <p className="mt-2 ml-2 text-xs text-gray-500 dark:text-gray-400">
+                                        {placement === 'other'
+                                            ? 'Passet sparas som utkast under Övriga pass och visas inte för medlemmarna. Stjärnmärk det för att behålla det längre än ett dygn.'
+                                            : `Passet publiceras och syns för medlemmarna under ${placement}.`}
+                                    </p>
+                                </div>
+                            ) : (
+                                <div className="p-4 rounded-2xl bg-gray-50 dark:bg-gray-800/50 border border-gray-100 dark:border-gray-800">
+                                    <p className="text-sm text-gray-600 dark:text-gray-300">
+                                        Passet sparas under <strong className="text-gray-900 dark:text-white">Övriga pass</strong>. Stjärnmärk det efteråt om du vill behålla det längre än ett dygn.
+                                    </p>
+                                </div>
+                            )}
                             <div>
                                 <label className="text-[10px] font-black text-primary uppercase tracking-[0.3em] mb-2 block ml-2">Tips till deltagare</label>
                                 <textarea 

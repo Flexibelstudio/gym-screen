@@ -329,11 +329,16 @@ export function useWorkoutActions(deps: UseWorkoutActionsDeps) {
   };
 
   const handleWorkoutInterpretedFromNote = (workout: Workout) => {
+    // En coach har angett coachlösenordet och har sessionsrollen coach eller högre.
+    // Alla andra — inklusive anonyma sessioner vid studioskärmen — behandlas som
+    // medlemmar och får sitt pass som utkast under Övriga pass.
+    const isCoachSession = sessionRole === 'coach' || sessionRole === 'organizationadmin' || sessionRole === 'systemowner';
+
     const workoutWithOrg = {
       ...workout,
       organizationId: selectedOrganization?.id || '',
-      isMemberDraft: false,
-      isPublished: true,
+      isMemberDraft: !isCoachSession,
+      isPublished: isCoachSession,
       silentPublish: true,
     };
     setActiveWorkout(workoutWithOrg);
