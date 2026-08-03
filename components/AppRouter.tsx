@@ -126,6 +126,7 @@ interface AppRouterProps {
         
         handleGeneratedWorkout: (workout: Workout) => void;
         handleWorkoutInterpreted: (workout: Workout) => void;
+        handleUnlockCoachRequest?: () => void;
         handleAdjustWorkout: (workout: Workout) => void;
         setAiGeneratorInitialTab: (tab: any) => void;
         setCustomBackHandler: (handler: any) => void;
@@ -288,6 +289,7 @@ export const AppRouter: React.FC<AppRouterProps> = (props) => {
                             onCancel={handleBack}
                             isNewDraft={props.isEditingNewDraft}
                             isAdminView={!isStudioMode}
+                            sessionRole={role}
                             setCustomBackHandler={functions.setCustomBackHandler}
                         />;
 
@@ -313,6 +315,8 @@ export const AppRouter: React.FC<AppRouterProps> = (props) => {
                             initialWorkoutToDraw={null}
                             onBack={handleBack}
                             remoteCommand={remoteCommand}
+                            sessionRole={role}
+                            onRequestCoachAccess={functions.handleUnlockCoachRequest}
                         />;
 
                     case Page.RepsOnly:

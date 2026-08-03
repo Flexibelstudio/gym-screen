@@ -322,6 +322,7 @@ const App: React.FC = () => {
   const [isAutoTransition, setIsAutoTransition] = useState(false);
   
   const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
+  const [passwordPurpose, setPasswordPurpose] = useState<'coachView' | 'unlock'>('coachView');
   const [isReAuthModalOpen, setIsReAuthModalOpen] = useState(false);
   const [reAuthPurpose, setReAuthPurpose] = useState<'admin' | 'profile'>('admin');
 
@@ -628,8 +629,18 @@ const App: React.FC = () => {
   });
 
   const handleCoachAccessRequest = () => {
-    if (sessionRole === 'member') setIsPasswordModalOpen(true);
+    if (sessionRole === 'member') {
+      setPasswordPurpose('coachView');
+      setIsPasswordModalOpen(true);
+    }
     else navigateTo(Page.Coach);
+  };
+
+  const handleUnlockCoachRequest = () => {
+    if (sessionRole === 'member') {
+      setPasswordPurpose('unlock');
+      setIsPasswordModalOpen(true);
+    }
   };
   
   const handlePreviewWorkoutsRequest = () => {
@@ -1105,6 +1116,7 @@ const App: React.FC = () => {
                     
                     handleGeneratedWorkout: handleGeneratedWorkout,
                     handleWorkoutInterpreted: handleWorkoutInterpretedFromNote,
+                    handleUnlockCoachRequest: handleUnlockCoachRequest,
                     handleAdjustWorkout: handleAdjustWorkout,
                     setAiGeneratorInitialTab: setAiGeneratorInitialTab,
                     setCustomBackHandler: setCustomBackHandler,
@@ -1264,7 +1276,9 @@ const App: React.FC = () => {
           onSuccess={() => {
             setIsPasswordModalOpen(false);
             setSessionRole('coach');
-            navigateTo(Page.Coach);
+            if (passwordPurpose === 'coachView') {
+              navigateTo(Page.Coach);
+            }
           }}
         />
       )}

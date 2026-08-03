@@ -28,6 +28,7 @@ export interface LastPerformanceRecord {
     rir?: number | null;
     note?: string;
     trackingFields?: string[];
+    sets?: { weight: number; reps: string; rir: number | null }[];
 }
 
 export interface LocalExerciseResult {

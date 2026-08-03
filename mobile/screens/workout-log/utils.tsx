@@ -84,6 +84,34 @@ export function formatLastPerformance(perf: LastPerformanceRecord | null | undef
     return parts.join(' · ');
 }
 
+/**
+ * Formaterar hela setlistan från förra passet: "5 × 115 kg · 3 × 100 kg · 1 × 90 kg".
+ * Returnerar null när listan saknas eller när något set saknar både vikt och reps —
+ * då används formatLastPerformance i stället, som även hanterar tid, distans och kcal.
+ */
+export function formatLastPerformanceSets(perf: LastPerformanceRecord | null | undefined): string | null {
+    if (!perf || !perf.sets || perf.sets.length === 0) return null;
+
+    const parts = perf.sets.map(s => {
+        const repsStr = String(s.reps || '').trim();
+        const hasReps = repsStr !== '' && repsStr !== '0';
+        const hasWeight = s.weight > 0;
+        if (!hasReps && !hasWeight) return null;
+
+        let rirSuffix = '';
+        if (s.rir != null && s.rir > 0) {
+            rirSuffix = s.rir >= 3 ? ' (3+ kvar)' : ` (${s.rir} kvar)`;
+        }
+
+        if (hasReps && hasWeight) return `${repsStr} × ${s.weight} kg${rirSuffix}`;
+        if (hasReps) return `${repsStr} reps${rirSuffix}`;
+        return `${s.weight} kg${rirSuffix}`;
+    }).filter(Boolean) as string[];
+
+    if (parts.length === 0) return null;
+    return parts.join(' · ');
+}
+
 export function extractPerformanceFromLogEx(exMatch: any, note?: string): LastPerformanceRecord {
     let bestWeight = 0;
     let bestReps = '0';
@@ -130,6 +158,16 @@ export function extractPerformanceFromLogEx(exMatch: any, note?: string): LastPe
         bestRir = exMatch.rir != null ? Number(exMatch.rir) : null;
     }
 
+    // Hela setlistan följer med, i den ordning de kördes. Bara set med vikt eller
+    // reps tas med — tomma rader ska inte synas i historiken.
+    const sets = (exMatch.setDetails || [])
+        .map((s: any) => ({
+            weight: parseFloat(String(s.weight)) || 0,
+            reps: s.reps != null ? String(s.reps) : '',
+            rir: s.rir != null ? Number(s.rir) : null
+        }))
+        .filter((s: any) => s.weight > 0 || (s.reps !== '' && s.reps !== '0'));
+
     return {
         weight: bestWeight,
         reps: bestReps,
@@ -138,7 +176,8 @@ export function extractPerformanceFromLogEx(exMatch: any, note?: string): LastPe
         kcal: bestKcal,
         rir: bestRir,
         note,
-        trackingFields
+        trackingFields,
+        sets
     };
 }
 

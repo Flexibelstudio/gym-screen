@@ -4,7 +4,7 @@ import { CalculatorIcon, CheckIcon, CloseIcon, PlusIcon } from '../../../compone
 import { PersonalBest } from '../../../types';
 import { calculate1RM, getRepsForPercentage, getTargetWeightForExercise, getRestSecondsForPercentage, TrainingProfile, getSetScore } from '../../../utils/workoutUtils';
 import { LocalExerciseResult, LastPerformanceRecord, LocalSetDetail } from './types';
-import { ChevronDownIcon, formatLastPerformance, GROUP_COLORS, GRID_COLS_MAP, DEFAULT_REST_SECONDS } from './utils';
+import { ChevronDownIcon, formatLastPerformance, formatLastPerformanceSets, GROUP_COLORS, GRID_COLS_MAP, DEFAULT_REST_SECONDS } from './utils';
 
 export const ExerciseLogCard: React.FC<{
   name: string;
@@ -230,7 +230,9 @@ export const ExerciseLogCard: React.FC<{
                         <h4 className="font-black text-gray-900 dark:text-white text-xl truncate leading-[1.2] pt-[0.1em]">{name}</h4>
                         <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
                             {(() => {
-                                const formatted = formatLastPerformance(lastPerformance);
+                                // Hela setlistan om den finns, annars den gamla
+                                // sammanfattningen, som även täcker tid och distans.
+                                const formatted = formatLastPerformanceSets(lastPerformance) || formatLastPerformance(lastPerformance);
                                 if (formatted) {
                                     return (
                                         <div className="inline-flex items-center gap-1.5 bg-gray-100/80 dark:bg-gray-800/80 border border-gray-200/60 dark:border-gray-700/60 px-2.5 py-1 rounded-lg text-xs font-medium text-gray-500 dark:text-gray-400">
