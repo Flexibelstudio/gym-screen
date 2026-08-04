@@ -1121,7 +1121,11 @@ const WorkoutDetailScreen: React.FC<WorkoutDetailScreenProps> = ({
 
   const isLoggingEnabled = studioConfig.enableWorkoutLogging || false;
   const showSidebar = !isStudioMode; 
-  const showQR = isLoggingEnabled && isWorkoutLoggable && !isPresentationMode;
+  // QR-koden ska bara visas när skannern faktiskt kan hämta passet.
+  // getVisibleWorkoutsForMembers kräver isPublished true och isMemberDraft false —
+  // ett utkast går aldrig att logga, hur gärna man än skannar.
+  const isWorkoutScannable = sessionWorkout.isPublished === true && sessionWorkout.isMemberDraft !== true;
+  const showQR = isLoggingEnabled && isWorkoutLoggable && isWorkoutScannable && !isPresentationMode;
 
   return (
     <div className="w-full max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 pb-40 relative animate-fade-in">
@@ -1133,6 +1137,14 @@ const WorkoutDetailScreen: React.FC<WorkoutDetailScreenProps> = ({
             isEnabled={true}
             hasActiveCarousel={hasActiveCarousel}
         />
+      )}
+
+      {isLoggingEnabled && isWorkoutLoggable && !isWorkoutScannable && !isPresentationMode && (
+        <div className="mb-6 rounded-2xl border border-amber-300 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/20 p-4">
+            <p className="text-sm font-semibold text-amber-900 dark:text-amber-200">
+                Ingen QR-kod visas eftersom passet inte är publicerat. Publicera det för att medlemmarna ska kunna logga.
+            </p>
+        </div>
       )}
 
       {/* --- HEADER SECTION --- */}

@@ -310,7 +310,7 @@ export function getWorkoutVisibilityIssues(
 
     const cat = (w.category || '').trim();
     if (!cat || cat === 'Ej kategoriserad' || cat === 'AI Genererat') {
-        issues.push('Ingen passkategori vald. Passet hittas inte under någon kategori i appen, bara under Alla.');
+        issues.push('Ingen passkategori vald. Passet syns inte på startsidan i appen. Medlemmen hittar det bara genom att öppna en kategori och sedan välja filtret Alla.');
     } else if (customCategories && customCategories.length > 0) {
         const cfg = customCategories.find(c => c.name === cat);
         if (!cfg) {

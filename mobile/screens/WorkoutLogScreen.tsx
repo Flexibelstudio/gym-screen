@@ -318,6 +318,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
   
   const scanSource = source || route?.params?.source;
   const [inStudio, setInStudio] = useState<boolean | null>(scanSource === 'qr_scan' ? true : null);
+  const [workoutLoadFailed, setWorkoutLoadFailed] = useState(false);
 
   const [history, setHistory] = useState<Record<string, LastPerformanceRecord>>({}); 
   const [personalBests, setPersonalBests] = useState<Record<string, PersonalBest>>({});
@@ -563,6 +564,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
         setLogStep('exercises');
         setSessionPctMap({});
         setSessionPctByBlock({});
+        setWorkoutLoadFailed(false);
         
         try {
             let foundWorkout: any = null;
@@ -581,7 +583,11 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
                 }
 
                 if (!foundWorkout && wId) {
+                    // Ingen tyst reserv. Utan detta renderas en tom loggningsvy med
+                    // reservtiteln "Träningspass" och en osann förklaring om att
+                    // inga övningar är markerade.
                     console.error("Passet kunde inte hämtas", wId);
+                    setWorkoutLoadFailed(true);
                 }
             }
             
@@ -1523,7 +1529,13 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
                           <>
                             {!isManualMode && exerciseResults.length === 0 && (
                                 <div className="bg-white dark:bg-gray-900 p-6 rounded-3xl border border-dashed border-gray-200 dark:border-gray-800 text-center mb-8">
-                                    <p className="text-gray-500 text-sm">Inga övningar i detta pass är markerade för specifik loggning. Du kan gå till nästa steg för att fylla i övriga resultat.</p>
+                                    {workoutLoadFailed ? (
+                                        <p className="text-red-600 dark:text-red-400 text-sm font-semibold">
+                                            Passet kunde inte hämtas. Det är antingen inte publicerat än, eller borttaget. Be din coach publicera passet och skanna om.
+                                        </p>
+                                    ) : (
+                                        <p className="text-gray-500 text-sm">Inga övningar i detta pass är markerade för specifik loggning. Du kan gå till nästa steg för att fylla i övriga resultat.</p>
+                                    )}
                                 </div>
                             )}
                             

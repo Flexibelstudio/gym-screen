@@ -309,7 +309,6 @@ export const OvningsbankContent: React.FC = () => {
                         <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{exercise.description}</p>
                     </div>
                     <div className="flex-shrink-0 flex gap-2">
-                        <button onClick={() => setMergingExercise(exercise)} className="text-sm bg-blue-600 hover:bg-blue-500 text-white font-semibold py-1 px-3 rounded">Slå ihop</button>
                         <button onClick={() => setEditingExercise(exercise)} className="text-sm bg-gray-600 hover:bg-gray-500 text-white font-semibold py-1 px-3 rounded">Redigera</button>
                         <button onClick={() => handleDelete(exercise)} className="text-sm bg-red-600 hover:bg-red-500 text-white font-semibold py-1 px-3 rounded">Ta bort</button>
                     </div>
@@ -375,7 +374,15 @@ export const OvningsbankContent: React.FC = () => {
             </div>
 
             {editingExercise && <ExerciseEditorModal exercise={editingExercise} bank={bank} onSave={handleSave} onClose={() => setEditingExercise(null)} />}
-            {mergingExercise && <MergeModal sourceExercise={mergingExercise} bank={bank} onMerge={handleMerge} onClose={() => setMergingExercise(null)} />}
+            {/* Sammanslagningen är bortkopplad. mergeExercises i
+                services/firebase/exercises.ts skriver om pass i ALLA organisationer
+                — den hämtar collection('workouts') utan orgfilter och matchar på
+                namn — och den uppdaterar varken workoutLogs eller personalBests.
+                Allt sker dessutom i ett writeBatch med taket 500 operationer, utan
+                torrkörning. Koden nedan är kvar men får inte kopplas in igen förrän
+                funktionen har orgfilter, tar med loggar och PB, chunkade batchar och
+                en torrkörning som visar omfattningen först.
+                MergeModal, handleMerge och mergingExercise är medvetet kvar. */}
         </div>
     );
 };
