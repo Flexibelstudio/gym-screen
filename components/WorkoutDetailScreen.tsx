@@ -13,6 +13,7 @@ import { useConfirm } from './ConfirmContext';
 import { getSideLabel, findDuplicateBankExercise } from '../utils/workoutUtils';
 import { DuplicateExerciseModal } from './DuplicateExerciseModal';
 import { Modal } from './ui/Modal';
+import { LastSessionFeedback } from './LastSessionFeedback';
 
 // Helper to format time for results (00:00)
 const formatResultTime = (timeInSeconds: number) => {
@@ -516,7 +517,15 @@ export const WorkoutPresentationModal: React.FC<{
 }> = ({ workout, onClose, blockId, onHeaderVisibilityChange, isOwnProgram, userId, onWorkoutUpdated }) => {
     const scrollRef = useRef<HTMLDivElement>(null);
     const [currentWorkout, setCurrentWorkout] = useState<Workout>(workout);
-    const { selectedOrganization } = useStudio();
+    const { selectedOrganization, selectedStudio } = useStudio();
+    const { isStudioMode, role } = useAuth();
+
+    // Feedbacken innehåller medlemmars namn och kommentarer. Den här modalen visas
+    // även för medlemmar, och rollen ensam räcker inte: en systemägare kan simulera
+    // en coach i studioläge, se AuthContext rad 231. Båda villkoren krävs.
+    const canSeeSessionFeedback =
+        !isStudioMode &&
+        (role === 'coach' || role === 'organizationadmin' || role === 'systemowner');
 
     const handleWorkoutUpdate = (updatedWorkout: Workout) => {
         setCurrentWorkout(updatedWorkout);
@@ -582,6 +591,13 @@ export const WorkoutPresentationModal: React.FC<{
 
             <div ref={scrollRef} className="flex-grow overflow-y-auto p-4 sm:p-8 md:p-12 lg:p-20 xl:p-32 space-y-8 sm:space-y-12 md:space-y-16 lg:space-y-24 xl:space-y-32">
                 <div className="max-w-4xl lg:max-w-6xl xl:max-w-screen-2xl mx-auto space-y-8 sm:space-y-12 md:space-y-16 lg:space-y-24 xl:space-y-32">
+                    {canSeeSessionFeedback && selectedOrganization && (
+                        <LastSessionFeedback 
+                            workoutId={currentWorkout.id}
+                            organizationId={selectedOrganization.id}
+                            locationId={selectedStudio?.locationId}
+                        />
+                    )}
                     {blocksToShow?.map((block, bIndex) => {
                         if (!block) return null;
                         return (
