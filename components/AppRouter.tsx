@@ -126,6 +126,7 @@ interface AppRouterProps {
         
         handleGeneratedWorkout: (workout: Workout) => void;
         handleWorkoutInterpreted: (workout: Workout) => void;
+        handleOpenWorkoutById?: (workoutId: string) => void;
         handleUnlockCoachRequest?: () => void;
         handleAdjustWorkout: (workout: Workout) => void;
         setAiGeneratorInitialTab: (tab: any) => void;
@@ -306,7 +307,11 @@ export const AppRouter: React.FC<AppRouterProps> = (props) => {
                         />;
 
                     case Page.CoachNotes:
-                        return <CoachNotesScreen onBack={handleBack} onWorkoutInterpreted={functions.handleWorkoutInterpreted} />;
+                        return <CoachNotesScreen 
+                            onBack={handleBack} 
+                            onWorkoutInterpreted={functions.handleWorkoutInterpreted} 
+                            onOpenWorkout={functions.handleOpenWorkoutById}
+                        />;
 
                     case Page.IdeaBoard:
                         return <NotesScreen 

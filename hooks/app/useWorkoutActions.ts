@@ -1,6 +1,6 @@
 import { Page, Workout, WorkoutBlock, Passkategori, UserRole, Organization, StudioConfig } from '../../types';
 import { deepCopyAndPrepareAsNew, isWorkoutVisibleNow, getMemberLocationIds, isWorkoutVisibleForLocations, getDefaultLoggingForBlockTag } from '../../utils/workoutUtils';
-import { saveCustomProgram, saveAdminActivity } from '../../services/firebaseService';
+import { saveCustomProgram, saveAdminActivity, updateCoachNote } from '../../services/firebaseService';
 import { useConfirm } from '../../components/ConfirmContext';
 
 export interface UseWorkoutActionsDeps {
@@ -114,6 +114,18 @@ export function useWorkoutActions(deps: UseWorkoutActionsDeps) {
       isMemberDraft: workout.isMemberDraft ?? isMemberRole,
     };
     const savedWorkout = await saveWorkout(workoutToSave);
+
+    // Om passet skapades från en anteckning, länka tillbaka från anteckningen till passet
+    if (workoutToSave.sourceNoteId && savedWorkout?.id && selectedOrganization?.id) {
+      try {
+        await updateCoachNote(workoutToSave.sourceNoteId, {
+          createdWorkoutId: savedWorkout.id,
+          createdWorkoutTitle: savedWorkout.title,
+        });
+      } catch (err) {
+        console.error("Kunde inte uppdatera anteckningen med passlänk:", err);
+      }
+    }
 
     if (startFirstBlock && savedWorkout.blocks.length > 0) {
       handleStartBlock(savedWorkout.blocks[0], savedWorkout);
@@ -328,7 +340,7 @@ export function useWorkoutActions(deps: UseWorkoutActionsDeps) {
     navigateTo(Page.WorkoutBuilder);
   };
 
-  const handleWorkoutInterpretedFromNote = (workout: Workout) => {
+  const handleWorkoutInterpretedFromNote = (workout: Workout, sourceNoteId?: string) => {
     // En coach har angett coachlösenordet och har sessionsrollen coach eller högre.
     // Alla andra — inklusive anonyma sessioner vid studioskärmen — behandlas som
     // medlemmar och får sitt pass som utkast under Övriga pass.
@@ -340,10 +352,26 @@ export function useWorkoutActions(deps: UseWorkoutActionsDeps) {
       isMemberDraft: !isCoachSession,
       isPublished: isCoachSession,
       silentPublish: true,
+      sourceNoteId: sourceNoteId,
     };
     setActiveWorkout(workoutWithOrg);
     setIsEditingNewDraft(true);
     navigateTo(Page.SimpleWorkoutBuilder);
+  };
+
+  const handleOpenWorkoutById = async (workoutId: string) => {
+    const workout = workouts.find((w) => w.id === workoutId);
+    if (!workout) {
+      // Ingen tyst reserv. Har passet raderats sedan anteckningen länkades ska
+      // coachen få veta det, inte mötas av en knapp som inte gör något.
+      await confirm({
+        title: "Passet finns inte längre",
+        message: "Passet som skapades från den här anteckningen har tagits bort.",
+        confirmText: "OK"
+      });
+      return;
+    }
+    handleSelectWorkout(workout, 'view');
   };
 
   return {
@@ -360,5 +388,6 @@ export function useWorkoutActions(deps: UseWorkoutActionsDeps) {
     handleSelectPasskategori,
     handleGeneratedWorkout,
     handleWorkoutInterpretedFromNote,
+    handleOpenWorkoutById,
   };
 }

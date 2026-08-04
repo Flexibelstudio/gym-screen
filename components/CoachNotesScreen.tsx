@@ -21,7 +21,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 
 interface CoachNotesScreenProps {
     onBack: () => void;
-    onWorkoutInterpreted?: (workout: Workout) => void;
+    onWorkoutInterpreted?: (workout: Workout, sourceNoteId?: string) => void;
+    onOpenWorkout?: (workoutId: string) => void;
 }
 
 async function urlToBase64(url: string): Promise<string> {
@@ -36,7 +37,7 @@ async function urlToBase64(url: string): Promise<string> {
     });
 }
 
-export const CoachNotesScreen: React.FC<CoachNotesScreenProps> = ({ onBack, onWorkoutInterpreted }) => {
+export const CoachNotesScreen: React.FC<CoachNotesScreenProps> = ({ onBack, onWorkoutInterpreted, onOpenWorkout }) => {
     const { userData } = useAuth();
     const { selectedOrganization } = useStudio();
     const [notes, setNotes] = useState<CoachNote[]>([]);
@@ -260,7 +261,7 @@ export const CoachNotesScreen: React.FC<CoachNotesScreenProps> = ({ onBack, onWo
             setIsResolving(false);
 
             if (onWorkoutInterpreted) {
-                onWorkoutInterpreted(resolvedWorkout);
+                onWorkoutInterpreted(resolvedWorkout, note.id);
             }
         } catch (error) {
             console.error("Fel vid tolkning av anteckning till pass:", error);
@@ -418,6 +419,15 @@ export const CoachNotesScreen: React.FC<CoachNotesScreenProps> = ({ onBack, onWo
                                         >
                                             ⚡️ Gör till pass
                                         </button>
+                                        {note.createdWorkoutId && onOpenWorkout && (
+                                            <button 
+                                                onClick={() => onOpenWorkout(note.createdWorkoutId!)}
+                                                className="text-xs font-extrabold text-emerald-600 hover:text-emerald-700 bg-emerald-500/10 hover:bg-emerald-500/20 px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1.5 active:scale-95"
+                                                title={note.createdWorkoutTitle || 'Öppna passet'}
+                                            >
+                                                📋 Öppna passet
+                                            </button>
+                                        )}
                                         <div className="flex items-center gap-1">
                                             <button 
                                                 onClick={() => {

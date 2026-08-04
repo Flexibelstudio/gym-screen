@@ -2,7 +2,7 @@ import {
   collection, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, query, where, or, orderBy, limit, onSnapshot, writeBatch, serverTimestamp, runTransaction, deleteField, getCountFromServer, increment 
 } from 'firebase/firestore';
 import { db, isOffline, sanitizeData, getPBId, getLeaderboardDocId } from './init';
-import { calculate1RM, isWorkoutMilestone, getYearWeek, getSetScore } from '../../utils/workoutUtils';
+import { calculate1RM, isWorkoutMilestone, getYearWeek, getSetScore, canonicalizeExerciseName } from '../../utils/workoutUtils';
 import { getOrganizationById } from './organizations';
 import { getGlobalSummerChallenge } from './misc';
 import { WorkoutLog, PersonalBest, WorkoutResult, MemberGoals, Workout, StudioEvent } from '../../types';
@@ -184,7 +184,10 @@ export const saveWorkoutLog = async (logData: any): Promise<{ log: any, newRecor
                 }
 
                 if (bestSet && exResult.exerciseName) {
-                    const pbId = getPBId(exResult.exerciseName);
+                    // Kanonisera innan id:t bildas, annars får "Knäböj (Back Squat)"
+                    // ett eget PB-dokument bredvid "Knäböj". Läsvägen kanoniserar
+                    // redan — skrivvägen måste göra likadant.
+                    const pbId = getPBId(canonicalizeExerciseName(exResult.exerciseName));
                     
                     const existingPB = currentPBs[pbId];
                     let existingScore = -1;
@@ -535,7 +538,7 @@ export const recalculatePersonalBestsForExercises = async (userId: string, exerc
         const uniqueIds = new Map<string, string>();
         exerciseNames.forEach(n => {
             if (!n) return;
-            uniqueIds.set(getPBId(n), n.trim());
+            uniqueIds.set(getPBId(canonicalizeExerciseName(n)), n.trim());
         });
 
         for (const [pbId, displayName] of uniqueIds) {
@@ -551,7 +554,7 @@ export const recalculatePersonalBestsForExercises = async (userId: string, exerc
 
                 for (const exResult of log.exerciseResults) {
                     if (!exResult.exerciseName) continue;
-                    if (getPBId(exResult.exerciseName) !== pbId) continue;
+                    if (getPBId(canonicalizeExerciseName(exResult.exerciseName)) !== pbId) continue;
 
                     const consider = (wVal: any, rVal: any, rirVal?: any) => {
                         const w = parseFloat(wVal) || 0;

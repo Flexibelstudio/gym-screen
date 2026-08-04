@@ -741,7 +741,10 @@ export const SimpleWorkoutBuilderScreen: React.FC<{ initialWorkout: Workout | nu
     }, [workout, initialSnapshot]);
 
     const handleCancelRef = useRef(() => {
-        if (isDirty) {
+        // Ett nytt pass finns inte förrän det sparats, så det ska varna även när
+        // inget ändrats. isDirty ensamt räcker inte: ett pass från en anteckning är
+        // oförändrat i det ögonblick coachen tittar på det.
+        if (isDirty || isNewDraft) {
             setShowUnsavedWarning(true);
         } else {
             if (setCustomBackHandler) setCustomBackHandler(null);
@@ -751,14 +754,14 @@ export const SimpleWorkoutBuilderScreen: React.FC<{ initialWorkout: Workout | nu
 
     useEffect(() => {
         handleCancelRef.current = () => {
-            if (isDirty) {
+            if (isDirty || isNewDraft) {
                 setShowUnsavedWarning(true);
             } else {
                 if (setCustomBackHandler) setCustomBackHandler(null);
                 onCancel();
             }
         };
-    }, [isDirty, onCancel, setCustomBackHandler]);
+    }, [isDirty, isNewDraft, onCancel, setCustomBackHandler]);
 
     const handleCancel = () => {
         handleCancelRef.current();
@@ -1043,9 +1046,11 @@ export const SimpleWorkoutBuilderScreen: React.FC<{ initialWorkout: Workout | nu
             {showUnsavedWarning && createPortal(
                 <div className="fixed inset-0 z-[300] bg-black/50 flex items-center justify-center p-4">
                     <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 max-w-md w-full shadow-2xl">
-                        <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4">Osparade ändringar</h3>
+                        <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4">{isNewDraft ? 'Passet är inte sparat' : 'Osparade ändringar'}</h3>
                         <p className="text-gray-600 dark:text-gray-300 mb-6">
-                            Du har gjort ändringar i passet som inte är sparade. Är du säker på att du vill lämna utan att spara?
+                            {isNewDraft
+                                ? 'Passet har aldrig sparats och försvinner helt om du lämnar nu.'
+                                : 'Du har gjort ändringar i passet som inte är sparade. Är du säker på att du vill lämna utan att spara?'}
                         </p>
                         <div className="flex justify-end gap-3">
                             <button 

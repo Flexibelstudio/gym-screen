@@ -94,12 +94,17 @@ export function findDuplicateBankExercise<T extends { id: string; name: string }
     if (!rawInput) return undefined;
     const baseInput = rawInput.replace(/\s*\([^)]*\)$/, '').trim();
 
+    // Exakt träff går alltid först, i hela banken. Annars kan en basnamnsträff
+    // tidigare i listan vinna över den exakta: banken sorteras på namn, så
+    // "Knäböj (Air Squat)" testas före "Knäböj (Back Squat)" och deras basnamn är
+    // båda "knäböj". Air Squat och Back Squat är olika övningar.
+    const exact = bank.find(ex => ex.name.toLowerCase().trim() === rawInput);
+    if (exact) return exact;
+
     return bank.find(ex => {
         const rawEx = ex.name.toLowerCase().trim();
         const baseEx = rawEx.replace(/\s*\([^)]*\)$/, '').trim();
 
-        // Exact match
-        if (rawInput === rawEx) return true;
         // Input matches exercise name without trailing parenthesis
         if (rawInput === baseEx) return true;
         // Exercise name matches input name without trailing parenthesis
@@ -438,7 +443,9 @@ export function getTargetWeightForExercise(params: {
   }
 
   if (base === null) return { base: null, scaled: null, targetPct, source: 'none', pctSource: 'none', current1RM: current1RM ?? null };
-  const scaled = mode === 'fatigued' ? Math.round((base * 0.9) / 2.5) * 2.5 : base;
+  // Samma rutnät som base, alltså närmaste halvkilo. Ett 2,5-rutnät förvanskar
+  // nedskalningen vid låga vikter: bas 21 kg skulle ge 20 i stället för 18,9.
+  const scaled = mode === 'fatigued' ? Math.round(base * 0.9 * 2) / 2 : base;
   return { base, scaled, targetPct, source, pctSource, current1RM: current1RM ?? null };
 }
 
