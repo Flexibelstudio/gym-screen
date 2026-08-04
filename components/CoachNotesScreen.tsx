@@ -367,12 +367,18 @@ export const CoachNotesScreen: React.FC<CoachNotesScreenProps> = ({ onBack, onWo
                 </div>
             </div>
 
+            <p className="text-xs text-gray-500 dark:text-gray-400 mb-5 mx-1">
+                {activeTab === 'active'
+                    ? 'Anteckningar flyttas till Arkiv efter 14 dagar. Stjärnmärk en anteckning för att behålla den här. Ingenting raderas.'
+                    : 'Här ligger anteckningar äldre än 14 dagar som inte är stjärnmärkta. Stjärnmärk en för att flytta tillbaka den till Aktiva.'}
+            </p>
+
             {displayedNotes.length === 0 ? (
                 <div className="text-center py-16 md:py-20 bg-gray-50 dark:bg-gray-900/50 rounded-3xl border border-gray-200 dark:border-gray-800 mx-1">
                     <div className="text-6xl mb-4">📝</div>
                     <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">Inga anteckningar här</h3>
                     <p className="text-gray-500 dark:text-gray-400">
-                        {activeTab === 'active' ? 'Klicka på "Ny Anteckning" för att spara pass, skisser och idéer.' : 'Arkivet är tomt. Gamla anteckningar som inte är favoriter hamnar här automatiskt efter 14 dagar.'}
+                        {activeTab === 'active' ? 'Klicka på "Ny Anteckning" för att spara pass, skisser och idéer.' : 'Arkivet är tomt. Anteckningar som inte är stjärnmärkta hamnar här efter 14 dagar.'}
                     </p>
                 </div>
             ) : (
@@ -398,6 +404,8 @@ export const CoachNotesScreen: React.FC<CoachNotesScreenProps> = ({ onBack, onWo
                                         <button 
                                             onClick={() => toggleCoachNoteFavorite(note.id, !note.isFavorite)}
                                             className="text-2xl hover:scale-110 transition-transform"
+                                            aria-label={note.isFavorite ? 'Behålls under Aktiva. Klicka för att låta den arkiveras efter 14 dagar.' : 'Stjärnmärk för att behålla anteckningen under Aktiva.'}
+                                            title={note.isFavorite ? 'Behålls under Aktiva. Klicka för att låta den arkiveras efter 14 dagar.' : 'Stjärnmärk för att behålla anteckningen under Aktiva.'}
                                         >
                                             {note.isFavorite ? '⭐️' : '☆'}
                                         </button>

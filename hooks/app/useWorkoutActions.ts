@@ -371,7 +371,14 @@ export function useWorkoutActions(deps: UseWorkoutActionsDeps) {
       });
       return;
     }
-    handleSelectWorkout(workout, 'view');
+    // Öppna i den förenklade byggaren, samma som passet skapades i. Presentationsvyn
+    // går bara att titta i, och då måste coachen bygga om passet för att rätta ett
+    // fel. handleEditWorkout duger inte — den skickar en coach utanför studioläget
+    // till den stora byggaren, som inte fungerar i mobilen.
+    setActiveWorkout(workout);
+    setFocusedBlockId(null);
+    setIsEditingNewDraft(false);
+    navigateTo(Page.SimpleWorkoutBuilder);
   };
 
   return {
