@@ -179,6 +179,21 @@ export function useWorkoutActions(deps: UseWorkoutActionsDeps) {
           return;
         }
 
+        // Hård stopp, samma modell som blocktypsspärren ovan. Ett publicerat pass
+        // utan kategori syns inte på startsidan i appen — medlemmen hittar det bara
+        // via filtret Alla i passlistan. Samma tre fall som i
+        // getWorkoutVisibilityIssues räknas som saknad kategori.
+        const cat = (workoutToToggle.category || '').trim();
+        if (!cat || cat === 'Ej kategoriserad' || cat === 'AI Genererat') {
+          await confirm({
+            title: "Passkategori saknas",
+            message: "Passkategorin styr var medlemmarna hittar passet i appen. Utan kategori syns det inte på startsidan, bara via filtret Alla i passlistan. Välj en kategori innan du publicerar.",
+            confirmText: "Gå tillbaka",
+            cancelText: "Avbryt"
+          });
+          return;
+        }
+
         const hasLoggingEligibleBlock = workoutToToggle.blocks?.some(b => getDefaultLoggingForBlockTag(b.tag)) || false;
         const hasAnyLoggingEnabled = workoutToToggle.blocks?.some(b => b.exercises?.some(e => e.loggingEnabled === true)) || false;
 
