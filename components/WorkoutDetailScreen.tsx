@@ -1181,8 +1181,12 @@ const WorkoutDetailScreen: React.FC<WorkoutDetailScreenProps> = ({
             </button>
           )}
 
-          {(isOwnProgram || (isStudioMode && onEditWorkout)) && (
-            <button 
+          {/* Vid skärmen får gymmets programmering inte redigeras direkt — där
+              används Ändra dagens pass, som gör en kopia till Övriga pass.
+              Redigera visas i studioläget bara för pass som redan ligger i
+              Övriga pass, där man redigerar originalet. */}
+          {(isOwnProgram || (isStudioMode && onEditWorkout && sessionWorkout.category === OTHER_CATEGORY)) && (
+            <button
                 onClick={() => onEditWorkout(sessionWorkout)}
                 className="bg-primary hover:bg-primary/95 text-white font-black py-3 px-6 rounded-xl flex items-center justify-center gap-2 shadow-lg transition-all transform active:scale-95 w-full sm:w-auto flex-shrink-0 animate-fade-in"
             >
@@ -1266,10 +1270,16 @@ const WorkoutDetailScreen: React.FC<WorkoutDetailScreenProps> = ({
                             <button onClick={() => onEditWorkout(workout)} className="w-full flex items-center gap-3 p-4 rounded-2xl bg-gray-50 dark:bg-gray-900 hover:bg-primary/10 hover:text-primary transition-all font-bold">
                                 <PencilIcon className="w-4 h-4" /> Redigera Pass
                             </button>
-                            <button onClick={() => onTogglePublish(workout.id, !workout.isPublished, silentPublish)} className={`w-full flex items-center justify-center gap-3 p-4 rounded-2xl font-bold transition-all ${workout.isPublished ? 'bg-red-50 text-red-600 hover:bg-red-100' : 'bg-green-50 text-green-600 hover:bg-green-100'}`}>
-                                {workout.isPublished ? 'Avpublicera' : 'Publicera'}
-                            </button>
-                            {!workout.isPublished && (
+                            {/* Övriga pass är alltid publicerade — hela modellen bygger
+                                på det (QR, loggning, listan). Ett avpublicerat Övriga
+                                pass blir varken hittbart eller loggbart, så knappen
+                                döljs för dem. */}
+                            {workout.category !== OTHER_CATEGORY && (
+                                <button onClick={() => onTogglePublish(workout.id, !workout.isPublished, silentPublish)} className={`w-full flex items-center justify-center gap-3 p-4 rounded-2xl font-bold transition-all ${workout.isPublished ? 'bg-red-50 text-red-600 hover:bg-red-100' : 'bg-green-50 text-green-600 hover:bg-green-100'}`}>
+                                    {workout.isPublished ? 'Avpublicera' : 'Publicera'}
+                                </button>
+                            )}
+                            {workout.category !== OTHER_CATEGORY && !workout.isPublished && (
                                 <label className="flex items-center gap-2 text-sm text-gray-500 mt-2 cursor-pointer px-2">
                                     <input 
                                         type="checkbox" 

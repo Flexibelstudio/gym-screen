@@ -4,7 +4,7 @@ import { CalculatorIcon, CheckIcon, CloseIcon, PlusIcon } from '../../../compone
 import { PersonalBest } from '../../../types';
 import { calculate1RM, getRepsForPercentage, getTargetWeightForExercise, getRestSecondsForPercentage, TrainingProfile, getSetScore } from '../../../utils/workoutUtils';
 import { LocalExerciseResult, LastPerformanceRecord, LocalSetDetail } from './types';
-import { ChevronDownIcon, formatLastPerformance, formatLastPerformanceSets, GROUP_COLORS, GRID_COLS_MAP, DEFAULT_REST_SECONDS } from './utils';
+import { ChevronDownIcon, formatLastPerformance, formatLastPerformanceSets, TimeInput, GROUP_COLORS, GRID_COLS_MAP, DEFAULT_REST_SECONDS } from './utils';
 
 export const ExerciseLogCard: React.FC<{
   name: string;
@@ -502,8 +502,17 @@ export const ExerciseLogCard: React.FC<{
                                     )}
 
                                     {showTime && (
-                                        <div className="bg-gray-50 dark:bg-gray-800 rounded-xl p-3.5 border border-gray-100 dark:border-gray-700 shadow-inner">
-                                            <input type="number" value={set.time || ''} onChange={(e) => handleSetChange(index, 'time', e.target.value)} placeholder="0" className="w-full bg-transparent text-gray-900 dark:text-white font-black text-xl focus:outline-none text-center" disabled={set.completed} />
+                                        // Min:sek-fälten i stället för en rå sifferruta — ingen kan
+                                        // gissa att "12,37" betyder 12 minuter 22 sekunder. Samma
+                                        // TimeInput som egna aktiviteter redan använder; värdet
+                                        // lagras oförändrat som decimala minuter.
+                                        <div className={set.completed ? 'pointer-events-none opacity-60' : ''}>
+                                            <TimeInput
+                                                value={set.time != null ? String(set.time) : ''}
+                                                onChange={(val) => handleSetChange(index, 'time', val)}
+                                                compact
+                                                className="w-full"
+                                            />
                                         </div>
                                     )}
 

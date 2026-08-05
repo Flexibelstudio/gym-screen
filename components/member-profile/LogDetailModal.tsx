@@ -4,6 +4,31 @@ import { Modal } from '../ui/Modal';
 import { useConfirm } from '../ConfirmContext';
 import { TrophyIcon, TrashIcon } from '../icons';
 
+// Formaterar en set-rad utifrån vad som faktiskt loggats. Tidigare visades alltid
+// "vikt × reps", vilket blev "- × -" för övningar som loggas med tid, distans
+// eller kalorier. Tid lagras som decimala minuter (TimeInput) och visas som mm:ss.
+const formatSetLine = (s: any): string => {
+    const parts: string[] = [];
+    const weight = parseFloat(String(s.weight));
+    const hasWeight = !isNaN(weight) && weight > 0;
+    const repsStr = s.reps !== undefined && s.reps !== null ? String(s.reps).trim() : '';
+    const hasReps = repsStr !== '' && repsStr !== '0';
+    if (hasWeight || hasReps) {
+        parts.push(`${hasWeight ? `${weight} kg` : '-'} × ${hasReps ? repsStr : '-'}`);
+    }
+    const t = parseFloat(String(s.time));
+    if (!isNaN(t) && t > 0) {
+        const m = Math.floor(t);
+        const sec = Math.round((t - m) * 60);
+        parts.push(`${m}:${String(sec).padStart(2, '0')}`);
+    }
+    const d = parseFloat(String(s.distance));
+    if (!isNaN(d) && d > 0) parts.push(`${d} m`);
+    const k = parseFloat(String(s.kcal));
+    if (!isNaN(k) && k > 0) parts.push(`${k} kcal`);
+    return parts.length > 0 ? parts.join(' · ') : '- × -';
+};
+
 export const LogDetailModal: React.FC<{
     log: WorkoutLog,
     canEdit?: boolean,
@@ -230,7 +255,7 @@ export const LogDetailModal: React.FC<{
                                                 <div key={setIdx} className="flex justify-between items-center text-xs text-gray-600 dark:text-gray-400 bg-white/50 dark:bg-gray-800/50 px-2.5 py-1.5 rounded-md">
                                                     <span className="font-semibold text-gray-500">Set {setIdx + 1}</span>
                                                     <div className="flex items-center gap-3 font-mono">
-                                                        <span>{s.weight ? `${s.weight} kg` : '-'} × {s.reps ?? '-'}</span>
+                                                        <span>{formatSetLine(s)}</span>
                                                         {s.rir !== undefined && s.rir !== null && (
                                                             <span className="text-[10px] text-gray-400 bg-gray-100 dark:bg-gray-700 px-1.5 py-0.5 rounded">RIR {s.rir}</span>
                                                         )}
