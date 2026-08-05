@@ -6,7 +6,7 @@ import { DumbbellIcon, BuildingIcon, UsersIcon, SpeakerphoneIcon, SparklesIcon, 
 import { motion, AnimatePresence } from 'framer-motion';
 import { AIGeneratorScreen } from '../AIGeneratorScreen';
 import { WorkoutBuilderScreen } from '../WorkoutBuilderScreen';
-import { deepCopyAndPrepareAsNew, getWorkoutStatusInfo, getWorkoutVisibilityIssues } from '../../utils/workoutUtils';
+import { deepCopyAndPrepareAsNew, getWorkoutStatusInfo, getWorkoutVisibilityIssues, OTHER_CATEGORY } from '../../utils/workoutUtils';
 import { ManageBenchmarksModal, FeatureInfoModal } from './AdminModals';
 import { updateOrganizationBenchmarks, resolveAndCreateExercises, updateGlobalConfig, listenToGlobalSummerChallenge, listenToMembers, listenToCommunityLogs, listenToCommunityLogsByLocations, getOrganizationLogs, getSmartScreenPricing } from '../../services/firebaseService';
 import { WorkoutPresentationModal } from '../WorkoutDetailScreen';
@@ -769,12 +769,16 @@ const ManageWorkoutsView: React.FC<{
     
     const ITEMS_PER_PAGE = 50;
 
-    // Filter workouts based on selected tab
+    // Filter workouts based on selected tab.
+    // Pass från AI-whiteboarden/anteckningarna är publicerade med isMemberDraft
+    // false (så att QR och loggning fungerar) men bär kategorin Övriga pass.
+    // I adminlistan hör de hemma under Medlemsutkast, inte i gymmets bibliotek —
+    // därför sorterar flikarna på kategori OCH utkastflaggan, utan att röra data.
     const filteredByTab = useMemo(() => {
         if (activeTab === 'official') {
-            return workouts.filter(w => !w.isMemberDraft);
+            return workouts.filter(w => !w.isMemberDraft && w.category !== OTHER_CATEGORY);
         } else {
-            return workouts.filter(w => w.isMemberDraft);
+            return workouts.filter(w => w.isMemberDraft || w.category === OTHER_CATEGORY);
         }
     }, [workouts, activeTab]);
 
