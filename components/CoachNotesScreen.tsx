@@ -419,14 +419,18 @@ export const CoachNotesScreen: React.FC<CoachNotesScreenProps> = ({ onBack, onWo
                                         </p>
                                     )}
                                     <div className="mt-4 pt-4 border-t border-gray-100 dark:border-gray-700 flex justify-between items-center gap-2 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity">
-                                        <button 
-                                            onClick={() => handleConvertToWorkout(note)}
-                                            disabled={isInterpreting || isResolving}
-                                            className="text-xs font-extrabold text-primary hover:text-primary/80 bg-primary/10 hover:bg-primary/20 px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1.5 active:scale-95 disabled:opacity-50"
-                                            title="Gör till pass"
-                                        >
-                                            ⚡️ Gör till pass
-                                        </button>
+                                        {/* En anteckning som redan blivit ett pass visar bara
+                                            Öppna passet — Gör till pass skulle skapa en dubblett. */}
+                                        {!note.createdWorkoutId && (
+                                            <button
+                                                onClick={() => handleConvertToWorkout(note)}
+                                                disabled={isInterpreting || isResolving}
+                                                className="text-xs font-extrabold text-primary hover:text-primary/80 bg-primary/10 hover:bg-primary/20 px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1.5 active:scale-95 disabled:opacity-50"
+                                                title="Gör till pass"
+                                            >
+                                                ⚡️ Gör till pass
+                                            </button>
+                                        )}
                                         {note.createdWorkoutId && onOpenWorkout && (
                                             <button 
                                                 onClick={() => onOpenWorkout(note.createdWorkoutId!)}
