@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
-import { getMemberLogs, getVisibleWorkoutsForMembers, saveWorkoutLog, updateWorkoutLog, getOrganizationExerciseBank, getMemberCustomExercises, addMemberCustomExercise, deleteMemberCustomExercise, updateMemberCustomExercise, listenToPersonalBests } from '../../services/firebaseService';
+import { getMemberLogs, getVisibleWorkoutsForMembers, getWorkoutById, saveWorkoutLog, updateWorkoutLog, getOrganizationExerciseBank, getMemberCustomExercises, addMemberCustomExercise, deleteMemberCustomExercise, updateMemberCustomExercise, listenToPersonalBests } from '../../services/firebaseService';
 import { generateWorkoutDiploma } from '../../services/geminiService';
 import { useAuth } from '../../context/AuthContext'; 
 import { CloseIcon, InformationCircleIcon, PlusIcon, TrashIcon, CalculatorIcon } from '../../components/icons'; 
@@ -580,6 +580,17 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
                 if (!foundWorkout && wId && wId.startsWith('custom-')) {
                      const customPrograms = await fetchCustomPrograms(userId);
                      foundWorkout = customPrograms.find(w => w.id === wId);
+                }
+
+                if (!foundWorkout && wId) {
+                    // QR-koden är behörigheten. Listfrågan filtrerar bort utkast, men
+                    // ett pass man skannat vid skärmen ska gå att logga — annars kan
+                    // en medlem inte logga sin egen justering av dagens pass.
+                    // firestore.rules tillåter läsning per id inom organisationen.
+                    const direct = await getWorkoutById(wId);
+                    if (direct && direct.organizationId === finalOrgId) {
+                        foundWorkout = direct;
+                    }
                 }
 
                 if (!foundWorkout && wId) {

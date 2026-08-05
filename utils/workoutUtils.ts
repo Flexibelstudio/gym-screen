@@ -300,6 +300,14 @@ export function isWorkoutVisibleForLocations(w: Workout, memberLocationIds: stri
     return w.locationIds.some(id => memberLocationIds.includes(id));
 }
 
+/**
+ * Reserverad kategori för pass som skapas i den förenklade passbyggaren, alltså via
+ * AI-whiteboarden och anteckningarna. Den finns inte i gymmets customCategories och
+ * ska inte läggas dit — Övriga pass har en egen ingång på startsidan och en egen
+ * skärm. Den ska aldrig markeras som isLocked, eftersom det betyder dold i appen.
+ */
+export const OTHER_CATEGORY = 'Övriga pass';
+
 export function getWorkoutVisibilityIssues(
     w: Workout,
     customCategories?: { name: string; isLocked?: boolean }[],
@@ -311,7 +319,7 @@ export function getWorkoutVisibilityIssues(
     const cat = (w.category || '').trim();
     if (!cat || cat === 'Ej kategoriserad' || cat === 'AI Genererat') {
         issues.push('Ingen passkategori vald. Passet syns inte på startsidan i appen. Medlemmen hittar det bara genom att öppna en kategori och sedan välja filtret Alla.');
-    } else if (customCategories && customCategories.length > 0) {
+    } else if (cat !== OTHER_CATEGORY && customCategories && customCategories.length > 0) {
         const cfg = customCategories.find(c => c.name === cat);
         if (!cfg) {
             issues.push(`Kategorin "${cat}" finns inte bland gymmets kategorier.`);

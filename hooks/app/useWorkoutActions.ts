@@ -1,5 +1,5 @@
 import { Page, Workout, WorkoutBlock, Passkategori, UserRole, Organization, StudioConfig } from '../../types';
-import { deepCopyAndPrepareAsNew, isWorkoutVisibleNow, getMemberLocationIds, isWorkoutVisibleForLocations, getDefaultLoggingForBlockTag } from '../../utils/workoutUtils';
+import { deepCopyAndPrepareAsNew, isWorkoutVisibleNow, getMemberLocationIds, isWorkoutVisibleForLocations, getDefaultLoggingForBlockTag, OTHER_CATEGORY } from '../../utils/workoutUtils';
 import { saveCustomProgram, saveAdminActivity, updateCoachNote } from '../../services/firebaseService';
 import { useConfirm } from '../../components/ConfirmContext';
 
@@ -341,16 +341,16 @@ export function useWorkoutActions(deps: UseWorkoutActionsDeps) {
   };
 
   const handleWorkoutInterpretedFromNote = (workout: Workout, sourceNoteId?: string) => {
-    // En coach har angett coachlösenordet och har sessionsrollen coach eller högre.
-    // Alla andra — inklusive anonyma sessioner vid studioskärmen — behandlas som
-    // medlemmar och får sitt pass som utkast under Övriga pass.
-    const isCoachSession = sessionRole === 'coach' || sessionRole === 'organizationadmin' || sessionRole === 'systemowner';
-
+    // Allt som skapas via AI-whiteboarden eller anteckningarna publiceras direkt
+    // under Övriga pass, oavsett roll. Ingen rollgrening, inget utkastläge — ett
+    // utkast går varken att logga eller skanna, och det var källan till flera fel.
+    // Tyst publicering: en notis per pass någon skissar vid skärmen vore brus.
     const workoutWithOrg = {
       ...workout,
       organizationId: selectedOrganization?.id || '',
-      isMemberDraft: !isCoachSession,
-      isPublished: isCoachSession,
+      isMemberDraft: false,
+      isPublished: true,
+      category: OTHER_CATEGORY,
       silentPublish: true,
       sourceNoteId: sourceNoteId,
     };

@@ -1,6 +1,7 @@
 
 import React, { Suspense, lazy } from 'react';
 import { Page, Workout, WorkoutBlock, Passkategori, CustomPage, StartGroup, UserRole, UserData, StudioConfig, Organization, WorkoutDiploma, InfoCarousel } from '../types';
+import { OTHER_CATEGORY } from '../utils/workoutUtils';
 
 // Statically imported HOT PATHS (zero loading delay, real-time critical)
 import { HomeScreen } from './HomeScreen';
@@ -165,7 +166,7 @@ export const AppRouter: React.FC<AppRouterProps> = (props) => {
                             navigateTo={navigateTo} 
                             onSelectWorkout={onSelectWorkout} 
                             onSelectPasskategori={onSelectPasskategori}
-                            savedWorkouts={workouts.filter(w => w.isFavorite || (w.isMemberDraft && !w.isPublished))}
+                            savedWorkouts={workouts.filter(w => w.category === OTHER_CATEGORY)}
                             onCreateNewWorkout={onCreateNewWorkout}
                             onShowBoostModal={() => {}} 
                             studioConfig={studioConfig}

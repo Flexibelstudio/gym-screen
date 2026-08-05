@@ -10,7 +10,7 @@ import { WorkoutQRDisplay } from './WorkoutQRDisplay';
 import { useAuth } from '../context/AuthContext';
 import { useWorkout } from '../context/WorkoutContext';
 import { useConfirm } from './ConfirmContext';
-import { getSideLabel, findDuplicateBankExercise } from '../utils/workoutUtils';
+import { getSideLabel, findDuplicateBankExercise, OTHER_CATEGORY } from '../utils/workoutUtils';
 import { DuplicateExerciseModal } from './DuplicateExerciseModal';
 import { Modal } from './ui/Modal';
 import { LastSessionFeedback } from './LastSessionFeedback';
@@ -1121,11 +1121,7 @@ const WorkoutDetailScreen: React.FC<WorkoutDetailScreenProps> = ({
 
   const isLoggingEnabled = studioConfig.enableWorkoutLogging || false;
   const showSidebar = !isStudioMode; 
-  // QR-koden ska bara visas när skannern faktiskt kan hämta passet.
-  // getVisibleWorkoutsForMembers kräver isPublished true och isMemberDraft false —
-  // ett utkast går aldrig att logga, hur gärna man än skannar.
-  const isWorkoutScannable = sessionWorkout.isPublished === true && sessionWorkout.isMemberDraft !== true;
-  const showQR = isLoggingEnabled && isWorkoutLoggable && isWorkoutScannable && !isPresentationMode;
+  const showQR = isLoggingEnabled && isWorkoutLoggable && !isPresentationMode;
 
   return (
     <div className="w-full max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 pb-40 relative animate-fade-in">
@@ -1137,14 +1133,6 @@ const WorkoutDetailScreen: React.FC<WorkoutDetailScreenProps> = ({
             isEnabled={true}
             hasActiveCarousel={hasActiveCarousel}
         />
-      )}
-
-      {isLoggingEnabled && isWorkoutLoggable && !isWorkoutScannable && !isPresentationMode && (
-        <div className="mb-6 rounded-2xl border border-amber-300 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/20 p-4">
-            <p className="text-sm font-semibold text-amber-900 dark:text-amber-200">
-                Ingen QR-kod visas eftersom passet inte är publicerat. Publicera det för att medlemmarna ska kunna logga.
-            </p>
-        </div>
       )}
 
       {/* --- HEADER SECTION --- */}
@@ -1180,13 +1168,16 @@ const WorkoutDetailScreen: React.FC<WorkoutDetailScreenProps> = ({
             </div>
           </div>
 
-          {isStudioMode && onAdjustWorkout && (
+          {/* Kopian finns för att skydda gymmets programmering från att skrivas om.
+              Ett pass i Övriga pass är inte programmering — där redigerar man
+              originalet med Redigera pass, och en kopia skulle bara fylla listan. */}
+          {isStudioMode && onAdjustWorkout && sessionWorkout.category !== OTHER_CATEGORY && (
             <button 
                 onClick={() => onAdjustWorkout(sessionWorkout)}
                 className="bg-indigo-600 hover:bg-indigo-500 text-white font-black py-3 px-6 rounded-xl flex items-center justify-center gap-2 shadow-lg transition-all transform active:scale-95 w-full sm:w-auto flex-shrink-0"
             >
                 <PencilIcon className="w-5 h-5" />
-                <span className="text-lg uppercase tracking-tight">Kopiera pass</span>
+                <span className="text-lg uppercase tracking-tight">Ändra dagens pass</span>
             </button>
           )}
 
