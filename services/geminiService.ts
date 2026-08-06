@@ -712,6 +712,22 @@ export async function generateWorkoutDiploma(logData: any): Promise<WorkoutDiplo
                 const m = Math.floor(ex.time / 60);
                 const s = ex.time % 60;
                 details.push(m > 0 ? `${m}m ${s}s` : `${s}s`);
+            } else if (ex.setDetails && ex.setDetails.length > 0) {
+                // Tidsloggade övningar bär tiden per set (decimala minuter från
+                // TimeInput), aldrig på toppnivåfältet — utan detta saknades tiden
+                // helt i diplomet. Distans och kcal per set följer med av samma skäl.
+                ex.setDetails.forEach((s: any) => {
+                    const t = parseFloat(String(s.time));
+                    if (!isNaN(t) && t > 0) {
+                        const tm = Math.floor(t);
+                        const ts = Math.round((t - tm) * 60);
+                        details.push(`tid ${tm}:${String(ts).padStart(2, '0')}`);
+                    }
+                    const d = parseFloat(String(s.distance));
+                    if (!isNaN(d) && d > 0) details.push(`${d}m`);
+                    const k = parseFloat(String(s.kcal));
+                    if (!isNaN(k) && k > 0) details.push(`${k}kcal`);
+                });
             }
             return `${ex.exerciseName}: ${details.join(', ')}`;
         }).join(" | ");

@@ -11,7 +11,7 @@ import { useAuth } from '../context/AuthContext';
 import { parseSettingsFromTitle } from '../hooks/useWorkoutTimer';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Toast } from './ui/ToastNotification';
-import { sanitizeWorkoutWithBank, getDefaultLoggingForBlockTag, getBlockProfile } from '../utils/workoutUtils';
+import { sanitizeWorkoutWithBank, getDefaultLoggingForBlockTag, getBlockProfile, OTHER_CATEGORY } from '../utils/workoutUtils';
 
 // --- Helpers ---
 const BLOCK_TAGS = ['Uppvärmning', 'Styrka', 'Hypertrofi', 'Kondition', 'Teknik', 'Core/Bål', 'Balans', 'Rörlighet', 'Finisher', 'Nedvarvning'];
@@ -709,19 +709,13 @@ export const SimpleWorkoutBuilderScreen: React.FC<{ initialWorkout: Workout | nu
     const { isStudioMode } = useAuth();
     const showAdminFields = isAdminView ?? !isStudioMode;
     const [workout, setWorkout] = useState<Workout>(() => initialWorkout ? JSON.parse(JSON.stringify(initialWorkout)) : createNewWorkout());
-    const isCoachSession = sessionRole === 'coach' || sessionRole === 'organizationadmin' || sessionRole === 'systemowner';
-
-    // Placering: 'other' betyder Övriga pass (utkast), annars namnet på en kategori
-    // (publicerat). Kommer passet in som utkast, eller utan giltig kategori, är
-    // Övriga pass förvalt.
-    const [placement, setPlacement] = useState<string>(() => {
-        const w = initialWorkout;
-        // Övriga pass förvalt om passet är ett utkast ELLER inte publicerat. Ett pass
-        // kan vara opublicerat utan att vara medlemsutkast — det ska inte öppnas med
-        // en kategori förvald och publiceras vid nästa sparning.
-        if (!w || w.isMemberDraft === true || w.isPublished !== true) return 'other';
-        return w.category || 'other';
-    });
+    // Allt nytt i den förenklade byggaren publiceras direkt under Övriga pass, utan
+    // undantag. Det gäller även kopior från Ändra dagens pass — en coach som byter ut
+    // en övning skapar det pass gruppen kör, och det ska gå att hitta och logga.
+    // Befintliga pass som redigeras behåller sin kategori och sitt publiceringsläge.
+    // Observera: handleAdjustWorkout sätter isMemberDraft true och isPublished false
+    // på kopian. Båda skrivs över här vid sparning.
+    const willPublishToOther = !!isNewDraft;
     // Hälsningen är ett undantagsfält. Den ligger öppen bara om den redan används,
     // annars fälls den ut med knappen nedanför beskrivningen.
     const [showMemberGreeting, setShowMemberGreeting] = useState<boolean>(
@@ -741,7 +735,10 @@ export const SimpleWorkoutBuilderScreen: React.FC<{ initialWorkout: Workout | nu
     }, [workout, initialSnapshot]);
 
     const handleCancelRef = useRef(() => {
-        if (isDirty) {
+        // Ett nytt pass finns inte förrän det sparats, så det ska varna även när
+        // inget ändrats. isDirty ensamt räcker inte: ett pass från en anteckning är
+        // oförändrat i det ögonblick coachen tittar på det.
+        if (isDirty || isNewDraft) {
             setShowUnsavedWarning(true);
         } else {
             if (setCustomBackHandler) setCustomBackHandler(null);
@@ -751,14 +748,14 @@ export const SimpleWorkoutBuilderScreen: React.FC<{ initialWorkout: Workout | nu
 
     useEffect(() => {
         handleCancelRef.current = () => {
-            if (isDirty) {
+            if (isDirty || isNewDraft) {
                 setShowUnsavedWarning(true);
             } else {
                 if (setCustomBackHandler) setCustomBackHandler(null);
                 onCancel();
             }
         };
-    }, [isDirty, onCancel, setCustomBackHandler]);
+    }, [isDirty, isNewDraft, onCancel, setCustomBackHandler]);
 
     const handleCancel = () => {
         handleCancelRef.current();
@@ -812,31 +809,14 @@ export const SimpleWorkoutBuilderScreen: React.FC<{ initialWorkout: Workout | nu
             organizationId: selectedOrganization?.id || ''
         };
 
-        // Placeringen avgör var passet hamnar, och gäller både nya och befintliga
-        // pass när en coach sparar. Knappraden visar i klartext vad valet innebär,
-        // så publiceringen är aldrig en tyst sidoeffekt.
-        //
-        // Justeringar och andra opublicerade pass kommer in med 'other' förvalt och
-        // förblir utkast om coachen inte aktivt väljer en kategori.
-        //
-        // En medlem kan inte publicera. Allt hen skapar blir ett utkast under Övriga
-        // pass. Befintliga pass rör en medlem inte alls.
-        if (isCoachSession) {
-            if (placement !== 'other') {
-                workoutToSave.isPublished = true;
-                workoutToSave.isMemberDraft = false;
-                workoutToSave.category = placement;
-                // Placeringsraden svarar på var passet ska ligga, inte om hela gymmet
-                // ska få en pushnotis. Notisen är ett medvetet val och görs med
-                // publiceringsknappen i WorkoutDetailScreen, som har en egen kryssruta.
-                workoutToSave.silentPublish = true;
-            } else {
-                workoutToSave.isPublished = false;
-                workoutToSave.isMemberDraft = true;
-            }
-        } else if (isNewDraft) {
-            workoutToSave.isPublished = false;
-            workoutToSave.isMemberDraft = true;
+        // Ett nytt pass publiceras direkt under Övriga pass. Ingen rollgrening och
+        // inget utkastläge — ett utkast går varken att logga eller skanna.
+        // Tyst publicering: en notis per pass någon skissar vid skärmen vore brus.
+        if (willPublishToOther) {
+            workoutToSave.isPublished = true;
+            workoutToSave.isMemberDraft = false;
+            workoutToSave.category = OTHER_CATEGORY;
+            workoutToSave.silentPublish = true;
         }
 
         onSave(workoutToSave);
@@ -917,46 +897,10 @@ export const SimpleWorkoutBuilderScreen: React.FC<{ initialWorkout: Workout | nu
                                     className={`${inputBaseClasses} w-full text-4xl tracking-tight !bg-white dark:!bg-gray-900`} 
                                 />
                             </div>
-                            {isCoachSession ? (
-                                <div>
-                                    <label className="text-[10px] font-black text-primary uppercase tracking-[0.3em] mb-2 block ml-2">Var ska passet ligga?</label>
-                                    <div className="flex flex-wrap gap-2">
-                                        <button
-                                            type="button"
-                                            onClick={() => setPlacement('other')}
-                                            className={`px-4 py-2.5 rounded-xl text-sm font-bold border-2 transition-all active:scale-95 ${
-                                                placement === 'other'
-                                                    ? 'bg-primary text-white border-primary shadow-lg shadow-primary/20'
-                                                    : 'bg-white dark:bg-gray-900 text-gray-600 dark:text-gray-300 border-transparent hover:border-gray-300 dark:hover:border-gray-600'
-                                            }`}
-                                        >
-                                            Övriga pass
-                                        </button>
-                                        {(studioConfig.customCategories || []).map(cat => (
-                                            <button
-                                                key={cat.id || cat.name}
-                                                type="button"
-                                                onClick={() => setPlacement(cat.name)}
-                                                className={`px-4 py-2.5 rounded-xl text-sm font-bold border-2 transition-all active:scale-95 ${
-                                                    placement === cat.name
-                                                        ? 'bg-primary text-white border-primary shadow-lg shadow-primary/20'
-                                                        : 'bg-white dark:bg-gray-900 text-gray-600 dark:text-gray-300 border-transparent hover:border-gray-300 dark:hover:border-gray-600'
-                                                }`}
-                                            >
-                                                {cat.name}
-                                            </button>
-                                        ))}
-                                    </div>
-                                    <p className="mt-2 ml-2 text-xs text-gray-500 dark:text-gray-400">
-                                        {placement === 'other'
-                                            ? 'Passet sparas som utkast under Övriga pass och visas inte för medlemmarna. Stjärnmärk det för att behålla det längre än ett dygn.'
-                                            : `Passet publiceras och syns för medlemmarna under ${placement}.`}
-                                    </p>
-                                </div>
-                            ) : (
+                            {isNewDraft && (
                                 <div className="p-4 rounded-2xl bg-gray-50 dark:bg-gray-800/50 border border-gray-100 dark:border-gray-800">
                                     <p className="text-sm text-gray-600 dark:text-gray-300">
-                                        Passet sparas under <strong className="text-gray-900 dark:text-white">Övriga pass</strong>. Stjärnmärk det efteråt om du vill behålla det längre än ett dygn.
+                                        Passet publiceras direkt under <strong className="text-gray-900 dark:text-white">Övriga pass</strong> när du sparar. Där kan alla i gymmet hitta det, köra det och logga sina resultat.
                                     </p>
                                 </div>
                             )}
@@ -1028,7 +972,7 @@ export const SimpleWorkoutBuilderScreen: React.FC<{ initialWorkout: Workout | nu
             <div className="fixed bottom-0 left-0 right-0 z-[200] bg-white/80 dark:bg-black/80 backdrop-blur-xl border-t border-gray-100 dark:border-gray-800 p-6">
                 <div className={`${isStudioMode ? 'max-w-4xl' : 'max-w-2xl'} w-full mx-auto flex gap-4 transition-all duration-300`}>
                     <button onClick={handleCancel} className="flex-1 bg-gray-100 dark:bg-gray-800 text-gray-500 py-5 rounded-[2rem] font-black uppercase tracking-widest text-xs shadow-lg active:scale-95 transition-all">Avbryt</button>
-                    <button onClick={handleSave} className="flex-[2] bg-primary text-white py-5 rounded-[2rem] font-black shadow-2xl shadow-primary/30 uppercase tracking-widest text-lg transform hover:-translate-y-1 active:scale-95 transition-all">Spara Pass 🚀</button>
+                    <button onClick={handleSave} className="flex-[2] bg-primary text-white py-5 rounded-[2rem] font-black shadow-2xl shadow-primary/30 uppercase tracking-widest text-lg transform hover:-translate-y-1 active:scale-95 transition-all">{isNewDraft ? 'Spara och publicera 🚀' : 'Spara Pass 🚀'}</button>
                 </div>
             </div>
 
@@ -1043,9 +987,11 @@ export const SimpleWorkoutBuilderScreen: React.FC<{ initialWorkout: Workout | nu
             {showUnsavedWarning && createPortal(
                 <div className="fixed inset-0 z-[300] bg-black/50 flex items-center justify-center p-4">
                     <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 max-w-md w-full shadow-2xl">
-                        <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4">Osparade ändringar</h3>
+                        <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4">{isNewDraft ? 'Passet är inte sparat' : 'Osparade ändringar'}</h3>
                         <p className="text-gray-600 dark:text-gray-300 mb-6">
-                            Du har gjort ändringar i passet som inte är sparade. Är du säker på att du vill lämna utan att spara?
+                            {isNewDraft
+                                ? 'Passet har aldrig sparats och försvinner helt om du lämnar nu.'
+                                : 'Du har gjort ändringar i passet som inte är sparade. Är du säker på att du vill lämna utan att spara?'}
                         </p>
                         <div className="flex justify-end gap-3">
                             <button 

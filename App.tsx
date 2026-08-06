@@ -596,6 +596,7 @@ const App: React.FC = () => {
     handleSelectPasskategori,
     handleGeneratedWorkout,
     handleWorkoutInterpretedFromNote,
+    handleOpenWorkoutById,
   } = useWorkoutActions({
     sessionRole,
     isStudioMode,
@@ -1116,6 +1117,7 @@ const App: React.FC = () => {
                     
                     handleGeneratedWorkout: handleGeneratedWorkout,
                     handleWorkoutInterpreted: handleWorkoutInterpretedFromNote,
+                    handleOpenWorkoutById: handleOpenWorkoutById,
                     handleUnlockCoachRequest: handleUnlockCoachRequest,
                     handleAdjustWorkout: handleAdjustWorkout,
                     setAiGeneratorInitialTab: setAiGeneratorInitialTab,

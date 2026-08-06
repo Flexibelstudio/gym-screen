@@ -1,6 +1,7 @@
 
 import React, { Suspense, lazy } from 'react';
 import { Page, Workout, WorkoutBlock, Passkategori, CustomPage, StartGroup, UserRole, UserData, StudioConfig, Organization, WorkoutDiploma, InfoCarousel } from '../types';
+import { OTHER_CATEGORY } from '../utils/workoutUtils';
 
 // Statically imported HOT PATHS (zero loading delay, real-time critical)
 import { HomeScreen } from './HomeScreen';
@@ -126,6 +127,7 @@ interface AppRouterProps {
         
         handleGeneratedWorkout: (workout: Workout) => void;
         handleWorkoutInterpreted: (workout: Workout) => void;
+        handleOpenWorkoutById?: (workoutId: string) => void;
         handleUnlockCoachRequest?: () => void;
         handleAdjustWorkout: (workout: Workout) => void;
         setAiGeneratorInitialTab: (tab: any) => void;
@@ -164,7 +166,7 @@ export const AppRouter: React.FC<AppRouterProps> = (props) => {
                             navigateTo={navigateTo} 
                             onSelectWorkout={onSelectWorkout} 
                             onSelectPasskategori={onSelectPasskategori}
-                            savedWorkouts={workouts.filter(w => w.isFavorite || (w.isMemberDraft && !w.isPublished))}
+                            savedWorkouts={workouts.filter(w => w.category === OTHER_CATEGORY)}
                             onCreateNewWorkout={onCreateNewWorkout}
                             onShowBoostModal={() => {}} 
                             studioConfig={studioConfig}
@@ -182,17 +184,16 @@ export const AppRouter: React.FC<AppRouterProps> = (props) => {
                     case Page.SavedWorkouts:
                         return <SavedWorkoutsScreen 
                             workouts={workouts.filter(w => {
-                                const isSaved = w.isFavorite || (w.isMemberDraft && !w.isPublished);
-                                if (!isSaved) return false;
-
-                                const categoryConfig = studioConfig.customCategories.find(c => c.name === w.category);
-                                const isCategoryLocked = categoryConfig?.isLocked === true;
+                                // Övriga pass = kategorin, samma filter som savedWorkouts-
+                                // propen till HomeScreen ovan. Det gamla villkoret
+                                // (isFavorite eller opublicerat utkast) missade passen
+                                // från AI-whiteboarden, som är publicerade utan utkastflagga.
+                                if (w.category !== OTHER_CATEGORY) return false;
 
                                 if (isStudioMode) {
                                     if (w.showInStudio === false) return false;
                                 } else {
                                     if (w.showInApp === false) return false;
-                                    if (isCategoryLocked) return false;
                                 }
 
                                 return true;
@@ -306,7 +307,11 @@ export const AppRouter: React.FC<AppRouterProps> = (props) => {
                         />;
 
                     case Page.CoachNotes:
-                        return <CoachNotesScreen onBack={handleBack} onWorkoutInterpreted={functions.handleWorkoutInterpreted} />;
+                        return <CoachNotesScreen 
+                            onBack={handleBack} 
+                            onWorkoutInterpreted={functions.handleWorkoutInterpreted} 
+                            onOpenWorkout={functions.handleOpenWorkoutById}
+                        />;
 
                     case Page.IdeaBoard:
                         return <NotesScreen 

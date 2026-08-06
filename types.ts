@@ -175,6 +175,7 @@ export interface Workout {
   publishAt?: number; // timestamp; passet är osynligt för medlemmar före denna tidpunkt
   expiresAt?: number; // timestamp; passet är osynligt för medlemmar från och med denna tidpunkt
   locationIds?: string[]; // tom eller saknas = syns för ALLA orter
+  sourceNoteId?: string; // Anteckningen passet skapades från, används för att länka tillbaka
 }
 
 export type Passkategori = string;
@@ -738,6 +739,8 @@ export interface CoachNote {
     imageUrl?: string;
     createdAt: number;
     isFavorite: boolean;
+    createdWorkoutId?: string;
+    createdWorkoutTitle?: string;
 }
 
 export interface Note {

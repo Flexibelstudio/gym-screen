@@ -33,7 +33,7 @@ import {
 } from '@dnd-kit/core';
 import { snapCenterToCursor } from '@dnd-kit/modifiers';
 import { arrayMove, sortableKeyboardCoordinates } from '@dnd-kit/sortable';
-import { sanitizeWorkoutWithBank, getDefaultLoggingForBlockTag, getWorkoutVisibilityIssues } from '../utils/workoutUtils';
+import { sanitizeWorkoutWithBank, getDefaultLoggingForBlockTag, getWorkoutVisibilityIssues, OTHER_CATEGORY } from '../utils/workoutUtils';
 
 const createNewWorkout = (): Workout => ({
   id: `workout-${Date.now()}`,
@@ -917,6 +917,17 @@ export const WorkoutBuilderScreen: React.FC<WorkoutBuilderScreenProps> = ({ init
                                         {cat.name}
                                     </button>
                                 ))}
+                                {/* Övriga pass är en reserverad kategori (finns medvetet inte i
+                                    customCategories). Väljs den här flyttar passet automatiskt
+                                    till Medlemsutkast-fliken i Hantera Pass och visas i
+                                    Övriga pass-listan på skärmen och i appen. */}
+                                <button
+                                    onClick={() => handleUpdateWorkoutDetail('category', OTHER_CATEGORY)}
+                                    title="Passet hamnar i Övriga pass-listan i stället för under en av gymmets kategorier."
+                                    className={`px-3 py-1.5 text-sm font-semibold rounded-md transition-colors border ${workout.category === OTHER_CATEGORY ? 'bg-amber-500 text-gray-900 border-amber-500' : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 border-dashed border-gray-400 dark:border-gray-500 hover:bg-gray-300 dark:hover:bg-gray-600'}`}
+                                >
+                                    {OTHER_CATEGORY}
+                                </button>
                             </div>
                             <div className="mt-4">
                                 <label className="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">Passlängd (min)</label>

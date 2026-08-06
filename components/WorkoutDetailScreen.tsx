@@ -10,9 +10,10 @@ import { WorkoutQRDisplay } from './WorkoutQRDisplay';
 import { useAuth } from '../context/AuthContext';
 import { useWorkout } from '../context/WorkoutContext';
 import { useConfirm } from './ConfirmContext';
-import { getSideLabel, findDuplicateBankExercise } from '../utils/workoutUtils';
+import { getSideLabel, findDuplicateBankExercise, OTHER_CATEGORY } from '../utils/workoutUtils';
 import { DuplicateExerciseModal } from './DuplicateExerciseModal';
 import { Modal } from './ui/Modal';
+import { LastSessionFeedback } from './LastSessionFeedback';
 
 // Helper to format time for results (00:00)
 const formatResultTime = (timeInSeconds: number) => {
@@ -516,7 +517,15 @@ export const WorkoutPresentationModal: React.FC<{
 }> = ({ workout, onClose, blockId, onHeaderVisibilityChange, isOwnProgram, userId, onWorkoutUpdated }) => {
     const scrollRef = useRef<HTMLDivElement>(null);
     const [currentWorkout, setCurrentWorkout] = useState<Workout>(workout);
-    const { selectedOrganization } = useStudio();
+    const { selectedOrganization, selectedStudio } = useStudio();
+    const { isStudioMode, role } = useAuth();
+
+    // Feedbacken innehåller medlemmars namn och kommentarer. Den här modalen visas
+    // även för medlemmar, och rollen ensam räcker inte: en systemägare kan simulera
+    // en coach i studioläge, se AuthContext rad 231. Båda villkoren krävs.
+    const canSeeSessionFeedback =
+        !isStudioMode &&
+        (role === 'coach' || role === 'organizationadmin' || role === 'systemowner');
 
     const handleWorkoutUpdate = (updatedWorkout: Workout) => {
         setCurrentWorkout(updatedWorkout);
@@ -582,6 +591,13 @@ export const WorkoutPresentationModal: React.FC<{
 
             <div ref={scrollRef} className="flex-grow overflow-y-auto p-4 sm:p-8 md:p-12 lg:p-20 xl:p-32 space-y-8 sm:space-y-12 md:space-y-16 lg:space-y-24 xl:space-y-32">
                 <div className="max-w-4xl lg:max-w-6xl xl:max-w-screen-2xl mx-auto space-y-8 sm:space-y-12 md:space-y-16 lg:space-y-24 xl:space-y-32">
+                    {canSeeSessionFeedback && selectedOrganization && (
+                        <LastSessionFeedback 
+                            workoutId={currentWorkout.id}
+                            organizationId={selectedOrganization.id}
+                            locationId={selectedStudio?.locationId}
+                        />
+                    )}
                     {blocksToShow?.map((block, bIndex) => {
                         if (!block) return null;
                         return (
@@ -1152,18 +1168,25 @@ const WorkoutDetailScreen: React.FC<WorkoutDetailScreenProps> = ({
             </div>
           </div>
 
-          {isStudioMode && onAdjustWorkout && (
+          {/* Kopian finns för att skydda gymmets programmering från att skrivas om.
+              Ett pass i Övriga pass är inte programmering — där redigerar man
+              originalet med Redigera pass, och en kopia skulle bara fylla listan. */}
+          {isStudioMode && onAdjustWorkout && sessionWorkout.category !== OTHER_CATEGORY && (
             <button 
                 onClick={() => onAdjustWorkout(sessionWorkout)}
                 className="bg-indigo-600 hover:bg-indigo-500 text-white font-black py-3 px-6 rounded-xl flex items-center justify-center gap-2 shadow-lg transition-all transform active:scale-95 w-full sm:w-auto flex-shrink-0"
             >
                 <PencilIcon className="w-5 h-5" />
-                <span className="text-lg uppercase tracking-tight">Kopiera pass</span>
+                <span className="text-lg uppercase tracking-tight">Ändra dagens pass</span>
             </button>
           )}
 
-          {(isOwnProgram || (isStudioMode && onEditWorkout)) && (
-            <button 
+          {/* Vid skärmen får gymmets programmering inte redigeras direkt — där
+              används Ändra dagens pass, som gör en kopia till Övriga pass.
+              Redigera visas i studioläget bara för pass som redan ligger i
+              Övriga pass, där man redigerar originalet. */}
+          {(isOwnProgram || (isStudioMode && onEditWorkout && sessionWorkout.category === OTHER_CATEGORY)) && (
+            <button
                 onClick={() => onEditWorkout(sessionWorkout)}
                 className="bg-primary hover:bg-primary/95 text-white font-black py-3 px-6 rounded-xl flex items-center justify-center gap-2 shadow-lg transition-all transform active:scale-95 w-full sm:w-auto flex-shrink-0 animate-fade-in"
             >
@@ -1247,10 +1270,16 @@ const WorkoutDetailScreen: React.FC<WorkoutDetailScreenProps> = ({
                             <button onClick={() => onEditWorkout(workout)} className="w-full flex items-center gap-3 p-4 rounded-2xl bg-gray-50 dark:bg-gray-900 hover:bg-primary/10 hover:text-primary transition-all font-bold">
                                 <PencilIcon className="w-4 h-4" /> Redigera Pass
                             </button>
-                            <button onClick={() => onTogglePublish(workout.id, !workout.isPublished, silentPublish)} className={`w-full flex items-center justify-center gap-3 p-4 rounded-2xl font-bold transition-all ${workout.isPublished ? 'bg-red-50 text-red-600 hover:bg-red-100' : 'bg-green-50 text-green-600 hover:bg-green-100'}`}>
-                                {workout.isPublished ? 'Avpublicera' : 'Publicera'}
-                            </button>
-                            {!workout.isPublished && (
+                            {/* Övriga pass är alltid publicerade — hela modellen bygger
+                                på det (QR, loggning, listan). Ett avpublicerat Övriga
+                                pass blir varken hittbart eller loggbart, så knappen
+                                döljs för dem. */}
+                            {workout.category !== OTHER_CATEGORY && (
+                                <button onClick={() => onTogglePublish(workout.id, !workout.isPublished, silentPublish)} className={`w-full flex items-center justify-center gap-3 p-4 rounded-2xl font-bold transition-all ${workout.isPublished ? 'bg-red-50 text-red-600 hover:bg-red-100' : 'bg-green-50 text-green-600 hover:bg-green-100'}`}>
+                                    {workout.isPublished ? 'Avpublicera' : 'Publicera'}
+                                </button>
+                            )}
+                            {workout.category !== OTHER_CATEGORY && !workout.isPublished && (
                                 <label className="flex items-center gap-2 text-sm text-gray-500 mt-2 cursor-pointer px-2">
                                     <input 
                                         type="checkbox" 

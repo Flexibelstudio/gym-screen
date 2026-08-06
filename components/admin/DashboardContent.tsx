@@ -6,7 +6,7 @@ import { DumbbellIcon, BuildingIcon, UsersIcon, SpeakerphoneIcon, SparklesIcon, 
 import { motion, AnimatePresence } from 'framer-motion';
 import { AIGeneratorScreen } from '../AIGeneratorScreen';
 import { WorkoutBuilderScreen } from '../WorkoutBuilderScreen';
-import { deepCopyAndPrepareAsNew, getWorkoutStatusInfo, getWorkoutVisibilityIssues } from '../../utils/workoutUtils';
+import { deepCopyAndPrepareAsNew, getWorkoutStatusInfo, getWorkoutVisibilityIssues, OTHER_CATEGORY } from '../../utils/workoutUtils';
 import { ManageBenchmarksModal, FeatureInfoModal } from './AdminModals';
 import { updateOrganizationBenchmarks, resolveAndCreateExercises, updateGlobalConfig, listenToGlobalSummerChallenge, listenToMembers, listenToCommunityLogs, listenToCommunityLogsByLocations, getOrganizationLogs, getSmartScreenPricing } from '../../services/firebaseService';
 import { WorkoutPresentationModal } from '../WorkoutDetailScreen';
@@ -752,8 +752,9 @@ const ManageWorkoutsView: React.FC<{
     onTogglePublish: (id: string, isPublished: boolean, silentPublish?: boolean) => void;
     onCopyToLibrary: (workout: Workout) => void;
     onMoveToLibrary: (workout: Workout) => void;
+    onMoveToOtherPass: (workout: Workout) => void;
     onBack: () => void;
-}> = ({ workouts, locations, organization, onEdit, onDelete, onDuplicate, onTogglePublish, onCopyToLibrary, onMoveToLibrary, onBack }) => {
+}> = ({ workouts, locations, organization, onEdit, onDelete, onDuplicate, onTogglePublish, onCopyToLibrary, onMoveToLibrary, onMoveToOtherPass, onBack }) => {
     
     const [activeTab, setActiveTab] = useState<'official' | 'drafts'>('official');
     const [searchTerm, setSearchTerm] = useState('');
@@ -769,12 +770,16 @@ const ManageWorkoutsView: React.FC<{
     
     const ITEMS_PER_PAGE = 50;
 
-    // Filter workouts based on selected tab
+    // Filter workouts based on selected tab.
+    // Pass från AI-whiteboarden/anteckningarna är publicerade med isMemberDraft
+    // false (så att QR och loggning fungerar) men bär kategorin Övriga pass.
+    // I adminlistan hör de hemma under Medlemsutkast, inte i gymmets bibliotek —
+    // därför sorterar flikarna på kategori OCH utkastflaggan, utan att röra data.
     const filteredByTab = useMemo(() => {
         if (activeTab === 'official') {
-            return workouts.filter(w => !w.isMemberDraft);
+            return workouts.filter(w => !w.isMemberDraft && w.category !== OTHER_CATEGORY);
         } else {
-            return workouts.filter(w => w.isMemberDraft);
+            return workouts.filter(w => w.isMemberDraft || w.category === OTHER_CATEGORY);
         }
     }, [workouts, activeTab]);
 
@@ -996,9 +1001,24 @@ const ManageWorkoutsView: React.FC<{
                                             <div className="flex justify-end gap-2">
                                                 {activeTab === 'drafts' && (
                                                     <>
-                                                        <button 
+                                                        {workout.isMemberDraft && workout.category !== OTHER_CATEGORY && (
+                                                            <button
+                                                                onClick={() => {
+                                                                    if (window.confirm(`"${workout.title}" publiceras under Övriga pass och blir synligt för alla i gymmet. Ingen notis skickas. Fortsätta?`)) {
+                                                                        onMoveToOtherPass(workout);
+                                                                    }
+                                                                }}
+                                                                className="p-2 text-gray-400 hover:text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-900/20 rounded-lg transition-colors"
+                                                                title="Flytta till Övriga pass (gamla utkast syns inte där förrän de flyttats)"
+                                                            >
+                                                                <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                                                    <path strokeLinecap="round" strokeLinejoin="round" d="M11.48 3.499a.562.562 0 011.04 0l2.125 5.111a.563.563 0 00.475.345l5.518.442c.499.04.701.663.321.988l-4.204 3.602a.563.563 0 00-.182.557l1.285 5.385a.562.562 0 01-.84.61l-4.725-2.885a.563.563 0 00-.586 0L6.982 20.54a.562.562 0 01-.84-.61l1.285-5.386a.562.562 0 00-.182-.557l-4.204-3.602a.563.563 0 01.321-.988l5.518-.442a.563.563 0 00.475-.345L11.48 3.5z" />
+                                                                </svg>
+                                                            </button>
+                                                        )}
+                                                        <button
                                                             onClick={() => onMoveToLibrary(workout)}
-                                                            className="p-2 text-gray-400 hover:text-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 rounded-lg transition-colors" 
+                                                            className="p-2 text-gray-400 hover:text-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 rounded-lg transition-colors"
                                                             title="Flytta till gymmets bibliotek"
                                                         >
                                                             <ChevronRightIcon className="w-5 h-5" />
@@ -1307,6 +1327,20 @@ const PassProgramContent: React.FC<DashboardContentProps & {
         await onSaveWorkout({ ...workout, isMemberDraft: false });
     };
 
+    // Flyttar ett gammalt utkast in i nya Övriga pass-modellen: publicerat, utan
+    // utkastflagga, med kategorin Övriga pass. silentPublish är obligatorisk —
+    // publiceringstriggern i functions skickar annars en pushnotis till alla
+    // medlemmar när isPublished går från false till true.
+    const handleMoveToOtherPass = async (workout: Workout) => {
+        await onSaveWorkout({
+            ...workout,
+            category: OTHER_CATEGORY,
+            isPublished: true,
+            isMemberDraft: false,
+            silentPublish: true,
+        });
+    };
+
     const handleCopyToLibrary = async (workout: Workout) => {
         let copy = deepCopyAndPrepareAsNew(workout);
         copy.isMemberDraft = false;
@@ -1378,6 +1412,7 @@ const PassProgramContent: React.FC<DashboardContentProps & {
                 onTogglePublish={onTogglePublish}
                 onCopyToLibrary={handleCopyToLibrary}
                 onMoveToLibrary={handleMoveToLibrary}
+                onMoveToOtherPass={handleMoveToOtherPass}
                 onBack={onReturnToHub}
             />
         );

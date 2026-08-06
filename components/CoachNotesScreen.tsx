@@ -21,7 +21,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 
 interface CoachNotesScreenProps {
     onBack: () => void;
-    onWorkoutInterpreted?: (workout: Workout) => void;
+    onWorkoutInterpreted?: (workout: Workout, sourceNoteId?: string) => void;
+    onOpenWorkout?: (workoutId: string) => void;
 }
 
 async function urlToBase64(url: string): Promise<string> {
@@ -36,7 +37,7 @@ async function urlToBase64(url: string): Promise<string> {
     });
 }
 
-export const CoachNotesScreen: React.FC<CoachNotesScreenProps> = ({ onBack, onWorkoutInterpreted }) => {
+export const CoachNotesScreen: React.FC<CoachNotesScreenProps> = ({ onBack, onWorkoutInterpreted, onOpenWorkout }) => {
     const { userData } = useAuth();
     const { selectedOrganization } = useStudio();
     const [notes, setNotes] = useState<CoachNote[]>([]);
@@ -260,7 +261,7 @@ export const CoachNotesScreen: React.FC<CoachNotesScreenProps> = ({ onBack, onWo
             setIsResolving(false);
 
             if (onWorkoutInterpreted) {
-                onWorkoutInterpreted(resolvedWorkout);
+                onWorkoutInterpreted(resolvedWorkout, note.id);
             }
         } catch (error) {
             console.error("Fel vid tolkning av anteckning till pass:", error);
@@ -366,12 +367,18 @@ export const CoachNotesScreen: React.FC<CoachNotesScreenProps> = ({ onBack, onWo
                 </div>
             </div>
 
+            <p className="text-xs text-gray-500 dark:text-gray-400 mb-5 mx-1">
+                {activeTab === 'active'
+                    ? 'Anteckningar flyttas till Arkiv efter 14 dagar. Stjärnmärk en anteckning för att behålla den här. Ingenting raderas.'
+                    : 'Här ligger anteckningar äldre än 14 dagar som inte är stjärnmärkta. Stjärnmärk en för att flytta tillbaka den till Aktiva.'}
+            </p>
+
             {displayedNotes.length === 0 ? (
                 <div className="text-center py-16 md:py-20 bg-gray-50 dark:bg-gray-900/50 rounded-3xl border border-gray-200 dark:border-gray-800 mx-1">
                     <div className="text-6xl mb-4">📝</div>
                     <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">Inga anteckningar här</h3>
                     <p className="text-gray-500 dark:text-gray-400">
-                        {activeTab === 'active' ? 'Klicka på "Ny Anteckning" för att spara pass, skisser och idéer.' : 'Arkivet är tomt. Gamla anteckningar som inte är favoriter hamnar här automatiskt efter 14 dagar.'}
+                        {activeTab === 'active' ? 'Klicka på "Ny Anteckning" för att spara pass, skisser och idéer.' : 'Arkivet är tomt. Anteckningar som inte är stjärnmärkta hamnar här efter 14 dagar.'}
                     </p>
                 </div>
             ) : (
@@ -397,6 +404,8 @@ export const CoachNotesScreen: React.FC<CoachNotesScreenProps> = ({ onBack, onWo
                                         <button 
                                             onClick={() => toggleCoachNoteFavorite(note.id, !note.isFavorite)}
                                             className="text-2xl hover:scale-110 transition-transform"
+                                            aria-label={note.isFavorite ? 'Behålls under Aktiva. Klicka för att låta den arkiveras efter 14 dagar.' : 'Stjärnmärk för att behålla anteckningen under Aktiva.'}
+                                            title={note.isFavorite ? 'Behålls under Aktiva. Klicka för att låta den arkiveras efter 14 dagar.' : 'Stjärnmärk för att behålla anteckningen under Aktiva.'}
                                         >
                                             {note.isFavorite ? '⭐️' : '☆'}
                                         </button>
@@ -410,14 +419,27 @@ export const CoachNotesScreen: React.FC<CoachNotesScreenProps> = ({ onBack, onWo
                                         </p>
                                     )}
                                     <div className="mt-4 pt-4 border-t border-gray-100 dark:border-gray-700 flex justify-between items-center gap-2 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity">
-                                        <button 
-                                            onClick={() => handleConvertToWorkout(note)}
-                                            disabled={isInterpreting || isResolving}
-                                            className="text-xs font-extrabold text-primary hover:text-primary/80 bg-primary/10 hover:bg-primary/20 px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1.5 active:scale-95 disabled:opacity-50"
-                                            title="Gör till pass"
-                                        >
-                                            ⚡️ Gör till pass
-                                        </button>
+                                        {/* En anteckning som redan blivit ett pass visar bara
+                                            Öppna passet — Gör till pass skulle skapa en dubblett. */}
+                                        {!note.createdWorkoutId && (
+                                            <button
+                                                onClick={() => handleConvertToWorkout(note)}
+                                                disabled={isInterpreting || isResolving}
+                                                className="text-xs font-extrabold text-primary hover:text-primary/80 bg-primary/10 hover:bg-primary/20 px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1.5 active:scale-95 disabled:opacity-50"
+                                                title="Gör till pass"
+                                            >
+                                                ⚡️ Gör till pass
+                                            </button>
+                                        )}
+                                        {note.createdWorkoutId && onOpenWorkout && (
+                                            <button 
+                                                onClick={() => onOpenWorkout(note.createdWorkoutId!)}
+                                                className="text-xs font-extrabold text-emerald-600 hover:text-emerald-700 bg-emerald-500/10 hover:bg-emerald-500/20 px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1.5 active:scale-95"
+                                                title={note.createdWorkoutTitle || 'Öppna passet'}
+                                            >
+                                                📋 Öppna passet
+                                            </button>
+                                        )}
                                         <div className="flex items-center gap-1">
                                             <button 
                                                 onClick={() => {

@@ -4,11 +4,6 @@ import { getExerciseBank, saveExerciseToBank, deleteExerciseFromBank, mergeExerc
 import { findDuplicateBankExercise } from '../utils/workoutUtils';
 import { DuplicateExerciseModal } from './DuplicateExerciseModal';
 import { generateExerciseSuggestions } from '../services/geminiService';
-// FIX: Safer import for react-window to handle both Vite and CDN environments
-import { FixedSizeList as ReactWindowList } from 'react-window';
-import AutoSizer from 'react-virtualized-auto-sizer';
-
-const List = ReactWindowList || (({ children }: any) => <div>{children}</div>);
 
 const AILoadingSpinner: React.FC = () => (
     <div className="relative w-8 h-8">
@@ -222,6 +217,7 @@ export const OvningsbankContent: React.FC = () => {
     const [editingExercise, setEditingExercise] = useState<BankExercise | null>(null);
     const [mergingExercise, setMergingExercise] = useState<BankExercise | null>(null);
     const [searchTerm, setSearchTerm] = useState('');
+    const [loadError, setLoadError] = useState<string | null>(null);
     const [suggestions, setSuggestions] = useState<Partial<BankExercise>[]>([]);
     const [suggestionPrompt, setSuggestionPrompt] = useState('');
     const [isSuggesting, setIsSuggesting] = useState(false);
@@ -230,11 +226,15 @@ export const OvningsbankContent: React.FC = () => {
 
     const fetchBank = useCallback(async () => {
         setIsLoading(true);
+        setLoadError(null);
         try {
             const exercises = await getExerciseBank();
             setBank(exercises);
-        } catch (error) {
+        } catch (error: any) {
+            // Ingen tyst reserv. Misslyckas hämtningen ska det synas i vyn, inte
+            // bara i konsolen — annars ser ett fel ut som en tom bank.
             console.error(error);
+            setLoadError(error?.message || 'Okänt fel');
         } finally {
             setIsLoading(false);
         }
@@ -300,17 +300,15 @@ export const OvningsbankContent: React.FC = () => {
         await fetchBank();
     };
 
-    const Row = ({ index, style }: { index: number, style: React.CSSProperties }) => {
-        const exercise = filteredBank[index];
+    const Row = ({ exercise }: { exercise: BankExercise }) => {
         return (
-            <div style={style} className="px-2 py-1">
+            <div className="px-2 py-1">
                 <div className="bg-white dark:bg-gray-900/50 p-3 rounded-lg flex items-center gap-3 border border-slate-200 dark:border-gray-700 h-full">
                     <div className="flex-grow min-w-0">
                         <p className="font-semibold text-gray-900 dark:text-white truncate">{exercise.name}</p>
                         <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{exercise.description}</p>
                     </div>
                     <div className="flex-shrink-0 flex gap-2">
-                        <button onClick={() => setMergingExercise(exercise)} className="text-sm bg-blue-600 hover:bg-blue-500 text-white font-semibold py-1 px-3 rounded">Slå ihop</button>
                         <button onClick={() => setEditingExercise(exercise)} className="text-sm bg-gray-600 hover:bg-gray-500 text-white font-semibold py-1 px-3 rounded">Redigera</button>
                         <button onClick={() => handleDelete(exercise)} className="text-sm bg-red-600 hover:bg-red-500 text-white font-semibold py-1 px-3 rounded">Ta bort</button>
                     </div>
@@ -327,20 +325,26 @@ export const OvningsbankContent: React.FC = () => {
                     <input type="text" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder="Sök i övningsbanken..." className="flex-grow w-full bg-white dark:bg-black p-3 rounded-md border border-slate-300 dark:border-gray-600" />
                     <button onClick={() => setEditingExercise({} as BankExercise)} className="w-full sm:w-auto bg-primary hover:brightness-95 text-white font-bold py-3 px-6 rounded-lg whitespace-nowrap">Lägg till ny övning</button>
                 </div>
-                <div className="h-[60vh] w-full">
-                    {isLoading ? <p>Laddar...</p> : (
-                        <AutoSizer>
-                            {({ height, width }: { height: number, width: number }) => (
-                                <List
-                                    height={height}
-                                    itemCount={filteredBank.length}
-                                    itemSize={88} 
-                                    width={width}
-                                >
-                                    {Row}
-                                </List>
-                            )}
-                        </AutoSizer>
+                {!isLoading && !loadError && (
+                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                        Visar {filteredBank.length} av {bank.length} övningar
+                    </p>
+                )}
+                <div className="h-[60vh] w-full overflow-y-auto">
+                    {isLoading ? (
+                        <p className="text-gray-500 dark:text-gray-400 p-4">Laddar...</p>
+                    ) : loadError ? (
+                        <p className="text-red-600 dark:text-red-400 p-4">
+                            Kunde inte hämta övningsbanken: {loadError}
+                        </p>
+                    ) : filteredBank.length === 0 ? (
+                        <p className="text-gray-500 dark:text-gray-400 p-4">
+                            {searchTerm
+                                ? `Inga övningar matchar "${searchTerm}".`
+                                : 'Övningsbanken är tom.'}
+                        </p>
+                    ) : (
+                        filteredBank.map(ex => <Row key={ex.id} exercise={ex} />)
                     )}
                 </div>
             </div>
@@ -370,7 +374,15 @@ export const OvningsbankContent: React.FC = () => {
             </div>
 
             {editingExercise && <ExerciseEditorModal exercise={editingExercise} bank={bank} onSave={handleSave} onClose={() => setEditingExercise(null)} />}
-            {mergingExercise && <MergeModal sourceExercise={mergingExercise} bank={bank} onMerge={handleMerge} onClose={() => setMergingExercise(null)} />}
+            {/* Sammanslagningen är bortkopplad. mergeExercises i
+                services/firebase/exercises.ts skriver om pass i ALLA organisationer
+                — den hämtar collection('workouts') utan orgfilter och matchar på
+                namn — och den uppdaterar varken workoutLogs eller personalBests.
+                Allt sker dessutom i ett writeBatch med taket 500 operationer, utan
+                torrkörning. Koden nedan är kvar men får inte kopplas in igen förrän
+                funktionen har orgfilter, tar med loggar och PB, chunkade batchar och
+                en torrkörning som visar omfattningen först.
+                MergeModal, handleMerge och mergingExercise är medvetet kvar. */}
         </div>
     );
 };
