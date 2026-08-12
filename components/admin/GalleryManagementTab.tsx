@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { GalleryImage } from '../../types';
 import { getGalleryImages, addGalleryImage, removeGalleryImage } from '../../services/firebaseService';
 import { TrashIcon, PlusIcon } from '../icons';
+import { resizeImage } from '../../utils/imageUtils';
 
 export const GalleryManagementTab: React.FC = () => {
     const [images, setImages] = useState<GalleryImage[]>([]);
@@ -26,7 +27,11 @@ export const GalleryManagementTab: React.FC = () => {
         if (!file) return;
 
         setIsUploading(true);
-        const newImage = await addGalleryImage(file, gymName);
+        // Skala ner innan uppladdning. Bilderna visas i rutor på 256–320 px men
+        // laddades tidigare upp i originalstorlek, vilket fick karusellen på
+        // landningssidan att hacka medan webbläsaren avkodade flera megabyte per bild.
+        const resized = await resizeImage(file, 1200, 1200, 0.85);
+        const newImage = await addGalleryImage(resized, gymName);
         if (newImage) {
             setImages([newImage, ...images]);
             setGymName('');

@@ -469,11 +469,13 @@ export const getGalleryImages = async (): Promise<GalleryImage[]> => {
     }
 };
 
-export const addGalleryImage = async (file: File, gymName: string): Promise<GalleryImage | null> => {
+export const addGalleryImage = async (file: File | string, gymName: string): Promise<GalleryImage | null> => {
     if (isOffline || !db || !storage) return null;
     try {
-        const storageRef = ref(storage, `gallery/${Date.now()}_${file.name}`);
-        await uploadBytes(storageRef, file);
+        const fileName = typeof file === 'string' ? 'gallery.jpg' : file.name;
+        const storageRef = ref(storage, `gallery/${Date.now()}_${fileName}`);
+        const blob = typeof file === 'string' ? await (await fetch(file)).blob() : file;
+        await uploadBytes(storageRef, blob);
         const imageUrl = await getDownloadURL(storageRef);
         
         const newDocRef = doc(collection(db, 'system_gallery'));
