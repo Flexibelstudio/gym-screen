@@ -241,6 +241,7 @@ const Rowing2000mCard: React.FC<{
                         </label>
                         <input
                             type="number"
+                            inputMode="numeric"
                             value={distanceInput}
                             onChange={(e) => setDistanceInput(e.target.value)}
                             placeholder="t.ex. 500"

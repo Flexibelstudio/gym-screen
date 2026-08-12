@@ -18,25 +18,57 @@ export const StorageWarningBanner: React.FC = () => {
     const [copied, setCopied] = useState(false);
 
     useEffect(() => {
-        let storageBroken = false;
-        try {
-            const key = '__ss_probe__';
-            window.localStorage.setItem(key, '1');
-            storageBroken = window.localStorage.getItem(key) !== '1';
-            window.localStorage.removeItem(key);
-        } catch {
-            storageBroken = true;
-        }
+        let cancelled = false;
 
-        const ua = navigator.userAgent || '';
-        const isAndroidWebView = /\bwv\b/.test(ua);
-        const isKnownInAppBrowser = /(FBAN|FBAV|Instagram|Line\/|Snapchat|Twitter|LinkedInApp)/i.test(ua);
-        const isIOS = /iPhone|iPad|iPod/.test(ua);
-        // På iOS innehåller Safari alltid "Safari" i strängen. Saknas den men enheten
-        // är iOS körs vi i någon annan apps webbvisning.
-        const isIOSWebView = isIOS && !/Safari/.test(ua);
+        const probe = async () => {
+            let storageBroken = false;
+            try {
+                const key = '__ss_probe__';
+                window.localStorage.setItem(key, '1');
+                storageBroken = window.localStorage.getItem(key) !== '1';
+                window.localStorage.removeItem(key);
+            } catch {
+                storageBroken = true;
+            }
 
-        setShow(storageBroken || isAndroidWebView || isKnownInAppBrowser || isIOSWebView);
+            // Firebase Auth sparar sessionen i IndexedDB, inte i localStorage.
+            // I privat surfning och vissa webbvisningar fungerar localStorage medan
+            // IndexedDB är blockerat — då räcker inte testet ovan.
+            let idbBroken = false;
+            try {
+                idbBroken = await new Promise<boolean>((resolve) => {
+                    if (!window.indexedDB) return resolve(true);
+                    let settled = false;
+                    const done = (v: boolean) => { if (!settled) { settled = true; resolve(v); } };
+                    // Vissa miljöer varken lyckas eller misslyckas — de bara tystnar.
+                    const timer = setTimeout(() => done(true), 1500);
+                    const req = window.indexedDB.open('__ss_probe_db__');
+                    req.onerror = () => { clearTimeout(timer); done(true); };
+                    req.onsuccess = () => {
+                        clearTimeout(timer);
+                        try { req.result.close(); window.indexedDB.deleteDatabase('__ss_probe_db__'); } catch {}
+                        done(false);
+                    };
+                });
+            } catch {
+                idbBroken = true;
+            }
+
+            if (cancelled) return;
+
+            const ua = navigator.userAgent || '';
+            const isAndroidWebView = /\bwv\b/.test(ua);
+            const isKnownInAppBrowser = /(FBAN|FBAV|Instagram|Line\/|Snapchat|Twitter|LinkedInApp)/i.test(ua);
+            const isIOS = /iPhone|iPad|iPod/.test(ua);
+            // På iOS innehåller Safari alltid "Safari" i strängen. Saknas den men enheten
+            // är iOS körs vi i någon annan apps webbvisning.
+            const isIOSWebView = isIOS && !/Safari/.test(ua);
+
+            setShow(storageBroken || idbBroken || isAndroidWebView || isKnownInAppBrowser || isIOSWebView);
+        };
+
+        probe();
+        return () => { cancelled = true; };
     }, []);
 
     if (!show) return null;

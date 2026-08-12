@@ -23,8 +23,12 @@ import { OneRMCalculatorModal } from './workout-log/OneRMCalculatorModal';
 import { PreGameView } from './workout-log/PreGameView';
 import { ExerciseLogCard } from './workout-log/ExerciseLogCard';
 
-
-
+// Ett set är tomt när inget av de loggbara fälten har ett värde. rir räknas inte —
+// det är en kvalificering av ett resultat, inte ett resultat i sig.
+const isSetEmpty = (s: { weight?: any; reps?: any; time?: any; distance?: any; kcal?: any }) => {
+    const has = (v: any) => v !== undefined && v !== null && String(v).trim() !== '';
+    return !has(s.weight) && !has(s.reps) && !has(s.time) && !has(s.distance) && !has(s.kcal);
+};
 
 export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, navigation, route, workouts: contextWorkouts = [] }: any) => {
   const { currentUser, userData } = useAuth();
@@ -382,9 +386,11 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
   const [editExerciseName, setEditExerciseName] = useState("");
   const [exerciseToDelete, setExerciseToDelete] = useState<BankExercise | null>(null);
   
+  // Bara set med värden kan vara "kvar att bocka av". Ett tomt obockat set betyder
+  // att medlemmen hoppade över övningen och ska inte hindra sparning.
   const uncheckedSetsCount = useMemo(() => {
       if (isManualMode) return 0;
-      return exerciseResults.reduce((acc, ex) => acc + ex.setDetails.filter(s => !s.completed).length, 0);
+      return exerciseResults.reduce((acc, ex) => acc + ex.setDetails.filter(s => !s.completed && !isSetEmpty(s)).length, 0);
   }, [isManualMode, exerciseResults]);
 
   const [expandedBlockId, setExpandedBlockId] = useState<string | null>(null);
@@ -480,11 +486,11 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
               errors.push("Programnamn saknas. Du måste namnge ditt program.");
           }
       } else {
-          const totalSets = exerciseResults.reduce((acc, ex) => acc + ex.setDetails.length, 0);
-          if (totalSets === 0) {
-              errors.push("Inga övningar har genomförts. Kontrollera att du lagt till set.");
+          const setsToSave = exerciseResults.reduce((acc, ex) => acc + ex.setDetails.filter(s => s.completed || !isSetEmpty(s)).length, 0);
+          if (setsToSave === 0) {
+              errors.push("Inga övningar är loggade än. Fyll i minst en övning eller bocka av den du gjort.");
           } else if (uncheckedSetsCount > 0) {
-              errors.push(`Du har ${uncheckedSetsCount} set kvar att checka av innan du kan spara passet.`);
+              errors.push(`Du har ${uncheckedSetsCount} ifyllda set som inte är avbockade. Bocka av dem, eller rensa värdena om du hoppade över övningen.`);
           }
           if (benchmarkDefinition) {
               if (benchmarkDefinition.type === 'time' && !sessionStats.time) {
@@ -1065,7 +1071,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
                   exerciseName: r.exerciseName,
                   originalBankId: r.originalBankId ?? null,
                   trackingFields: r.trackingFields,
-                  setDetails: r.setDetails.map(s => ({
+                  setDetails: r.setDetails.filter(s => s.completed || !isSetEmpty(s)).map(s => ({
                       weight: parseFloat(s.weight) || null,
                       reps: s.reps || null,
                       time: s.time ? parseFloat(s.time) : null,
@@ -1087,7 +1093,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
                   coachAdvice: r.coachAdvice,
                   note: r.note
               };
-          });
+          }).filter(r => r.setDetails.length > 0);
 
           // Poäng i sommarutmaningen (Sommar-Sisu)
           let calculatedSummerPoints = 0;
@@ -2047,6 +2053,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
                                               <div className={`bg-gray-50 dark:bg-gray-800 rounded-xl p-2 border transition-colors ${benchmarkDefinition?.type === 'reps' ? 'border-yellow-400 dark:border-yellow-600 ring-2 ring-yellow-400/20' : 'border-gray-100 dark:border-gray-700'}`}>
                                                   <input 
                                                       type="number"
+                                                      inputMode="numeric"
                                                       value={sessionStats.rounds}
                                                       onChange={(e) => setSessionStats(prev => ({ ...prev, rounds: e.target.value }))}
                                                       placeholder={benchmarkDefinition?.type === 'reps' ? "T.ex. 5" : "-"}
@@ -2063,6 +2070,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
                                               <div className="bg-gray-50 dark:bg-gray-800 rounded-xl p-2 border border-gray-100 dark:border-gray-700">
                                                   <input 
                                                       type="number"
+                                                      inputMode="numeric"
                                                       value={sessionStats.calories}
                                                       onChange={(e) => setSessionStats(prev => ({ ...prev, calories: e.target.value }))}
                                                       placeholder="T.ex. 350"
@@ -2079,6 +2087,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
                                               <div className="bg-gray-50 dark:bg-gray-800 rounded-xl p-2 border border-gray-100 dark:border-gray-700">
                                                   <input 
                                                       type="number"
+                                                      inputMode="decimal"
                                                       value={sessionStats.distance}
                                                       onChange={(e) => setSessionStats(prev => ({ ...prev, distance: e.target.value }))}
                                                       placeholder="T.ex. 3.5"

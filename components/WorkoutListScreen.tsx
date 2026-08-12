@@ -254,7 +254,7 @@ export const WorkoutListScreen: React.FC<WorkoutListScreenProps> = React.memo(({
                                      }}
                                      className="flex-[1.2] min-h-[44px] py-3 bg-primary text-white hover:bg-primary/95 rounded-xl text-sm font-black uppercase tracking-wider transition-all active:scale-95 shadow-md shadow-primary/20 flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-primary"
                                  >
-                                     Logga
+                                     Starta
                                  </button>
                              )}
                         </div>
@@ -576,7 +576,7 @@ export const WorkoutListScreen: React.FC<WorkoutListScreenProps> = React.memo(({
                                                 }}
                                                 className="flex-[2] py-4 px-2 rounded-2xl bg-green-500 text-gray-900 font-black text-xs uppercase tracking-widest shadow-lg shadow-green-500/20 hover:bg-green-400 transition active:scale-95 text-center"
                                             >
-                                                Logga Pass
+                                                Starta pass
                                             </button>
                                         )}
                                     </>

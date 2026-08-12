@@ -196,6 +196,7 @@ export const LogDetailModal: React.FC<{
                                                     <div className="flex items-center gap-1.5 flex-1">
                                                         <input
                                                             type="number"
+                                                            inputMode="decimal"
                                                             step="0.5"
                                                             value={s.weight ?? ''}
                                                             onChange={e => handleSetChange(exIdx, setIdx, 'weight', e.target.value)}
@@ -207,6 +208,7 @@ export const LogDetailModal: React.FC<{
                                                     <div className="flex items-center gap-1.5 flex-1">
                                                         <input
                                                             type="number"
+                                                            inputMode="numeric"
                                                             value={s.reps ?? ''}
                                                             onChange={e => handleSetChange(exIdx, setIdx, 'reps', e.target.value)}
                                                             placeholder="0"
@@ -228,6 +230,7 @@ export const LogDetailModal: React.FC<{
                                                 <label className="text-xs text-gray-400">Vikt:</label>
                                                 <input
                                                     type="number"
+                                                    inputMode="decimal"
                                                     step="0.5"
                                                     value={ex.weight ?? ''}
                                                     onChange={e => handleSummaryChange(exIdx, 'weight', e.target.value)}

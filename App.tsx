@@ -889,6 +889,11 @@ const App: React.FC = () => {
               <>
                   <StorageWarningBanner />
                   <LoginScreen onClose={undefined} onRegisterGym={undefined} />
+                  {/* Även utloggad. Installerad på hemskärmen slipper medlemmen både
+                      nypzoomen som gör att appytan går att dra runt, och den flyktiga
+                      lagringen i mini-webbläsare. Komponenten visar ingenting om
+                      appen redan körs fristående. */}
+                  <PWAInstallPrompt />
               </>
           );
       }
