@@ -35,6 +35,7 @@ import { ReAuthModal } from './components/ReAuthModal';
 import { StudioConfigModal } from './components/AdminConfigScreen';
 import { LoginScreen } from './components/LoginScreen';
 import { ResetPasswordScreen } from './components/ResetPasswordScreen';
+import { StorageWarningBanner } from './components/StorageWarningBanner';
 
 const RegisterGymScreen = React.lazy(() => import('./components/RegisterGymScreen').then(m => ({ default: m.RegisterGymScreen })));
 const LandingPage = React.lazy(() => import('./components/LandingPage').then(m => ({ default: m.LandingPage })));
@@ -884,7 +885,12 @@ const App: React.FC = () => {
       if (isAppPortal) {
           // På app.smartstudio.se (eller i utvecklingsmiljö / staging-app utan ?marketing=true)
           // visar vi enbart LoginScreen, och skickar inte in onRegisterGym så knappen för att registrera gym göms helt!
-          return <LoginScreen onClose={undefined} onRegisterGym={undefined} />;
+          return (
+              <>
+                  <StorageWarningBanner />
+                  <LoginScreen onClose={undefined} onRegisterGym={undefined} />
+              </>
+          );
       }
 
       // Annars på smartstudio.se (marknadsföringssidan/huvuddomänen eller i dev med ?marketing=true)
@@ -917,6 +923,7 @@ const App: React.FC = () => {
   if (currentUser && !userData && !isStudioMode && !authLoading) {
     return (
         <div className="min-h-screen bg-white dark:bg-black flex flex-col items-center justify-center p-8 text-center">
+            <StorageWarningBanner />
             <img src="/favicon.png" alt="SmartStudio" className="w-20 h-20 mb-6 rounded-2xl shadow-sm" />
             <h2 className="text-xl font-bold text-gray-900 dark:text-white">Förbereder ditt konto...</h2>
             <p className="text-gray-500 mt-2">Detta tar bara några sekunder.</p>
