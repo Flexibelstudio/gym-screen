@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { SparklesIcon, DumbbellIcon, BuildingIcon, ClockIcon, UsersIcon, ChevronDownIcon } from './icons';
+import { SparklesIcon, DumbbellIcon, BuildingIcon, ClockIcon, UsersIcon, ChevronDownIcon, DocumentTextIcon, PencilIcon, SpeakerphoneIcon, ChartBarIcon, TrophyIcon, QrCodeIcon } from './icons';
 import { GalleryImage, Partner } from '../types';
 import { getGalleryImages, getPartners, createLead } from '../services/firebaseService';
 
@@ -144,7 +144,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginClick, onRegist
                                 </span>
                             </h1>
                             <p className="text-xl text-gray-400 mb-8 max-w-2xl mx-auto lg:mx-0 leading-relaxed">
-                                Att digitalisera gymmet behöver inte betyda krångliga menyer. Vår världsunika AI Whiteboard låter dig rita upp passet för hand. Vi tolkar texten, sätter upp din timer och visar passet snyggt för dina medlemmar.
+                                Att digitalisera gymmet behöver inte betyda krångliga menyer. Rita upp passet för hand på whiteboarden, precis som du alltid gjort. Vi tolkar texten, sätter upp timern och visar passet snyggt för dina medlemmar.
                             </p>
                             <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
                                 <button onClick={onRegisterGymClick || onLoginClick} className="bg-primary hover:bg-teal-400 text-black text-lg px-8 py-4 rounded-full font-bold transition-all transform hover:scale-105 shadow-[0_0_20px_-5px_rgba(20,184,166,0.5)]">
@@ -175,9 +175,9 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginClick, onRegist
             <section id="features" className="py-24 bg-black relative">
                 <div className="max-w-7xl mx-auto px-6">
                     <div className="text-center mb-16">
-                        <h2 className="text-3xl md:text-5xl font-bold mb-4">Ett system. Oändliga möjligheter.</h2>
+                        <h2 className="text-3xl md:text-5xl font-bold mb-4">Allt coachen behöver på skärmen.</h2>
                         <p className="text-gray-400 max-w-2xl mx-auto">
-                            Byggt för boxägare, personliga tränare och gymkedjor som vill modernisera sin upplevelse.
+                            Byggt för boxägare, personliga tränare och gymkedjor. Ett pass tar minuter att bygga och syns direkt på skärmen i lokalen.
                         </p>
                     </div>
 
@@ -197,20 +197,56 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginClick, onRegist
                         <FeatureCard 
                             title="Info-karusell" 
                             desc="Förvandla dina skärmar till digitala anslagstavlor när de inte används för träning. Schemalägg info enkelt."
-                            icon={<BuildingIcon className="w-8 h-8" />}
+                            icon={<SpeakerphoneIcon className="w-8 h-8" />}
                             delay={0.3}
                         />
                         <FeatureCard 
                             title="Anteckningar" 
                             desc="Samla alla träningsidéer på ett ställe. Skriv, skissa eller chatta med AI för att bygga perfekta pass."
-                            icon={<span className="text-2xl">📝</span>}
+                            icon={<DocumentTextIcon className="w-8 h-8" />}
                             delay={0.4}
                         />
                         <FeatureCard 
                             title="AI Whiteboard" 
                             desc="Digital whiteboard för att skissa upp pass för hand, som sedan tolkas automatiskt till digitala pass."
-                            icon={<span className="text-2xl">✏️</span>}
+                            icon={<PencilIcon className="w-8 h-8" />}
                             delay={0.5}
+                        />
+                    </div>
+                </div>
+            </section>
+
+            {/* Medlemsappen */}
+            <section className="py-24 bg-gradient-to-b from-black to-gray-900 relative border-t border-white/5">
+                <div className="max-w-7xl mx-auto px-6">
+                    <div className="text-center mb-16">
+                        <span className="inline-block py-1 px-3 rounded-full bg-primary/10 border border-primary/20 text-primary text-xs font-bold uppercase tracking-widest mb-6">
+                            Ingår i Medlemsappen
+                        </span>
+                        <h2 className="text-3xl md:text-5xl font-bold mb-4">Skärmen visar passet. Appen får dem att komma tillbaka.</h2>
+                        <p className="text-gray-400 max-w-3xl mx-auto text-lg leading-relaxed">
+                            Medlemmen skannar en QR-kod på skärmen och loggar sitt pass direkt. Systemet räknar ut personbästa, sätter målvikter till nästa gång och visar utvecklingen svart på vitt. Det är skillnaden mellan att träna och att veta att man blir starkare.
+                        </p>
+                    </div>
+
+                    <div className="grid md:grid-cols-3 gap-6">
+                        <FeatureCard
+                            title="Logga med ett svep"
+                            desc="Skanna QR-koden på skärmen så ligger passets övningar redan i appen. Inga listor att leta i, inget att skriva in två gånger."
+                            icon={<QrCodeIcon className="w-8 h-8" />}
+                            delay={0.1}
+                        />
+                        <FeatureCard
+                            title="Mätbar styrka och kondition"
+                            desc="Personbästa räknas fram automatiskt, och resultaten jämförs mot Strength Levels standarder och Concept2:s roddtabeller — anpassat efter ålder, kön och kroppsvikt."
+                            icon={<ChartBarIcon className="w-8 h-8" />}
+                            delay={0.2}
+                        />
+                        <FeatureCard
+                            title="Milstolpar och Min månad"
+                            desc="Diplom efter varje pass, milstolpar när de passeras och en månadssammanfattning som medlemmarna faktiskt vill dela."
+                            icon={<TrophyIcon className="w-8 h-8" />}
+                            delay={0.3}
                         />
                     </div>
                 </div>
@@ -221,6 +257,14 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginClick, onRegist
                 <section className="py-24 bg-black relative overflow-hidden border-t border-white/5">
                     <div className="text-center mb-12 px-6">
                         <h2 className="text-3xl md:text-5xl font-bold mb-4">Gör som dessa studios – ta träningen till nästa nivå</h2>
+                        <blockquote className="max-w-3xl mx-auto mt-8">
+                            <p className="text-xl md:text-2xl text-gray-200 leading-relaxed italic">
+                                ”Vi sparar massor med tid och har samtidigt höjt kvaliteten på flera områden.”
+                            </p>
+                            <footer className="mt-4 text-sm text-gray-400">
+                                <span className="font-bold text-gray-200">Maria Andersson</span>, coach på Flexibel Hälsostudio Hisings Kärra
+                            </footer>
+                        </blockquote>
                     </div>
                     
                     <div className="relative w-full flex overflow-hidden group">
@@ -232,7 +276,15 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginClick, onRegist
                         >
                             {[...galleryImages, ...galleryImages].map((img, idx) => (
                                 <div key={`${img.id}-${idx}`} className="relative flex-shrink-0 w-64 h-64 md:w-80 md:h-80 rounded-2xl overflow-hidden border border-white/10 group-hover:opacity-75 hover:!opacity-100 transition-opacity">
-                                    <img src={img.imageUrl} alt={img.gymName || 'Studio'} className="w-full h-full object-cover" />
+                                    <img
+                                        src={img.imageUrl}
+                                        alt={img.gymName || 'Studio'}
+                                        className="w-full h-full object-cover"
+                                        width={320}
+                                        height={320}
+                                        decoding="async"
+                                        loading={idx >= galleryImages.length ? 'lazy' : 'eager'}
+                                    />
                                     {img.gymName && (
                                         <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 to-transparent p-6 pt-12">
                                             <span className="text-white font-bold text-lg">{img.gymName}</span>
@@ -311,6 +363,9 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginClick, onRegist
                         transition={{ duration: 0.6 }}
                     >
                         <h2 className="text-4xl md:text-5xl font-bold mb-6 text-white tracking-tight">Redo att ta din studio till nästa nivå?</h2>
+                        <p className="text-lg text-gray-300 mb-2">
+                            Från <span className="font-black text-white">995 kr/mån</span> per skärm.
+                        </p>
                         <p className="text-xl text-gray-400 mb-10 max-w-2xl mx-auto leading-relaxed">
                             Boka en kostnadsfri demo så visar vi hur SmartStudio kan spara tid och lyfta upplevelsen för dina medlemmar.
                         </p>
