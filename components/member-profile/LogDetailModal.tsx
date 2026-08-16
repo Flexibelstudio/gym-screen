@@ -173,6 +173,15 @@ export const LogDetailModal: React.FC<{
                     </div>
                 )}
 
+                {typeof log.rounds === 'number' && log.rounds > 0 && (
+                    <div className="bg-gray-50 dark:bg-gray-800 p-5 rounded-2xl border border-gray-100 dark:border-gray-700">
+                        <div className="text-center">
+                            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Varv / Reps</p>
+                            <p className="font-mono font-bold text-3xl text-gray-900 dark:text-white">{log.rounds}</p>
+                        </div>
+                    </div>
+                )}
+
                 {exerciseResults && exerciseResults.length > 0 && (
                     <div className="space-y-4">
                         <h4 className="font-bold text-gray-900 dark:text-white text-sm uppercase tracking-wider">Resultat</h4>

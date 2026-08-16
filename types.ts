@@ -599,6 +599,7 @@ export interface WorkoutLog {
     durationMinutes?: number;
     totalDistance?: number;
     totalCalories?: number;
+    rounds?: number; // Antal varv/reps på passnivå (AMRAP m.m.)
     diploma?: WorkoutDiploma;
     memberName?: string;
     memberPhotoUrl?: string;
