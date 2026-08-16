@@ -416,12 +416,14 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
   const [expandedBlockId, setExpandedBlockId] = useState<string | null>(null);
   const [expandedSubGroupId, setExpandedSubGroupId] = useState<string | null>(null);
   const hasAutoOpenedSubGroupRef = useRef(false);
-  const autoAdvancedSubGroupsRef = useRef<Set<string>>(new Set());
 
-  // Håller exakt ett superset öppet: det man håller på med. När ett superset blir
-  // helt klart fälls det ihop och nästa ofärdiga öppnas, en gång per grupp. Stänger
-  // medlemmen allt manuellt respekteras det och vi öppnar inget igen.
+  // Öppnar första ofärdiga supersetet när passet laddas — sedan aldrig mer.
+  // Därefter styr medlemmen själv vilket som är öppet. Att fälla ihop något som
+  // användaren tittar på, mitt i ett pass, är påträngande även när gissningen är
+  // rätt. Att bara ETT är öppet åt gången sköts av att state är ett enda id.
   useEffect(() => {
+      if (hasAutoOpenedSubGroupRef.current) return;
+
       const groups = new Map<string, typeof exerciseResults>();
       exerciseResults.forEach(r => {
           if (!r.groupId) return;
@@ -445,21 +447,8 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
       };
 
       const order = Array.from(groups.keys());
-      const firstUnfinished = order.find(id => !isGroupDone(groups.get(id)!)) || null;
-
-      setExpandedSubGroupId(prev => {
-          if (prev === null) {
-              if (hasAutoOpenedSubGroupRef.current) return null;
-              hasAutoOpenedSubGroupRef.current = true;
-              return firstUnfinished;
-          }
-          const current = groups.get(prev);
-          if (!current) return firstUnfinished;
-          if (!isGroupDone(current)) return prev;
-          if (autoAdvancedSubGroupsRef.current.has(prev)) return prev;
-          autoAdvancedSubGroupsRef.current.add(prev);
-          return firstUnfinished;
-      });
+      hasAutoOpenedSubGroupRef.current = true;
+      setExpandedSubGroupId(order.find(id => !isGroupDone(groups.get(id)!)) || null);
   }, [exerciseResults]);
   const [logStep, setLogStep] = useState<'exercises' | 'summary'>('exercises');
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
@@ -501,6 +490,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
       let totalSets = 0;
       let completedSets = 0;
       group.exercises.forEach(ex => {
+          if (ex.result.skipped) return;
           totalSets += ex.result.setDetails.length;
           completedSets += ex.result.setDetails.filter(s => s.completed).length;
       });

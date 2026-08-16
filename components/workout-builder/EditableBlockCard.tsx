@@ -802,7 +802,19 @@ export const EditableBlockCard: React.FC<EditableBlockCardProps> = ({
                             <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-gray-700 dark:text-gray-300">
                                 <div className="flex items-center gap-1.5">
                                     <span className="font-bold text-gray-500 dark:text-gray-400">Reps</span>
-                                    <span className="font-mono font-bold">{currentRepMin}–{currentRepMax}</span>
+                                    <input
+                                        type="number"
+                                        value={currentRepMin}
+                                        onChange={e => handleProfileOverrideChange('repMin', parseInt(e.target.value, 10) || 0)}
+                                        className="w-12 px-1.5 py-0.5 bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded font-mono font-bold text-center focus:outline-none focus:ring-1 focus:ring-primary"
+                                    />
+                                    <span className="font-mono font-bold text-gray-400">–</span>
+                                    <input
+                                        type="number"
+                                        value={currentRepMax}
+                                        onChange={e => handleProfileOverrideChange('repMax', parseInt(e.target.value, 10) || 0)}
+                                        className="w-12 px-1.5 py-0.5 bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded font-mono font-bold text-center focus:outline-none focus:ring-1 focus:ring-primary"
+                                    />
                                 </div>
 
                                 {profile.hasWeightMath && (
