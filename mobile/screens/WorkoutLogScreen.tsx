@@ -9,7 +9,7 @@ import { ConfirmModal } from '../../components/ui/ConfirmModal';
 import { calculate1RM, findDuplicateBankExercise, canonicalizeExerciseName, getBlockProfile, getBlockPlanParts, TrainingProfile, getTargetWeightForExercise } from '../../utils/workoutUtils';
 import { playTimerSound } from '../../hooks/useWorkoutTimer';
 import { DuplicateExerciseModal } from '../../components/DuplicateExerciseModal';
-import { ExerciseResult, WorkoutDiploma, WorkoutLog, BankExercise, Workout, PersonalBest } from '../../types';
+import { ExerciseResult, WorkoutDiploma, WorkoutLog, BankExercise, Workout, PersonalBest, TimerMode } from '../../types';
 import { MOCK_EXERCISE_BANK } from '../../data/mockData';
 import { saveCustomProgram, fetchCustomPrograms } from '../../services/firebaseService';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -1132,6 +1132,11 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
           finalLogRaw.totalDistance = parseFloat(isQuickOrManual ? customActivity.distance : sessionStats.distance) || 0;
           finalLogRaw.totalCalories = parseInt(isQuickOrManual ? customActivity.calories : sessionStats.calories) || 0;
           
+          const roundsValue = parseFloat(sessionStats.rounds);
+          if (!isNaN(roundsValue) && roundsValue > 0) {
+              finalLogRaw.rounds = roundsValue;
+          }
+          
           if (isQuickOrManual) {
               finalLogRaw.activityType = 'custom_activity';
               
@@ -2009,7 +2014,8 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
                   <div className="space-y-6 animate-fade-in">
                       {/* STEP 2: SUMMARY */}
                       {!isManualMode && (() => {
-                          const showRounds = activeSummaryFields.includes('rounds') || (sessionStats.rounds !== undefined && String(sessionStats.rounds).trim() !== '') || benchmarkDefinition?.type === 'reps';
+                          const hasAmrapBlock = !!workout?.blocks?.some(b => b.settings?.mode === TimerMode.AMRAP);
+                          const showRounds = activeSummaryFields.includes('rounds') || hasAmrapBlock || (sessionStats.rounds !== undefined && String(sessionStats.rounds).trim() !== '') || benchmarkDefinition?.type === 'reps';
                           const showCalories = activeSummaryFields.includes('calories') || (sessionStats.calories !== undefined && String(sessionStats.calories).trim() !== '');
                           const showDistance = activeSummaryFields.includes('distance') || (sessionStats.distance !== undefined && String(sessionStats.distance).trim() !== '');
 
@@ -2264,34 +2270,36 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
 
       {/* REST TIMER FLOATING BAR */}
       {restTimer && (
-          <div className="fixed bottom-6 left-4 right-4 z-50 max-w-md mx-auto pointer-events-auto animate-fade-in">
+          <div className="fixed bottom-4 left-3 right-3 z-50 max-w-md mx-auto pointer-events-auto animate-fade-in">
               <div 
                   onClick={() => {
                       if (restTimer.status === 'completed') setRestTimer(null);
                   }}
-                  className={`flex items-center justify-between gap-3 px-4 py-3 rounded-2xl shadow-xl border backdrop-blur-md transition-all ${
+                  className={`rounded-3xl shadow-2xl border backdrop-blur-md transition-all ${
                       restTimer.status === 'completed'
-                          ? 'bg-work text-white border-work cursor-pointer'
-                          : 'bg-rest text-white border-rest'
+                          ? 'bg-work text-white border-work cursor-pointer px-5 py-7'
+                          : 'bg-rest text-white border-rest px-5 py-4'
                   }`}
               >
                   {restTimer.status === 'running' ? (
-                      <>
-                          <div className="flex items-center gap-2.5">
-                              <div className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
-                              <span className="text-xs font-black uppercase tracking-wider text-gray-300">Vila</span>
-                              <span className="text-xl font-black font-mono tabular-nums tracking-tight text-white">
+                      <div className="flex flex-col gap-3">
+                          <div className="flex items-center justify-center gap-3">
+                              <span className="w-3 h-3 rounded-full bg-emerald-400 animate-pulse" />
+                              <span className="text-sm font-black uppercase tracking-[0.2em] text-gray-300">Vila</span>
+                          </div>
+                          <div className="text-center leading-none">
+                              <span className="text-7xl font-black font-mono tabular-nums tracking-tighter text-white">
                                   {Math.floor(remainingRestSeconds / 60)}:{String(remainingRestSeconds % 60).padStart(2, '0')}
                               </span>
                           </div>
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-stretch gap-3">
                               <button
                                   type="button"
                                   onClick={(e) => {
                                       e.stopPropagation();
                                       handleAdd30Seconds();
                                   }}
-                                  className="px-3 py-1.5 rounded-xl bg-gray-800 dark:bg-gray-700 hover:bg-gray-700 dark:hover:bg-gray-600 text-xs font-bold text-gray-100 border border-gray-600/50 transition active:scale-95"
+                                  className="flex-1 min-h-[56px] rounded-2xl bg-gray-800 dark:bg-gray-700 hover:bg-gray-700 dark:hover:bg-gray-600 text-base font-bold text-gray-100 border border-gray-600/50 transition active:scale-95"
                               >
                                   +30 s
                               </button>
@@ -2301,16 +2309,16 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
                                       e.stopPropagation();
                                       handleSkipRestTimer();
                                   }}
-                                  className="px-3 py-1.5 rounded-xl bg-gray-800/60 dark:bg-gray-700/60 hover:bg-gray-700 text-xs font-semibold text-gray-300 hover:text-white transition active:scale-95"
+                                  className="flex-1 min-h-[56px] rounded-2xl bg-gray-800/60 dark:bg-gray-700/60 hover:bg-gray-700 text-base font-semibold text-gray-300 hover:text-white transition active:scale-95"
                               >
                                   Hoppa över
                               </button>
                           </div>
-                      </>
+                      </div>
                   ) : (
-                      <div className="flex items-center justify-between w-full font-bold text-sm py-0.5">
-                          <span className="uppercase tracking-wide font-black">VILA KLAR</span>
-                          <span className="text-xs opacity-90 font-normal">Tryck för att stänga</span>
+                      <div className="flex flex-col items-center gap-1.5 text-center">
+                          <span className="text-3xl font-black uppercase tracking-wide">VILA KLAR</span>
+                          <span className="text-sm opacity-90 font-normal">Tryck för att stänga</span>
                       </div>
                   )}
               </div>
