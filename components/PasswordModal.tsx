@@ -7,9 +7,12 @@ interface PasswordModalProps {
   onSuccess: () => void;
   coachPassword?: string;
   onLogout?: () => void;
+  /** Rubrik och brödtext kan skrivas över när samma grind används i ett annat sammanhang. */
+  title?: string;
+  description?: string;
 }
 
-export const PasswordModal: React.FC<PasswordModalProps> = ({ onClose, onSuccess, coachPassword, onLogout }) => {
+export const PasswordModal: React.FC<PasswordModalProps> = ({ onClose, onSuccess, coachPassword, onLogout, title = 'Coach-åtkomst', description = 'Ange gymmets lösenord för att låsa upp coach-verktygen på den här skärmen.' }) => {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
@@ -48,9 +51,9 @@ export const PasswordModal: React.FC<PasswordModalProps> = ({ onClose, onSuccess
             <LockClosedIcon className="w-8 h-8" />
           </div>
           
-          <h2 id="password-modal-title" className="text-3xl font-black mb-2 uppercase tracking-tight">Coach-åtkomst</h2>
+          <h2 id="password-modal-title" className="text-3xl font-black mb-2 uppercase tracking-tight">{title}</h2>
           <p className="text-gray-500 dark:text-gray-400 mb-8 font-medium">
-            Ange gymmets lösenord för att låsa upp coach-verktygen på den här skärmen.
+            {description}
           </p>
 
           <div className="w-full relative">
