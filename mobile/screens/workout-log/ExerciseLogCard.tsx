@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useRef } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { CalculatorIcon, CheckIcon, CloseIcon, PlusIcon } from '../../../components/icons';
 import { PersonalBest } from '../../../types';
@@ -22,7 +22,7 @@ export const ExerciseLogCard: React.FC<{
   blockProfile?: TrainingProfile | null;
   sessionPct?: number | null;
   onSelectSessionPct?: (pct: number | null) => void;
-  onStartRestTimer?: (seconds: number) => void;
+  onStartRestTimer?: (seconds: number, groupId: string | null, setIndex: number, exerciseId: string) => void;
   onOpenCalculator?: (context: { 
       exerciseName: string, 
       current1RM?: number, 
@@ -31,8 +31,19 @@ export const ExerciseLogCard: React.FC<{
       onSelectTargetPct?: (pct: number | null) => void 
   }) => void;
   canEditFields: boolean;
-}> = ({ name, result, onUpdate, onRemove, lastPerformance, personalBest, isLastInGroup, onAddGroupSet, userId, sessionMode = 'normal', history, personalBests, blockProfile, sessionPct, onSelectSessionPct, onStartRestTimer, onOpenCalculator, canEditFields }) => {
+  blockTag?: string;
+}> = ({ name, result, onUpdate, onRemove, lastPerformance, personalBest, isLastInGroup, onAddGroupSet, userId, sessionMode = 'normal', history, personalBests, blockProfile, sessionPct, onSelectSessionPct, onStartRestTimer, onOpenCalculator, canEditFields, blockTag }) => {
     
+    const normalizedBlockTag = (blockTag || '').trim().toLowerCase();
+    const isStrengthLike = normalizedBlockTag === '' || normalizedBlockTag === 'styrka' || normalizedBlockTag === 'hypertrofi';
+
+    // Knappen sitter längst ner i gruppens sista övning, men raden läggs till i
+    // samtliga övningar i gruppen — alltså ovanför skärmkanten. Utan kvittens här
+    // ser det ut som att ingenting hände.
+    const [groupSetAdded, setGroupSetAdded] = useState(false);
+    const groupSetAddedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    useEffect(() => () => { if (groupSetAddedTimerRef.current) clearTimeout(groupSetAddedTimerRef.current); }, []);
+
     const trackingFields = result.trackingFields || ['reps', 'weight'];
     const showReps = trackingFields.includes('reps');
     const showWeight = trackingFields.includes('weight');
@@ -143,7 +154,7 @@ export const ExerciseLogCard: React.FC<{
              }
          }
 
-         if (!wasCompleted && isNowCompleted && onStartRestTimer) {
+         if (!wasCompleted && isNowCompleted && onStartRestTimer && isStrengthLike) {
              let restSec = 0;
              if (blockProfile && blockProfile.restSeconds && blockProfile.restSeconds > 0) {
                  restSec = blockProfile.restSeconds;
@@ -154,7 +165,7 @@ export const ExerciseLogCard: React.FC<{
                  restSec = DEFAULT_REST_SECONDS;
              }
              if (restSec > 0) {
-                 onStartRestTimer(restSec);
+                 onStartRestTimer(restSec, result.groupId || null, index, result.exerciseId);
              }
          }
     };
@@ -476,7 +487,7 @@ export const ExerciseLogCard: React.FC<{
                     {result.setDetails.map((set, index) => {
                         const isWeightAndRepsOnly = showWeight && showReps && !showTime && !showDistance && !showKcal;
                         const hasValidWeightAndReps = (parseFloat(set.weight) > 0) && (parseFloat(set.reps) > 0);
-                        const showRirRow = Boolean(set.completed) && isWeightAndRepsOnly && hasValidWeightAndReps;
+                        const showRirRow = Boolean(set.completed) && isWeightAndRepsOnly && hasValidWeightAndReps && isStrengthLike;
                         const missingFields = getMissingFields(set);
                         const canComplete = set.completed || missingFields.length === 0;
 
@@ -604,10 +615,17 @@ export const ExerciseLogCard: React.FC<{
                     )}
                     {(result.groupId && isLastInGroup && onAddGroupSet) && (
                         <button 
-                            onClick={onAddGroupSet} 
-                            className={`w-full mt-3 py-3.5 flex items-center justify-center gap-2 text-sm font-black rounded-xl transition-all border border-dashed shadow-sm ${textColorClass} ${lightBorderClass} ${lightBgClass}`}
+                            onClick={() => {
+                                onAddGroupSet();
+                                setGroupSetAdded(true);
+                                if (groupSetAddedTimerRef.current) clearTimeout(groupSetAddedTimerRef.current);
+                                groupSetAddedTimerRef.current = setTimeout(() => setGroupSetAdded(false), 2200);
+                            }}
+                            className={`w-full mt-3 py-3.5 flex items-center justify-center gap-2 text-sm font-black rounded-xl transition-all border border-dashed shadow-sm ${groupSetAdded ? 'border-solid ring-2 ring-primary/30' : ''} ${textColorClass} ${lightBorderClass} ${lightBgClass}`}
                         >
-                            <PlusIcon className="w-4 h-4" /> Lägg till set för gruppen
+                            {groupSetAdded
+                                ? <>✓ Set {result.setDetails.length} tillagt i hela gruppen</>
+                                : <><PlusIcon className="w-4 h-4" /> Lägg till set för gruppen</>}
                         </button>
                     )}
                 </div>

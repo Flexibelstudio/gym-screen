@@ -125,6 +125,17 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
       return map;
   }, [workout]);
 
+  const blockTagsMap = useMemo(() => {
+      if (!workout || !workout.blocks) return {};
+      const map: Record<string, string> = {};
+      workout.blocks.forEach(block => {
+          if (block.id) {
+              map[block.id] = (block.tag || '').trim();
+          }
+      });
+      return map;
+  }, [workout]);
+
   const preGameBlocks = useMemo(() => {
       if (!workout?.blocks) return [];
       return workout.blocks
@@ -191,8 +202,28 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
   const [remainingRestSeconds, setRemainingRestSeconds] = useState<number>(0);
   const restWakeLockSentinelRef = useRef<any>(null);
 
-  const startRestTimer = useCallback((seconds: number) => {
+  const exerciseResultsRef = useRef<LocalExerciseResult[]>([]);
+  useEffect(() => { exerciseResultsRef.current = exerciseResults; }, [exerciseResults]);
+
+  const startRestTimer = useCallback((seconds: number, groupId: string | null = null, setIndex: number = -1, exerciseId: string = '') => {
     if (!restTimerEnabled || seconds <= 0) return;
+
+    // I ett superset ska timern starta först när sista övningen i gruppen loggats
+    // för det här varvet. Den anropande övningens eget set räknas som klart: dess
+    // setState har inte hunnit slå igenom när den här callbacken körs, så vi
+    // utesluter den ur kontrollen i stället för att läsa ett inaktuellt värde.
+    if (groupId && setIndex >= 0) {
+      const others = exerciseResultsRef.current.filter(
+        e => e.groupId === groupId && e.exerciseId !== exerciseId
+      );
+      const allDone = others.every(e => {
+        const s = e.setDetails[setIndex];
+        if (!s) return true;
+        return s.completed || isSetEmpty(s);
+      });
+      if (!allDone) return;
+    }
+
     const endTime = Date.now() + seconds * 1000;
     setRestTimer({
       endTime,
@@ -394,7 +425,43 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
   }, [isManualMode, exerciseResults]);
 
   const [expandedBlockId, setExpandedBlockId] = useState<string | null>(null);
-  const [expandedSubGroups, setExpandedSubGroups] = useState<Record<string, boolean>>({});
+  const [expandedSubGroupId, setExpandedSubGroupId] = useState<string | null>(null);
+  const hasAutoOpenedSubGroupRef = useRef(false);
+  const autoAdvancedSubGroupsRef = useRef<Set<string>>(new Set());
+
+  // Håller exakt ett superset öppet: det man håller på med. När ett superset blir
+  // helt klart fälls det ihop och nästa ofärdiga öppnas, en gång per grupp. Stänger
+  // medlemmen allt manuellt respekteras det och vi öppnar inget igen.
+  useEffect(() => {
+      const groups = new Map<string, typeof exerciseResults>();
+      exerciseResults.forEach(r => {
+          if (!r.groupId) return;
+          const arr = groups.get(r.groupId) || [];
+          arr.push(r);
+          groups.set(r.groupId, arr);
+      });
+      if (groups.size === 0) return;
+
+      const isGroupDone = (list: typeof exerciseResults) =>
+          list.every(e => e.setDetails.every(s => s.completed || isSetEmpty(s)));
+
+      const order = Array.from(groups.keys());
+      const firstUnfinished = order.find(id => !isGroupDone(groups.get(id)!)) || null;
+
+      setExpandedSubGroupId(prev => {
+          if (prev === null) {
+              if (hasAutoOpenedSubGroupRef.current) return null;
+              hasAutoOpenedSubGroupRef.current = true;
+              return firstUnfinished;
+          }
+          const current = groups.get(prev);
+          if (!current) return firstUnfinished;
+          if (!isGroupDone(current)) return prev;
+          if (autoAdvancedSubGroupsRef.current.has(prev)) return prev;
+          autoAdvancedSubGroupsRef.current.add(prev);
+          return firstUnfinished;
+      });
+  }, [exerciseResults]);
   const [logStep, setLogStep] = useState<'exercises' | 'summary'>('exercises');
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
   const hasAutoExpandedRef = useRef(false);
@@ -1571,6 +1638,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
                                                 key={result.exerciseId}
                                                 name={result.exerciseName}
                                                 result={result}
+                                                blockTag={blockTagsMap[result.blockId || ''] || ''}
                                                 canEditFields={canEditTrackingFields || result.blockId === 'manual-block'}
                                                 userId={currentUser?.uid}
                                                 sessionMode={sessionMode}
@@ -1765,7 +1833,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
                                                             return subGroups.map((subGroup) => {
                                                                 if (subGroup.groupId) {
                                                                     // Det här är ett superset (undergrupp)
-                                                                    const isSubExpanded = expandedSubGroups[subGroup.groupId] === true; // Standard-ihopfälld (false)
+                                                                    const isSubExpanded = expandedSubGroupId === subGroup.groupId;
                                                                     const subGroupColorObj = getGroupColorStyles(subGroup.groupColor);
                                                                     
                                                                     const borderLeftClass = subGroupColorObj ? `border-l-4 ${subGroupColorObj.border}` : '';
@@ -1789,10 +1857,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
                                                                                 onClick={(e) => {
                                                                                     const target = e.currentTarget;
                                                                                     const isNowExpanded = !isSubExpanded;
-                                                                                    setExpandedSubGroups(prev => ({
-                                                                                        ...prev,
-                                                                                        [subGroup.groupId!]: isNowExpanded
-                                                                                    }));
+                                                                                    setExpandedSubGroupId(isNowExpanded ? subGroup.groupId! : null);
                                                                                     if (isNowExpanded) {
                                                                                         setTimeout(() => {
                                                                                             target?.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -1839,6 +1904,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
                                                                                                     key={result.exerciseId}
                                                                                                     name={result.exerciseName}
                                                                                                     result={result}
+                                                                                                    blockTag={blockTagsMap[result.blockId || ''] || ''}
                                                                                                     onUpdate={(updates) => handleUpdateResult(originalIndex, updates)}
                                                                                                     lastPerformance={history[result.exerciseName]} 
                                                                                                     personalBest={personalBests[result.exerciseName.toLowerCase().trim()]}
@@ -1892,6 +1958,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
                                                                             key={result.exerciseId}
                                                                             name={result.exerciseName}
                                                                             result={result}
+                                                                            blockTag={blockTagsMap[result.blockId || ''] || ''}
                                                                             onUpdate={(updates) => handleUpdateResult(originalIndex, updates)}
                                                                             lastPerformance={history[result.exerciseName]} 
                                                                             personalBest={personalBests[result.exerciseName.toLowerCase().trim()]}
