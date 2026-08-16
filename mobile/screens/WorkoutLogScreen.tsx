@@ -171,26 +171,15 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
   const [attemptedSubmit, setAttemptedSubmit] = useState(false);
 
   // --- Rest Timer State & Controls ---
-  const restTimerStorageKey = `rest_timer_enabled_${userId || 'user'}`;
-  const [restTimerEnabled, setRestTimerEnabled] = useState<boolean>(() => {
-    try {
-      const saved = localStorage.getItem(restTimerStorageKey);
-      return saved !== null ? saved === 'true' : true;
-    } catch {
-      return true;
-    }
-  });
+  // Avstängningen gäller det pågående passet, inte för alltid. Skälen att stänga av
+  // är nästan alltid situationsbundna — bråttom, samsas om en stång, fullt på gymmet.
+  // Läget följer med i utkastet nedan, så det överlever omladdning av SAMMA pass men
+  // återgår till på nästa gång. Vilka block timern faktiskt startar i avgörs av
+  // blockets kategori i ExerciseLogCard, inte här.
+  const [restTimerEnabled, setRestTimerEnabled] = useState<boolean>(true);
 
   const toggleRestTimer = () => {
-    setRestTimerEnabled(prev => {
-      const next = !prev;
-      try {
-        localStorage.setItem(restTimerStorageKey, String(next));
-      } catch (e) {
-        console.error('Failed to save rest timer setting:', e);
-      }
-      return next;
-    });
+    setRestTimerEnabled(prev => !prev);
   };
 
   const [restTimer, setRestTimer] = useState<{
@@ -442,8 +431,15 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
       });
       if (groups.size === 0) return;
 
+      // En grupp räknas som klar när VARJE övning har minst ett avbockat set och
+      // inget ifyllt set lämnats obockat. Tomma set får finnas — man kan hoppa över
+      // ett avslutande set. Men enbart tomma set betyder att övningen inte är gjord,
+      // annars vore en orörd grupp "klar" direkt och skulle aldrig öppnas.
       const isGroupDone = (list: typeof exerciseResults) =>
-          list.every(e => e.setDetails.every(s => s.completed || isSetEmpty(s)));
+          list.every(e =>
+              e.setDetails.some(s => s.completed) &&
+              e.setDetails.every(s => s.completed || isSetEmpty(s))
+          );
 
       const order = Array.from(groups.keys());
       const firstUnfinished = order.find(id => !isGroupDone(groups.get(id)!)) || null;
@@ -697,6 +693,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
                     loadedLogData = saved.logData;
                     loadedSessionStats = saved.sessionStats;
                     loadedCustomActivity = saved.customActivity;
+                    if (typeof saved.restTimerEnabled === 'boolean') setRestTimerEnabled(saved.restTimerEnabled);
                     setViewMode('logging');
                     skipInsights = true;
                 }
@@ -908,12 +905,13 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
         exerciseResults,
         logData,
         sessionStats,
+        restTimerEnabled,
         customActivity,
         timestamp: Date.now()
     };
 
     localStorage.setItem(ACTIVE_LOG_STORAGE_KEY, JSON.stringify(sessionData));
-  }, [exerciseResults, logData, sessionStats, customActivity, loading, isSubmitting, userId, wId, finalOrgId, isManualMode, workout]);
+  }, [exerciseResults, logData, sessionStats, restTimerEnabled, customActivity, loading, isSubmitting, userId, wId, finalOrgId, isManualMode, workout]);
 
   const handleCancel = (isSuccess = false, diploma: WorkoutDiploma | null = null) => {
     setSessionPctMap({});
@@ -1485,7 +1483,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
                 title="Slå på/av vilotimer mellan set"
             >
                 <span className={`w-2 h-2 rounded-full ${restTimerEnabled ? 'bg-emerald-500' : 'bg-gray-400'}`} />
-                <span>Vilotimer</span>
+                <span>{restTimerEnabled ? 'Vilotimer' : 'Vilotimer av'}</span>
             </button>
             <button 
                 onClick={() => {

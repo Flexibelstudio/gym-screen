@@ -485,6 +485,9 @@ export const ExerciseLogCard: React.FC<{
                     </div>
 
                     {result.setDetails.map((set, index) => {
+                        // Aktiv rad = första oavbockade. Får en färgad kant så den skiljer sig
+                        // tydligt från de redan ifyllda, som är nedtonade.
+                        const isActiveSet = index === result.setDetails.findIndex(sd => !sd.completed);
                         const isWeightAndRepsOnly = showWeight && showReps && !showTime && !showDistance && !showKcal;
                         const hasValidWeightAndReps = (parseFloat(set.weight) > 0) && (parseFloat(set.reps) > 0);
                         const showRirRow = Boolean(set.completed) && isWeightAndRepsOnly && hasValidWeightAndReps && isStrengthLike;
@@ -493,7 +496,7 @@ export const ExerciseLogCard: React.FC<{
 
                         return (
                             <React.Fragment key={index}>
-                                <div className={`grid ${gridColsClass} gap-2 items-center transition-all ${set.completed ? 'opacity-50' : 'opacity-100'}`}>
+                                <div className={`grid ${gridColsClass} gap-2 items-center transition-all rounded-xl -mx-1.5 px-1.5 py-1 ${set.completed ? 'opacity-50' : 'opacity-100'} ${isActiveSet ? 'ring-2 ring-primary/70 bg-primary/5' : 'ring-0'}`}>
                                     <div className="flex justify-center items-center">
                                         <span className={`text-sm font-black rounded-full w-8 h-8 flex items-center justify-center transition-colors shadow-sm ${set.completed ? 'bg-green-100 dark:bg-green-900/30 text-green-600' : 'bg-gray-100 dark:bg-gray-800 text-gray-500'}`}>{index + 1}</span>
                                     </div>
