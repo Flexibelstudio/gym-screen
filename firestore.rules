@@ -90,6 +90,11 @@ service cloud.firestore {
       allow update: if isStaff(orgId);
       allow create: if isSignedIn();
       allow delete: if isOrgAdmin(orgId);
+
+      // Coachkoden (steg 1): läses och skrivs ENDAST via callables — aldrig från klienten.
+      match /private/{docId} {
+        allow read, write: if false;
+      }
     }
 
     // ÄNDRAT: org_settings läsbart publikt (namn/öppettider/bokningsregler är inte hemliga
