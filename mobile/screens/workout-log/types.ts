@@ -43,6 +43,8 @@ export interface LocalExerciseResult {
   trackingFields?: ('time' | 'distance' | 'kcal' | 'reps' | 'weight')[];
   groupId?: string;
   groupColor?: string;
+  /** Medlemmen har uttryckligen markerat att övningen inte ska köras. */
+  skipped?: boolean;
   originalBankId?: string | null;
 }
 

@@ -391,6 +391,14 @@ export const ExerciseLogCard: React.FC<{
                                 </svg>
                             </button>
                         )}
+                        <button
+                            type="button"
+                            onClick={() => onUpdate({ skipped: !result.skipped })}
+                            title={result.skipped ? 'Ta med övningen igen' : 'Hoppa över övningen'}
+                            className={`p-3 rounded-2xl transition-all active:scale-90 shadow-sm ${result.skipped ? 'bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300' : 'bg-gray-50 dark:bg-gray-800 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200'}`}
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9"></circle><path d="M5.6 5.6l12.8 12.8"></path></svg>
+                        </button>
                         {onRemove && (
                             <button 
                                 onClick={onRemove}
@@ -484,7 +492,7 @@ export const ExerciseLogCard: React.FC<{
                         <div className="text-center">Klar</div>
                     </div>
 
-                    {result.setDetails.map((set, index) => {
+                    {!result.skipped && result.setDetails.map((set, index) => {
                         // Aktiv rad = första oavbockade. Får en färgad kant så den skiljer sig
                         // tydligt från de redan ifyllda, som är nedtonade.
                         const isActiveSet = index === result.setDetails.findIndex(sd => !sd.completed);
@@ -613,10 +621,22 @@ export const ExerciseLogCard: React.FC<{
                             </React.Fragment>
                         );
                     })}
-                    {(!result.groupId) && (
+                    {result.skipped && (
+                        <div className="mt-2 flex items-center justify-between gap-3 rounded-xl border border-dashed border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-900/20 px-4 py-3">
+                            <span className="text-sm font-bold text-amber-800 dark:text-amber-300">Överhoppad — räknas inte med</span>
+                            <button
+                                type="button"
+                                onClick={() => onUpdate({ skipped: false })}
+                                className="text-xs font-black uppercase tracking-wider text-amber-800 dark:text-amber-300 underline underline-offset-2 active:scale-95"
+                            >
+                                Ångra
+                            </button>
+                        </div>
+                    )}
+                    {(!result.groupId && !result.skipped) && (
                         <button onClick={handleAddSet} className="w-full mt-3 py-3.5 flex items-center justify-center gap-2 text-sm font-black text-primary bg-primary/10 hover:bg-primary/15 rounded-xl transition-all border border-primary/30 border-dashed shadow-sm"><PlusIcon className="w-4 h-4" /> Lägg till set</button>
                     )}
-                    {(result.groupId && isLastInGroup && onAddGroupSet) && (
+                    {(result.groupId && isLastInGroup && onAddGroupSet && !result.skipped) && (
                         <button 
                             onClick={() => {
                                 onAddGroupSet();

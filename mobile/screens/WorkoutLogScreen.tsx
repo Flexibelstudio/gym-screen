@@ -203,12 +203,12 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
     // utesluter den ur kontrollen i stället för att läsa ett inaktuellt värde.
     if (groupId && setIndex >= 0) {
       const others = exerciseResultsRef.current.filter(
-        e => e.groupId === groupId && e.exerciseId !== exerciseId
+        e => e.groupId === groupId && e.exerciseId !== exerciseId && !e.skipped
       );
       const allDone = others.every(e => {
         const s = e.setDetails[setIndex];
         if (!s) return true;
-        return s.completed || isSetEmpty(s);
+        return s.completed;
       });
       if (!allDone) return;
     }
@@ -406,11 +406,11 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
   const [editExerciseName, setEditExerciseName] = useState("");
   const [exerciseToDelete, setExerciseToDelete] = useState<BankExercise | null>(null);
   
-  // Bara set med värden kan vara "kvar att bocka av". Ett tomt obockat set betyder
-  // att medlemmen hoppade över övningen och ska inte hindra sparning.
+  // Bara set med värden kan vara "kvar att bocka av". Överhoppade övningar räknas
+  // aldrig, oavsett vad som står i deras fält.
   const uncheckedSetsCount = useMemo(() => {
       if (isManualMode) return 0;
-      return exerciseResults.reduce((acc, ex) => acc + ex.setDetails.filter(s => !s.completed && !isSetEmpty(s)).length, 0);
+      return exerciseResults.filter(ex => !ex.skipped).reduce((acc, ex) => acc + ex.setDetails.filter(s => !s.completed && !isSetEmpty(s)).length, 0);
   }, [isManualMode, exerciseResults]);
 
   const [expandedBlockId, setExpandedBlockId] = useState<string | null>(null);
@@ -435,11 +435,14 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
       // inget ifyllt set lämnats obockat. Tomma set får finnas — man kan hoppa över
       // ett avslutande set. Men enbart tomma set betyder att övningen inte är gjord,
       // annars vore en orörd grupp "klar" direkt och skulle aldrig öppnas.
-      const isGroupDone = (list: typeof exerciseResults) =>
-          list.every(e =>
+      const isGroupDone = (list: typeof exerciseResults) => {
+          const active = list.filter(e => !e.skipped);
+          if (active.length === 0) return true;
+          return active.every(e =>
               e.setDetails.some(s => s.completed) &&
               e.setDetails.every(s => s.completed || isSetEmpty(s))
           );
+      };
 
       const order = Array.from(groups.keys());
       const firstUnfinished = order.find(id => !isGroupDone(groups.get(id)!)) || null;
@@ -549,11 +552,11 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
               errors.push("Programnamn saknas. Du måste namnge ditt program.");
           }
       } else {
-          const setsToSave = exerciseResults.reduce((acc, ex) => acc + ex.setDetails.filter(s => s.completed || !isSetEmpty(s)).length, 0);
+          const setsToSave = exerciseResults.filter(ex => !ex.skipped).reduce((acc, ex) => acc + ex.setDetails.filter(s => s.completed || !isSetEmpty(s)).length, 0);
           if (setsToSave === 0) {
               errors.push("Inga övningar är loggade än. Fyll i minst en övning eller bocka av den du gjort.");
           } else if (uncheckedSetsCount > 0) {
-              errors.push(`Du har ${uncheckedSetsCount} ifyllda set som inte är avbockade. Bocka av dem, eller rensa värdena om du hoppade över övningen.`);
+              errors.push(`Du har ${uncheckedSetsCount} ifyllda set som inte är avbockade. Bocka av dem, eller markera övningen som överhoppad.`);
           }
           if (benchmarkDefinition) {
               if (benchmarkDefinition.type === 'time' && !sessionStats.time) {
@@ -1092,7 +1095,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
           
           let totalVolume = 0;
           
-          const exerciseResultsToSave = exerciseResults.map(r => {
+          const exerciseResultsToSave = exerciseResults.filter(r => !r.skipped).map(r => {
               const validWeights = r.setDetails.map(s => parseFloat(s.weight)).filter(n => !isNaN(n));
               const maxWeight = validWeights.length > 0 ? Math.max(...validWeights) : null;
               
@@ -1843,6 +1846,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
                                                                     let subTotalSets = 0;
                                                                     let subCompletedSets = 0;
                                                                     subGroup.exercises.forEach(ex => {
+                                                                        if (ex.result.skipped) return;
                                                                         subTotalSets += ex.result.setDetails.length;
                                                                         subCompletedSets += ex.result.setDetails.filter(s => s.completed).length;
                                                                     });
