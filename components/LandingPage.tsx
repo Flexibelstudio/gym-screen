@@ -59,6 +59,55 @@ const SystemImages = () => (
     </div>
 );
 
+/**
+ * Bildplats som visar en riktig bild när filen finns i public/landing/, och en
+ * diskret platshållare tills dess. Släpp filen med rätt namn i mappen — ingen
+ * kodändring behövs, bilden dyker upp automatiskt.
+ */
+const ImageSlot: React.FC<{ src: string; alt: string; label: string; className?: string }> = ({ src, alt, label, className = '' }) => {
+    const [missing, setMissing] = useState(false);
+    if (missing) {
+        return (
+            <div className={`flex flex-col items-center justify-center bg-gray-900/60 border border-dashed border-gray-700 rounded-2xl text-center p-6 ${className}`}>
+                <span className="text-3xl mb-2">📷</span>
+                <span className="text-sm text-gray-500 font-medium">{label}</span>
+            </div>
+        );
+    }
+    return <img src={src} alt={alt} onError={() => setMissing(true)} className={`object-cover rounded-2xl border border-white/10 ${className}`} loading="lazy" decoding="async" />;
+};
+
+/**
+ * Hjältens media: provar i tur och ordning video (landing/hero.mp4), stillbild
+ * (landing/hero.jpg) och faller sist tillbaka på produktmockupen. Så fort en
+ * riktig film eller bild läggs i public/landing/ tar den över.
+ */
+const HeroMedia: React.FC = () => {
+    const [stage, setStage] = useState<'video' | 'image' | 'mockup'>('video');
+    if (stage === 'mockup') return <SystemImages />;
+    if (stage === 'image') {
+        return (
+            <img
+                src="/landing/hero.jpg"
+                alt="SmartStudio på skärmen i en studio"
+                onError={() => setStage('mockup')}
+                className="w-full h-auto rounded-3xl border border-white/10 shadow-2xl"
+            />
+        );
+    }
+    return (
+        <video
+            src="/landing/hero.mp4"
+            autoPlay
+            muted
+            loop
+            playsInline
+            onError={() => setStage('image')}
+            className="w-full h-auto rounded-3xl border border-white/10 shadow-2xl"
+        />
+    );
+};
+
 export const LandingPage: React.FC<LandingPageProps> = ({ onLoginClick, onRegisterGymClick }) => {
     const [galleryImages, setGalleryImages] = useState<GalleryImage[]>([]);
     const [partners, setPartners] = useState<Partner[]>([]);
@@ -166,8 +215,41 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginClick, onRegist
                         transition={{ duration: 0.8, delay: 0.2 }}
                         className="relative"
                     >
-                        <SystemImages />
+                        <HeroMedia />
                     </motion.div>
+                </div>
+            </section>
+
+            {/* Så funkar det — tre steg med riktiga bilder */}
+            <section className="py-24 bg-black relative border-t border-white/5">
+                <div className="max-w-7xl mx-auto px-6">
+                    <div className="text-center mb-16">
+                        <h2 className="text-3xl md:text-5xl font-bold mb-4">Från whiteboard till loggat pass. Tre steg.</h2>
+                        <p className="text-gray-400 max-w-2xl mx-auto">
+                            Så här ser det ut på riktigt — inga menyer, ingen administration.
+                        </p>
+                    </div>
+                    <div className="grid md:grid-cols-3 gap-8">
+                        {[
+                            { nr: '1', title: 'Skissa passet', desc: 'Skriv passet för hand på whiteboarden eller i en anteckning — precis som du alltid gjort.', src: '/landing/steg1-whiteboard.jpg', label: 'Bild kommer: whiteboardskissen' },
+                            { nr: '2', title: 'AI:n bygger det', desc: 'Passet tolkas automatiskt: övningar, block och timer — klart på skärmen i lokalen.', src: '/landing/steg2-skarm.jpg', label: 'Bild kommer: passet på skärmen' },
+                            { nr: '3', title: 'Medlemmen loggar', desc: 'QR-koden skannas, resultaten loggas och personbästa räknas ut. Utvecklingen syns svart på vitt.', src: '/landing/steg3-mobil.jpg', label: 'Bild kommer: loggning i mobilen' },
+                        ].map((step, i) => (
+                            <motion.div
+                                key={step.nr}
+                                initial={{ opacity: 0, y: 20 }}
+                                whileInView={{ opacity: 1, y: 0 }}
+                                viewport={{ once: true }}
+                                transition={{ delay: i * 0.15, duration: 0.5 }}
+                                className="text-center"
+                            >
+                                <ImageSlot src={step.src} alt={step.title} label={step.label} className="w-full h-64 mb-6" />
+                                <div className="w-10 h-10 rounded-full bg-primary text-black font-black text-lg flex items-center justify-center mx-auto mb-4">{step.nr}</div>
+                                <h3 className="text-xl font-bold text-white mb-2">{step.title}</h3>
+                                <p className="text-gray-400 leading-relaxed">{step.desc}</p>
+                            </motion.div>
+                        ))}
+                    </div>
                 </div>
             </section>
 
@@ -249,6 +331,52 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginClick, onRegist
                             delay={0.3}
                         />
                     </div>
+
+                    {/* Riktiga skärmbilder ur appen */}
+                    <div className="mt-12 flex flex-wrap justify-center gap-6">
+                        <ImageSlot src="/landing/app-styrka.jpg" alt="Min styrka i medlemsappen" label="Bild kommer: Min styrka i appen" className="w-56 h-96" />
+                        <ImageSlot src="/landing/app-diplom.jpg" alt="Diplom i medlemsappen" label="Bild kommer: diplom i appen" className="w-56 h-96" />
+                    </div>
+                </div>
+            </section>
+
+            {/* Pris — allt som ingår */}
+            <section className="py-24 bg-black relative border-t border-white/5">
+                <div className="max-w-4xl mx-auto px-6">
+                    <motion.div
+                        initial={{ opacity: 0, y: 20 }}
+                        whileInView={{ opacity: 1, y: 0 }}
+                        viewport={{ once: true }}
+                        transition={{ duration: 0.6 }}
+                        className="bg-gradient-to-b from-gray-900 to-gray-900/40 border border-primary/20 rounded-3xl p-10 md:p-14 text-center relative overflow-hidden"
+                    >
+                        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[500px] h-[250px] bg-primary/10 blur-[100px] rounded-full pointer-events-none"></div>
+                        <h2 className="text-3xl md:text-4xl font-bold mb-2 relative z-10">Ett pris. Allt ingår.</h2>
+                        <p className="text-5xl md:text-6xl font-black text-white my-6 relative z-10">
+                            Från 995 kr<span className="text-xl font-bold text-gray-400">/mån per skärm</span>
+                        </p>
+                        <ul className="text-left max-w-md mx-auto space-y-3 mb-10 relative z-10">
+                            {[
+                                'Skärmappen: timer, whiteboard och AI-passbyggare',
+                                'Medlemsappen: loggning, personbästa, milstolpar och diplom',
+                                'Info-karusellen: skärmen jobbar även mellan passen',
+                                'Ingen installation — allt körs i webbläsaren',
+                            ].map(item => (
+                                <li key={item} className="flex items-start gap-3 text-gray-300">
+                                    <svg className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                                    </svg>
+                                    <span>{item}</span>
+                                </li>
+                            ))}
+                        </ul>
+                        <button
+                            onClick={() => setIsDemoModalOpen(true)}
+                            className="bg-primary hover:bg-teal-400 text-black text-lg px-10 py-4 rounded-full font-bold transition-all transform hover:scale-105 relative z-10"
+                        >
+                            Boka en kostnadsfri demo
+                        </button>
+                    </motion.div>
                 </div>
             </section>
 
