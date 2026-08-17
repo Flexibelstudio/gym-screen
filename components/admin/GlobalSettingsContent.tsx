@@ -25,6 +25,26 @@ export const GlobalSettingsContent: React.FC<GlobalSettingsContentProps> = ({
     const { userData } = useAuth();
     const [showFeatureInfo, setShowFeatureInfo] = useState(false);
 
+    // --- AUTOSPAR ---
+    // Allt i Globala inställningar sparas automatiskt: 2 sekunder efter senaste
+    // ändringen (reglage, fält eller kategorikort) skickas hela konfigen. Skriver
+    // man i ett fält väntar räknaren tills man slutat skriva. Spara-knappen uppe
+    // till höger finns kvar för den som vill spara direkt.
+    const autoSaveTimerRef = React.useRef<number | null>(null);
+    const configRef = React.useRef(config);
+    configRef.current = config;
+    React.useEffect(() => {
+        if (!isConfigDirty || isSavingConfig) return;
+        if (autoSaveTimerRef.current) window.clearTimeout(autoSaveTimerRef.current);
+        autoSaveTimerRef.current = window.setTimeout(() => {
+            autoSaveTimerRef.current = null;
+            handleSaveConfig(configRef.current);
+        }, 2000);
+        return () => {
+            if (autoSaveTimerRef.current) window.clearTimeout(autoSaveTimerRef.current);
+        };
+    }, [config, isConfigDirty, isSavingConfig]);
+
     const handleTestSound = () => {
         const sound = config.soundProfile || 'airhorn';
         playTimerSound(sound, 2); // Play twice
@@ -35,10 +55,10 @@ export const GlobalSettingsContent: React.FC<GlobalSettingsContentProps> = ({
             <div className="p-6 sm:p-8 border-b border-gray-100 dark:border-gray-700 flex justify-between items-center">
                 <div>
                     <h3 className="text-2xl font-bold text-gray-900 dark:text-white">Globala Inställningar</h3>
-                    <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Dessa inställningar gäller som standard för alla skärmar.</p>
+                    <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Dessa inställningar gäller som standard för alla skärmar. Ändringar sparas automatiskt.</p>
                 </div>
                 <button onClick={() => handleSaveConfig()} disabled={!isConfigDirty || isSavingConfig} className="bg-primary hover:brightness-95 text-white font-semibold py-2.5 px-6 rounded-xl disabled:opacity-50 shadow-sm transition-all transform active:scale-95">
-                    {isSavingConfig ? 'Sparar...' : 'Spara Ändringar'}
+                    {isSavingConfig ? 'Sparar...' : (isConfigDirty ? 'Spara nu' : 'Allt sparat ✓')}
                 </button>
             </div>
 
