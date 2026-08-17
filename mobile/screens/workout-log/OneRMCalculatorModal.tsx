@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Modal } from '../../../components/ui/Modal';
 import { calculate1RM, getRepsForPercentage } from '../../../utils/workoutUtils';
+import { normalizeDecimalInput } from './utils';
 
 export const OneRMCalculatorModal: React.FC<{
     isOpen: boolean;
@@ -49,7 +50,7 @@ export const OneRMCalculatorModal: React.FC<{
                     <div className="flex gap-4">
                         <div className="flex-1">
                             <label className="block text-[10px] uppercase font-bold text-gray-400 mb-1 ml-1">Vikt (kg)</label>
-                            <input type="number" inputMode="decimal" value={calcWeight} onChange={e => setCalcWeight(e.target.value)} className="w-full bg-white dark:bg-gray-900 text-gray-900 dark:text-white font-black text-lg p-3 rounded-xl border border-gray-200 dark:border-gray-700 outline-none focus:border-primary text-center transition-colors" placeholder="Ex. 100" />
+                            <input type="text" inputMode="decimal" value={calcWeight} onChange={e => setCalcWeight(normalizeDecimalInput(e.target.value))} className="w-full bg-white dark:bg-gray-900 text-gray-900 dark:text-white font-black text-lg p-3 rounded-xl border border-gray-200 dark:border-gray-700 outline-none focus:border-primary text-center transition-colors" placeholder="Ex. 100" />
                         </div>
                         <div className="flex-1">
                             <label className="block text-[10px] uppercase font-bold text-gray-400 mb-1 ml-1">Reps (max 10)</label>

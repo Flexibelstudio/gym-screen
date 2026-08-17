@@ -16,7 +16,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Confetti } from '../../components/WorkoutCompleteModal';
 import { useStudio } from '../../context/StudioContext';
 import { BlockGroup, LocalSetDetail, LastPerformanceRecord, LocalExerciseResult, LogData, WorkoutData } from './workout-log/types';
-import { ACTIVE_LOG_STORAGE_KEY, ChevronDownIcon, extractPerformanceFromLogEx, TimeInput, getRandomDiplomaTitle, getFunComparison, isExerciseMatch, GROUP_COLORS, cleanForFirestore } from './workout-log/utils';
+import { ACTIVE_LOG_STORAGE_KEY, ChevronDownIcon, extractPerformanceFromLogEx, TimeInput, getRandomDiplomaTitle, getFunComparison, isExerciseMatch, GROUP_COLORS, cleanForFirestore, normalizeDecimalInput } from './workout-log/utils';
 import { CustomActivityForm } from './workout-log/CustomActivityForm';
 import { PostWorkoutForm } from './workout-log/PostWorkoutForm';
 import { OneRMCalculatorModal } from './workout-log/OneRMCalculatorModal';
@@ -2162,10 +2162,10 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
                                               <label className="block text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-2">km</label>
                                               <div className="bg-gray-50 dark:bg-gray-800 rounded-xl p-2 border border-gray-100 dark:border-gray-700">
                                                   <input 
-                                                      type="number"
+                                                      type="text"
                                                       inputMode="decimal"
                                                       value={sessionStats.distance}
-                                                      onChange={(e) => setSessionStats(prev => ({ ...prev, distance: e.target.value }))}
+                                                      onChange={(e) => setSessionStats(prev => ({ ...prev, distance: normalizeDecimalInput(e.target.value) }))}
                                                       placeholder="T.ex. 3.5"
                                                       className="w-full bg-transparent text-gray-900 dark:text-white font-black text-lg focus:outline-none text-center"
                                                   />

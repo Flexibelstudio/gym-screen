@@ -4,7 +4,7 @@ import { CalculatorIcon, CheckIcon, CloseIcon, PlusIcon } from '../../../compone
 import { PersonalBest } from '../../../types';
 import { calculate1RM, getRepsForPercentage, getTargetWeightForExercise, getRestSecondsForPercentage, TrainingProfile, getSetScore } from '../../../utils/workoutUtils';
 import { LocalExerciseResult, LastPerformanceRecord, LocalSetDetail } from './types';
-import { ChevronDownIcon, formatLastPerformance, formatLastPerformanceSets, TimeInput, GROUP_COLORS, GRID_COLS_MAP, DEFAULT_REST_SECONDS } from './utils';
+import { ChevronDownIcon, formatLastPerformance, formatLastPerformanceSets, TimeInput, GROUP_COLORS, GRID_COLS_MAP, DEFAULT_REST_SECONDS, normalizeDecimalInput } from './utils';
 
 export const ExerciseLogCard: React.FC<{
   name: string;
@@ -518,7 +518,7 @@ export const ExerciseLogCard: React.FC<{
                                     {showWeight && (
                                         <div className="relative">
                                             <div className="bg-gray-50 dark:bg-gray-800 rounded-xl p-3.5 border border-gray-100 dark:border-gray-700 shadow-inner">
-                                                <input type="number" inputMode="decimal" value={set.weight} onChange={(e) => handleSetChange(index, 'weight', e.target.value)} placeholder="0" className="w-full bg-transparent text-gray-900 dark:text-white font-black text-xl focus:outline-none text-center" disabled={set.completed} />
+                                                <input type="text" inputMode="decimal" value={set.weight} onChange={(e) => handleSetChange(index, 'weight', normalizeDecimalInput(e.target.value))} placeholder="0" className="w-full bg-transparent text-gray-900 dark:text-white font-black text-xl focus:outline-none text-center" disabled={set.completed} />
                                             </div>
                                         </div>
                                     )}
@@ -540,7 +540,7 @@ export const ExerciseLogCard: React.FC<{
 
                                     {showDistance && (
                                         <div className="bg-gray-50 dark:bg-gray-800 rounded-xl p-3.5 border border-gray-100 dark:border-gray-700 shadow-inner">
-                                            <input type="number" inputMode="decimal" value={set.distance || ''} onChange={(e) => handleSetChange(index, 'distance', e.target.value)} placeholder="0" className="w-full bg-transparent text-gray-900 dark:text-white font-black text-xl focus:outline-none text-center" disabled={set.completed} />
+                                            <input type="text" inputMode="decimal" value={set.distance || ''} onChange={(e) => handleSetChange(index, 'distance', normalizeDecimalInput(e.target.value))} placeholder="0" className="w-full bg-transparent text-gray-900 dark:text-white font-black text-xl focus:outline-none text-center" disabled={set.completed} />
                                         </div>
                                     )}
 
