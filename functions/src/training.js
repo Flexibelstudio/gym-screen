@@ -1135,6 +1135,43 @@ const onOrganizationUpdated = onDocumentUpdated({
       );
     }
   }
+
+  // --- Kategoribyte: döp om passen automatiskt ---
+  // Pass pekar på kategorins NAMN, inte dess id. Utan detta kopplas alla pass loss
+  // när en kategori döps om i Globala inställningar (hände i prod aug 2026).
+  // Vi jämför per kategori-id: samma id + nytt namn = namnbyte, och då uppdateras
+  // alla pass i organisationen som pekar på det gamla namnet.
+  const beforeCats = (beforeData.globalConfig && beforeData.globalConfig.customCategories) || [];
+  const afterCats = (afterData.globalConfig && afterData.globalConfig.customCategories) || [];
+  const renames = [];
+  for (const beforeCat of beforeCats) {
+    if (!beforeCat || !beforeCat.id || typeof beforeCat.name !== 'string') continue;
+    const afterCat = afterCats.find(c => c && c.id === beforeCat.id);
+    if (afterCat && typeof afterCat.name === 'string' && afterCat.name !== beforeCat.name) {
+      renames.push({ from: beforeCat.name, to: afterCat.name });
+    }
+  }
+
+  for (const r of renames) {
+    const snap = await db.collection('workouts')
+      .where('organizationId', '==', event.params.orgId)
+      .where('category', '==', r.from)
+      .get();
+
+    if (snap.empty) {
+      console.log(`Kategoribyte "${r.from}" -> "${r.to}" i org ${event.params.orgId}: inga pass att uppdatera.`);
+      continue;
+    }
+
+    // Firestore tillåter max 500 skrivningar per batch — dela upp.
+    const docs = snap.docs;
+    for (let i = 0; i < docs.length; i += 400) {
+      const batch = db.batch();
+      docs.slice(i, i + 400).forEach(d => batch.update(d.ref, { category: r.to }));
+      await batch.commit();
+    }
+    console.log(`Kategoribyte "${r.from}" -> "${r.to}" i org ${event.params.orgId}: ${docs.length} pass uppdaterade.`);
+  }
 });
 
 const flexUpdateOrganization = onCall({

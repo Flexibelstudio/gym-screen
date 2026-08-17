@@ -719,12 +719,15 @@ export const WorkoutBuilderScreen: React.FC<WorkoutBuilderScreenProps> = ({ init
   const handleUpdateWorkoutDetail = (field: keyof Workout, value: any) => {
     setWorkout(prev => {
       const next: any = { ...prev, [field]: value };
-      // Passlängden ärvs från kategorins standardvärde i Globala inställningar, men
-      // bara när passet inte redan har en egen längd. Byter coachen kategori skrivs
-      // ett angivet värde aldrig över.
-      if (field === 'category' && !prev.durationMinutes) {
-        const inherited = studioConfig.customCategories?.find(c => c.name === value)?.durationMinutes;
-        if (inherited) next.durationMinutes = inherited;
+      // Passlängden följer kategorins standardvärde i Globala inställningar.
+      // Vid kategoribyte uppdateras tiden OM den var ärvd — dvs. tom eller lika
+      // med gamla kategorins standard. En handskriven tid skrivs aldrig över.
+      if (field === 'category') {
+        const cats = studioConfig.customCategories || [];
+        const oldDefault = cats.find(c => c.name === prev.category)?.durationMinutes;
+        const newDefault = cats.find(c => c.name === value)?.durationMinutes;
+        const wasInherited = !prev.durationMinutes || (oldDefault !== undefined && prev.durationMinutes === oldDefault);
+        if (wasInherited && newDefault) next.durationMinutes = newDefault;
       }
       return next;
     });
@@ -926,12 +929,7 @@ export const WorkoutBuilderScreen: React.FC<WorkoutBuilderScreenProps> = ({ init
                                 {studioConfig.customCategories.map(cat => (
                                     <button
                                         key={cat.id}
-                                        onClick={() => {
-                                            handleUpdateWorkoutDetail('category', cat.name);
-                                            if (cat.durationMinutes && !workout.durationMinutes) {
-                                                handleUpdateWorkoutDetail('durationMinutes', cat.durationMinutes);
-                                            }
-                                        }}
+                                        onClick={() => handleUpdateWorkoutDetail('category', cat.name)}
                                         className={`px-3 py-1.5 text-sm font-semibold rounded-md transition-colors ${workout.category === cat.name ? 'bg-primary text-white' : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'}`}
                                     >
                                         {cat.name}
