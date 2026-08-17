@@ -169,7 +169,19 @@ export const AICoachSidebar: React.FC<{
             const previousState = response.updatedWorkout ? JSON.parse(JSON.stringify(workout)) : undefined;
 
             if (response.updatedWorkout) {
-                onUpdateWorkout(response.updatedWorkout);
+                // AI:ns svar får bara ändra passets INNEHÅLL. Identitet och metadata
+                // (id, org, kategori, publiceringsläge) ägs av byggaren — tidigare
+                // ersattes hela objektet och vald kategori försvann när AI:n byggt klart.
+                onUpdateWorkout({
+                    ...workout,
+                    ...response.updatedWorkout,
+                    id: workout.id,
+                    organizationId: workout.organizationId,
+                    category: workout.category,
+                    isPublished: workout.isPublished,
+                    isMemberDraft: workout.isMemberDraft,
+                    createdAt: workout.createdAt,
+                });
             }
 
             setChatHistory(prev => [...prev, {

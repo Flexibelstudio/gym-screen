@@ -220,7 +220,17 @@ const buildExerciseForBlock = (
 export const WorkoutBuilderScreen: React.FC<WorkoutBuilderScreenProps> = ({ initialWorkout, onSave, onCancel, focusedBlockId: initialFocusedBlockId, studioConfig, sessionRole, isNewDraft = false, organization, isAdminView = false, setCustomBackHandler }) => {
   const { selectedOrganization } = useStudio();
   const { userData } = useAuth();
-  const [workout, setWorkout] = useState<Workout>(() => initialWorkout ? JSON.parse(JSON.stringify(initialWorkout)) : createNewWorkout());
+  const [workout, setWorkout] = useState<Workout>(() => {
+      const w: Workout = initialWorkout ? JSON.parse(JSON.stringify(initialWorkout)) : createNewWorkout();
+      // Nya utkast som kommer in med kategorin redan satt (AI-flödet) ärver kategorins
+      // standardlängd ur Globala inställningar. Gäller ENBART nya utkast — ett sparat
+      // pass ändras aldrig av att man öppnar det.
+      if (isNewDraft && w.category && !w.durationMinutes) {
+          const inherited = studioConfig.customCategories?.find(c => c.name === w.category)?.durationMinutes;
+          if (inherited) w.durationMinutes = inherited;
+      }
+      return w;
+  });
 
   const wasVisibleToday = useMemo(() => {
     return Boolean(initialWorkout && initialWorkout.isPublished && (!initialWorkout.publishAt || initialWorkout.publishAt <= Date.now()));
