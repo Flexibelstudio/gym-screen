@@ -1,10 +1,10 @@
-import React, { useState, useMemo, useRef } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { CalculatorIcon, CheckIcon, CloseIcon, PlusIcon } from '../../../components/icons';
 import { PersonalBest } from '../../../types';
 import { calculate1RM, getRepsForPercentage, getTargetWeightForExercise, getRestSecondsForPercentage, TrainingProfile, getSetScore } from '../../../utils/workoutUtils';
 import { LocalExerciseResult, LastPerformanceRecord, LocalSetDetail } from './types';
-import { ChevronDownIcon, formatLastPerformance, formatLastPerformanceSets, TimeInput, GROUP_COLORS, GRID_COLS_MAP, DEFAULT_REST_SECONDS } from './utils';
+import { ChevronDownIcon, formatLastPerformance, formatLastPerformanceSets, TimeInput, GROUP_COLORS, GRID_COLS_MAP, DEFAULT_REST_SECONDS, normalizeDecimalInput } from './utils';
 
 export const ExerciseLogCard: React.FC<{
   name: string;
@@ -22,7 +22,7 @@ export const ExerciseLogCard: React.FC<{
   blockProfile?: TrainingProfile | null;
   sessionPct?: number | null;
   onSelectSessionPct?: (pct: number | null) => void;
-  onStartRestTimer?: (seconds: number) => void;
+  onStartRestTimer?: (seconds: number, groupId: string | null, setIndex: number, exerciseId: string) => void;
   onOpenCalculator?: (context: { 
       exerciseName: string, 
       current1RM?: number, 
@@ -31,8 +31,19 @@ export const ExerciseLogCard: React.FC<{
       onSelectTargetPct?: (pct: number | null) => void 
   }) => void;
   canEditFields: boolean;
-}> = ({ name, result, onUpdate, onRemove, lastPerformance, personalBest, isLastInGroup, onAddGroupSet, userId, sessionMode = 'normal', history, personalBests, blockProfile, sessionPct, onSelectSessionPct, onStartRestTimer, onOpenCalculator, canEditFields }) => {
+  blockTag?: string;
+}> = ({ name, result, onUpdate, onRemove, lastPerformance, personalBest, isLastInGroup, onAddGroupSet, userId, sessionMode = 'normal', history, personalBests, blockProfile, sessionPct, onSelectSessionPct, onStartRestTimer, onOpenCalculator, canEditFields, blockTag }) => {
     
+    const normalizedBlockTag = (blockTag || '').trim().toLowerCase();
+    const isStrengthLike = normalizedBlockTag === '' || normalizedBlockTag === 'styrka' || normalizedBlockTag === 'hypertrofi';
+
+    // Knappen sitter längst ner i gruppens sista övning, men raden läggs till i
+    // samtliga övningar i gruppen — alltså ovanför skärmkanten. Utan kvittens här
+    // ser det ut som att ingenting hände.
+    const [groupSetAdded, setGroupSetAdded] = useState(false);
+    const groupSetAddedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    useEffect(() => () => { if (groupSetAddedTimerRef.current) clearTimeout(groupSetAddedTimerRef.current); }, []);
+
     const trackingFields = result.trackingFields || ['reps', 'weight'];
     const showReps = trackingFields.includes('reps');
     const showWeight = trackingFields.includes('weight');
@@ -143,7 +154,7 @@ export const ExerciseLogCard: React.FC<{
              }
          }
 
-         if (!wasCompleted && isNowCompleted && onStartRestTimer) {
+         if (!wasCompleted && isNowCompleted && onStartRestTimer && isStrengthLike) {
              let restSec = 0;
              if (blockProfile && blockProfile.restSeconds && blockProfile.restSeconds > 0) {
                  restSec = blockProfile.restSeconds;
@@ -154,7 +165,7 @@ export const ExerciseLogCard: React.FC<{
                  restSec = DEFAULT_REST_SECONDS;
              }
              if (restSec > 0) {
-                 onStartRestTimer(restSec);
+                 onStartRestTimer(restSec, result.groupId || null, index, result.exerciseId);
              }
          }
     };
@@ -380,6 +391,14 @@ export const ExerciseLogCard: React.FC<{
                                 </svg>
                             </button>
                         )}
+                        <button
+                            type="button"
+                            onClick={() => onUpdate({ skipped: !result.skipped })}
+                            title={result.skipped ? 'Ta med övningen igen' : 'Hoppa över övningen'}
+                            className={`p-3 rounded-2xl transition-all active:scale-90 shadow-sm ${result.skipped ? 'bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300' : 'bg-gray-50 dark:bg-gray-800 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200'}`}
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9"></circle><path d="M5.6 5.6l12.8 12.8"></path></svg>
+                        </button>
                         {onRemove && (
                             <button 
                                 onClick={onRemove}
@@ -473,16 +492,19 @@ export const ExerciseLogCard: React.FC<{
                         <div className="text-center">Klar</div>
                     </div>
 
-                    {result.setDetails.map((set, index) => {
+                    {!result.skipped && result.setDetails.map((set, index) => {
+                        // Aktiv rad = första oavbockade. Får en färgad kant så den skiljer sig
+                        // tydligt från de redan ifyllda, som är nedtonade.
+                        const isActiveSet = index === result.setDetails.findIndex(sd => !sd.completed);
                         const isWeightAndRepsOnly = showWeight && showReps && !showTime && !showDistance && !showKcal;
                         const hasValidWeightAndReps = (parseFloat(set.weight) > 0) && (parseFloat(set.reps) > 0);
-                        const showRirRow = Boolean(set.completed) && isWeightAndRepsOnly && hasValidWeightAndReps;
+                        const showRirRow = Boolean(set.completed) && isWeightAndRepsOnly && hasValidWeightAndReps && isStrengthLike;
                         const missingFields = getMissingFields(set);
                         const canComplete = set.completed || missingFields.length === 0;
 
                         return (
                             <React.Fragment key={index}>
-                                <div className={`grid ${gridColsClass} gap-2 items-center transition-all ${set.completed ? 'opacity-50' : 'opacity-100'}`}>
+                                <div className={`grid ${gridColsClass} gap-2 items-center transition-all rounded-xl -mx-1.5 px-1.5 py-1 ${set.completed ? 'opacity-50' : 'opacity-100'} ${isActiveSet ? 'ring-2 ring-primary/70 bg-primary/5' : 'ring-0'}`}>
                                     <div className="flex justify-center items-center">
                                         <span className={`text-sm font-black rounded-full w-8 h-8 flex items-center justify-center transition-colors shadow-sm ${set.completed ? 'bg-green-100 dark:bg-green-900/30 text-green-600' : 'bg-gray-100 dark:bg-gray-800 text-gray-500'}`}>{index + 1}</span>
                                     </div>
@@ -496,7 +518,7 @@ export const ExerciseLogCard: React.FC<{
                                     {showWeight && (
                                         <div className="relative">
                                             <div className="bg-gray-50 dark:bg-gray-800 rounded-xl p-3.5 border border-gray-100 dark:border-gray-700 shadow-inner">
-                                                <input type="number" inputMode="decimal" value={set.weight} onChange={(e) => handleSetChange(index, 'weight', e.target.value)} placeholder="0" className="w-full bg-transparent text-gray-900 dark:text-white font-black text-xl focus:outline-none text-center" disabled={set.completed} />
+                                                <input type="text" inputMode="decimal" value={set.weight} onChange={(e) => handleSetChange(index, 'weight', normalizeDecimalInput(e.target.value))} placeholder="0" className="w-full bg-transparent text-gray-900 dark:text-white font-black text-xl focus:outline-none text-center" disabled={set.completed} />
                                             </div>
                                         </div>
                                     )}
@@ -518,7 +540,7 @@ export const ExerciseLogCard: React.FC<{
 
                                     {showDistance && (
                                         <div className="bg-gray-50 dark:bg-gray-800 rounded-xl p-3.5 border border-gray-100 dark:border-gray-700 shadow-inner">
-                                            <input type="number" inputMode="decimal" value={set.distance || ''} onChange={(e) => handleSetChange(index, 'distance', e.target.value)} placeholder="0" className="w-full bg-transparent text-gray-900 dark:text-white font-black text-xl focus:outline-none text-center" disabled={set.completed} />
+                                            <input type="text" inputMode="decimal" value={set.distance || ''} onChange={(e) => handleSetChange(index, 'distance', normalizeDecimalInput(e.target.value))} placeholder="0" className="w-full bg-transparent text-gray-900 dark:text-white font-black text-xl focus:outline-none text-center" disabled={set.completed} />
                                         </div>
                                     )}
 
@@ -599,15 +621,34 @@ export const ExerciseLogCard: React.FC<{
                             </React.Fragment>
                         );
                     })}
-                    {(!result.groupId) && (
+                    {result.skipped && (
+                        <div className="mt-2 flex items-center justify-between gap-3 rounded-xl border border-dashed border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-900/20 px-4 py-3">
+                            <span className="text-sm font-bold text-amber-800 dark:text-amber-300">Överhoppad — räknas inte med</span>
+                            <button
+                                type="button"
+                                onClick={() => onUpdate({ skipped: false })}
+                                className="text-xs font-black uppercase tracking-wider text-amber-800 dark:text-amber-300 underline underline-offset-2 active:scale-95"
+                            >
+                                Ångra
+                            </button>
+                        </div>
+                    )}
+                    {(!result.groupId && !result.skipped) && (
                         <button onClick={handleAddSet} className="w-full mt-3 py-3.5 flex items-center justify-center gap-2 text-sm font-black text-primary bg-primary/10 hover:bg-primary/15 rounded-xl transition-all border border-primary/30 border-dashed shadow-sm"><PlusIcon className="w-4 h-4" /> Lägg till set</button>
                     )}
-                    {(result.groupId && isLastInGroup && onAddGroupSet) && (
+                    {(result.groupId && isLastInGroup && onAddGroupSet && !result.skipped) && (
                         <button 
-                            onClick={onAddGroupSet} 
-                            className={`w-full mt-3 py-3.5 flex items-center justify-center gap-2 text-sm font-black rounded-xl transition-all border border-dashed shadow-sm ${textColorClass} ${lightBorderClass} ${lightBgClass}`}
+                            onClick={() => {
+                                onAddGroupSet();
+                                setGroupSetAdded(true);
+                                if (groupSetAddedTimerRef.current) clearTimeout(groupSetAddedTimerRef.current);
+                                groupSetAddedTimerRef.current = setTimeout(() => setGroupSetAdded(false), 2200);
+                            }}
+                            className={`w-full mt-3 py-3.5 flex items-center justify-center gap-2 text-sm font-black rounded-xl transition-all border border-dashed shadow-sm ${groupSetAdded ? 'border-solid ring-2 ring-primary/30' : ''} ${textColorClass} ${lightBorderClass} ${lightBgClass}`}
                         >
-                            <PlusIcon className="w-4 h-4" /> Lägg till set för gruppen
+                            {groupSetAdded
+                                ? <>✓ Set {result.setDetails.length} tillagt i hela gruppen</>
+                                : <><PlusIcon className="w-4 h-4" /> Lägg till set för gruppen</>}
                         </button>
                     )}
                 </div>

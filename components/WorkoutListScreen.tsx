@@ -589,7 +589,7 @@ export const WorkoutListScreen: React.FC<WorkoutListScreenProps> = React.memo(({
 
             {showPasswordModal && (
                 <PasswordModal
-                    coachPassword={selectedOrganization?.passwords.coach}
+                    organizationId={selectedOrganization?.id}
                     onClose={() => setShowPasswordModal(false)}
                     onSuccess={() => {
                         setShowPasswordModal(false);

@@ -251,6 +251,20 @@ const App: React.FC = () => {
   }, [userData?.organizationId]);
 
   // --- SERVICE WORKER AUTO-UPDATE & FRESH PUSHES ---
+  // En omladdning mitt i ett pass dödar timern. Vi markerar i stället att en
+  // omladdning väntar och gör den när skärmen lämnat passvyn.
+  const pendingSwReloadRef = useRef(false);
+  const isWorkoutPageRef = useRef(false);
+
+  useEffect(() => {
+    isWorkoutPageRef.current = page === Page.Timer || page === Page.RepsOnly;
+    if (!isWorkoutPageRef.current && pendingSwReloadRef.current) {
+      pendingSwReloadRef.current = false;
+      console.log('Passvyn stängd — genomför uppskjuten omladdning för ny version.');
+      window.location.reload();
+    }
+  }, [page]);
+
   useEffect(() => {
     if (typeof window === 'undefined' || !('serviceWorker' in navigator)) return;
 
@@ -268,6 +282,13 @@ const App: React.FC = () => {
           console.log('Initial Service Worker claimed the client. Skipping reload because there was no prior controller.');
           return;
       }
+      // Står ett pass på skärmen skjuter vi upp omladdningen. Ett släpp mitt under
+      // en klass får inte starta om en pågående timer.
+      if (isWorkoutPageRef.current) {
+        pendingSwReloadRef.current = true;
+        console.log('Ny version klar, men ett pass visas — omladdningen skjuts upp.');
+        return;
+      }
       refreshing = true;
       console.log('New Service Worker activated! Reloading page to load the latest code...');
       window.location.reload();
@@ -275,19 +296,40 @@ const App: React.FC = () => {
 
     navigator.serviceWorker.addEventListener('controllerchange', handleControllerChange);
 
-    // To make sure a long-running/permanent screen checks for updates periodically 
-    // (even if no manual navigation/reload is done), check for updates every 15 minutes.
-    const intervalId = setInterval(() => {
+    // Kontrollen måste ske vid tillfällen som faktiskt inträffar på en telefon.
+    // En PWA på iPhones hemskärm återupptas ur appväxlaren UTAN att navigera, och
+    // setInterval står stilla medan appen är i bakgrunden — en medlem som öppnar
+    // appen några minuter i taget hinner därför aldrig till en kontroll och kan gå
+    // veckor på gammal kod. Därför kollar vi också när appen kommer i förgrunden
+    // och när nätet kommer tillbaka. Throttlad till en gång per minut.
+    let lastUpdateCheck = 0;
+    const checkForUpdate = () => {
+      const now = Date.now();
+      if (now - lastUpdateCheck < 60 * 1000) return;
+      lastUpdateCheck = now;
       navigator.serviceWorker.ready.then((registration) => {
-        console.log('Checking for service worker updates periodically...');
         registration.update().catch((err) => {
           console.warn('Failed to update service worker registration:', err);
         });
       });
-    }, 15 * 60 * 1000); // 15 minutes
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') checkForUpdate();
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('focus', handleVisibilityChange);
+    window.addEventListener('online', checkForUpdate);
+
+    // Behålls för skärmar som står uppe dygnet runt och aldrig byter synlighet.
+    const intervalId = setInterval(checkForUpdate, 15 * 60 * 1000);
 
     return () => {
       navigator.serviceWorker.removeEventListener('controllerchange', handleControllerChange);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('focus', handleVisibilityChange);
+      window.removeEventListener('online', checkForUpdate);
       clearInterval(intervalId);
     };
   }, []);
@@ -1284,7 +1326,7 @@ const App: React.FC = () => {
       
       {isPasswordModalOpen && (
         <PasswordModal
-          coachPassword={selectedOrganization?.passwords.coach}
+          organizationId={selectedOrganization?.id}
           onClose={handleClosePasswordModal}
           onLogout={signOut}
           onSuccess={() => {

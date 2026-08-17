@@ -3,7 +3,8 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Page, Workout, MenuItem, StudioConfig, Passkategori, CustomCategoryWithPrompt } from '../types';
 import { welcomeMessages } from '../data/welcomeMessages';
 import { motion, AnimatePresence } from 'framer-motion';
-import { DumbbellIcon, SparklesIcon, StarIcon, PencilIcon, getIconComponent, CloseIcon, LightningIcon, LockIcon, EyeIcon, EyeOffIcon, FlagIcon } from './icons';
+import { PasswordModal } from './PasswordModal';
+import { DumbbellIcon, SparklesIcon, StarIcon, PencilIcon, getIconComponent, CloseIcon, LightningIcon, LockIcon, FlagIcon } from './icons';
 import { WeeklyPBList } from './WeeklyPBList'; 
 import { CommunityFeed } from './CommunityFeed';
 import { Modal } from './ui/Modal';
@@ -177,10 +178,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = React.memo(({
   
   // State för lösenordsmodal
   const [showPasswordModal, setShowPasswordModal] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
   const [pendingCategory, setPendingCategory] = useState<string | null>(null);
-  const [passwordInput, setPasswordInput] = useState("");
-  const [passwordError, setPasswordError] = useState(false);
 
   const hasActiveCarousel = useMemo(() => {
     const infoCarousel = selectedOrganization?.infoCarousel;
@@ -401,99 +399,23 @@ export const HomeScreen: React.FC<HomeScreenProps> = React.memo(({
             )}
         </AnimatePresence>
 
-        {/* Lösenordsmodal för låsta kategorier */}
-        <AnimatePresence>
-            {showPasswordModal && (
-                <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-                    <motion.div 
-                        initial={{ opacity: 0, scale: 0.9, y: 20 }}
-                        animate={{ opacity: 1, scale: 1, y: 0 }}
-                        exit={{ opacity: 0, scale: 0.9, y: 20 }}
-                        className="bg-white dark:bg-gray-900 rounded-3xl p-8 max-w-md w-full shadow-2xl border border-gray-100 dark:border-white/10"
-                    >
-                        <div className="flex justify-center mb-6">
-                            <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center text-primary">
-                                <LockIcon className="w-8 h-8" />
-                            </div>
-                        </div>
-                        
-                        <h2 className="text-2xl font-black text-center text-gray-900 dark:text-white mb-2 uppercase tracking-tight leading-[1.2] pt-[0.1em]">
-                            Låst Kategori
-                        </h2>
-                        <p className="text-center text-gray-500 dark:text-gray-400 mb-8">
-                            Ange coach-lösenordet för att låsa upp "{pendingCategory}".
-                        </p>
-
-                        <form onSubmit={(e) => {
-                            e.preventDefault();
-                            if (passwordInput === selectedOrganization?.passwords.coach) {
-                                setShowPasswordModal(false);
-                                setPasswordInput("");
-                                setPasswordError(false);
-                                if (pendingCategory) {
-                                    onSelectPasskategori(pendingCategory);
-                                }
-                            } else {
-                                setPasswordError(true);
-                                setPasswordInput("");
-                            }
-                        }}>
-                            <div className="relative">
-                                <input
-                                    type={showPassword ? "text" : "password"}
-                                    value={passwordInput}
-                                    onChange={(e) => {
-                                        setPasswordInput(e.target.value);
-                                        setPasswordError(false);
-                                    }}
-                                    placeholder="Lösenord"
-                                    className={`w-full text-center text-2xl tracking-widest p-4 pr-12 rounded-xl border-2 bg-gray-50 dark:bg-black text-gray-900 dark:text-white focus:outline-none transition-colors ${
-                                        passwordError 
-                                            ? 'border-danger focus:border-danger' 
-                                            : 'border-gray-200 dark:border-gray-800 focus:border-primary'
-                                    }`}
-                                    autoFocus
-                                />
-                                <button
-                                    type="button"
-                                    onClick={() => setShowPassword(!showPassword)}
-                                    className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-white transition-colors"
-                                    aria-label={showPassword ? "Dölj lösenord" : "Visa lösenord"}
-                                >
-                                    {showPassword ? <EyeOffIcon className="w-6 h-6" /> : <EyeIcon className="w-6 h-6" />}
-                                </button>
-                            </div>
-                            
-                            {passwordError && (
-                                <p className="text-danger text-center text-sm font-bold mt-3 animate-shake">
-                                    Fel lösenord, försök igen.
-                                </p>
-                            )}
-
-                            <div className="flex gap-3 mt-8">
-                                <button
-                                    type="button"
-                                    onClick={() => {
-                                        setShowPasswordModal(false);
-                                        setPasswordInput("");
-                                        setPasswordError(false);
-                                    }}
-                                    className="flex-1 py-4 rounded-xl font-bold text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
-                                >
-                                    AVBRYT
-                                </button>
-                                <button
-                                    type="submit"
-                                    className="flex-1 py-4 rounded-xl font-bold text-white bg-primary hover:bg-primary/90 transition-colors"
-                                >
-                                    LÅS UPP
-                                </button>
-                            </div>
-                        </form>
-                    </motion.div>
-                </div>
-            )}
-        </AnimatePresence>
+                {/* Lösenordsmodal för låsta kategorier — samma grind som coach-åtkomsten */}
+                {showPasswordModal && (
+                    <PasswordModal
+                        title="Låst kategori"
+                        description={`Ange coach-lösenordet för att låsa upp "${pendingCategory}".`}
+                        organizationId={selectedOrganization?.id}
+                        onClose={() => {
+                            setShowPasswordModal(false);
+                            setPendingCategory(null);
+                        }}
+                        onSuccess={() => {
+                            setShowPasswordModal(false);
+                            if (pendingCategory) onSelectPasskategori(pendingCategory);
+                            setPendingCategory(null);
+                        }}
+                    />
+                )}
     </>
   );
 });

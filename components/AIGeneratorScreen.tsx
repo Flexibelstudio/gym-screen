@@ -223,6 +223,10 @@ export const AIGeneratorScreen: React.FC<AIGeneratorScreenProps> = ({
                 isFavorite: false,
                 createdAt: Date.now(),
                 category: activeTab === 'generate' && selectedCategory ? selectedCategory.name : (workout.category || ''),
+                // Kategorins standardlängd (Globala inställningar) följer med redan här —
+                // byggarens arv triggas bara när kategorin VÄLJS, inte när passet kommer
+                // in med kategorin färdigsatt.
+                durationMinutes: workout.durationMinutes || (activeTab === 'generate' && selectedCategory && selectedCategory.durationMinutes) || undefined,
                 blocks: (workout.blocks || []).map((block: WorkoutBlock, bIdx: number) => ({
                     ...block,
                     id: block.id || `block-${Date.now()}-${bIdx}`,

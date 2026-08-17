@@ -220,7 +220,17 @@ const buildExerciseForBlock = (
 export const WorkoutBuilderScreen: React.FC<WorkoutBuilderScreenProps> = ({ initialWorkout, onSave, onCancel, focusedBlockId: initialFocusedBlockId, studioConfig, sessionRole, isNewDraft = false, organization, isAdminView = false, setCustomBackHandler }) => {
   const { selectedOrganization } = useStudio();
   const { userData } = useAuth();
-  const [workout, setWorkout] = useState<Workout>(() => initialWorkout ? JSON.parse(JSON.stringify(initialWorkout)) : createNewWorkout());
+  const [workout, setWorkout] = useState<Workout>(() => {
+      const w: Workout = initialWorkout ? JSON.parse(JSON.stringify(initialWorkout)) : createNewWorkout();
+      // Nya utkast som kommer in med kategorin redan satt (AI-flödet) ärver kategorins
+      // standardlängd ur Globala inställningar. Gäller ENBART nya utkast — ett sparat
+      // pass ändras aldrig av att man öppnar det.
+      if (isNewDraft && w.category && !w.durationMinutes) {
+          const inherited = studioConfig.customCategories?.find(c => c.name === w.category)?.durationMinutes;
+          if (inherited) w.durationMinutes = inherited;
+      }
+      return w;
+  });
 
   const wasVisibleToday = useMemo(() => {
     return Boolean(initialWorkout && initialWorkout.isPublished && (!initialWorkout.publishAt || initialWorkout.publishAt <= Date.now()));
@@ -707,7 +717,20 @@ export const WorkoutBuilderScreen: React.FC<WorkoutBuilderScreenProps> = ({ init
   };
   
   const handleUpdateWorkoutDetail = (field: keyof Workout, value: any) => {
-    setWorkout(prev => ({ ...prev, [field]: value }));
+    setWorkout(prev => {
+      const next: any = { ...prev, [field]: value };
+      // Passlängden följer kategorins standardvärde i Globala inställningar.
+      // Vid kategoribyte uppdateras tiden OM den var ärvd — dvs. tom eller lika
+      // med gamla kategorins standard. En handskriven tid skrivs aldrig över.
+      if (field === 'category') {
+        const cats = studioConfig.customCategories || [];
+        const oldDefault = cats.find(c => c.name === prev.category)?.durationMinutes;
+        const newDefault = cats.find(c => c.name === value)?.durationMinutes;
+        const wasInherited = !prev.durationMinutes || (oldDefault !== undefined && prev.durationMinutes === oldDefault);
+        if (wasInherited && newDefault) next.durationMinutes = newDefault;
+      }
+      return next;
+    });
   };
 
   const handleAddBlock = () => {
@@ -906,12 +929,7 @@ export const WorkoutBuilderScreen: React.FC<WorkoutBuilderScreenProps> = ({ init
                                 {studioConfig.customCategories.map(cat => (
                                     <button
                                         key={cat.id}
-                                        onClick={() => {
-                                            handleUpdateWorkoutDetail('category', cat.name);
-                                            if (cat.durationMinutes && !workout.durationMinutes) {
-                                                handleUpdateWorkoutDetail('durationMinutes', cat.durationMinutes);
-                                            }
-                                        }}
+                                        onClick={() => handleUpdateWorkoutDetail('category', cat.name)}
                                         className={`px-3 py-1.5 text-sm font-semibold rounded-md transition-colors ${workout.category === cat.name ? 'bg-primary text-white' : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'}`}
                                     >
                                         {cat.name}

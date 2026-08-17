@@ -1,8 +1,11 @@
 {
-  "name": "Smart Skärm ",
-  "description": "Efter att jag fick den från Karin igen",
+  "name": "NYASTE Remix SmartStudio 17 augusti 2026",
+  "description": "Remix av Karin 12 aug ",
   "requestFramePermissions": [
     "camera"
+  ],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
   ],
   "prompt": ""
 }

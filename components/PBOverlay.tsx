@@ -7,6 +7,7 @@ import { StudioEvent, TimerStatus } from "../types";
 import { Confetti } from "./WorkoutCompleteModal";
 
 const DISPLAY_DURATION = 7000;
+const PB_QUEUE_TTL_MS = 5 * 60 * 1000; // Köade PB förfaller efter 5 minuter
 
 const playBellSound = () => {
   const ctx = getAudioContext();
@@ -73,8 +74,6 @@ export const PBOverlay: React.FC<PBOverlayProps> = React.memo(({ isGrattisOpen }
   // Detta förhindrar att senaste eventet visas igen om man laddar om sidan (refresh).
   const mountTime = useRef(Date.now());
 
-  // För att hålla koll på föregående status
-  const prevStatusRef = useRef<TimerStatus | undefined>(undefined);
   const activeWorkoutIdRef = useRef<string | null>(null);
 
   useEffect(() => {
@@ -149,25 +148,23 @@ export const PBOverlay: React.FC<PBOverlayProps> = React.memo(({ isGrattisOpen }
   useEffect(() => {
     const processQueue = () => {
       const timerStatus = selectedStudio?.remoteState?.status;
-      const isTimerFinished =
+      const isGrattis =
         timerStatus === TimerStatus.Finished || isGrattisOpen;
 
-      // Om vi precis lämnade Grattis-vyn (t.ex. coachen stängde passet) -> Rensa kön och dölj
-      if (prevStatusRef.current === TimerStatus.Finished && !isTimerFinished) {
-        if (currentEvent) {
-          setCurrentEvent(null);
-          isLocked.current = false;
-        }
-        queueRef.current = []; // Töm kön
-      }
+      // Popupen hör hemma i grattisvyn och ingen annanstans — inte i lobbyn,
+      // inte i startläget, aldrig under block eller timer. De 5 sekunderna låter
+      // grattismodalen få sitt ögonblick först.
+      //
+      // Kön kastas aldrig vid tillståndsbyten. I stället har varje händelse en
+      // bäst-före på 5 minuter: kommer en grattisvy inom den tiden visas den,
+      // annars förfaller den tyst. Medlemmen ser alltid sitt PB i sin app, i
+      // PB-listan och i flödet, så inget försvinner.
+      const isAllowedToShowPB = isGrattis && isGrattisReady;
 
-      // Uppdatera föregående status
-      prevStatusRef.current = isTimerFinished
-        ? TimerStatus.Finished
-        : timerStatus || TimerStatus.Idle;
-
-      // Skärmen visar Grattis-vyn OCH  har väntat sina 5 sekunder
-      const isAllowedToShowPB = isTimerFinished && isGrattisReady;
+      // Rensa förfallna händelser oavsett läge, så kön inte samlar gamla PB.
+      queueRef.current = queueRef.current.filter(
+        (e) => Date.now() - e.timestamp < PB_QUEUE_TTL_MS
+      );
 
       if (!isAllowedToShowPB) {
         return;

@@ -25,7 +25,11 @@ export const WeeklyGoalRing: React.FC<WeeklyGoalRingProps> = ({
     return (
         <div className="bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl rounded-[2rem] p-4 sm:p-5 shadow-sm border border-gray-100/50 dark:border-gray-800/50 flex flex-col items-center justify-center">
             <div className="relative flex items-center justify-center w-full max-w-[280px] aspect-square">
-                <svg className="transform -rotate-90 w-full h-full" viewBox="0 0 400 400">
+                <svg className="w-full h-full" viewBox="0 0 400 400">
+                    {/* Rotationen ligger i SVG:en, inte i CSS. En CSS-transform under
+                        backdrop-filter gav tidvis ett felmålat lager på iOS där ringen
+                        klipptes av rakt över nederkanten. */}
+                    <g transform="rotate(-90 200 200)">
                     <circle
                         cx="200"
                         cy="200"
@@ -47,6 +51,7 @@ export const WeeklyGoalRing: React.FC<WeeklyGoalRingProps> = ({
                         strokeLinecap="round"
                         className="text-primary transition-all duration-1000 ease-out"
                     />
+                    </g>
                 </svg>
                 <div className="absolute flex flex-col items-center justify-center text-center">
                     <span className="text-xs sm:text-sm font-black text-gray-400 uppercase tracking-widest mb-1 sm:mb-2">Veckomål</span>

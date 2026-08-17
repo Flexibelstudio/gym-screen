@@ -531,6 +531,12 @@ app.post("/webhook", express.raw({type: 'application/json'}), async (req, res) =
 
             await db.collection('organizations').doc(orgId).set(exactStructure, { merge: true });
 
+            // Steg 1 coachkoden: dubbelskrivning — samma kod skrivs även till det låsta
+            // stället (organizations/{id}/private/auth) som callablen läser ifrån.
+            await db.collection('organizations').doc(orgId)
+              .collection('private').doc('auth')
+              .set({ coachUnlockCode: exactStructure.passwords.coach }, { merge: true });
+
             const userUpdateData = {
               role: 'organizationadmin',
               organizationId: orgId
@@ -1008,6 +1014,14 @@ const onOrganizationCreated = onDocumentCreated({
 }, async (event) => {
   const newOrg = event.data.data();
   if (newOrg) {
+    // Steg 1 coachkoden: nya organisationer får koden speglad till det låsta stället
+    // direkt, så verifyCoachUnlockCode fungerar även för gym skapade efter migreringen.
+    const initialCoachCode = newOrg.passwords && newOrg.passwords.coach;
+    if (typeof initialCoachCode === 'string' && initialCoachCode.length > 0) {
+      await event.data.ref.collection('private').doc('auth')
+        .set({ coachUnlockCode: initialCoachCode }, { merge: true });
+    }
+
     await notifySystemOwners(
       'Ny organisation!',
       `Organisationen "${newOrg.name || 'Okänd'}" har precis skapats.`
@@ -1120,6 +1134,43 @@ const onOrganizationUpdated = onDocumentUpdated({
         `En ny skärm har lagts till i organisationen "${afterData.name || 'Okänd'}".`
       );
     }
+  }
+
+  // --- Kategoribyte: döp om passen automatiskt ---
+  // Pass pekar på kategorins NAMN, inte dess id. Utan detta kopplas alla pass loss
+  // när en kategori döps om i Globala inställningar (hände i prod aug 2026).
+  // Vi jämför per kategori-id: samma id + nytt namn = namnbyte, och då uppdateras
+  // alla pass i organisationen som pekar på det gamla namnet.
+  const beforeCats = (beforeData.globalConfig && beforeData.globalConfig.customCategories) || [];
+  const afterCats = (afterData.globalConfig && afterData.globalConfig.customCategories) || [];
+  const renames = [];
+  for (const beforeCat of beforeCats) {
+    if (!beforeCat || !beforeCat.id || typeof beforeCat.name !== 'string') continue;
+    const afterCat = afterCats.find(c => c && c.id === beforeCat.id);
+    if (afterCat && typeof afterCat.name === 'string' && afterCat.name !== beforeCat.name) {
+      renames.push({ from: beforeCat.name, to: afterCat.name });
+    }
+  }
+
+  for (const r of renames) {
+    const snap = await db.collection('workouts')
+      .where('organizationId', '==', event.params.orgId)
+      .where('category', '==', r.from)
+      .get();
+
+    if (snap.empty) {
+      console.log(`Kategoribyte "${r.from}" -> "${r.to}" i org ${event.params.orgId}: inga pass att uppdatera.`);
+      continue;
+    }
+
+    // Firestore tillåter max 500 skrivningar per batch — dela upp.
+    const docs = snap.docs;
+    for (let i = 0; i < docs.length; i += 400) {
+      const batch = db.batch();
+      docs.slice(i, i + 400).forEach(d => batch.update(d.ref, { category: r.to }));
+      await batch.commit();
+    }
+    console.log(`Kategoribyte "${r.from}" -> "${r.to}" i org ${event.params.orgId}: ${docs.length} pass uppdaterade.`);
   }
 });
 

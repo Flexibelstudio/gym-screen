@@ -32,6 +32,12 @@ const {
   backfillWorkoutFlags
 } = require("./src/maintenance");
 
+const {
+  verifyCoachUnlockCode,
+  setCoachUnlockCode,
+  migrateCoachUnlockCodes
+} = require("./src/coachAuth");
+
 module.exports = {
   flexUpdateUserRole,
   flexApproveCoach,
@@ -57,5 +63,8 @@ module.exports = {
   purchasePass,
   createKioskOrder,
   mergeDuplicateExerciseNames,
-  backfillWorkoutFlags
+  backfillWorkoutFlags,
+  verifyCoachUnlockCode,
+  setCoachUnlockCode,
+  migrateCoachUnlockCodes
 };

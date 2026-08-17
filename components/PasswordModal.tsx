@@ -1,30 +1,71 @@
 import React, { useState } from 'react';
+import { httpsCallable } from 'firebase/functions';
+import { functions } from '../services/firebaseService';
 import { motion } from 'framer-motion';
 import { CloseIcon, LockClosedIcon, EyeIcon, EyeOffIcon } from './icons';
 
 interface PasswordModalProps {
   onClose: () => void;
   onSuccess: () => void;
-  coachPassword?: string;
+  organizationId?: string;
   onLogout?: () => void;
+  /** Rubrik och brödtext kan skrivas över när samma grind används i ett annat sammanhang. */
+  title?: string;
+  description?: string;
 }
 
-export const PasswordModal: React.FC<PasswordModalProps> = ({ onClose, onSuccess, coachPassword, onLogout }) => {
+export const PasswordModal: React.FC<PasswordModalProps> = ({ onClose, onSuccess, organizationId, onLogout, title = 'Coach-åtkomst', description = 'Ange gymmets lösenord för att låsa upp coach-verktygen på den här skärmen.' }) => {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [failedAttempts, setFailedAttempts] = useState(0);
+  const [isChecking, setIsChecking] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  // Koden verifieras på servern via verifyCoachUnlockCode. Klienten ser aldrig den
+  // riktiga koden. Konfigurationsfel (ingen kod satt) och behörighetsfel får egna
+  // texter — de ska inte se ut som att användaren skrivit fel.
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isChecking) return;
 
-    if (password === coachPassword) {
-      setError('');
-      onSuccess();
-    } else {
-      setError('Fel lösenord. Försök igen.');
-      setFailedAttempts(prev => prev + 1);
-      setPassword('');
+    if (!organizationId) {
+      setError('Organisationen kunde inte avgöras. Ladda om sidan och försök igen.');
+      return;
+    }
+    if (!password) return;
+
+    setIsChecking(true);
+    setError('');
+
+    try {
+      const verify = httpsCallable<{ organizationId: string; code: string }, { ok: boolean }>(
+        functions, 'verifyCoachUnlockCode'
+      );
+      const res = await verify({ organizationId, code: password });
+
+      if (res.data?.ok) {
+        onSuccess();
+      } else {
+        setError('Fel kod. Försök igen.');
+        setFailedAttempts(prev => prev + 1);
+        setPassword('');
+      }
+    } catch (err: any) {
+      const code = String(err?.code || '');
+      if (code.includes('failed-precondition')) {
+        setError('Ingen coachkod är satt för det här gymmet. Kontakta er administratör.');
+      } else if (code.includes('resource-exhausted')) {
+        setError(err?.message || 'För många försök. Vänta en stund och försök igen.');
+      } else if (code.includes('permission-denied')) {
+        setError('Du har inte behörighet till det här gymmet.');
+      } else if (code.includes('unauthenticated')) {
+        setError('Du måste vara inloggad för att låsa upp.');
+      } else {
+        console.error('verifyCoachUnlockCode misslyckades:', err);
+        setError(err?.message || 'Kunde inte verifiera koden. Försök igen.');
+      }
+    } finally {
+      setIsChecking(false);
     }
   };
   
@@ -48,9 +89,9 @@ export const PasswordModal: React.FC<PasswordModalProps> = ({ onClose, onSuccess
             <LockClosedIcon className="w-8 h-8" />
           </div>
           
-          <h2 id="password-modal-title" className="text-3xl font-black mb-2 uppercase tracking-tight">Coach-åtkomst</h2>
+          <h2 id="password-modal-title" className="text-3xl font-black mb-2 uppercase tracking-tight">{title}</h2>
           <p className="text-gray-500 dark:text-gray-400 mb-8 font-medium">
-            Ange gymmets lösenord för att låsa upp coach-verktygen på den här skärmen.
+            {description}
           </p>
 
           <div className="w-full relative">
@@ -88,9 +129,10 @@ export const PasswordModal: React.FC<PasswordModalProps> = ({ onClose, onSuccess
           <div className="mt-10 flex flex-col sm:flex-row gap-3 w-full">
             <button 
               type="submit" 
-              className="flex-[2] bg-primary hover:brightness-110 text-white font-black py-4 rounded-2xl shadow-xl shadow-primary/20 transition-all transform active:scale-95 text-lg uppercase tracking-widest"
+              disabled={isChecking}
+              className="flex-[2] bg-primary hover:brightness-110 text-white font-black py-4 rounded-2xl shadow-xl shadow-primary/20 transition-all transform active:scale-95 text-lg uppercase tracking-widest disabled:opacity-60 disabled:cursor-not-allowed"
             >
-              Lås upp
+              {isChecking ? 'Kontrollerar…' : 'Lås upp'}
             </button>
             <div className="flex flex-1 gap-3">
               <button 

@@ -11,6 +11,7 @@ import { PartnerManagementTab } from './admin/PartnerManagementTab';
 import { LeadsManagementTab } from './admin/LeadsManagementTab';
 import { ExerciseMergeAnalysisCard } from './admin/ExerciseMergeAnalysisCard';
 import { WorkoutFlagsBackfillCard } from './admin/WorkoutFlagsBackfillCard';
+import { CoachCodeMigrationCard } from './admin/CoachCodeMigrationCard';
 import { motion, AnimatePresence } from 'framer-motion';
 
 interface SystemOwnerScreenProps {
@@ -1302,6 +1303,7 @@ export const SystemOwnerScreen: React.FC<SystemOwnerScreenProps> = ({ allOrganiz
 
                             <ExerciseMergeAnalysisCard organizations={localOrgs} />
                             <WorkoutFlagsBackfillCard organizations={localOrgs} />
+                            <CoachCodeMigrationCard />
                         </>
                     )}
 

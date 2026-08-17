@@ -4,6 +4,21 @@ import { LastPerformanceRecord } from './types';
 export const ACTIVE_LOG_STORAGE_KEY = 'smart-skarm-active-log';
 export const DEFAULT_REST_SECONDS = 90;
 
+/**
+ * Svenska tangentbord ger komma som decimaltecken. Med type="number" kastar
+ * webbläsaren hela värdet vid komma, och parseFloat("114,5") ger 114 — båda tyst.
+ * Fälten är därför type="text" med inputMode="decimal", och det som skrivs
+ * normaliseras här: komma blir punkt, allt utom siffror och punkt faller bort, och
+ * bara ett decimaltecken behålls. Downstream ser alltid punktform, så alla
+ * parseFloat-anrop fungerar oförändrat.
+ */
+export const normalizeDecimalInput = (raw: string): string => {
+    const cleaned = raw.replace(',', '.').replace(/[^0-9.]/g, '');
+    const parts = cleaned.split('.');
+    if (parts.length <= 1) return cleaned;
+    return `${parts[0]}.${parts.slice(1).join('')}`;
+};
+
 export const ChevronDownIcon = ({ className = "w-4 h-4" }) => (
     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="2.5" stroke="currentColor" className={className}>
         <path strokeLinecap="round" strokeLinejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />

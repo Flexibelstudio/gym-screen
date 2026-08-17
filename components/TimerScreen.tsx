@@ -1176,29 +1176,6 @@ export const TimerScreen: React.FC<TimerScreenProps> = React.memo(({
     return () => { document.removeEventListener('visibilitychange', handleVisibilityChange); releaseWakeLock(); };
   }, [status, requestWakeLock, releaseWakeLock]);
 
-  const stopAllAudio = useCallback(() => { if ('speechSynthesis' in window) window.speechSynthesis.cancel(); }, []);
-  const speak = useCallback((text: string) => {
-    if (!('speechSynthesis' in window)) return;
-    stopAllAudio();
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = 'sv-SE'; 
-    utterance.rate = 1.1;
-    const voices = window.speechSynthesis.getVoices();
-    const swedishVoice = voices.find(v => v.lang === 'sv-SE' || v.lang === 'sv_SE');
-    if (swedishVoice) utterance.voice = swedishVoice;
-    window.speechSynthesis.speak(utterance);
-  }, [stopAllAudio]);
-
-  useEffect(() => {
-    if (!isHyroxRace || !groupForCountdownDisplay || (status !== TimerStatus.Running && status !== TimerStatus.Preparing)) return;
-    const timeLeft = timeForCountdownDisplay;
-    if (timeLeft === 60) speak(`${groupForCountdownDisplay.name} startar om en minut`);
-    else if (timeLeft === 30) speak("30 sekunder till start");
-    else if (timeLeft === 10) speak("10 sekunder");
-    else if (timeLeft <= 5 && timeLeft > 0) speak(String(timeLeft)); 
-    else if (timeLeft === 0) speak(`Kör ${groupForCountdownDisplay.name}!`); 
-  }, [timeForCountdownDisplay, groupForCountdownDisplay, speak, isHyroxRace, status]);
-
   const hasCalledFinishRef = useRef(false);
   useEffect(() => {
     if (status === TimerStatus.Finished && !isHyroxRace && block.settings.mode !== TimerMode.Stopwatch) {
@@ -1211,7 +1188,6 @@ export const TimerScreen: React.FC<TimerScreenProps> = React.memo(({
 
   const handleConfirmReset = () => {
     setShowResetConfirmation(false);
-    stopAllAudio();
     setFinishedParticipants({});
     setIsClockFrozen(false);
     setFrozenTime(0);
@@ -1277,8 +1253,6 @@ export const TimerScreen: React.FC<TimerScreenProps> = React.memo(({
           });
       }
   }, [selectedOrganization, selectedStudio, activeWorkout, block.id, start, pause, resume, isTransitioning, isLobbyMode, handleConfirmReset, startGroups, totalTimeElapsed, publishRaceState]);
-
-  useEffect(() => { return () => stopAllAudio(); }, [stopAllAudio]);
 
   useEffect(() => {
     // If the race is already running (locally or remotely), do not overwrite with unstarted groups!
@@ -1361,30 +1335,6 @@ export const TimerScreen: React.FC<TimerScreenProps> = React.memo(({
         return next;
       });
       
-      // Try to find the actual name for the speech synthesis
-      let participantName = participantId;
-      if (group.participantList && group.participantList.length > 0) {
-          const p = group.participantList.find(p => p.id === participantId);
-          if (p) {
-              if (p.teamName) {
-                  participantName = p.teamName;
-              } else if (p.partnerName) {
-                  participantName = `${p.name} och ${p.partnerName}`;
-              } else {
-                  participantName = p.name;
-              }
-          }
-      } else {
-          // Extract name from legacy participants based on index
-          const match = participantId.match(/legacy-.*-(\d+)/);
-          if (match) {
-              const index = parseInt(match[1], 10);
-              const names = group.participants.split('\n').map(p => p.trim()).filter(Boolean);
-              if (names[index]) participantName = names[index];
-          }
-      }
-      
-      speak(`Målgång ${participantName}!`);
     }
     setSavingParticipant(null);
   };
@@ -1573,8 +1523,6 @@ export const TimerScreen: React.FC<TimerScreenProps> = React.memo(({
                   winnerName: serializedWinnersObj
               });
 
-              if (winnerDisplayName) speak(`Och vinnaren är ${winnerDisplayName}! Bra jobbat alla!`);
-
               // Navigera direkt till den detaljerade resultatsidan och hoppa över popup-mellansteget
               onFinish({ isNatural: true, raceId: savedRace.id });
           } else {
@@ -1586,7 +1534,7 @@ export const TimerScreen: React.FC<TimerScreenProps> = React.memo(({
       } finally {
           setIsSavingRace(false);
       }
-  }, [isHyroxRace, activeWorkout, finishedParticipants, block.exercises, startGroups, organization, speak, startedParticipants]);
+  }, [isHyroxRace, activeWorkout, finishedParticipants, block.exercises, startGroups, organization, startedParticipants]);
 
   const timerStyle = getTimerStyle(status, block.settings.mode, isHyroxRace, isTransitioning, currentSegment);
   
@@ -1647,6 +1595,32 @@ export const TimerScreen: React.FC<TimerScreenProps> = React.memo(({
 
   const minutesStr = Math.floor(timeToDisplay / 60).toString().padStart(2, '0');
   const secondsStr = (timeToDisplay % 60).toString().padStart(2, '0');
+
+  // Upptrappning mot slutet av BLOCKET, inte mot slutet av en fas. Därför fungerar
+  // den likadant i AMRAP, EMOM, intervall och Tabata. Räknat på fasen skulle ett
+  // Tabata trappa upp sexton gånger.
+  // totalTimeElapsed tickar bara under Running och Resting, aldrig under Preparing,
+  // så differensen är blockets faktiska återstående arbetstid.
+  const blockSecondsLeft = useMemo(() => {
+      if (!totalBlockDuration) return -1;
+      return totalBlockDuration - totalTimeElapsed;
+  }, [totalBlockDuration, totalTimeElapsed]);
+
+  const finisherStage = useMemo<'none' | 'minute' | 'final'>(() => {
+      if (isHyroxRace || isTransitioning) return 'none';
+      if (block.settings.mode === TimerMode.Stopwatch) return 'none';
+      if (status !== TimerStatus.Running && status !== TimerStatus.Resting) return 'none';
+      if (blockSecondsLeft <= 0) return 'none';
+      if (blockSecondsLeft <= 10) return 'final';
+      if (blockSecondsLeft <= 60) return 'minute';
+      return 'none';
+  }, [isHyroxRace, isTransitioning, block.settings.mode, status, blockSecondsLeft]);
+
+  // Pip vid tio, sedan fem till ett. Tutan på noll spelas redan av useWorkoutTimer.
+  useEffect(() => {
+      if (finisherStage !== 'final') return;
+      if (blockSecondsLeft === 10 || blockSecondsLeft <= 5) playShortBeep();
+  }, [blockSecondsLeft, finisherStage]);
 
   const currentIntervalInLap = (completedWorkIntervals % effectiveIntervalsPerLap) + 1;
   
@@ -2687,7 +2661,7 @@ export const TimerScreen: React.FC<TimerScreenProps> = React.memo(({
             {/* SIFFROR (Tiden) - Mitten */}
             <div className={`z-20 relative flex flex-col items-center w-full text-white transition-opacity duration-300 ${isLobbyMode ? 'opacity-30 blur-sm' : 'opacity-100'}`}>
                 <div className="flex items-center justify-center w-full gap-2">
-                     <span className="font-mono font-black leading-none tracking-tighter tabular-nums select-none text-[7rem] sm:text-[9rem] md:text-[11rem]">
+                     <span className={`font-mono font-black leading-none tracking-tighter tabular-nums select-none transition-all duration-300 ${finisherStage === 'final' ? 'text-[8rem] sm:text-[11rem] md:text-[14rem] animate-pulse motion-reduce:animate-none' : finisherStage === 'minute' ? 'text-[7.5rem] sm:text-[10rem] md:text-[12.5rem]' : 'text-[7rem] sm:text-[9rem] md:text-[11rem]'}`}>
                         {minutesStr}:{secondsStr}
                      </span>
                 </div>

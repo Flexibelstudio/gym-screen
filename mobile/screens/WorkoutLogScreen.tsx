@@ -16,7 +16,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Confetti } from '../../components/WorkoutCompleteModal';
 import { useStudio } from '../../context/StudioContext';
 import { BlockGroup, LocalSetDetail, LastPerformanceRecord, LocalExerciseResult, LogData, WorkoutData } from './workout-log/types';
-import { ACTIVE_LOG_STORAGE_KEY, ChevronDownIcon, extractPerformanceFromLogEx, TimeInput, getRandomDiplomaTitle, getFunComparison, isExerciseMatch, GROUP_COLORS, cleanForFirestore } from './workout-log/utils';
+import { ACTIVE_LOG_STORAGE_KEY, ChevronDownIcon, extractPerformanceFromLogEx, TimeInput, getRandomDiplomaTitle, getFunComparison, isExerciseMatch, GROUP_COLORS, cleanForFirestore, normalizeDecimalInput } from './workout-log/utils';
 import { CustomActivityForm } from './workout-log/CustomActivityForm';
 import { PostWorkoutForm } from './workout-log/PostWorkoutForm';
 import { OneRMCalculatorModal } from './workout-log/OneRMCalculatorModal';
@@ -125,6 +125,17 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
       return map;
   }, [workout]);
 
+  const blockTagsMap = useMemo(() => {
+      if (!workout || !workout.blocks) return {};
+      const map: Record<string, string> = {};
+      workout.blocks.forEach(block => {
+          if (block.id) {
+              map[block.id] = (block.tag || '').trim();
+          }
+      });
+      return map;
+  }, [workout]);
+
   const preGameBlocks = useMemo(() => {
       if (!workout?.blocks) return [];
       return workout.blocks
@@ -160,26 +171,15 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
   const [attemptedSubmit, setAttemptedSubmit] = useState(false);
 
   // --- Rest Timer State & Controls ---
-  const restTimerStorageKey = `rest_timer_enabled_${userId || 'user'}`;
-  const [restTimerEnabled, setRestTimerEnabled] = useState<boolean>(() => {
-    try {
-      const saved = localStorage.getItem(restTimerStorageKey);
-      return saved !== null ? saved === 'true' : true;
-    } catch {
-      return true;
-    }
-  });
+  // Avstängningen gäller det pågående passet, inte för alltid. Skälen att stänga av
+  // är nästan alltid situationsbundna — bråttom, samsas om en stång, fullt på gymmet.
+  // Läget följer med i utkastet nedan, så det överlever omladdning av SAMMA pass men
+  // återgår till på nästa gång. Vilka block timern faktiskt startar i avgörs av
+  // blockets kategori i ExerciseLogCard, inte här.
+  const [restTimerEnabled, setRestTimerEnabled] = useState<boolean>(true);
 
   const toggleRestTimer = () => {
-    setRestTimerEnabled(prev => {
-      const next = !prev;
-      try {
-        localStorage.setItem(restTimerStorageKey, String(next));
-      } catch (e) {
-        console.error('Failed to save rest timer setting:', e);
-      }
-      return next;
-    });
+    setRestTimerEnabled(prev => !prev);
   };
 
   const [restTimer, setRestTimer] = useState<{
@@ -191,8 +191,28 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
   const [remainingRestSeconds, setRemainingRestSeconds] = useState<number>(0);
   const restWakeLockSentinelRef = useRef<any>(null);
 
-  const startRestTimer = useCallback((seconds: number) => {
+  const exerciseResultsRef = useRef<LocalExerciseResult[]>([]);
+  useEffect(() => { exerciseResultsRef.current = exerciseResults; }, [exerciseResults]);
+
+  const startRestTimer = useCallback((seconds: number, groupId: string | null = null, setIndex: number = -1, exerciseId: string = '') => {
     if (!restTimerEnabled || seconds <= 0) return;
+
+    // I ett superset ska timern starta först när sista övningen i gruppen loggats
+    // för det här varvet. Den anropande övningens eget set räknas som klart: dess
+    // setState har inte hunnit slå igenom när den här callbacken körs, så vi
+    // utesluter den ur kontrollen i stället för att läsa ett inaktuellt värde.
+    if (groupId && setIndex >= 0) {
+      const others = exerciseResultsRef.current.filter(
+        e => e.groupId === groupId && e.exerciseId !== exerciseId && !e.skipped
+      );
+      const allDone = others.every(e => {
+        const s = e.setDetails[setIndex];
+        if (!s) return true;
+        return s.completed;
+      });
+      if (!allDone) return;
+    }
+
     const endTime = Date.now() + seconds * 1000;
     setRestTimer({
       endTime,
@@ -386,15 +406,50 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
   const [editExerciseName, setEditExerciseName] = useState("");
   const [exerciseToDelete, setExerciseToDelete] = useState<BankExercise | null>(null);
   
-  // Bara set med värden kan vara "kvar att bocka av". Ett tomt obockat set betyder
-  // att medlemmen hoppade över övningen och ska inte hindra sparning.
+  // Bara set med värden kan vara "kvar att bocka av". Överhoppade övningar räknas
+  // aldrig, oavsett vad som står i deras fält.
   const uncheckedSetsCount = useMemo(() => {
       if (isManualMode) return 0;
-      return exerciseResults.reduce((acc, ex) => acc + ex.setDetails.filter(s => !s.completed && !isSetEmpty(s)).length, 0);
+      return exerciseResults.filter(ex => !ex.skipped).reduce((acc, ex) => acc + ex.setDetails.filter(s => !s.completed && !isSetEmpty(s)).length, 0);
   }, [isManualMode, exerciseResults]);
 
   const [expandedBlockId, setExpandedBlockId] = useState<string | null>(null);
-  const [expandedSubGroups, setExpandedSubGroups] = useState<Record<string, boolean>>({});
+  const [expandedSubGroupId, setExpandedSubGroupId] = useState<string | null>(null);
+  const hasAutoOpenedSubGroupRef = useRef(false);
+
+  // Öppnar första ofärdiga supersetet när passet laddas — sedan aldrig mer.
+  // Därefter styr medlemmen själv vilket som är öppet. Att fälla ihop något som
+  // användaren tittar på, mitt i ett pass, är påträngande även när gissningen är
+  // rätt. Att bara ETT är öppet åt gången sköts av att state är ett enda id.
+  useEffect(() => {
+      if (hasAutoOpenedSubGroupRef.current) return;
+
+      const groups = new Map<string, typeof exerciseResults>();
+      exerciseResults.forEach(r => {
+          if (!r.groupId) return;
+          const arr = groups.get(r.groupId) || [];
+          arr.push(r);
+          groups.set(r.groupId, arr);
+      });
+      if (groups.size === 0) return;
+
+      // En grupp räknas som klar när VARJE övning har minst ett avbockat set och
+      // inget ifyllt set lämnats obockat. Tomma set får finnas — man kan hoppa över
+      // ett avslutande set. Men enbart tomma set betyder att övningen inte är gjord,
+      // annars vore en orörd grupp "klar" direkt och skulle aldrig öppnas.
+      const isGroupDone = (list: typeof exerciseResults) => {
+          const active = list.filter(e => !e.skipped);
+          if (active.length === 0) return true;
+          return active.every(e =>
+              e.setDetails.some(s => s.completed) &&
+              e.setDetails.every(s => s.completed || isSetEmpty(s))
+          );
+      };
+
+      const order = Array.from(groups.keys());
+      hasAutoOpenedSubGroupRef.current = true;
+      setExpandedSubGroupId(order.find(id => !isGroupDone(groups.get(id)!)) || null);
+  }, [exerciseResults]);
   const [logStep, setLogStep] = useState<'exercises' | 'summary'>('exercises');
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
   const hasAutoExpandedRef = useRef(false);
@@ -435,6 +490,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
       let totalSets = 0;
       let completedSets = 0;
       group.exercises.forEach(ex => {
+          if (ex.result.skipped) return;
           totalSets += ex.result.setDetails.length;
           completedSets += ex.result.setDetails.filter(s => s.completed).length;
       });
@@ -486,11 +542,11 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
               errors.push("Programnamn saknas. Du måste namnge ditt program.");
           }
       } else {
-          const setsToSave = exerciseResults.reduce((acc, ex) => acc + ex.setDetails.filter(s => s.completed || !isSetEmpty(s)).length, 0);
+          const setsToSave = exerciseResults.filter(ex => !ex.skipped).reduce((acc, ex) => acc + ex.setDetails.filter(s => s.completed || !isSetEmpty(s)).length, 0);
           if (setsToSave === 0) {
               errors.push("Inga övningar är loggade än. Fyll i minst en övning eller bocka av den du gjort.");
           } else if (uncheckedSetsCount > 0) {
-              errors.push(`Du har ${uncheckedSetsCount} ifyllda set som inte är avbockade. Bocka av dem, eller rensa värdena om du hoppade över övningen.`);
+              errors.push(`Du har ${uncheckedSetsCount} ifyllda set som inte är avbockade. Bocka av dem, eller markera övningen som överhoppad.`);
           }
           if (benchmarkDefinition) {
               if (benchmarkDefinition.type === 'time' && !sessionStats.time) {
@@ -630,6 +686,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
                     loadedLogData = saved.logData;
                     loadedSessionStats = saved.sessionStats;
                     loadedCustomActivity = saved.customActivity;
+                    if (typeof saved.restTimerEnabled === 'boolean') setRestTimerEnabled(saved.restTimerEnabled);
                     setViewMode('logging');
                     skipInsights = true;
                 }
@@ -669,7 +726,18 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
                     });
                 });
                 
-                const defaultDuration = foundWorkout.durationMinutes ? String(foundWorkout.durationMinutes) : ((foundWorkout as any).duration ? String((foundWorkout as any).duration) : '');
+                // Passlängd: passets egen först, annars kategorins standardvärde ur
+                // Globala inställningar. Fallbacket gör att även äldre pass utan egen
+                // längd slipper låta medlemmen skriva in tiden.
+                const categoryDuration = ((configToUse?.customCategories || []) as any[])
+                    .find(c => c && c.name === foundWorkout.category)?.durationMinutes;
+                const defaultDuration = foundWorkout.durationMinutes
+                    ? String(foundWorkout.durationMinutes)
+                    : (foundWorkout as any).duration
+                        ? String((foundWorkout as any).duration)
+                        : categoryDuration
+                            ? String(categoryDuration)
+                            : '';
                 
                 setExerciseResults(exercises);
                 if (loadedLogData) setLogData(loadedLogData);
@@ -841,12 +909,13 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
         exerciseResults,
         logData,
         sessionStats,
+        restTimerEnabled,
         customActivity,
         timestamp: Date.now()
     };
 
     localStorage.setItem(ACTIVE_LOG_STORAGE_KEY, JSON.stringify(sessionData));
-  }, [exerciseResults, logData, sessionStats, customActivity, loading, isSubmitting, userId, wId, finalOrgId, isManualMode, workout]);
+  }, [exerciseResults, logData, sessionStats, restTimerEnabled, customActivity, loading, isSubmitting, userId, wId, finalOrgId, isManualMode, workout]);
 
   const handleCancel = (isSuccess = false, diploma: WorkoutDiploma | null = null) => {
     setSessionPctMap({});
@@ -1027,7 +1096,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
           
           let totalVolume = 0;
           
-          const exerciseResultsToSave = exerciseResults.map(r => {
+          const exerciseResultsToSave = exerciseResults.filter(r => !r.skipped).map(r => {
               const validWeights = r.setDetails.map(s => parseFloat(s.weight)).filter(n => !isNaN(n));
               const maxWeight = validWeights.length > 0 ? Math.max(...validWeights) : null;
               
@@ -1418,7 +1487,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
                 title="Slå på/av vilotimer mellan set"
             >
                 <span className={`w-2 h-2 rounded-full ${restTimerEnabled ? 'bg-emerald-500' : 'bg-gray-400'}`} />
-                <span>Vilotimer</span>
+                <span>{restTimerEnabled ? 'Vilotimer' : 'Vilotimer av'}</span>
             </button>
             <button 
                 onClick={() => {
@@ -1571,6 +1640,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
                                                 key={result.exerciseId}
                                                 name={result.exerciseName}
                                                 result={result}
+                                                blockTag={blockTagsMap[result.blockId || ''] || ''}
                                                 canEditFields={canEditTrackingFields || result.blockId === 'manual-block'}
                                                 userId={currentUser?.uid}
                                                 sessionMode={sessionMode}
@@ -1765,7 +1835,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
                                                             return subGroups.map((subGroup) => {
                                                                 if (subGroup.groupId) {
                                                                     // Det här är ett superset (undergrupp)
-                                                                    const isSubExpanded = expandedSubGroups[subGroup.groupId] === true; // Standard-ihopfälld (false)
+                                                                    const isSubExpanded = expandedSubGroupId === subGroup.groupId;
                                                                     const subGroupColorObj = getGroupColorStyles(subGroup.groupColor);
                                                                     
                                                                     const borderLeftClass = subGroupColorObj ? `border-l-4 ${subGroupColorObj.border}` : '';
@@ -1777,6 +1847,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
                                                                     let subTotalSets = 0;
                                                                     let subCompletedSets = 0;
                                                                     subGroup.exercises.forEach(ex => {
+                                                                        if (ex.result.skipped) return;
                                                                         subTotalSets += ex.result.setDetails.length;
                                                                         subCompletedSets += ex.result.setDetails.filter(s => s.completed).length;
                                                                     });
@@ -1789,10 +1860,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
                                                                                 onClick={(e) => {
                                                                                     const target = e.currentTarget;
                                                                                     const isNowExpanded = !isSubExpanded;
-                                                                                    setExpandedSubGroups(prev => ({
-                                                                                        ...prev,
-                                                                                        [subGroup.groupId!]: isNowExpanded
-                                                                                    }));
+                                                                                    setExpandedSubGroupId(isNowExpanded ? subGroup.groupId! : null);
                                                                                     if (isNowExpanded) {
                                                                                         setTimeout(() => {
                                                                                             target?.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -1839,6 +1907,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
                                                                                                     key={result.exerciseId}
                                                                                                     name={result.exerciseName}
                                                                                                     result={result}
+                                                                                                    blockTag={blockTagsMap[result.blockId || ''] || ''}
                                                                                                     onUpdate={(updates) => handleUpdateResult(originalIndex, updates)}
                                                                                                     lastPerformance={history[result.exerciseName]} 
                                                                                                     personalBest={personalBests[result.exerciseName.toLowerCase().trim()]}
@@ -1892,6 +1961,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
                                                                             key={result.exerciseId}
                                                                             name={result.exerciseName}
                                                                             result={result}
+                                                                            blockTag={blockTagsMap[result.blockId || ''] || ''}
                                                                             onUpdate={(updates) => handleUpdateResult(originalIndex, updates)}
                                                                             lastPerformance={history[result.exerciseName]} 
                                                                             personalBest={personalBests[result.exerciseName.toLowerCase().trim()]}
@@ -2092,10 +2162,10 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
                                               <label className="block text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-2">km</label>
                                               <div className="bg-gray-50 dark:bg-gray-800 rounded-xl p-2 border border-gray-100 dark:border-gray-700">
                                                   <input 
-                                                      type="number"
+                                                      type="text"
                                                       inputMode="decimal"
                                                       value={sessionStats.distance}
-                                                      onChange={(e) => setSessionStats(prev => ({ ...prev, distance: e.target.value }))}
+                                                      onChange={(e) => setSessionStats(prev => ({ ...prev, distance: normalizeDecimalInput(e.target.value) }))}
                                                       placeholder="T.ex. 3.5"
                                                       className="w-full bg-transparent text-gray-900 dark:text-white font-black text-lg focus:outline-none text-center"
                                                   />
