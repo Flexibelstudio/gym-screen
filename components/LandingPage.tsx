@@ -259,7 +259,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginClick, onRegist
                     <div className="text-center mb-16">
                         <h2 className="text-3xl md:text-5xl font-bold mb-4">Allt coachen behöver på skärmen.</h2>
                         <p className="text-gray-400 max-w-2xl mx-auto">
-                            Byggt för boxägare, personliga tränare och gymkedjor. Ett pass tar minuter att bygga och syns direkt på skärmen i lokalen.
+                            Byggt för boxägare, personliga tränare och gymkedjor. Ett pass tar minuter att bygga och syns direkt på skärmen i lokalen — ni sparar timmar varje vecka, höjer kvaliteten på passen och lyfter hela verksamheten till nästa nivå.
                         </p>
                     </div>
 
@@ -303,11 +303,11 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginClick, onRegist
                 <div className="max-w-7xl mx-auto px-6">
                     <div className="text-center mb-16">
                         <span className="inline-block py-1 px-3 rounded-full bg-primary/10 border border-primary/20 text-primary text-xs font-bold uppercase tracking-widest mb-6">
-                            Ingår i Medlemsappen
+                            Medlemsappen — ett smart tillval
                         </span>
                         <h2 className="text-3xl md:text-5xl font-bold mb-4">Skärmen visar passet. Appen får dem att komma tillbaka.</h2>
                         <p className="text-gray-400 max-w-3xl mx-auto text-lg leading-relaxed">
-                            Medlemmen skannar en QR-kod på skärmen och loggar sitt pass direkt. Systemet räknar ut personbästa, sätter målvikter till nästa gång och visar utvecklingen svart på vitt. Det är skillnaden mellan att träna och att veta att man blir starkare.
+                            Medlemmen skannar en QR-kod på skärmen och loggar sitt pass direkt. Systemet räknar ut personbästa, sätter målvikter till nästa gång och visar utvecklingen svart på vitt. Det är skillnaden mellan att träna och att veta att man blir starkare. Skärmen fungerar utmärkt på egen hand — appen är ett tillval för er som vill ge medlemmarna mer.
                         </p>
                     </div>
 
@@ -351,14 +351,14 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginClick, onRegist
                         className="bg-gradient-to-b from-gray-900 to-gray-900/40 border border-primary/20 rounded-3xl p-10 md:p-14 text-center relative overflow-hidden"
                     >
                         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[500px] h-[250px] bg-primary/10 blur-[100px] rounded-full pointer-events-none"></div>
-                        <h2 className="text-3xl md:text-4xl font-bold mb-2 relative z-10">Ett pris. Allt ingår.</h2>
+                        <h2 className="text-3xl md:text-4xl font-bold mb-2 relative z-10">Ett pris per skärm. Inga överraskningar.</h2>
                         <p className="text-5xl md:text-6xl font-black text-white my-6 relative z-10">
                             Från 995 kr<span className="text-xl font-bold text-gray-400">/mån per skärm</span>
                         </p>
                         <ul className="text-left max-w-md mx-auto space-y-3 mb-10 relative z-10">
                             {[
                                 'Skärmappen: timer, whiteboard och AI-passbyggare',
-                                'Medlemsappen: loggning, personbästa, milstolpar och diplom',
+                                'Medlemsappen som tillval: loggning, personbästa, milstolpar och diplom',
                                 'Info-karusellen: skärmen jobbar även mellan passen',
                                 'Ingen installation — allt körs i webbläsaren',
                             ].map(item => (
