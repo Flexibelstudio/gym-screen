@@ -707,7 +707,17 @@ export const WorkoutBuilderScreen: React.FC<WorkoutBuilderScreenProps> = ({ init
   };
   
   const handleUpdateWorkoutDetail = (field: keyof Workout, value: any) => {
-    setWorkout(prev => ({ ...prev, [field]: value }));
+    setWorkout(prev => {
+      const next: any = { ...prev, [field]: value };
+      // Passlängden ärvs från kategorins standardvärde i Globala inställningar, men
+      // bara när passet inte redan har en egen längd. Byter coachen kategori skrivs
+      // ett angivet värde aldrig över.
+      if (field === 'category' && !prev.durationMinutes) {
+        const inherited = studioConfig.customCategories?.find(c => c.name === value)?.durationMinutes;
+        if (inherited) next.durationMinutes = inherited;
+      }
+      return next;
+    });
   };
 
   const handleAddBlock = () => {

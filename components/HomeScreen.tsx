@@ -404,7 +404,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = React.memo(({
                     <PasswordModal
                         title="Låst kategori"
                         description={`Ange coach-lösenordet för att låsa upp "${pendingCategory}".`}
-                        coachPassword={selectedOrganization?.passwords.coach}
+                        organizationId={selectedOrganization?.id}
                         onClose={() => {
                             setShowPasswordModal(false);
                             setPendingCategory(null);

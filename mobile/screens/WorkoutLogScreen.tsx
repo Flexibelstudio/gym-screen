@@ -726,7 +726,18 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
                     });
                 });
                 
-                const defaultDuration = foundWorkout.durationMinutes ? String(foundWorkout.durationMinutes) : ((foundWorkout as any).duration ? String((foundWorkout as any).duration) : '');
+                // Passlängd: passets egen först, annars kategorins standardvärde ur
+                // Globala inställningar. Fallbacket gör att även äldre pass utan egen
+                // längd slipper låta medlemmen skriva in tiden.
+                const categoryDuration = ((configToUse?.customCategories || []) as any[])
+                    .find(c => c && c.name === foundWorkout.category)?.durationMinutes;
+                const defaultDuration = foundWorkout.durationMinutes
+                    ? String(foundWorkout.durationMinutes)
+                    : (foundWorkout as any).duration
+                        ? String((foundWorkout as any).duration)
+                        : categoryDuration
+                            ? String(categoryDuration)
+                            : '';
                 
                 setExerciseResults(exercises);
                 if (loadedLogData) setLogData(loadedLogData);

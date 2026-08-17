@@ -73,8 +73,6 @@ export const PBOverlay: React.FC<PBOverlayProps> = React.memo(({ isGrattisOpen }
   // Detta förhindrar att senaste eventet visas igen om man laddar om sidan (refresh).
   const mountTime = useRef(Date.now());
 
-  // För att hålla koll på föregående status
-  const prevStatusRef = useRef<TimerStatus | undefined>(undefined);
   const activeWorkoutIdRef = useRef<string | null>(null);
 
   useEffect(() => {
@@ -149,25 +147,25 @@ export const PBOverlay: React.FC<PBOverlayProps> = React.memo(({ isGrattisOpen }
   useEffect(() => {
     const processQueue = () => {
       const timerStatus = selectedStudio?.remoteState?.status;
-      const isTimerFinished =
+      const isGrattis =
         timerStatus === TimerStatus.Finished || isGrattisOpen;
 
-      // Om vi precis lämnade Grattis-vyn (t.ex. coachen stängde passet) -> Rensa kön och dölj
-      if (prevStatusRef.current === TimerStatus.Finished && !isTimerFinished) {
-        if (currentEvent) {
-          setCurrentEvent(null);
-          isLocked.current = false;
-        }
-        queueRef.current = []; // Töm kön
-      }
+      // Ett PB får aldrig avbryta ett pågående block.
+      const isBlockRunning =
+        timerStatus === TimerStatus.Running ||
+        timerStatus === TimerStatus.Resting ||
+        timerStatus === TimerStatus.Preparing ||
+        timerStatus === TimerStatus.Paused;
 
-      // Uppdatera föregående status
-      prevStatusRef.current = isTimerFinished
-        ? TimerStatus.Finished
-        : timerStatus || TimerStatus.Idle;
-
-      // Skärmen visar Grattis-vyn OCH  har väntat sina 5 sekunder
-      const isAllowedToShowPB = isTimerFinished && isGrattisReady;
+      // Visas när inget block är igång: i grattisvyn, i lobbyn och mellan pass.
+      // Medlemmen loggar i sin telefon, ofta efter att ha lämnat golvet — att bara
+      // visa PB under grattisvyns korta fönster gjorde funktionen opålitlig av
+      // konstruktion. I grattisvyn väntar vi fortfarande 5 sekunder så att modalen
+      // får sitt ögonblick först; i övriga lägen visas de direkt.
+      //
+      // Kön töms inte längre när skärmen lämnar grattisvyn. Ett PB som kom för sent
+      // ska visas när skärmen är ledig, inte kastas.
+      const isAllowedToShowPB = !isBlockRunning && (!isGrattis || isGrattisReady);
 
       if (!isAllowedToShowPB) {
         return;
