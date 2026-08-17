@@ -7,6 +7,7 @@ import { StudioEvent, TimerStatus } from "../types";
 import { Confetti } from "./WorkoutCompleteModal";
 
 const DISPLAY_DURATION = 7000;
+const PB_QUEUE_TTL_MS = 5 * 60 * 1000; // Köade PB förfaller efter 5 minuter
 
 const playBellSound = () => {
   const ctx = getAudioContext();
@@ -150,22 +151,20 @@ export const PBOverlay: React.FC<PBOverlayProps> = React.memo(({ isGrattisOpen }
       const isGrattis =
         timerStatus === TimerStatus.Finished || isGrattisOpen;
 
-      // Ett PB får aldrig avbryta ett pågående block.
-      const isBlockRunning =
-        timerStatus === TimerStatus.Running ||
-        timerStatus === TimerStatus.Resting ||
-        timerStatus === TimerStatus.Preparing ||
-        timerStatus === TimerStatus.Paused;
-
-      // Visas när inget block är igång: i grattisvyn, i lobbyn och mellan pass.
-      // Medlemmen loggar i sin telefon, ofta efter att ha lämnat golvet — att bara
-      // visa PB under grattisvyns korta fönster gjorde funktionen opålitlig av
-      // konstruktion. I grattisvyn väntar vi fortfarande 5 sekunder så att modalen
-      // får sitt ögonblick först; i övriga lägen visas de direkt.
+      // Popupen hör hemma i grattisvyn och ingen annanstans — inte i lobbyn,
+      // inte i startläget, aldrig under block eller timer. De 5 sekunderna låter
+      // grattismodalen få sitt ögonblick först.
       //
-      // Kön töms inte längre när skärmen lämnar grattisvyn. Ett PB som kom för sent
-      // ska visas när skärmen är ledig, inte kastas.
-      const isAllowedToShowPB = !isBlockRunning && (!isGrattis || isGrattisReady);
+      // Kön kastas aldrig vid tillståndsbyten. I stället har varje händelse en
+      // bäst-före på 5 minuter: kommer en grattisvy inom den tiden visas den,
+      // annars förfaller den tyst. Medlemmen ser alltid sitt PB i sin app, i
+      // PB-listan och i flödet, så inget försvinner.
+      const isAllowedToShowPB = isGrattis && isGrattisReady;
+
+      // Rensa förfallna händelser oavsett läge, så kön inte samlar gamla PB.
+      queueRef.current = queueRef.current.filter(
+        (e) => Date.now() - e.timestamp < PB_QUEUE_TTL_MS
+      );
 
       if (!isAllowedToShowPB) {
         return;

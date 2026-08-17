@@ -237,6 +237,13 @@ export const saveWorkoutLog = async (logData: any): Promise<{ log: any, newRecor
 
             if (newRecords.length > 0 && showOnLeaderboard) {
                 newLog.newPBs = newRecords;
+            }
+
+            // Bara pass loggade "i studion" ger en tavelhändelse (inStudio === true är
+            // samma konvention som studiopass-räkningen ovan). newPBs sparas ändå på
+            // loggen, så appen, PB-listan och flödet visar rekordet oavsett var passet
+            // loggades.
+            if (newRecords.length > 0 && showOnLeaderboard && newLog.inStudio === true) {
                 const eventRef = doc(collection(db, 'studio_events'));
                 const eventData: StudioEvent = {
                     id: eventRef.id,
