@@ -265,32 +265,32 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginClick, onRegist
 
                     <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
                         <FeatureCard 
-                            title="AI Passbyggare" 
-                            desc="Skapa balanserade och varierade träningspass på sekunder med hjälp av vår integrerade Gemini AI-coach."
+                            title="Färdiga pass på sekunder" 
+                            desc="Beskriv passet med några ord, så byggs det klart: block, övningar, vikter och vila."
                             icon={<SparklesIcon className="w-8 h-8" />}
                             delay={0.1}
                         />
                         <FeatureCard 
-                            title="Professionella Timers" 
-                            desc="Tabata, EMOM, AMRAP eller HYROX-läge. Synkroniserade timers som ser fantastiska ut på storbildsskärm."
+                            title="Timers hela lokalen ser" 
+                            desc="Tabata, EMOM, AMRAP eller HYROX. Stora, tydliga och synkade på alla skärmar — och de hörs."
                             icon={<ClockIcon className="w-8 h-8" />}
                             delay={0.2}
                         />
                         <FeatureCard 
-                            title="Info-karusell" 
-                            desc="Förvandla dina skärmar till digitala anslagstavlor när de inte används för träning. Schemalägg info enkelt."
+                            title="Skärmen jobbar mellan passen" 
+                            desc="Erbjudanden, scheman och nyheter rullar när ingen tränar. Schemalägg en gång, sen sköter det sig."
                             icon={<SpeakerphoneIcon className="w-8 h-8" />}
                             delay={0.3}
                         />
                         <FeatureCard 
-                            title="Anteckningar" 
-                            desc="Samla alla träningsidéer på ett ställe. Skriv, skissa eller chatta med AI för att bygga perfekta pass."
+                            title="Planera hemma i soffan" 
+                            desc="Anteckningen ligger redo på skärmen när du kliver in i lokalen — och blir ett färdigt pass med ett tryck."
                             icon={<DocumentTextIcon className="w-8 h-8" />}
                             delay={0.4}
                         />
                         <FeatureCard 
-                            title="AI Whiteboard" 
-                            desc="Digital whiteboard för att skissa upp pass för hand, som sedan tolkas automatiskt till digitala pass."
+                            title="Whiteboarden — fast smartare" 
+                            desc="Skissa passet för hand precis som på tavlan. Men den här hörs, syns från hela rummet och suddas aldrig ut."
                             icon={<PencilIcon className="w-8 h-8" />}
                             delay={0.5}
                         />
