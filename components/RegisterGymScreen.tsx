@@ -47,9 +47,8 @@ export const RegisterGymScreen: React.FC<RegisterGymScreenProps> = ({ onCancel }
                     enableWorkoutLogging: false,
                     enableScreensaver: true
                 },
-                passwords: {
-                    coach: '1234'
-                },
+                // Coachkoden sätts av servern (onOrganizationCreated seedar 1234 till
+                // det låsta stället) — klienten skriver aldrig koder längre.
                 systemFeePaid: false // Detta triggar WelcomePaywall i App.tsx
             });
 

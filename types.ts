@@ -312,9 +312,6 @@ export interface Organization {
   faviconUrl?: string;
   appIconUrl?: string;
   primaryColor?: string;
-  passwords?: {
-    coach: string;
-  };
   globalConfig: StudioConfig;
   studios: Studio[];
   locations?: Location[]; // Nytt: Orter / Studios

@@ -514,9 +514,6 @@ app.post("/webhook", express.raw({type: 'application/json'}), async (req, res) =
               name: currentOrgData.name || "Näst bästa gymmet",
               ownerUid: currentOrgData.ownerUid || userId,
               maxFreeCoaches: currentOrgData.maxFreeCoaches || 5,
-              passwords: {
-                coach: (currentOrgData.passwords && currentOrgData.passwords.coach) || "1234"
-              },
               status: "active",
               studios: currentOrgData.studios || [],
               subdomain: currentOrgData.subdomain || "",
@@ -530,12 +527,6 @@ app.post("/webhook", express.raw({type: 'application/json'}), async (req, res) =
             }
 
             await db.collection('organizations').doc(orgId).set(exactStructure, { merge: true });
-
-            // Steg 1 coachkoden: dubbelskrivning — samma kod skrivs även till det låsta
-            // stället (organizations/{id}/private/auth) som callablen läser ifrån.
-            await db.collection('organizations').doc(orgId)
-              .collection('private').doc('auth')
-              .set({ coachUnlockCode: exactStructure.passwords.coach }, { merge: true });
 
             const userUpdateData = {
               role: 'organizationadmin',
@@ -1014,13 +1005,12 @@ const onOrganizationCreated = onDocumentCreated({
 }, async (event) => {
   const newOrg = event.data.data();
   if (newOrg) {
-    // Steg 1 coachkoden: nya organisationer får koden speglad till det låsta stället
-    // direkt, så verifyCoachUnlockCode fungerar även för gym skapade efter migreringen.
-    const initialCoachCode = newOrg.passwords && newOrg.passwords.coach;
-    if (typeof initialCoachCode === 'string' && initialCoachCode.length > 0) {
-      await event.data.ref.collection('private').doc('auth')
-        .set({ coachUnlockCode: initialCoachCode }, { merge: true });
-    }
+    // Coachkoden ägs helt av servern (del C): varje ny organisation seedas med
+    // standardkoden 1234 på det låsta stället — klienten skriver inga koder alls.
+    // Fanns ett passwords.coach med (äldre klientversion) används det i stället.
+    const initialCoachCode = (newOrg.passwords && newOrg.passwords.coach) || '1234';
+    await event.data.ref.collection('private').doc('auth')
+      .set({ coachUnlockCode: initialCoachCode }, { merge: true });
 
     await notifySystemOwners(
       'Ny organisation!',

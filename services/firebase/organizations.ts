@@ -56,7 +56,7 @@ export const createOrganization = async (name: string, subdomain: string): Promi
     };
 
     const newOrg: Organization = { 
-        id, name, subdomain, passwords: { coach: '1234' }, studios: [], locations: [defaultLocation], customPages: [], status: 'active',
+        id, name, subdomain, studios: [], locations: [defaultLocation], customPages: [], status: 'active',
         inviteCode: initialInviteCode,
         coachCode: initialCoachCode,
         globalConfig: { customCategories: [{ id: '1', name: 'Standard', prompt: '' }] } 
