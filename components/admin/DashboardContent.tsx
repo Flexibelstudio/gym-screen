@@ -2,7 +2,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { Organization, Workout, UserData, BenchmarkDefinition } from '../../types';
-import { DumbbellIcon, BuildingIcon, UsersIcon, SpeakerphoneIcon, SparklesIcon, CopyIcon, PencilIcon, TrashIcon, ShuffleIcon, SearchIcon, ChevronLeftIcon, ChevronRightIcon, ChevronUpIcon, ChevronDownIcon, TrophyIcon, EyeIcon, ChartBarIcon } from '../icons';
+import { DumbbellIcon, BuildingIcon, UsersIcon, SpeakerphoneIcon, SparklesIcon, CopyIcon, PencilIcon, TrashIcon, ShuffleIcon, SearchIcon, ChevronLeftIcon, ChevronRightIcon, ChevronUpIcon, ChevronDownIcon, TrophyIcon, EyeIcon, ChartBarIcon, PlusIcon } from '../icons';
 import { motion, AnimatePresence } from 'framer-motion';
 import { AIGeneratorScreen } from '../AIGeneratorScreen';
 import { WorkoutBuilderScreen } from '../WorkoutBuilderScreen';
@@ -754,7 +754,12 @@ const ManageWorkoutsView: React.FC<{
     onMoveToLibrary: (workout: Workout) => void;
     onMoveToOtherPass: (workout: Workout) => void;
     onBack: () => void;
-}> = ({ workouts, locations, organization, onEdit, onDelete, onDuplicate, onTogglePublish, onCopyToLibrary, onMoveToLibrary, onMoveToOtherPass, onBack }) => {
+    onCreateNew?: () => void;
+    onCreateWithAI?: () => void;
+    onManageBenchmarks?: () => void;
+}> = ({ workouts, locations, organization, onEdit, onDelete, onDuplicate, onTogglePublish, onCopyToLibrary, onMoveToLibrary, onMoveToOtherPass, onBack, onCreateNew, onCreateWithAI, onManageBenchmarks }) => {
+    
+    const [isCreateMenuOpen, setIsCreateMenuOpen] = useState(false);
     
     const [activeTab, setActiveTab] = useState<'official' | 'drafts'>('official');
     const [searchTerm, setSearchTerm] = useState('');
@@ -864,17 +869,63 @@ const ManageWorkoutsView: React.FC<{
         <div className="space-y-6 animate-fade-in pb-12 w-full">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div className="flex items-center gap-4">
-                    <button 
-                        onClick={onBack}
-                        className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors text-gray-500"
-                    >
-                        <span className="text-lg font-bold">←</span>
-                    </button>
                     <div>
                         <h3 className="text-3xl font-extrabold text-gray-900 dark:text-white tracking-tight">Hantera Pass</h3>
                         <p className="text-gray-500 dark:text-gray-400">Totalt {workouts.length} pass i systemet</p>
                     </div>
                 </div>
+
+                <div className="flex items-center gap-3 w-full md:w-auto">
+                {onManageBenchmarks && (
+                    <button
+                        onClick={onManageBenchmarks}
+                        className="hidden md:flex items-center gap-2 text-sm font-bold text-gray-500 hover:text-primary transition-colors whitespace-nowrap"
+                    >
+                        <TrophyIcon className="w-4 h-4" /> Benchmarks
+                    </button>
+                )}
+                {(onCreateNew || onCreateWithAI) && (
+                    <div className="relative">
+                        <button
+                            onClick={() => setIsCreateMenuOpen(v => !v)}
+                            className="flex items-center gap-2 bg-primary hover:brightness-95 text-white font-bold py-2.5 px-5 rounded-xl shadow-sm transition-transform active:scale-95 whitespace-nowrap"
+                        >
+                            <PlusIcon className="w-4 h-4" /> Skapa pass
+                        </button>
+                        {isCreateMenuOpen && (
+                            <>
+                                <div className="fixed inset-0 z-40" onClick={() => setIsCreateMenuOpen(false)} />
+                                <div className="absolute right-0 mt-2 w-80 bg-white dark:bg-gray-800 rounded-2xl shadow-2xl border border-gray-100 dark:border-gray-700 z-50 overflow-hidden">
+                                    <button
+                                        onClick={() => { setIsCreateMenuOpen(false); onCreateNew && onCreateNew(); }}
+                                        className="w-full text-left p-5 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors flex gap-4 items-start"
+                                    >
+                                        <div className="w-10 h-10 flex-shrink-0 bg-primary/10 text-primary rounded-xl flex items-center justify-center">
+                                            <DumbbellIcon className="w-5 h-5" />
+                                        </div>
+                                        <div>
+                                            <div className="font-bold text-gray-900 dark:text-white">Bygg själv</div>
+                                            <div className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Bygg passet från grunden i passbyggaren.</div>
+                                        </div>
+                                    </button>
+                                    <div className="h-px bg-gray-100 dark:bg-gray-700" />
+                                    <button
+                                        onClick={() => { setIsCreateMenuOpen(false); onCreateWithAI && onCreateWithAI(); }}
+                                        className="w-full text-left p-5 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors flex gap-4 items-start"
+                                    >
+                                        <div className="w-10 h-10 flex-shrink-0 bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-300 rounded-xl flex items-center justify-center">
+                                            <SparklesIcon className="w-5 h-5" />
+                                        </div>
+                                        <div>
+                                            <div className="font-bold text-gray-900 dark:text-white">Skapa med AI</div>
+                                            <div className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Utgå från dina önskemål, en text, bild, YouTube-länk eller anteckning.</div>
+                                        </div>
+                                    </button>
+                                </div>
+                            </>
+                        )}
+                    </div>
+                )}
 
                 <div className="relative w-full md:w-72">
                     <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -887,6 +938,7 @@ const ManageWorkoutsView: React.FC<{
                         onChange={(e) => setSearchTerm(e.target.value)}
                         className="block w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-gray-700 rounded-xl leading-5 bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary sm:text-sm"
                     />
+                </div>
                 </div>
             </div>
 
@@ -1399,8 +1451,8 @@ const PassProgramContent: React.FC<DashboardContentProps & {
     if (subView === 'ai') {
         return (
             <div className="animate-fade-in">
-                <button onClick={onReturnToHub} className="mb-6 flex items-center gap-2 text-gray-500 hover:text-primary transition-colors font-medium">
-                    <span>&larr;</span> Tillbaka till meny
+                <button onClick={() => setSubView('manage')} className="mb-6 flex items-center gap-2 text-gray-500 hover:text-primary transition-colors font-medium">
+                    <span>&larr;</span> Tillbaka till passlistan
                 </button>
                 <AIGeneratorScreen
                     onWorkoutGenerated={handleWorkoutGenerated}
@@ -1439,19 +1491,32 @@ const PassProgramContent: React.FC<DashboardContentProps & {
 
     if (subView === 'manage') {
         return (
-            <ManageWorkoutsView 
-                workouts={workouts}
-                locations={organization?.locations}
-                organization={organization}
-                onEdit={handleEditWorkout}
-                onDelete={onDeleteWorkout}
-                onDuplicate={onDuplicateWorkout}
-                onTogglePublish={onTogglePublish}
-                onCopyToLibrary={handleCopyToLibrary}
-                onMoveToLibrary={handleMoveToLibrary}
-                onMoveToOtherPass={handleMoveToOtherPass}
-                onBack={onReturnToHub}
-            />
+            <>
+                <ManageWorkoutsView 
+                    workouts={workouts}
+                    locations={organization?.locations}
+                    organization={organization}
+                    onEdit={handleEditWorkout}
+                    onDelete={onDeleteWorkout}
+                    onDuplicate={onDuplicateWorkout}
+                    onTogglePublish={onTogglePublish}
+                    onCopyToLibrary={handleCopyToLibrary}
+                    onMoveToLibrary={handleMoveToLibrary}
+                    onMoveToOtherPass={handleMoveToOtherPass}
+                    onBack={onReturnToHub}
+                    onCreateNew={() => handleNavigate('create')}
+                    onCreateWithAI={() => handleNavigate('generate')}
+                    onManageBenchmarks={() => setShowBenchmarkModal(true)}
+                />
+                {showBenchmarkModal && (
+                    <ManageBenchmarksModal 
+                        isOpen={showBenchmarkModal} 
+                        onClose={() => setShowBenchmarkModal(false)}
+                        benchmarks={organization.benchmarkDefinitions || []}
+                        onSave={handleUpdateBenchmarks}
+                    />
+                )}
+            </>
         );
     }
 

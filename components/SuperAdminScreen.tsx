@@ -130,7 +130,7 @@ export const SuperAdminScreen: React.FC<SuperAdminScreenProps> = (props) => {
     const [coaches, setCoaches] = useState<UserData[]>([]);
     const [usersLoading, setUsersLoading] = useState(true);
     
-    const [passProgramSubView, setPassProgramSubView] = useState<'hub' | 'ai' | 'builder' | 'manage'>('hub');
+    const [passProgramSubView, setPassProgramSubView] = useState<'hub' | 'ai' | 'builder' | 'manage'>('manage');
     const [workoutToEdit, setWorkoutToEdit] = useState<Workout | null>(null);
     const [isNewDraft, setIsNewDraft] = useState(false);
     const [aiGeneratorInitialTab, setAiGeneratorInitialTab] = useState<'generate' | 'parse' | 'manage'>('generate');
@@ -197,7 +197,7 @@ export const SuperAdminScreen: React.FC<SuperAdminScreenProps> = (props) => {
 
     useEffect(() => {
         if (activeTab !== 'pass-program') {
-            setPassProgramSubView('hub');
+            setPassProgramSubView('manage');
         }
     }, [activeTab]);
 
@@ -348,7 +348,7 @@ export const SuperAdminScreen: React.FC<SuperAdminScreenProps> = (props) => {
             { type: 'link', id: 'analytics', label: 'Analys & Trender', icon: ChartBarIcon },
             { type: 'link', id: 'activity-log', label: 'Historik', icon: HistoryIcon },
             { type: 'header', label: 'Innehåll' },
-            { type: 'link', id: 'pass-program', label: 'Pass & Program', icon: DumbbellIcon },
+            { type: 'link', id: 'pass-program', label: 'Hantera Pass', icon: DumbbellIcon },
             ...(organization.globalConfig.enableEventsModule ? [{ type: 'link', id: 'events', label: 'Event & Tävlingar', icon: FlagIcon }] : []),
             { type: 'link', id: 'infosidor', label: 'Infosidor', icon: DocumentTextIcon },
             { type: 'link', id: 'info-karusell', label: 'Info-karusell', icon: SpeakerphoneIcon },
@@ -398,7 +398,7 @@ export const SuperAdminScreen: React.FC<SuperAdminScreenProps> = (props) => {
         if (tabId === activeTab) {
             // Återställ vyn om användaren klickar på den redan aktiva fliken
             if (tabId === 'pass-program') {
-                setPassProgramSubView('hub');
+                setPassProgramSubView('manage');
                 setWorkoutToEdit(null);
                 setIsNewDraft(false);
             }
@@ -461,7 +461,7 @@ export const SuperAdminScreen: React.FC<SuperAdminScreenProps> = (props) => {
             case 'activity-log':
                 return <ActivityLogContent organizationId={organization.id} />;
             case 'pass-program':
-                return <PassProgramContent {...props} subView={passProgramSubView} setSubView={setPassProgramSubView} workoutToEdit={workoutToEdit} setWorkoutToEdit={setWorkoutToEdit} isNewDraft={isNewDraft} setIsNewDraft={setIsNewDraft} aiGeneratorInitialTab={aiGeneratorInitialTab} setAiGeneratorInitialTab={setAiGeneratorInitialTab} autoExpandCategory={autoExpandCategory} setAutoExpandCategory={setAutoExpandCategory} onReturnToHub={() => { setPassProgramSubView('hub'); setWorkoutToEdit(null); setIsNewDraft(false); }} onDuplicateWorkout={onDuplicateWorkout} setCustomBackHandler={props.setCustomBackHandler} />;
+                return <PassProgramContent {...props} subView={passProgramSubView} setSubView={setPassProgramSubView} workoutToEdit={workoutToEdit} setWorkoutToEdit={setWorkoutToEdit} isNewDraft={isNewDraft} setIsNewDraft={setIsNewDraft} aiGeneratorInitialTab={aiGeneratorInitialTab} setAiGeneratorInitialTab={setAiGeneratorInitialTab} autoExpandCategory={autoExpandCategory} setAutoExpandCategory={setAutoExpandCategory} onReturnToHub={() => { setPassProgramSubView('manage'); setWorkoutToEdit(null); setIsNewDraft(false); }} onDuplicateWorkout={onDuplicateWorkout} setCustomBackHandler={props.setCustomBackHandler} />;
             case 'events':
                 return <EventsContent organization={organization} />;
             case 'infosidor':
