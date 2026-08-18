@@ -773,9 +773,16 @@ const ManageWorkoutsView: React.FC<{
     const [activeFolder, setActiveFolder] = useState<string>('all');
     const [isFolderMenuFor, setIsFolderMenuFor] = useState<string | null>(null);
     const [newFolderName, setNewFolderName] = useState('');
-    const [isAddingFolder, setIsAddingFolder] = useState(false);
+    // null = ingen inmatning öppen, '' = ny mapp på toppnivå, '<id>' = undermapp till den mappen
+    const [addingFolderUnder, setAddingFolderUnder] = useState<string | null>(null);
+    const [selectedIds, setSelectedIds] = useState<string[]>([]);
+    const [isBulkMenuOpen, setIsBulkMenuOpen] = useState(false);
 
     const customFolders = organization?.workoutFolders || [];
+    const topFolders = customFolders.filter(f => !f.parentId);
+    const childrenOf = (id: string) => customFolders.filter(f => f.parentId === id);
+    // En förälders innehåll inkluderar undermapparnas pass, annars göms de.
+    const folderIdsWithin = (id: string) => [id, ...childrenOf(id).map(c => c.id)];
     const categories = organization?.globalConfig?.customCategories || [];
     
     const [activeTab, setActiveTab] = useState<'official' | 'drafts'>('official');
@@ -797,6 +804,8 @@ const ManageWorkoutsView: React.FC<{
     // false (så att QR och loggning fungerar) men bär kategorin Övriga pass.
     // I adminlistan hör de hemma under Medlemsutkast, inte i gymmets bibliotek —
     // därför sorterar flikarna på kategori OCH utkastflaggan, utan att röra data.
+    useEffect(() => { setSelectedIds([]); setIsBulkMenuOpen(false); }, [activeTab, activeFolder]);
+
     const filteredByTab = useMemo(() => {
         const base = activeTab === 'official'
             ? workouts.filter(w => !w.isMemberDraft && w.category !== OTHER_CATEGORY)
@@ -809,6 +818,7 @@ const ManageWorkoutsView: React.FC<{
                 .sort((a, b) => (b.runCount || 0) - (a.runCount || 0))
                 .slice(0, FAVORITES_COUNT);
         }
+        if (activeFolder === 'benchmarks') return base.filter(w => !!w.benchmarkId);
         if (activeFolder === 'nofolder') return base.filter(w => !w.folderId);
         if (activeFolder.startsWith('cat:')) {
             const catName = activeFolder.slice(4);
@@ -816,10 +826,11 @@ const ManageWorkoutsView: React.FC<{
         }
         if (activeFolder.startsWith('folder:')) {
             const fid = activeFolder.slice(7);
-            return base.filter(w => w.folderId === fid);
+            const ids = folderIdsWithin(fid);
+            return base.filter(w => w.folderId && ids.includes(w.folderId));
         }
         return base;
-    }, [workouts, activeTab, activeFolder]);
+    }, [workouts, activeTab, activeFolder, customFolders]);
 
     // Antal per mapp räknas på fliken (bibliotek/utkast), inte på hela beståndet.
     const tabScopedWorkouts = useMemo(() => (
@@ -831,9 +842,13 @@ const ManageWorkoutsView: React.FC<{
     const countFor = (key: string) => {
         if (key === 'all') return tabScopedWorkouts.length;
         if (key === 'favorites') return Math.min(FAVORITES_COUNT, tabScopedWorkouts.filter(w => (w.runCount || 0) > 0).length);
+        if (key === 'benchmarks') return tabScopedWorkouts.filter(w => !!w.benchmarkId).length;
         if (key === 'nofolder') return tabScopedWorkouts.filter(w => !w.folderId).length;
         if (key.startsWith('cat:')) return tabScopedWorkouts.filter(w => w.category === key.slice(4)).length;
-        if (key.startsWith('folder:')) return tabScopedWorkouts.filter(w => w.folderId === key.slice(7)).length;
+        if (key.startsWith('folder:')) {
+            const ids = folderIdsWithin(key.slice(7));
+            return tabScopedWorkouts.filter(w => w.folderId && ids.includes(w.folderId)).length;
+        }
         return 0;
     };
 
@@ -925,14 +940,6 @@ const ManageWorkoutsView: React.FC<{
                 </div>
 
                 <div className="flex items-center gap-3 w-full md:w-auto">
-                {onManageBenchmarks && (
-                    <button
-                        onClick={onManageBenchmarks}
-                        className="hidden md:flex items-center gap-2 text-sm font-bold text-gray-500 hover:text-primary transition-colors whitespace-nowrap"
-                    >
-                        <TrophyIcon className="w-4 h-4" /> Benchmarks
-                    </button>
-                )}
                 {(onCreateNew || onCreateWithAI) && (
                     <div className="relative">
                         <button
@@ -1019,9 +1026,14 @@ const ManageWorkoutsView: React.FC<{
                 <div className="grid grid-cols-1 lg:grid-cols-[240px_minmax(0,1fr)] gap-6">
                 {/* MAPPAR — ren adminordning, påverkar inte medlemsvyn */}
                 <aside className="space-y-1">
+                    <div className="px-3 pb-3 mb-1 border-b border-gray-100 dark:border-gray-700">
+                        <h4 className="text-sm font-black text-gray-900 dark:text-white uppercase tracking-wider">Våra pass</h4>
+                        <p className="text-[11px] text-gray-400 mt-0.5">Mappar för er egen ordning</p>
+                    </div>
                     {[
                         { key: 'all', label: 'Alla pass', icon: '📋' },
                         { key: 'favorites', label: 'Mest körda', icon: '⭐' },
+                        { key: 'benchmarks', label: 'Benchmarks', icon: '🏆' },
                     ].map(item => (
                         <button
                             key={item.key}
@@ -1051,30 +1063,96 @@ const ManageWorkoutsView: React.FC<{
 
                     <div className="pt-4">
                         <div className="px-3 pb-1 text-[10px] font-black uppercase tracking-[0.2em] text-gray-400">Egna mappar</div>
-                        {customFolders.map(folder => (
-                            <div key={folder.id} className="group flex items-center">
-                                <button
-                                    onClick={() => { setActiveFolder('folder:' + folder.id); setCurrentPage(1); }}
-                                    className={`flex-grow flex items-center justify-between gap-2 px-3 py-2 rounded-xl text-sm font-bold transition-colors ${activeFolder === 'folder:' + folder.id ? 'bg-primary/10 text-primary' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'}`}
-                                >
-                                    <span className="flex items-center gap-2 truncate"><span>🗂️</span> <span className="truncate">{folder.name}</span></span>
-                                    <span className="text-xs opacity-70 flex-shrink-0">{countFor('folder:' + folder.id)}</span>
-                                </button>
-                                {onSaveFolders && (
+                        {topFolders.map(folder => (
+                            <div key={folder.id}>
+                                <div className="flex items-center">
                                     <button
-                                        title="Ta bort mappen (passen ligger kvar)"
-                                        onClick={async () => {
-                                            if (!window.confirm(`Ta bort mappen "${folder.name}"? Passen ligger kvar och hamnar under "Utan mapp".`)) return;
-                                            await onSaveFolders(customFolders.filter(x => x.id !== folder.id));
-                                            if (activeFolder === 'folder:' + folder.id) setActiveFolder('all');
-                                        }}
-                                        className="opacity-0 group-hover:opacity-100 p-1.5 text-gray-400 hover:text-red-500 transition-opacity"
+                                        onClick={() => { setActiveFolder('folder:' + folder.id); setCurrentPage(1); }}
+                                        className={`flex-grow min-w-0 flex items-center justify-between gap-2 px-3 py-2 rounded-xl text-sm font-bold transition-colors ${activeFolder === 'folder:' + folder.id ? 'bg-primary/10 text-primary' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'}`}
                                     >
-                                        <TrashIcon className="w-3.5 h-3.5" />
+                                        <span className="flex items-center gap-2 truncate"><span>🗂️</span> <span className="truncate">{folder.name}</span></span>
+                                        <span className="text-xs opacity-70 flex-shrink-0">{countFor('folder:' + folder.id)}</span>
                                     </button>
+                                    {onSaveFolders && (
+                                        <>
+                                            <button
+                                                title="Ny mapp inuti"
+                                                onClick={() => { setAddingFolderUnder(folder.id); setNewFolderName(''); }}
+                                                className="p-1.5 text-gray-300 hover:text-primary transition-colors flex-shrink-0"
+                                            >
+                                                <PlusIcon className="w-3.5 h-3.5" />
+                                            </button>
+                                            <button
+                                                title="Ta bort mappen (passen ligger kvar)"
+                                                onClick={async () => {
+                                                    const kids = childrenOf(folder.id);
+                                                    const msg = kids.length > 0
+                                                        ? `Ta bort "${folder.name}" och dess ${kids.length} undermapp(ar)? Passen ligger kvar och hamnar under "Utan mapp".`
+                                                        : `Ta bort mappen "${folder.name}"? Passen ligger kvar och hamnar under "Utan mapp".`;
+                                                    if (!window.confirm(msg)) return;
+                                                    const removeIds = folderIdsWithin(folder.id);
+                                                    await onSaveFolders(customFolders.filter(x => !removeIds.includes(x.id)));
+                                                    if (activeFolder.startsWith('folder:') && removeIds.includes(activeFolder.slice(7))) setActiveFolder('all');
+                                                }}
+                                                className="p-1.5 text-gray-300 hover:text-red-500 transition-colors flex-shrink-0"
+                                            >
+                                                <TrashIcon className="w-3.5 h-3.5" />
+                                            </button>
+                                        </>
+                                    )}
+                                </div>
+
+                                {childrenOf(folder.id).map(child => (
+                                    <div key={child.id} className="flex items-center pl-4">
+                                        <button
+                                            onClick={() => { setActiveFolder('folder:' + child.id); setCurrentPage(1); }}
+                                            className={`flex-grow min-w-0 flex items-center justify-between gap-2 px-3 py-1.5 rounded-xl text-sm transition-colors ${activeFolder === 'folder:' + child.id ? 'bg-primary/10 text-primary font-bold' : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'}`}
+                                        >
+                                            <span className="flex items-center gap-2 truncate"><span className="text-xs">↳</span> <span className="truncate">{child.name}</span></span>
+                                            <span className="text-xs opacity-70 flex-shrink-0">{countFor('folder:' + child.id)}</span>
+                                        </button>
+                                        {onSaveFolders && (
+                                            <button
+                                                title="Ta bort mappen (passen ligger kvar)"
+                                                onClick={async () => {
+                                                    if (!window.confirm(`Ta bort mappen "${child.name}"? Passen ligger kvar och hamnar under "Utan mapp".`)) return;
+                                                    await onSaveFolders(customFolders.filter(x => x.id !== child.id));
+                                                    if (activeFolder === 'folder:' + child.id) setActiveFolder('all');
+                                                }}
+                                                className="p-1.5 text-gray-300 hover:text-red-500 transition-colors flex-shrink-0"
+                                            >
+                                                <TrashIcon className="w-3.5 h-3.5" />
+                                            </button>
+                                        )}
+                                    </div>
+                                ))}
+
+                                {addingFolderUnder === folder.id && onSaveFolders && (
+                                    <form
+                                        className="pl-4 pr-1 pt-1 flex gap-1"
+                                        onSubmit={async (e) => {
+                                            e.preventDefault();
+                                            const name = newFolderName.trim();
+                                            if (!name) return;
+                                            await onSaveFolders([...customFolders, { id: 'f-' + Date.now(), name, createdAt: Date.now(), parentId: folder.id }]);
+                                            setNewFolderName('');
+                                            setAddingFolderUnder(null);
+                                        }}
+                                    >
+                                        <input
+                                            autoFocus
+                                            value={newFolderName}
+                                            onChange={e => setNewFolderName(e.target.value)}
+                                            onBlur={() => { if (!newFolderName.trim()) setAddingFolderUnder(null); }}
+                                            placeholder="Undermappens namn"
+                                            className="flex-grow min-w-0 bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+                                        />
+                                        <button type="submit" className="px-2 py-1.5 rounded-lg bg-primary text-white text-xs font-bold">OK</button>
+                                    </form>
                                 )}
                             </div>
                         ))}
+
                         <button
                             onClick={() => { setActiveFolder('nofolder'); setCurrentPage(1); }}
                             className={`w-full flex items-center justify-between gap-2 px-3 py-2 rounded-xl text-sm font-bold transition-colors ${activeFolder === 'nofolder' ? 'bg-primary/10 text-primary' : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'}`}
@@ -1083,7 +1161,7 @@ const ManageWorkoutsView: React.FC<{
                             <span className="text-xs opacity-70 flex-shrink-0">{countFor('nofolder')}</span>
                         </button>
 
-                        {onSaveFolders && (isAddingFolder ? (
+                        {onSaveFolders && (addingFolderUnder === '' ? (
                             <form
                                 className="px-1 pt-2 flex gap-1"
                                 onSubmit={async (e) => {
@@ -1092,14 +1170,14 @@ const ManageWorkoutsView: React.FC<{
                                     if (!name) return;
                                     await onSaveFolders([...customFolders, { id: 'f-' + Date.now(), name, createdAt: Date.now() }]);
                                     setNewFolderName('');
-                                    setIsAddingFolder(false);
+                                    setAddingFolderUnder(null);
                                 }}
                             >
                                 <input
                                     autoFocus
                                     value={newFolderName}
                                     onChange={e => setNewFolderName(e.target.value)}
-                                    onBlur={() => { if (!newFolderName.trim()) setIsAddingFolder(false); }}
+                                    onBlur={() => { if (!newFolderName.trim()) setAddingFolderUnder(null); }}
                                     placeholder="Mappens namn"
                                     className="flex-grow min-w-0 bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
                                 />
@@ -1107,7 +1185,7 @@ const ManageWorkoutsView: React.FC<{
                             </form>
                         ) : (
                             <button
-                                onClick={() => setIsAddingFolder(true)}
+                                onClick={() => { setAddingFolderUnder(''); setNewFolderName(''); }}
                                 className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-bold text-gray-400 hover:text-primary transition-colors"
                             >
                                 <PlusIcon className="w-3.5 h-3.5" /> Ny mapp
@@ -1116,10 +1194,109 @@ const ManageWorkoutsView: React.FC<{
                     </div>
                 </aside>
 
+                <div>
+                {activeFolder === 'benchmarks' && onManageBenchmarks && (
+                    <div className="mb-4 flex flex-wrap items-center justify-between gap-3 p-4 rounded-2xl bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-900/30">
+                        <p className="text-sm text-amber-800 dark:text-amber-300">
+                            Pass kopplade till ett benchmark. Resultaten jämförs över tid för medlemmarna.
+                        </p>
+                        <button
+                            onClick={onManageBenchmarks}
+                            className="flex items-center gap-2 bg-amber-500 hover:brightness-95 text-white text-sm font-bold py-2 px-4 rounded-xl transition-transform active:scale-95 whitespace-nowrap"
+                        >
+                            <TrophyIcon className="w-4 h-4" /> Hantera benchmarks
+                        </button>
+                    </div>
+                )}
+                {onMoveToFolder && selectedIds.length > 0 && (
+                    <div className="mb-4 flex flex-wrap items-center gap-3 p-4 rounded-2xl bg-primary/5 border border-primary/20">
+                        <span className="text-sm font-bold text-primary">{selectedIds.length} pass markerade</span>
+                        <div className="relative">
+                            <button
+                                onClick={() => setIsBulkMenuOpen(v => !v)}
+                                className="flex items-center gap-2 bg-primary hover:brightness-95 text-white text-sm font-bold py-2 px-4 rounded-xl transition-transform active:scale-95"
+                            >
+                                🗂️ Flytta till mapp
+                            </button>
+                            {isBulkMenuOpen && (
+                                <>
+                                    <div className="fixed inset-0 z-40" onClick={() => setIsBulkMenuOpen(false)} />
+                                    <div className="absolute left-0 mt-2 w-64 bg-white dark:bg-gray-800 rounded-xl shadow-2xl border border-gray-100 dark:border-gray-700 z-50 py-1 max-h-72 overflow-y-auto">
+                                        {customFolders.length === 0 && (
+                                            <div className="px-3 py-2 text-xs text-gray-400 italic">Skapa en mapp först</div>
+                                        )}
+                                        {topFolders.map(folder => (
+                                            <React.Fragment key={folder.id}>
+                                                <button
+                                                    onClick={async () => {
+                                                        setIsBulkMenuOpen(false);
+                                                        const targets = workouts.filter(w => selectedIds.includes(w.id));
+                                                        for (const w of targets) await onMoveToFolder(w, folder.id);
+                                                        setSelectedIds([]);
+                                                    }}
+                                                    className="w-full text-left px-3 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
+                                                >
+                                                    {folder.name}
+                                                </button>
+                                                {childrenOf(folder.id).map(child => (
+                                                    <button
+                                                        key={child.id}
+                                                        onClick={async () => {
+                                                            setIsBulkMenuOpen(false);
+                                                            const targets = workouts.filter(w => selectedIds.includes(w.id));
+                                                            for (const w of targets) await onMoveToFolder(w, child.id);
+                                                            setSelectedIds([]);
+                                                        }}
+                                                        className="w-full text-left pl-7 pr-3 py-2 text-sm text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
+                                                    >
+                                                        ↳ {child.name}
+                                                    </button>
+                                                ))}
+                                            </React.Fragment>
+                                        ))}
+                                        <button
+                                            onClick={async () => {
+                                                setIsBulkMenuOpen(false);
+                                                const targets = workouts.filter(w => selectedIds.includes(w.id));
+                                                for (const w of targets) await onMoveToFolder(w, undefined);
+                                                setSelectedIds([]);
+                                            }}
+                                            className="w-full text-left px-3 py-2 text-sm text-gray-500 hover:bg-gray-50 dark:hover:bg-gray-700/50 border-t border-gray-100 dark:border-gray-700 mt-1"
+                                        >
+                                            Ta bort ur mapp
+                                        </button>
+                                    </div>
+                                </>
+                            )}
+                        </div>
+                        <button
+                            onClick={() => setSelectedIds([])}
+                            className="text-sm font-bold text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
+                        >
+                            Avmarkera
+                        </button>
+                    </div>
+                )}
                 <div className="overflow-x-auto">
                     <table className="w-full text-left border-collapse min-w-[800px]">
                         <thead>
                             <tr className="bg-gray-50 dark:bg-gray-900/50 border-b border-gray-100 dark:border-gray-700">
+                                {onMoveToFolder && (
+                                    <th className="pl-5 pr-0 py-5 w-10">
+                                        <input
+                                            type="checkbox"
+                                            aria-label="Markera alla på sidan"
+                                            checked={paginatedWorkouts.length > 0 && paginatedWorkouts.every(w => selectedIds.includes(w.id))}
+                                            onChange={(e) => {
+                                                const pageIds = paginatedWorkouts.map(w => w.id);
+                                                setSelectedIds(prev => e.target.checked
+                                                    ? Array.from(new Set([...prev, ...pageIds]))
+                                                    : prev.filter(id => !pageIds.includes(id)));
+                                            }}
+                                            className="w-4 h-4 rounded border-gray-300 text-primary focus:ring-primary cursor-pointer"
+                                        />
+                                    </th>
+                                )}
                                 <th onClick={() => handleSort('title')} className="p-5 text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.2em] cursor-pointer hover:text-primary transition-colors">
                                     <div className="flex items-center">Titel <SortIcon column="title" /></div>
                                 </th>
@@ -1151,6 +1328,19 @@ const ManageWorkoutsView: React.FC<{
                                         key={workout.id} 
                                         className="group hover:bg-gray-50 dark:hover:bg-gray-900/40 transition-colors"
                                     >
+                                        {onMoveToFolder && (
+                                            <td className="pl-5 pr-0 py-5">
+                                                <input
+                                                    type="checkbox"
+                                                    aria-label={`Markera ${workout.title}`}
+                                                    checked={selectedIds.includes(workout.id)}
+                                                    onChange={(e) => setSelectedIds(prev => e.target.checked
+                                                        ? [...prev, workout.id]
+                                                        : prev.filter(id => id !== workout.id))}
+                                                    className="w-4 h-4 rounded border-gray-300 text-primary focus:ring-primary cursor-pointer"
+                                                />
+                                            </td>
+                                        )}
                                         <td className="p-5">
                                             <p className="font-bold text-gray-900 dark:text-white text-base truncate max-w-xs">{workout.title}</p>
                                             {workout.coachTips && (
@@ -1349,13 +1539,14 @@ const ManageWorkoutsView: React.FC<{
                                 ))
                             ) : (
                                 <tr>
-                                    <td colSpan={8} className="p-12 text-center text-gray-400 italic">
+                                    <td colSpan={onMoveToFolder ? 9 : 8} className="p-12 text-center text-gray-400 italic">
                                         Inga pass hittades i denna flik.
                                     </td>
                                 </tr>
                             )}
                         </tbody>
                     </table>
+                </div>
                 </div>
                 </div>
 

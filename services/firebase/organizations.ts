@@ -82,7 +82,7 @@ export const updateOrganization = async (id: string, name: string, subdomain: st
     return getOrganizationById(id);
 };
 
-export const updateOrganizationWorkoutFolders = async (id: string, folders: { id: string; name: string; createdAt: number }[]) => {
+export const updateOrganizationWorkoutFolders = async (id: string, folders: { id: string; name: string; createdAt: number; parentId?: string }[]) => {
     if(isOffline || !db || !id) return;
     await updateDoc(doc(db, 'organizations', id), { workoutFolders: folders });
     return getOrganizationById(id);

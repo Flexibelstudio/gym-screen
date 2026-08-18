@@ -321,7 +321,7 @@ export interface Organization {
   globalConfig: StudioConfig;
   /** Egna mappar för att hålla ordning i Hantera Pass. Ren adminordning — mappar
    *  påverkar aldrig vad medlemmar eller skärmen ser (det styrs av kategorin). */
-  workoutFolders?: { id: string; name: string; createdAt: number }[];
+  workoutFolders?: { id: string; name: string; createdAt: number; parentId?: string }[];
   studios: Studio[];
   locations?: Location[]; // Nytt: Orter / Studios
   customPages?: CustomPage[];
