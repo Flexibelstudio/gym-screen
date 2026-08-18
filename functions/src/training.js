@@ -1375,6 +1375,26 @@ const flexGeminiProxy = onCall({
   }
 });
 
+/**
+ * Räknar hur många gånger medlemmar loggat ett visst pass. Bara nyskapade loggar
+ * räknas (en redigerad logg är samma träningstillfälle). 'manual' är egna
+ * aktiviteter utan koppling till ett pass och räknas inte.
+ */
+const countWorkoutLog = onDocumentCreated({
+  document: "workoutLogs/{logId}"
+}, async (event) => {
+  const log = event.data && event.data.data();
+  if (!log || !log.workoutId || log.workoutId === 'manual') return;
+  try {
+    await db.collection('workouts').doc(log.workoutId).update({
+      logCount: admin.firestore.FieldValue.increment(1)
+    });
+  } catch (e) {
+    // Passet kan vara raderat — då finns inget att räkna på.
+    console.warn('Kunde inte räkna logg för pass', log.workoutId, e.message);
+  }
+});
+
 const aggregateLeaderboard = onDocumentWritten({
   document: "workoutLogs/{logId}"
 }, async (event) => {
@@ -1482,6 +1502,7 @@ module.exports = {
   flexUpdateOrganization,
   onWorkoutCreated,
   onWorkoutUpdated,
+  countWorkoutLog,
   flexGeminiProxy,
   aggregateLeaderboard
 };

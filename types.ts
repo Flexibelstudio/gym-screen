@@ -177,6 +177,7 @@ export interface Workout {
   createdByUid?: string;      // Vem som skapade passet (stämplas vid första sparningen)
   createdByName?: string;     // Visningsnamn, sparas så listan slipper slå upp användare
   runCount?: number;          // Antal körningar på skärm (räknas av servern)
+  logCount?: number;          // Antal gånger medlemmar loggat passet (räknas av servern)
   lastRunAt?: number;         // Senaste körningen (timestamp)
   lastRunByStudio?: { [studioId: string]: number }; // Senaste körning per skärm — grund för 1-timmesfönstret
   expiresAt?: number; // timestamp; passet är osynligt för medlemmar från och med denna tidpunkt
@@ -738,6 +739,10 @@ export interface Lead {
 export interface CoachNote {
     id: string;
     organizationId: string;
+    /** Coachens ort när anteckningen skapades. Skärmar med egen ort visar bara
+     *  anteckningar från sin ort. Saknas fältet (äldre anteckningar) visas den
+     *  överallt, precis som förut. */
+    locationId?: string;
     createdBy: string;
     creatorName: string;
     creatorPhotoUrl?: string;

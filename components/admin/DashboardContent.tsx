@@ -789,7 +789,7 @@ const ManageWorkoutsView: React.FC<{
     const [searchTerm, setSearchTerm] = useState('');
     const [currentPage, setCurrentPage] = useState(1);
     const [previewWorkout, setPreviewWorkout] = useState<Workout | null>(null);
-    const [sortConfig, setSortConfig] = useState<{ key: 'title' | 'category' | 'createdAt' | 'createdByName' | 'isPublished' | 'runCount' | 'lastRunAt', direction: 'asc' | 'desc' | 'none' }>({
+    const [sortConfig, setSortConfig] = useState<{ key: 'title' | 'category' | 'createdAt' | 'createdByName' | 'isPublished' | 'runCount' | 'logCount' | 'lastRunAt', direction: 'asc' | 'desc' | 'none' }>({
         key: 'createdAt',
         direction: 'none'
     });
@@ -877,7 +877,7 @@ const ManageWorkoutsView: React.FC<{
             result.sort((a, b) => {
                 // Körningskolumnerna saknas på pass som aldrig körts — de behandlas
                 // som 0 så att sorteringen blir meningsfull i stället för godtycklig.
-                const numericKey = sortConfig.key === 'runCount' || sortConfig.key === 'lastRunAt';
+                const numericKey = sortConfig.key === 'runCount' || sortConfig.key === 'logCount' || sortConfig.key === 'lastRunAt';
                 // Pass utan skapare (gamla pass) sorteras sist oavsett riktning.
                 if (sortConfig.key === 'createdByName') {
                     const an = a.createdByName || '';
@@ -1025,10 +1025,11 @@ const ManageWorkoutsView: React.FC<{
             <div className="bg-white dark:bg-gray-800 rounded-[2.5rem] shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden flex flex-col">
                 <div className="grid grid-cols-1 lg:grid-cols-[240px_minmax(0,1fr)] gap-6">
                 {/* MAPPAR — ren adminordning, påverkar inte medlemsvyn */}
-                <aside className="space-y-1">
-                    <div className="px-3 pb-3 mb-1 border-b border-gray-100 dark:border-gray-700">
-                        <h4 className="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.2em]">Våra pass</h4>
+                <aside className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 self-start lg:sticky lg:top-4">
+                    <div className="p-5 sticky top-0 z-10 bg-gray-50 dark:bg-gray-900/50 border-b border-gray-100 dark:border-gray-700">
+                        <span className="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.2em]">Våra pass</span>
                     </div>
+                    <div className="p-2 space-y-1">
                     {[
                         { key: 'all', label: 'Alla pass', icon: '📋' },
                         { key: 'favorites', label: 'Mest körda', icon: '⭐' },
@@ -1191,6 +1192,7 @@ const ManageWorkoutsView: React.FC<{
                             </button>
                         ))}
                     </div>
+                    </div>
                 </aside>
 
                 <div>
@@ -1311,6 +1313,9 @@ const ManageWorkoutsView: React.FC<{
                                 <th onClick={() => handleSort('runCount')} className="p-5 text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.2em] cursor-pointer hover:text-primary transition-colors">
                                     <div className="flex items-center">Körd <SortIcon column="runCount" /></div>
                                 </th>
+                                <th onClick={() => handleSort('logCount')} className="p-5 text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.2em] cursor-pointer hover:text-primary transition-colors">
+                                    <div className="flex items-center">Loggat <SortIcon column="logCount" /></div>
+                                </th>
                                 <th onClick={() => handleSort('lastRunAt')} className="p-5 text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.2em] cursor-pointer hover:text-primary transition-colors">
                                     <div className="flex items-center">Senast <SortIcon column="lastRunAt" /></div>
                                 </th>
@@ -1396,6 +1401,13 @@ const ManageWorkoutsView: React.FC<{
                                         <td className="p-5 text-sm">
                                             {workout.runCount ? (
                                                 <span className="inline-flex items-center justify-center min-w-[2rem] px-2 py-1 rounded-lg bg-primary/10 text-primary font-black">{workout.runCount}</span>
+                                            ) : (
+                                                <span className="text-gray-400">–</span>
+                                            )}
+                                        </td>
+                                        <td className="p-5 text-sm">
+                                            {workout.logCount ? (
+                                                <span className="inline-flex items-center justify-center min-w-[2rem] px-2 py-1 rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-400 font-black">{workout.logCount}</span>
                                             ) : (
                                                 <span className="text-gray-400">–</span>
                                             )}
@@ -1538,7 +1550,7 @@ const ManageWorkoutsView: React.FC<{
                                 ))
                             ) : (
                                 <tr>
-                                    <td colSpan={onMoveToFolder ? 9 : 8} className="p-12 text-center text-gray-400 italic">
+                                    <td colSpan={onMoveToFolder ? 10 : 9} className="p-12 text-center text-gray-400 italic">
                                         Inga pass hittades i denna flik.
                                     </td>
                                 </tr>

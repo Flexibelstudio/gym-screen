@@ -12,6 +12,7 @@ const {
   flexUpdateOrganization,
   onWorkoutCreated,
   onWorkoutUpdated,
+  countWorkoutLog,
   flexGeminiProxy,
   aggregateLeaderboard
 } = require("./src/training");
@@ -53,6 +54,7 @@ module.exports = {
   flexUpdateOrganization,
   onWorkoutCreated,
   onWorkoutUpdated,
+  countWorkoutLog,
   flexGeminiProxy,
   aggregateLeaderboard,
   createBooking,

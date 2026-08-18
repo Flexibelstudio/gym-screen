@@ -1164,10 +1164,18 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
     useEffect(() => {
         if (!selectedOrganization?.id) return;
         const unsubscribe = listenToCoachNotes(selectedOrganization.id, (notes) => {
-            setCoachNotes(notes);
+            // Skärmen visar bara anteckningar från sin egen ort. Anteckningar utan
+            // ort (äldre, eller skrivna av någon utan ort) visas överallt — annars
+            // skulle de försvinna spårlöst från tavlan.
+            const screenLocationId = selectedStudio?.locationId || null;
+            const hasMultipleLocations = (selectedOrganization?.locations?.length || 0) >= 2;
+            const visible = (screenLocationId && hasMultipleLocations)
+                ? notes.filter(n => !n.locationId || n.locationId === screenLocationId)
+                : notes;
+            setCoachNotes(visible);
         });
         return () => unsubscribe();
-    }, [selectedOrganization?.id]);
+    }, [selectedOrganization?.id, selectedStudio?.locationId, selectedOrganization?.locations?.length]);
 
     const handleSelectCoachNote = (note: CoachNote) => {
         setIsCoachNotesModalOpen(false);
