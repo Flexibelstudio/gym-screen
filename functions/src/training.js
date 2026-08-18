@@ -1126,6 +1126,53 @@ const onOrganizationUpdated = onDocumentUpdated({
     }
   }
 
+  // --- Räkna passkörningar per skärm ---
+  // En "körning" = ett pass blir aktivt på en skärm (coachen startar ett block).
+  // Räknas PER SKÄRM: samma pass som körs samtidigt i tre studios är tre körningar.
+  // Inom samma skärm räknas passet bara en gång per timme, så att block-hopp fram
+  // och tillbaka i samma pass inte blåser upp siffran.
+  const RUN_WINDOW_MS = 60 * 60 * 1000;
+  const studioActiveWorkout = (studios, studioId) => {
+    const st = (studios || []).find(s => s && s.id === studioId);
+    return (st && st.remoteState && st.remoteState.activeWorkoutId) || null;
+  };
+
+  const afterStudios = afterData.studios || [];
+  const beforeStudios = beforeData.studios || [];
+  const startedRuns = [];
+  for (const studio of afterStudios) {
+    if (!studio || !studio.id) continue;
+    const nowActive = studioActiveWorkout(afterStudios, studio.id);
+    const wasActive = studioActiveWorkout(beforeStudios, studio.id);
+    // Bara övergången till ett NYTT aktivt pass räknas — inte varje timer-tick.
+    if (nowActive && nowActive !== wasActive) {
+      startedRuns.push({ studioId: studio.id, workoutId: nowActive });
+    }
+  }
+
+  for (const run of startedRuns) {
+    try {
+      const workoutRef = db.collection('workouts').doc(run.workoutId);
+      await db.runTransaction(async (tx) => {
+        const snap = await tx.get(workoutRef);
+        if (!snap.exists) return;
+        const data = snap.data();
+        const now = Date.now();
+        const lastByStudio = data.lastRunByStudio || {};
+        const lastForThisStudio = lastByStudio[run.studioId] || 0;
+        if (now - lastForThisStudio < RUN_WINDOW_MS) return; // samma skärm, samma pass, inom en timme
+
+        tx.update(workoutRef, {
+          runCount: (data.runCount || 0) + 1,
+          lastRunAt: now,
+          [`lastRunByStudio.${run.studioId}`]: now
+        });
+      });
+    } catch (e) {
+      console.warn('Kunde inte räkna passkörning', run.workoutId, e.message);
+    }
+  }
+
   // --- Kategoribyte: döp om passen automatiskt ---
   // Pass pekar på kategorins NAMN, inte dess id. Utan detta kopplas alla pass loss
   // när en kategori döps om i Globala inställningar (hände i prod aug 2026).
@@ -1194,10 +1241,31 @@ const flexUpdateOrganization = onCall({
 /**
  * --- TRIGGER: Nytt pass publicerat ---
  */
+/**
+ * Klienten känner inte alltid till användarens visningsnamn (Firebase Auth har inte
+ * alltid displayName satt). Servern slår därför upp namnet ur users-kollektionen och
+ * skriver det på passet, så Hantera Pass-listan kan visa "skapad av" direkt.
+ */
+const fillCreatorName = async (event) => {
+  const data = event.data && event.data.data();
+  if (!data || !data.createdByUid || data.createdByName) return;
+  try {
+    const userSnap = await admin.firestore().collection('users').doc(data.createdByUid).get();
+    if (!userSnap.exists) return;
+    const u = userSnap.data();
+    const name = [u.firstName, u.lastName].filter(Boolean).join(' ').trim() || u.email || null;
+    if (name) await event.data.ref.update({ createdByName: name });
+  } catch (e) {
+    console.warn('Kunde inte fylla i skaparens namn:', e.message);
+  }
+};
+
 const onWorkoutCreated = onDocumentCreated({
   document: "workouts/{workoutId}"
 }, async (event) => {
   const newWorkout = event.data.data();
+
+  await fillCreatorName(event);
   
   if (newWorkout && newWorkout.isPublished && !newWorkout.isMemberDraft && newWorkout.organizationId && !newWorkout.silentPublish) {
     await notifyOrganizationMembers(

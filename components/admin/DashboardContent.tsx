@@ -760,7 +760,7 @@ const ManageWorkoutsView: React.FC<{
     const [searchTerm, setSearchTerm] = useState('');
     const [currentPage, setCurrentPage] = useState(1);
     const [previewWorkout, setPreviewWorkout] = useState<Workout | null>(null);
-    const [sortConfig, setSortConfig] = useState<{ key: 'title' | 'category' | 'createdAt' | 'isPublished', direction: 'asc' | 'desc' | 'none' }>({
+    const [sortConfig, setSortConfig] = useState<{ key: 'title' | 'category' | 'createdAt' | 'isPublished' | 'runCount' | 'lastRunAt', direction: 'asc' | 'desc' | 'none' }>({
         key: 'createdAt',
         direction: 'none'
     });
@@ -806,8 +806,11 @@ const ManageWorkoutsView: React.FC<{
         // Apply Sorting
         if (sortConfig.direction !== 'none') {
             result.sort((a, b) => {
-                const aValue = a[sortConfig.key];
-                const bValue = b[sortConfig.key];
+                // Körningskolumnerna saknas på pass som aldrig körts — de behandlas
+                // som 0 så att sorteringen blir meningsfull i stället för godtycklig.
+                const numericKey = sortConfig.key === 'runCount' || sortConfig.key === 'lastRunAt';
+                const aValue = numericKey ? (a[sortConfig.key] || 0) : a[sortConfig.key];
+                const bValue = numericKey ? (b[sortConfig.key] || 0) : b[sortConfig.key];
 
                 if (aValue === undefined || bValue === undefined) return 0;
 
@@ -915,6 +918,12 @@ const ManageWorkoutsView: React.FC<{
                                 <th onClick={() => handleSort('createdAt')} className="p-5 text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.2em] cursor-pointer hover:text-primary transition-colors">
                                     <div className="flex items-center">Skapad <SortIcon column="createdAt" /></div>
                                 </th>
+                                <th onClick={() => handleSort('runCount')} className="p-5 text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.2em] cursor-pointer hover:text-primary transition-colors">
+                                    <div className="flex items-center">Körd <SortIcon column="runCount" /></div>
+                                </th>
+                                <th onClick={() => handleSort('lastRunAt')} className="p-5 text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.2em] cursor-pointer hover:text-primary transition-colors">
+                                    <div className="flex items-center">Senast <SortIcon column="lastRunAt" /></div>
+                                </th>
                                 <th onClick={() => handleSort('isPublished')} className="p-5 text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.2em] cursor-pointer hover:text-primary transition-colors">
                                     <div className="flex items-center">Status <SortIcon column="isPublished" /></div>
                                 </th>
@@ -975,8 +984,21 @@ const ManageWorkoutsView: React.FC<{
                                                 )}
                                             </div>
                                         </td>
+                                        <td className="p-5 text-sm text-gray-600 dark:text-gray-300">
+                                            <div className="font-mono">{new Date(workout.createdAt || 0).toLocaleDateString('sv-SE', { year: 'numeric', month: 'short', day: 'numeric' })}</div>
+                                            <div className="text-xs text-gray-400 mt-0.5">{workout.createdByName || '–'}</div>
+                                        </td>
+                                        <td className="p-5 text-sm">
+                                            {workout.runCount ? (
+                                                <span className="inline-flex items-center justify-center min-w-[2rem] px-2 py-1 rounded-lg bg-primary/10 text-primary font-black">{workout.runCount}</span>
+                                            ) : (
+                                                <span className="text-gray-400">–</span>
+                                            )}
+                                        </td>
                                         <td className="p-5 text-sm text-gray-600 dark:text-gray-300 font-mono">
-                                            {new Date(workout.createdAt || 0).toLocaleDateString('sv-SE', { year: 'numeric', month: 'short', day: 'numeric' })}
+                                            {workout.lastRunAt
+                                                ? new Date(workout.lastRunAt).toLocaleDateString('sv-SE', { year: 'numeric', month: 'short', day: 'numeric' })
+                                                : <span className="text-gray-400">–</span>}
                                         </td>
                                         <td className="p-5">
                                             {(() => {
@@ -1072,7 +1094,7 @@ const ManageWorkoutsView: React.FC<{
                                 ))
                             ) : (
                                 <tr>
-                                    <td colSpan={5} className="p-12 text-center text-gray-400 italic">
+                                    <td colSpan={7} className="p-12 text-center text-gray-400 italic">
                                         Inga pass hittades i denna flik.
                                     </td>
                                 </tr>

@@ -1,7 +1,7 @@
 import { 
   collection, doc, getDoc, getDocs, setDoc, getDocsFromServer, updateDoc, deleteDoc, query, where, orderBy, onSnapshot, writeBatch, serverTimestamp, deleteField 
 } from 'firebase/firestore';
-import { db, isOffline, sanitizeData, normalizeString } from './init';
+import { db, isOffline, sanitizeData, normalizeString, auth } from './init';
 import { getOrganizationExerciseBank } from './exercises';
 import { Workout, Exercise, BankExercise } from '../../types';
 import { isWorkoutVisibleNow, isWorkoutVisibleForLocations } from '../../utils/workoutUtils';
@@ -164,6 +164,15 @@ export const saveWorkout = async (w: Workout): Promise<Workout> => {
         // isMemberDraft ska alltid ha ett boolean-värde (false som default)
         if (workoutToSave.isMemberDraft === undefined) {
             workoutToSave.isMemberDraft = false;
+        }
+
+        // Skaparen stämplas EN gång — vid första sparningen. Ett pass byter aldrig
+        // upphovsperson för att någon annan redigerar det senare.
+        if (!workoutToSave.createdByUid && auth?.currentUser) {
+            workoutToSave.createdByUid = auth.currentUser.uid;
+            if (auth.currentUser.displayName) {
+                workoutToSave.createdByName = auth.currentUser.displayName;
+            }
         }
 
         // Om publishAt är satt och ligger i framtiden sätter vi silentPublish till true.

@@ -173,6 +173,11 @@ export interface Workout {
   openAsOfficial?: boolean; // NYTT: Öppna direkt i funktionärsläge
   durationMinutes?: number; // NYTT: Planerad passlängd i minuter
   publishAt?: number; // timestamp; passet är osynligt för medlemmar före denna tidpunkt
+  createdByUid?: string;      // Vem som skapade passet (stämplas vid första sparningen)
+  createdByName?: string;     // Visningsnamn, sparas så listan slipper slå upp användare
+  runCount?: number;          // Antal körningar på skärm (räknas av servern)
+  lastRunAt?: number;         // Senaste körningen (timestamp)
+  lastRunByStudio?: { [studioId: string]: number }; // Senaste körning per skärm — grund för 1-timmesfönstret
   expiresAt?: number; // timestamp; passet är osynligt för medlemmar från och med denna tidpunkt
   locationIds?: string[]; // tom eller saknas = syns för ALLA orter
   sourceNoteId?: string; // Anteckningen passet skapades från, används för att länka tillbaka
