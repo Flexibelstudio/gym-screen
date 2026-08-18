@@ -1224,19 +1224,6 @@ const ManageWorkoutsView: React.FC<{
                 </aside>
 
                 <div className="flex flex-col min-h-0">
-                {activeFolder === 'benchmarks' && onManageBenchmarks && (
-                    <div className="mb-4 flex flex-wrap items-center justify-between gap-3 p-4 rounded-2xl bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-900/30">
-                        <p className="text-sm text-amber-800 dark:text-amber-300">
-                            Pass kopplade till ett benchmark. Resultaten jämförs över tid för medlemmarna.
-                        </p>
-                        <button
-                            onClick={onManageBenchmarks}
-                            className="flex items-center gap-2 bg-amber-500 hover:brightness-95 text-white text-sm font-bold py-2 px-4 rounded-xl transition-transform active:scale-95 whitespace-nowrap"
-                        >
-                            <TrophyIcon className="w-4 h-4" /> Hantera benchmarks
-                        </button>
-                    </div>
-                )}
                 {onMoveToFolder && selectedIds.length > 0 && (
                     <div className="mb-4 flex flex-wrap items-center gap-3 p-4 rounded-2xl bg-primary/5 border border-primary/20">
                         <span className="text-sm font-bold text-primary">{selectedIds.length} pass markerade</span>
