@@ -6,7 +6,7 @@ import { DumbbellIcon, BuildingIcon, UsersIcon, SpeakerphoneIcon, SparklesIcon, 
 import { motion, AnimatePresence } from 'framer-motion';
 import { AIGeneratorScreen } from '../AIGeneratorScreen';
 import { WorkoutBuilderScreen } from '../WorkoutBuilderScreen';
-import { deepCopyAndPrepareAsNew, getWorkoutStatusInfo, getWorkoutVisibilityIssues, isWorkoutLoggable, OTHER_CATEGORY } from '../../utils/workoutUtils';
+import { deepCopyAndPrepareAsNew, getWorkoutStatusInfo, getWorkoutVisibilityIssues, isWorkoutLoggable, OTHER_CATEGORY, PT_CATEGORY } from '../../utils/workoutUtils';
 import { ManageBenchmarksModal, FeatureInfoModal } from './AdminModals';
 import { updateOrganizationBenchmarks, updateOrganizationWorkoutFolders, resolveAndCreateExercises, updateGlobalConfig, listenToGlobalSummerChallenge, listenToMembers, listenToCommunityLogs, listenToCommunityLogsByLocations, getOrganizationLogs, getSmartScreenPricing } from '../../services/firebaseService';
 import { WorkoutPresentationModal } from '../WorkoutDetailScreen';
@@ -801,7 +801,7 @@ const ManageWorkoutsView: React.FC<{
     const [deleteConfirmWorkoutId, setDeleteConfirmWorkoutId] = useState<string | null>(null);
     const [copyConfirmWorkoutId, setCopyConfirmWorkoutId] = useState<string | null>(null);
     
-    const ITEMS_PER_PAGE = 50;
+    const ITEMS_PER_PAGE = 25;
 
     // Filter workouts based on selected tab.
     // Pass från AI-whiteboarden/anteckningarna är publicerade med isMemberDraft
@@ -817,14 +817,14 @@ const ManageWorkoutsView: React.FC<{
 
         // Tilldelade pass hör till en enskild medlem och ska inte blandas in i
         // gymmets vanliga utbud — de har en egen mapp.
-        if (activeFolder === 'all') return base.filter(w => !w.assignedToUid);
+        if (activeFolder === 'all') return base.filter(w => !w.assignedToUid && w.category !== PT_CATEGORY);
         if (activeFolder === 'favorites') {
             return [...base]
                 .filter(w => (w.runCount || 0) > 0)
                 .sort((a, b) => (b.runCount || 0) - (a.runCount || 0))
                 .slice(0, FAVORITES_COUNT);
         }
-        if (activeFolder === 'assigned') return base.filter(w => !!w.assignedToUid);
+        if (activeFolder === 'assigned') return base.filter(w => !!w.assignedToUid || w.category === PT_CATEGORY);
         if (activeFolder === 'benchmarks') return base.filter(w => !!w.benchmarkId);
         if (activeFolder === 'nofolder') return base.filter(w => !w.folderId);
         if (activeFolder.startsWith('cat:')) {
@@ -847,9 +847,9 @@ const ManageWorkoutsView: React.FC<{
     ), [workouts, activeTab]);
 
     const countFor = (key: string) => {
-        if (key === 'all') return tabScopedWorkouts.filter(w => !w.assignedToUid).length;
+        if (key === 'all') return tabScopedWorkouts.filter(w => !w.assignedToUid && w.category !== PT_CATEGORY).length;
         if (key === 'favorites') return Math.min(FAVORITES_COUNT, tabScopedWorkouts.filter(w => (w.runCount || 0) > 0).length);
-        if (key === 'assigned') return tabScopedWorkouts.filter(w => !!w.assignedToUid).length;
+        if (key === 'assigned') return tabScopedWorkouts.filter(w => !!w.assignedToUid || w.category === PT_CATEGORY).length;
         if (key === 'benchmarks') return tabScopedWorkouts.filter(w => !!w.benchmarkId).length;
         if (key === 'nofolder') return tabScopedWorkouts.filter(w => !w.folderId).length;
         if (key.startsWith('cat:')) return tabScopedWorkouts.filter(w => w.category === key.slice(4)).length;
@@ -916,17 +916,27 @@ const ManageWorkoutsView: React.FC<{
         return result;
     }, [filteredByTab, searchTerm, sortConfig]);
 
-    // Pagination Logic
-    const totalPages = Math.ceil(filteredWorkouts.length / ITEMS_PER_PAGE);
-    const paginatedWorkouts = useMemo(() => {
-        const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
-        return filteredWorkouts.slice(startIndex, startIndex + ITEMS_PER_PAGE);
-    }, [filteredWorkouts, currentPage]);
+    // Listan fylls på när man scrollar i stället för att delas upp i sidor: vi
+    // visar ITEMS_PER_PAGE åt gången och laddar nästa sjok när botten närmar sig.
+    // currentPage används som "hur många sjok som visas".
+    const paginatedWorkouts = useMemo(
+        () => filteredWorkouts.slice(0, currentPage * ITEMS_PER_PAGE),
+        [filteredWorkouts, currentPage]
+    );
+    const hasMore = paginatedWorkouts.length < filteredWorkouts.length;
 
-    // Reset to page 1 when search, sort, or tab changes
+    // Börja om från toppen när urvalet ändras
     useEffect(() => {
         setCurrentPage(1);
-    }, [searchTerm, sortConfig, activeTab]);
+    }, [searchTerm, sortConfig, activeTab, activeFolder]);
+
+    const handleListScroll = (e: React.UIEvent<HTMLDivElement>) => {
+        if (!hasMore) return;
+        const el = e.currentTarget;
+        if (el.scrollHeight - el.scrollTop - el.clientHeight < 400) {
+            setCurrentPage(p => p + 1);
+        }
+    };
 
     const SortIcon = ({ column }: { column: typeof sortConfig.key }) => {
         if (sortConfig.key !== column || sortConfig.direction === 'none') {
@@ -1287,7 +1297,7 @@ const ManageWorkoutsView: React.FC<{
                         </button>
                     </div>
                 )}
-                <div className="flex-grow min-h-0 overflow-auto rounded-2xl border border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800">
+                <div onScroll={handleListScroll} className="flex-grow min-h-0 overflow-auto rounded-2xl border border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800">
                     <table className="w-full text-left border-collapse min-w-[800px]">
                         <thead>
                             <tr className="bg-gray-50 dark:bg-gray-900/50 border-b border-gray-100 dark:border-gray-700 sticky top-0 z-30">
@@ -1639,30 +1649,10 @@ const ManageWorkoutsView: React.FC<{
                     </div>
                 )}
 
-                {/* Pagination */}
-                {totalPages > 1 && (
-                    <div className="flex-shrink-0 flex items-center justify-between p-4 mt-3 rounded-2xl border border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50">
-                        <button 
-                            onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                            disabled={currentPage === 1}
-                            className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-sm font-bold text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                        >
-                            <ChevronLeftIcon className="w-4 h-4" />
-                            Föregående
-                        </button>
-                        <span className="text-sm font-bold text-gray-500 dark:text-gray-400">
-                            Sida {currentPage} av {totalPages}
-                        </span>
-                        <button 
-                            onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                            disabled={currentPage === totalPages}
-                            className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-sm font-bold text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                        >
-                            Nästa
-                            <ChevronRightIcon className="w-4 h-4" />
-                        </button>
-                    </div>
-                )}
+                {/* Visar hur mycket av listan man kommit igenom */}
+                <div className="flex-shrink-0 pt-3 text-center text-xs font-bold text-gray-400">
+                    Visar {paginatedWorkouts.length} av {filteredWorkouts.length} pass
+                </div>
             </div>
 
             <AnimatePresence>
