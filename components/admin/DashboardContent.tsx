@@ -1027,8 +1027,7 @@ const ManageWorkoutsView: React.FC<{
                 {/* MAPPAR — ren adminordning, påverkar inte medlemsvyn */}
                 <aside className="space-y-1">
                     <div className="px-3 pb-3 mb-1 border-b border-gray-100 dark:border-gray-700">
-                        <h4 className="text-sm font-black text-gray-900 dark:text-white uppercase tracking-wider">Våra pass</h4>
-                        <p className="text-[11px] text-gray-400 mt-0.5">Mappar för er egen ordning</p>
+                        <h4 className="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.2em]">Våra pass</h4>
                     </div>
                     {[
                         { key: 'all', label: 'Alla pass', icon: '📋' },
@@ -1282,7 +1281,7 @@ const ManageWorkoutsView: React.FC<{
                         <thead>
                             <tr className="bg-gray-50 dark:bg-gray-900/50 border-b border-gray-100 dark:border-gray-700">
                                 {onMoveToFolder && (
-                                    <th className="pl-5 pr-0 py-5 w-10">
+                                    <th className="pl-5 pr-0 py-5 w-10 sticky left-0 z-20 bg-gray-50 dark:bg-gray-900/50">
                                         <input
                                             type="checkbox"
                                             aria-label="Markera alla på sidan"
@@ -1297,11 +1296,11 @@ const ManageWorkoutsView: React.FC<{
                                         />
                                     </th>
                                 )}
-                                <th onClick={() => handleSort('title')} className="p-5 text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.2em] cursor-pointer hover:text-primary transition-colors">
-                                    <div className="flex items-center">Titel <SortIcon column="title" /></div>
+                                <th onClick={() => handleSort('title')} className={`p-5 text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.2em] cursor-pointer hover:text-primary transition-colors sticky z-20 bg-gray-50 dark:bg-gray-900/50 ${onMoveToFolder ? 'left-10' : 'left-0'}`}>
+                                    <div className="flex items-center w-[16rem]">Titel <SortIcon column="title" /></div>
                                 </th>
-                                <th onClick={() => handleSort('category')} className="p-5 text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.2em] cursor-pointer hover:text-primary transition-colors">
-                                    <div className="flex items-center">Kategori <SortIcon column="category" /></div>
+                                <th onClick={() => handleSort('category')} className={`p-5 text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.2em] cursor-pointer hover:text-primary transition-colors sticky z-20 bg-gray-50 dark:bg-gray-900/50 border-r border-gray-100 dark:border-gray-700 ${onMoveToFolder ? 'left-[19rem]' : 'left-[17rem]'}`}>
+                                    <div className="flex items-center w-[8rem]">Kategori <SortIcon column="category" /></div>
                                 </th>
                                 <th onClick={() => handleSort('createdAt')} className="p-5 text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.2em] cursor-pointer hover:text-primary transition-colors">
                                     <div className="flex items-center">Skapad <SortIcon column="createdAt" /></div>
@@ -1329,7 +1328,7 @@ const ManageWorkoutsView: React.FC<{
                                         className="group hover:bg-gray-50 dark:hover:bg-gray-900/40 transition-colors"
                                     >
                                         {onMoveToFolder && (
-                                            <td className="pl-5 pr-0 py-5">
+                                            <td className="pl-5 pr-0 py-5 sticky left-0 z-10 bg-white dark:bg-gray-800 group-hover:bg-gray-50 dark:group-hover:bg-gray-900/40 transition-colors">
                                                 <input
                                                     type="checkbox"
                                                     aria-label={`Markera ${workout.title}`}
@@ -1341,8 +1340,8 @@ const ManageWorkoutsView: React.FC<{
                                                 />
                                             </td>
                                         )}
-                                        <td className="p-5">
-                                            <p className="font-bold text-gray-900 dark:text-white text-base truncate max-w-xs">{workout.title}</p>
+                                        <td className={`p-5 sticky z-10 bg-white dark:bg-gray-800 group-hover:bg-gray-50 dark:group-hover:bg-gray-900/40 transition-colors ${onMoveToFolder ? 'left-10' : 'left-0'}`}>
+                                            <p className="font-bold text-gray-900 dark:text-white text-base truncate w-[16rem]">{workout.title}</p>
                                             {workout.coachTips && (
                                                 <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 truncate max-w-xs">{workout.coachTips}</p>
                                             )}
@@ -1376,7 +1375,7 @@ const ManageWorkoutsView: React.FC<{
                                                 );
                                             })()}
                                         </td>
-                                        <td className="p-5">
+                                        <td className={`p-5 sticky z-10 bg-white dark:bg-gray-800 group-hover:bg-gray-50 dark:group-hover:bg-gray-900/40 transition-colors border-r border-gray-100 dark:border-gray-700 ${onMoveToFolder ? 'left-[19rem]' : 'left-[17rem]'}`}>
                                             <div className="flex flex-wrap items-center gap-2">
                                                 <span className="bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 px-2 py-1 rounded text-xs font-bold whitespace-nowrap">
                                                     {workout.category || 'Okategoriserad'}
