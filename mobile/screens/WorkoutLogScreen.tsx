@@ -632,7 +632,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
             let foundWorkout: any = null;
 
             if (!isManualMode) {
-                const orgWorkouts = await getVisibleWorkoutsForMembers(finalOrgId);
+                const orgWorkouts = await getVisibleWorkoutsForMembers(finalOrgId, undefined, currentUser?.uid);
                 foundWorkout = orgWorkouts.find(w => w.id === wId);
                 
                 if (!foundWorkout) {

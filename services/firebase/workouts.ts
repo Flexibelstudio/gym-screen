@@ -4,7 +4,7 @@ import {
 import { db, isOffline, sanitizeData, normalizeString, auth } from './init';
 import { getOrganizationExerciseBank } from './exercises';
 import { Workout, Exercise, BankExercise } from '../../types';
-import { isWorkoutVisibleNow, isWorkoutVisibleForLocations } from '../../utils/workoutUtils';
+import { isWorkoutVisibleNow, isWorkoutVisibleForLocations, isWorkoutVisibleForMember } from '../../utils/workoutUtils';
 
 export const getFreshCategoryWorkouts = async (orgId: string, category: string, memberLocationIds?: string[]): Promise<Workout[]> => {
     if (isOffline || !db || !orgId) return [];
@@ -39,7 +39,7 @@ export const getFreshCategoryWorkouts = async (orgId: string, category: string, 
     }
 };
 
-export const getVisibleWorkoutsForMembers = async (orgId: string, memberLocationIds?: string[]): Promise<Workout[]> => {
+export const getVisibleWorkoutsForMembers = async (orgId: string, memberLocationIds?: string[], memberUid?: string | null): Promise<Workout[]> => {
     if (isOffline || !db || !orgId) return [];
     try {
         const q = query(
@@ -62,7 +62,9 @@ export const getVisibleWorkoutsForMembers = async (orgId: string, memberLocation
                 }));
             }
             return data;
-        }).filter(w => memberLocationIds ? isWorkoutVisibleForLocations(w, memberLocationIds) : isWorkoutVisibleNow(w));
+        }).filter(w => memberLocationIds
+            ? isWorkoutVisibleForLocations(w, memberLocationIds, Date.now(), memberUid)
+            : (isWorkoutVisibleNow(w) && isWorkoutVisibleForMember(w, memberUid)));
     } catch (e: any) { 
         console.error("getVisibleWorkoutsForMembers failed", e);
         const errMsg = e?.message || String(e);

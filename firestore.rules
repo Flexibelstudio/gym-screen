@@ -117,7 +117,16 @@ service cloud.firestore {
     // ===== TRÄNINGSAPPEN (SmartStudio) =====
 
     match /workouts/{workoutId} {
-      allow read: if resource == null || belongsToOrg(resource.data.organizationId);
+      // Tilldelade pass (PT) hör till EN medlem: bara den medlemmen och gymmets
+      // personal får läsa dem. Övriga pass läses som förut av alla i organisationen.
+      allow read: if resource == null || (
+        belongsToOrg(resource.data.organizationId) && (
+          !('assignedToUid' in resource.data) ||
+          resource.data.assignedToUid == null ||
+          resource.data.assignedToUid == request.auth.uid ||
+          isStaff(resource.data.organizationId)
+        )
+      );
       // FIX: Raderade onödig logik och den trasiga userDoc(). isStaff löser allt detta automatiskt!
       allow create: if isStaff(request.resource.data.organizationId);
       // Lade till säkerhet: Du får bara uppdatera om du är staff i orgId före OCH efter uppdateringen

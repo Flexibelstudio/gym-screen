@@ -281,6 +281,21 @@ export function isWorkoutVisibleNow(w: Workout, now: number = Date.now()): boole
     return true;
 }
 
+/**
+ * Tilldelade pass (PT) hör till EN medlem. De ska aldrig visas på skärmen i lokalen
+ * och aldrig i någon annan medlems app. Passet är fortfarande publicerat — det är
+ * tilldelningen, inte publiceringen, som styr vem som ser det.
+ */
+export function isWorkoutVisibleForMember(w: Workout, memberUid?: string | null): boolean {
+    if (!w.assignedToUid) return true;
+    return !!memberUid && w.assignedToUid === memberUid;
+}
+
+/** Skärmen visar aldrig tilldelade pass, oavsett vem som är inloggad. */
+export function isWorkoutVisibleOnScreen(w: Workout): boolean {
+    return !w.assignedToUid;
+}
+
 export function getMemberLocationIds(user?: { locationId?: string; locationIds?: string[] } | null): string[] {
     if (!user) return [];
     const set = new Set<string>();
@@ -293,8 +308,9 @@ export function getMemberLocationIds(user?: { locationId?: string; locationIds?:
     return Array.from(set);
 }
 
-export function isWorkoutVisibleForLocations(w: Workout, memberLocationIds: string[], now: number = Date.now()): boolean {
+export function isWorkoutVisibleForLocations(w: Workout, memberLocationIds: string[], now: number = Date.now(), memberUid?: string | null): boolean {
     if (!isWorkoutVisibleNow(w, now)) return false;
+    if (!isWorkoutVisibleForMember(w, memberUid)) return false;
     if (!w.locationIds || w.locationIds.length === 0) return true;
     if (!memberLocationIds || memberLocationIds.length === 0) return false;
     return w.locationIds.some(id => memberLocationIds.includes(id));

@@ -174,6 +174,9 @@ export interface Workout {
   durationMinutes?: number; // NYTT: Planerad passlängd i minuter
   publishAt?: number; // timestamp; passet är osynligt för medlemmar före denna tidpunkt
   folderId?: string;          // Egen mapp i Hantera Pass (intern ordning, påverkar inte medlemsvyn)
+  /** Tilldelat pass (PT): syns ENBART för den här medlemmen i appen, aldrig på skärmen. */
+  assignedToUid?: string;
+  assignedToName?: string;
   createdByUid?: string;      // Vem som skapade passet (stämplas vid första sparningen)
   createdByName?: string;     // Visningsnamn, sparas så listan slipper slå upp användare
   runCount?: number;          // Antal körningar på skärm (räknas av servern)

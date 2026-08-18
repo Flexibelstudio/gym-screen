@@ -10,7 +10,7 @@ import WorkoutDetailScreen from './WorkoutDetailScreen';
 import { LineChart, Line, XAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import { Modal } from './ui/Modal';
 import { PasswordModal } from './PasswordModal';
-import { isWorkoutVisibleNow, getMemberLocationIds, isWorkoutVisibleForLocations } from '../utils/workoutUtils';
+import { isWorkoutVisibleNow, getMemberLocationIds, isWorkoutVisibleForLocations, isWorkoutVisibleOnScreen } from '../utils/workoutUtils';
 
 interface WorkoutListScreenProps {
     passkategori?: string;
@@ -76,12 +76,14 @@ export const WorkoutListScreen: React.FC<WorkoutListScreenProps> = React.memo(({
                 const matchesCategory = !selectedCategory || w.category === selectedCategory;
                 const matchesSearch = (w.title || '').toLowerCase().includes(searchTerm.toLowerCase()) || 
                                     (w.coachTips && (w.coachTips || '').toLowerCase().includes(searchTerm.toLowerCase()));
-                return isWorkoutVisibleForLocations(w, activeLocationIds, now) && matchesCategory && matchesSearch;
+                return isWorkoutVisibleForLocations(w, activeLocationIds, now, currentUser?.uid) && matchesCategory && matchesSearch;
             });
         }
 
         let visible = sourceWorkouts.filter(w => {
-            if (!isWorkoutVisibleForLocations(w, activeLocationIds, now)) return false;
+            // Tilldelade pass (PT) syns aldrig på skärmen och bara för sin egen medlem.
+            if (isStudioMode && !isWorkoutVisibleOnScreen(w)) return false;
+            if (!isWorkoutVisibleForLocations(w, activeLocationIds, now, currentUser?.uid)) return false;
 
             const categoryConfig = studioConfig.customCategories.find(c => c.name === w.category);
             const isCategoryLocked = categoryConfig?.isLocked === true;

@@ -757,9 +757,11 @@ const ManageWorkoutsView: React.FC<{
     onCreateNew?: () => void;
     onCreateWithAI?: () => void;
     onManageBenchmarks?: () => void;
-    onSaveFolders?: (folders: { id: string; name: string; createdAt: number }[]) => Promise<void>;
+    onSaveFolders?: (folders: { id: string; name: string; createdAt: number; parentId?: string }[]) => Promise<void>;
     onMoveToFolder?: (workout: Workout, folderId: string | undefined) => Promise<void>;
-}> = ({ workouts, locations, organization, onEdit, onDelete, onDuplicate, onTogglePublish, onCopyToLibrary, onMoveToLibrary, onMoveToOtherPass, onBack, onCreateNew, onCreateWithAI, onManageBenchmarks, onSaveFolders, onMoveToFolder }) => {
+    members?: { uid: string; firstName?: string; lastName?: string; email?: string }[];
+    onAssignToMember?: (workout: Workout, member: { uid: string; name: string } | null) => Promise<void>;
+}> = ({ workouts, locations, organization, onEdit, onDelete, onDuplicate, onTogglePublish, onCopyToLibrary, onMoveToLibrary, onMoveToOtherPass, onBack, onCreateNew, onCreateWithAI, onManageBenchmarks, onSaveFolders, onMoveToFolder, members, onAssignToMember }) => {
     
     const [isCreateMenuOpen, setIsCreateMenuOpen] = useState(false);
 
@@ -776,6 +778,8 @@ const ManageWorkoutsView: React.FC<{
     // null = ingen inmatning öppen, '' = ny mapp på toppnivå, '<id>' = undermapp till den mappen
     const [addingFolderUnder, setAddingFolderUnder] = useState<string | null>(null);
     const [selectedIds, setSelectedIds] = useState<string[]>([]);
+    const [assignFor, setAssignFor] = useState<Workout | null>(null);
+    const [assignSearch, setAssignSearch] = useState('');
     const [isBulkMenuOpen, setIsBulkMenuOpen] = useState(false);
 
     const customFolders = organization?.workoutFolders || [];
@@ -811,13 +815,16 @@ const ManageWorkoutsView: React.FC<{
             ? workouts.filter(w => !w.isMemberDraft && w.category !== OTHER_CATEGORY)
             : workouts.filter(w => w.isMemberDraft || w.category === OTHER_CATEGORY);
 
-        if (activeFolder === 'all') return base;
+        // Tilldelade pass hör till en enskild medlem och ska inte blandas in i
+        // gymmets vanliga utbud — de har en egen mapp.
+        if (activeFolder === 'all') return base.filter(w => !w.assignedToUid);
         if (activeFolder === 'favorites') {
             return [...base]
                 .filter(w => (w.runCount || 0) > 0)
                 .sort((a, b) => (b.runCount || 0) - (a.runCount || 0))
                 .slice(0, FAVORITES_COUNT);
         }
+        if (activeFolder === 'assigned') return base.filter(w => !!w.assignedToUid);
         if (activeFolder === 'benchmarks') return base.filter(w => !!w.benchmarkId);
         if (activeFolder === 'nofolder') return base.filter(w => !w.folderId);
         if (activeFolder.startsWith('cat:')) {
@@ -840,8 +847,9 @@ const ManageWorkoutsView: React.FC<{
     ), [workouts, activeTab]);
 
     const countFor = (key: string) => {
-        if (key === 'all') return tabScopedWorkouts.length;
+        if (key === 'all') return tabScopedWorkouts.filter(w => !w.assignedToUid).length;
         if (key === 'favorites') return Math.min(FAVORITES_COUNT, tabScopedWorkouts.filter(w => (w.runCount || 0) > 0).length);
+        if (key === 'assigned') return tabScopedWorkouts.filter(w => !!w.assignedToUid).length;
         if (key === 'benchmarks') return tabScopedWorkouts.filter(w => !!w.benchmarkId).length;
         if (key === 'nofolder') return tabScopedWorkouts.filter(w => !w.folderId).length;
         if (key.startsWith('cat:')) return tabScopedWorkouts.filter(w => w.category === key.slice(4)).length;
@@ -1034,6 +1042,7 @@ const ManageWorkoutsView: React.FC<{
                         { key: 'all', label: 'Alla pass', icon: '📋' },
                         { key: 'favorites', label: 'Mest körda', icon: '⭐' },
                         { key: 'benchmarks', label: 'Benchmarks', icon: '🏆' },
+                        { key: 'assigned', label: 'Tilldelade pass', icon: '👤' },
                     ].map(item => (
                         <button
                             key={item.key}
@@ -1347,6 +1356,9 @@ const ManageWorkoutsView: React.FC<{
                                         )}
                                         <td className={`p-5 sticky z-10 bg-white dark:bg-gray-800 group-hover:bg-gray-50 dark:group-hover:bg-gray-900/40 transition-colors ${onMoveToFolder ? 'left-10' : 'left-0'}`}>
                                             <p className="font-bold text-gray-900 dark:text-white text-base truncate w-[16rem]">{workout.title}</p>
+                                            {workout.assignedToName && (
+                                                <p className="text-xs font-bold text-primary mt-0.5 truncate w-[16rem]">👤 {workout.assignedToName}</p>
+                                            )}
                                             {workout.coachTips && (
                                                 <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 truncate max-w-xs">{workout.coachTips}</p>
                                             )}
@@ -1489,6 +1501,15 @@ const ManageWorkoutsView: React.FC<{
                                                 >
                                                     <PencilIcon className="w-4 h-4" />
                                                 </button>
+                                                {onAssignToMember && (
+                                                    <button
+                                                        onClick={() => { setAssignFor(workout); setAssignSearch(''); }}
+                                                        className={`p-2 rounded-lg transition-colors ${workout.assignedToUid ? 'text-primary bg-primary/10' : 'text-gray-400 hover:text-primary hover:bg-primary/10'}`}
+                                                        title={workout.assignedToName ? `Tilldelat: ${workout.assignedToName}` : 'Tilldela en medlem'}
+                                                    >
+                                                        <span className="text-base leading-none">👤</span>
+                                                    </button>
+                                                )}
                                                 {onMoveToFolder && (
                                                     <div className="relative">
                                                         <button
@@ -1560,6 +1581,61 @@ const ManageWorkoutsView: React.FC<{
                 </div>
                 </div>
                 </div>
+
+                {/* Tilldela pass till medlem */}
+                {assignFor && onAssignToMember && (
+                    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm" onClick={() => setAssignFor(null)}>
+                        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl border border-gray-100 dark:border-gray-700 w-full max-w-md overflow-hidden" onClick={e => e.stopPropagation()}>
+                            <div className="p-6 border-b border-gray-100 dark:border-gray-700">
+                                <h4 className="text-xl font-bold text-gray-900 dark:text-white">Tilldela passet</h4>
+                                <p className="text-sm text-gray-500 dark:text-gray-400 mt-1 truncate">{assignFor.title}</p>
+                                <p className="text-xs text-gray-400 mt-2">Ett tilldelat pass syns bara för den medlemmen i appen — aldrig på skärmen i lokalen.</p>
+                            </div>
+                            <div className="p-4">
+                                <input
+                                    autoFocus
+                                    value={assignSearch}
+                                    onChange={e => setAssignSearch(e.target.value)}
+                                    placeholder="Sök medlem…"
+                                    className="w-full bg-gray-50 dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+                                />
+                            </div>
+                            <div className="max-h-72 overflow-y-auto px-2 pb-2">
+                                {(members || [])
+                                    .map(m => ({ uid: m.uid, name: `${m.firstName || ''} ${m.lastName || ''}`.trim() || m.email || 'Namnlös', email: m.email || '' }))
+                                    .filter(m => !assignSearch.trim() || m.name.toLowerCase().includes(assignSearch.toLowerCase()) || m.email.toLowerCase().includes(assignSearch.toLowerCase()))
+                                    .sort((a, b) => a.name.localeCompare(b.name, 'sv'))
+                                    .slice(0, 50)
+                                    .map(m => (
+                                        <button
+                                            key={m.uid}
+                                            onClick={async () => { await onAssignToMember(assignFor, m); setAssignFor(null); }}
+                                            className={`w-full text-left px-4 py-2.5 rounded-xl text-sm hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors ${assignFor.assignedToUid === m.uid ? 'text-primary font-bold' : 'text-gray-700 dark:text-gray-200'}`}
+                                        >
+                                            {assignFor.assignedToUid === m.uid ? '✓ ' : ''}{m.name}
+                                            {m.email && <span className="block text-xs text-gray-400">{m.email}</span>}
+                                        </button>
+                                    ))}
+                                {(members || []).length === 0 && (
+                                    <p className="px-4 py-3 text-sm text-gray-400 italic">Inga medlemmar hittades.</p>
+                                )}
+                            </div>
+                            <div className="p-4 border-t border-gray-100 dark:border-gray-700 flex justify-between gap-3">
+                                {assignFor.assignedToUid ? (
+                                    <button
+                                        onClick={async () => { await onAssignToMember(assignFor, null); setAssignFor(null); }}
+                                        className="text-sm font-bold text-red-500 hover:underline"
+                                    >
+                                        Ta bort tilldelningen
+                                    </button>
+                                ) : <span />}
+                                <button onClick={() => setAssignFor(null)} className="text-sm font-bold text-gray-500 hover:text-gray-700 dark:hover:text-gray-300">
+                                    Stäng
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
 
                 {/* Pagination */}
                 {totalPages > 1 && (
@@ -1769,6 +1845,13 @@ const PassProgramContent: React.FC<DashboardContentProps & {
 }) => {
     
     const [showBenchmarkModal, setShowBenchmarkModal] = useState(false);
+    // Medlemslistan behövs för att kunna tilldela pass till en enskild medlem (PT).
+    const [ptMembers, setPtMembers] = useState<any[]>([]);
+    useEffect(() => {
+        if (!organization?.id) return;
+        const unsub = listenToMembers(organization.id, (data) => setPtMembers(data));
+        return () => unsub();
+    }, [organization?.id]);
 
     const handleNavigate = async (mode: 'create' | 'generate' | 'parse' | 'manage') => {
         if (mode === 'create') {
@@ -1845,6 +1928,15 @@ const PassProgramContent: React.FC<DashboardContentProps & {
         await onSaveWorkout({ ...workout, folderId });
     };
 
+    // Tilldelat pass (PT): syns bara för den medlemmen i appen, aldrig på skärmen.
+    const handleAssignToMember = async (workout: Workout, member: { uid: string; name: string } | null) => {
+        await onSaveWorkout({
+            ...workout,
+            assignedToUid: member ? member.uid : undefined,
+            assignedToName: member ? member.name : undefined,
+        });
+    };
+
     const handleUpdateBenchmarks = async (benchmarks: BenchmarkDefinition[]) => {
         await updateOrganizationBenchmarks(organization.id, benchmarks);
     };
@@ -1910,6 +2002,8 @@ const PassProgramContent: React.FC<DashboardContentProps & {
                     onManageBenchmarks={() => setShowBenchmarkModal(true)}
                     onSaveFolders={handleSaveFolders}
                     onMoveToFolder={handleMoveToFolder}
+                    members={ptMembers}
+                    onAssignToMember={handleAssignToMember}
                 />
                 {showBenchmarkModal && (
                     <ManageBenchmarksModal 
