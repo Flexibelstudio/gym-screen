@@ -8,7 +8,7 @@ import { AIGeneratorScreen } from '../AIGeneratorScreen';
 import { WorkoutBuilderScreen } from '../WorkoutBuilderScreen';
 import { deepCopyAndPrepareAsNew, getWorkoutStatusInfo, getWorkoutVisibilityIssues, OTHER_CATEGORY } from '../../utils/workoutUtils';
 import { ManageBenchmarksModal, FeatureInfoModal } from './AdminModals';
-import { updateOrganizationBenchmarks, resolveAndCreateExercises, updateGlobalConfig, listenToGlobalSummerChallenge, listenToMembers, listenToCommunityLogs, listenToCommunityLogsByLocations, getOrganizationLogs, getSmartScreenPricing } from '../../services/firebaseService';
+import { updateOrganizationBenchmarks, updateOrganizationWorkoutFolders, resolveAndCreateExercises, updateGlobalConfig, listenToGlobalSummerChallenge, listenToMembers, listenToCommunityLogs, listenToCommunityLogsByLocations, getOrganizationLogs, getSmartScreenPricing } from '../../services/firebaseService';
 import { WorkoutPresentationModal } from '../WorkoutDetailScreen';
 
 // ... (Types and Interfaces remain same)
@@ -757,9 +757,26 @@ const ManageWorkoutsView: React.FC<{
     onCreateNew?: () => void;
     onCreateWithAI?: () => void;
     onManageBenchmarks?: () => void;
-}> = ({ workouts, locations, organization, onEdit, onDelete, onDuplicate, onTogglePublish, onCopyToLibrary, onMoveToLibrary, onMoveToOtherPass, onBack, onCreateNew, onCreateWithAI, onManageBenchmarks }) => {
+    onSaveFolders?: (folders: { id: string; name: string; createdAt: number }[]) => Promise<void>;
+    onMoveToFolder?: (workout: Workout, folderId: string | undefined) => Promise<void>;
+}> = ({ workouts, locations, organization, onEdit, onDelete, onDuplicate, onTogglePublish, onCopyToLibrary, onMoveToLibrary, onMoveToOtherPass, onBack, onCreateNew, onCreateWithAI, onManageBenchmarks, onSaveFolders, onMoveToFolder }) => {
     
     const [isCreateMenuOpen, setIsCreateMenuOpen] = useState(false);
+
+    // --- MAPPAR ---
+    // Mapplistan är REN ADMINORDNING. Den påverkar aldrig vad medlemmar eller
+    // skärmen ser — det styrs fortfarande av passets kategori.
+    // 'all' = alla, 'favorites' = mest körda, 'cat:<namn>' = kategori (finns
+    // automatiskt för varje kategori gymmet skapat), 'folder:<id>' = egen mapp,
+    // 'nofolder' = pass utan egen mapp.
+    const FAVORITES_COUNT = 10;
+    const [activeFolder, setActiveFolder] = useState<string>('all');
+    const [isFolderMenuFor, setIsFolderMenuFor] = useState<string | null>(null);
+    const [newFolderName, setNewFolderName] = useState('');
+    const [isAddingFolder, setIsAddingFolder] = useState(false);
+
+    const customFolders = organization?.workoutFolders || [];
+    const categories = organization?.globalConfig?.customCategories || [];
     
     const [activeTab, setActiveTab] = useState<'official' | 'drafts'>('official');
     const [searchTerm, setSearchTerm] = useState('');
@@ -781,12 +798,44 @@ const ManageWorkoutsView: React.FC<{
     // I adminlistan hör de hemma under Medlemsutkast, inte i gymmets bibliotek —
     // därför sorterar flikarna på kategori OCH utkastflaggan, utan att röra data.
     const filteredByTab = useMemo(() => {
-        if (activeTab === 'official') {
-            return workouts.filter(w => !w.isMemberDraft && w.category !== OTHER_CATEGORY);
-        } else {
-            return workouts.filter(w => w.isMemberDraft || w.category === OTHER_CATEGORY);
+        const base = activeTab === 'official'
+            ? workouts.filter(w => !w.isMemberDraft && w.category !== OTHER_CATEGORY)
+            : workouts.filter(w => w.isMemberDraft || w.category === OTHER_CATEGORY);
+
+        if (activeFolder === 'all') return base;
+        if (activeFolder === 'favorites') {
+            return [...base]
+                .filter(w => (w.runCount || 0) > 0)
+                .sort((a, b) => (b.runCount || 0) - (a.runCount || 0))
+                .slice(0, FAVORITES_COUNT);
         }
-    }, [workouts, activeTab]);
+        if (activeFolder === 'nofolder') return base.filter(w => !w.folderId);
+        if (activeFolder.startsWith('cat:')) {
+            const catName = activeFolder.slice(4);
+            return base.filter(w => w.category === catName);
+        }
+        if (activeFolder.startsWith('folder:')) {
+            const fid = activeFolder.slice(7);
+            return base.filter(w => w.folderId === fid);
+        }
+        return base;
+    }, [workouts, activeTab, activeFolder]);
+
+    // Antal per mapp räknas på fliken (bibliotek/utkast), inte på hela beståndet.
+    const tabScopedWorkouts = useMemo(() => (
+        activeTab === 'official'
+            ? workouts.filter(w => !w.isMemberDraft && w.category !== OTHER_CATEGORY)
+            : workouts.filter(w => w.isMemberDraft || w.category === OTHER_CATEGORY)
+    ), [workouts, activeTab]);
+
+    const countFor = (key: string) => {
+        if (key === 'all') return tabScopedWorkouts.length;
+        if (key === 'favorites') return Math.min(FAVORITES_COUNT, tabScopedWorkouts.filter(w => (w.runCount || 0) > 0).length);
+        if (key === 'nofolder') return tabScopedWorkouts.filter(w => !w.folderId).length;
+        if (key.startsWith('cat:')) return tabScopedWorkouts.filter(w => w.category === key.slice(4)).length;
+        if (key.startsWith('folder:')) return tabScopedWorkouts.filter(w => w.folderId === key.slice(7)).length;
+        return 0;
+    };
 
     // Handle Sort Toggle
     const handleSort = (key: typeof sortConfig.key) => {
@@ -967,6 +1016,106 @@ const ManageWorkoutsView: React.FC<{
             </div>
 
             <div className="bg-white dark:bg-gray-800 rounded-[2.5rem] shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden flex flex-col">
+                <div className="grid grid-cols-1 lg:grid-cols-[240px_minmax(0,1fr)] gap-6">
+                {/* MAPPAR — ren adminordning, påverkar inte medlemsvyn */}
+                <aside className="space-y-1">
+                    {[
+                        { key: 'all', label: 'Alla pass', icon: '📋' },
+                        { key: 'favorites', label: 'Mest körda', icon: '⭐' },
+                    ].map(item => (
+                        <button
+                            key={item.key}
+                            onClick={() => { setActiveFolder(item.key); setCurrentPage(1); }}
+                            className={`w-full flex items-center justify-between gap-2 px-3 py-2 rounded-xl text-sm font-bold transition-colors ${activeFolder === item.key ? 'bg-primary/10 text-primary' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'}`}
+                        >
+                            <span className="flex items-center gap-2 truncate"><span>{item.icon}</span> {item.label}</span>
+                            <span className="text-xs opacity-70 flex-shrink-0">{countFor(item.key)}</span>
+                        </button>
+                    ))}
+
+                    {categories.length > 0 && (
+                        <div className="pt-4">
+                            <div className="px-3 pb-1 text-[10px] font-black uppercase tracking-[0.2em] text-gray-400">Kategorier</div>
+                            {categories.map(cat => (
+                                <button
+                                    key={cat.id}
+                                    onClick={() => { setActiveFolder('cat:' + cat.name); setCurrentPage(1); }}
+                                    className={`w-full flex items-center justify-between gap-2 px-3 py-2 rounded-xl text-sm font-bold transition-colors ${activeFolder === 'cat:' + cat.name ? 'bg-primary/10 text-primary' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'}`}
+                                >
+                                    <span className="flex items-center gap-2 truncate"><span>📁</span> <span className="truncate">{cat.name}</span></span>
+                                    <span className="text-xs opacity-70 flex-shrink-0">{countFor('cat:' + cat.name)}</span>
+                                </button>
+                            ))}
+                        </div>
+                    )}
+
+                    <div className="pt-4">
+                        <div className="px-3 pb-1 text-[10px] font-black uppercase tracking-[0.2em] text-gray-400">Egna mappar</div>
+                        {customFolders.map(folder => (
+                            <div key={folder.id} className="group flex items-center">
+                                <button
+                                    onClick={() => { setActiveFolder('folder:' + folder.id); setCurrentPage(1); }}
+                                    className={`flex-grow flex items-center justify-between gap-2 px-3 py-2 rounded-xl text-sm font-bold transition-colors ${activeFolder === 'folder:' + folder.id ? 'bg-primary/10 text-primary' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'}`}
+                                >
+                                    <span className="flex items-center gap-2 truncate"><span>🗂️</span> <span className="truncate">{folder.name}</span></span>
+                                    <span className="text-xs opacity-70 flex-shrink-0">{countFor('folder:' + folder.id)}</span>
+                                </button>
+                                {onSaveFolders && (
+                                    <button
+                                        title="Ta bort mappen (passen ligger kvar)"
+                                        onClick={async () => {
+                                            if (!window.confirm(`Ta bort mappen "${folder.name}"? Passen ligger kvar och hamnar under "Utan mapp".`)) return;
+                                            await onSaveFolders(customFolders.filter(x => x.id !== folder.id));
+                                            if (activeFolder === 'folder:' + folder.id) setActiveFolder('all');
+                                        }}
+                                        className="opacity-0 group-hover:opacity-100 p-1.5 text-gray-400 hover:text-red-500 transition-opacity"
+                                    >
+                                        <TrashIcon className="w-3.5 h-3.5" />
+                                    </button>
+                                )}
+                            </div>
+                        ))}
+                        <button
+                            onClick={() => { setActiveFolder('nofolder'); setCurrentPage(1); }}
+                            className={`w-full flex items-center justify-between gap-2 px-3 py-2 rounded-xl text-sm font-bold transition-colors ${activeFolder === 'nofolder' ? 'bg-primary/10 text-primary' : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'}`}
+                        >
+                            <span className="flex items-center gap-2 truncate"><span>➖</span> Utan mapp</span>
+                            <span className="text-xs opacity-70 flex-shrink-0">{countFor('nofolder')}</span>
+                        </button>
+
+                        {onSaveFolders && (isAddingFolder ? (
+                            <form
+                                className="px-1 pt-2 flex gap-1"
+                                onSubmit={async (e) => {
+                                    e.preventDefault();
+                                    const name = newFolderName.trim();
+                                    if (!name) return;
+                                    await onSaveFolders([...customFolders, { id: 'f-' + Date.now(), name, createdAt: Date.now() }]);
+                                    setNewFolderName('');
+                                    setIsAddingFolder(false);
+                                }}
+                            >
+                                <input
+                                    autoFocus
+                                    value={newFolderName}
+                                    onChange={e => setNewFolderName(e.target.value)}
+                                    onBlur={() => { if (!newFolderName.trim()) setIsAddingFolder(false); }}
+                                    placeholder="Mappens namn"
+                                    className="flex-grow min-w-0 bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+                                />
+                                <button type="submit" className="px-2 py-1.5 rounded-lg bg-primary text-white text-xs font-bold">OK</button>
+                            </form>
+                        ) : (
+                            <button
+                                onClick={() => setIsAddingFolder(true)}
+                                className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-bold text-gray-400 hover:text-primary transition-colors"
+                            >
+                                <PlusIcon className="w-3.5 h-3.5" /> Ny mapp
+                            </button>
+                        ))}
+                    </div>
+                </aside>
+
                 <div className="overflow-x-auto">
                     <table className="w-full text-left border-collapse min-w-[800px]">
                         <thead>
@@ -1139,6 +1288,45 @@ const ManageWorkoutsView: React.FC<{
                                                 >
                                                     <PencilIcon className="w-4 h-4" />
                                                 </button>
+                                                {onMoveToFolder && (
+                                                    <div className="relative">
+                                                        <button
+                                                            onClick={() => setIsFolderMenuFor(isFolderMenuFor === workout.id ? null : workout.id)}
+                                                            className="p-2 text-gray-400 hover:text-primary hover:bg-primary/10 rounded-lg transition-colors"
+                                                            title="Flytta till mapp"
+                                                        >
+                                                            <span className="text-base leading-none">🗂️</span>
+                                                        </button>
+                                                        {isFolderMenuFor === workout.id && (
+                                                            <>
+                                                                <div className="fixed inset-0 z-40" onClick={() => setIsFolderMenuFor(null)} />
+                                                                <div className="absolute right-0 mt-2 w-56 bg-white dark:bg-gray-800 rounded-xl shadow-2xl border border-gray-100 dark:border-gray-700 z-50 py-1 max-h-72 overflow-y-auto">
+                                                                    <div className="px-3 py-2 text-[10px] font-black uppercase tracking-widest text-gray-400">Flytta till mapp</div>
+                                                                    {customFolders.length === 0 && (
+                                                                        <div className="px-3 py-2 text-xs text-gray-400 italic">Skapa en mapp först</div>
+                                                                    )}
+                                                                    {customFolders.map(folder => (
+                                                                        <button
+                                                                            key={folder.id}
+                                                                            onClick={async () => { setIsFolderMenuFor(null); await onMoveToFolder(workout, folder.id); }}
+                                                                            className={`w-full text-left px-3 py-2 text-sm hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors ${workout.folderId === folder.id ? 'text-primary font-bold' : 'text-gray-700 dark:text-gray-200'}`}
+                                                                        >
+                                                                            {workout.folderId === folder.id ? '✓ ' : ''}{folder.name}
+                                                                        </button>
+                                                                    ))}
+                                                                    {workout.folderId && (
+                                                                        <button
+                                                                            onClick={async () => { setIsFolderMenuFor(null); await onMoveToFolder(workout, undefined); }}
+                                                                            className="w-full text-left px-3 py-2 text-sm text-gray-500 hover:bg-gray-50 dark:hover:bg-gray-700/50 border-t border-gray-100 dark:border-gray-700 mt-1"
+                                                                        >
+                                                                            Ta bort ur mappen
+                                                                        </button>
+                                                                    )}
+                                                                </div>
+                                                            </>
+                                                        )}
+                                                    </div>
+                                                )}
                                                 <button 
                                                     onClick={() => onDuplicate(workout, 'admin')}
                                                     className="p-2 text-gray-400 hover:text-purple-500 hover:bg-purple-50 dark:hover:bg-purple-900/20 rounded-lg transition-colors"
@@ -1168,6 +1356,7 @@ const ManageWorkoutsView: React.FC<{
                             )}
                         </tbody>
                     </table>
+                </div>
                 </div>
 
                 {/* Pagination */}
@@ -1444,6 +1633,16 @@ const PassProgramContent: React.FC<DashboardContentProps & {
         alert("Passet har sparats som en mall i biblioteket och övningar har lagts till i banken!");
     };
     
+    // Mapparna lagras på organisationen, passets folderId på passet. Ren
+    // adminordning — inget av det påverkar medlemsvyn eller skärmen.
+    const handleSaveFolders = async (folders: { id: string; name: string; createdAt: number }[]) => {
+        await updateOrganizationWorkoutFolders(organization.id, folders);
+    };
+
+    const handleMoveToFolder = async (workout: Workout, folderId: string | undefined) => {
+        await onSaveWorkout({ ...workout, folderId });
+    };
+
     const handleUpdateBenchmarks = async (benchmarks: BenchmarkDefinition[]) => {
         await updateOrganizationBenchmarks(organization.id, benchmarks);
     };
@@ -1507,6 +1706,8 @@ const PassProgramContent: React.FC<DashboardContentProps & {
                     onCreateNew={() => handleNavigate('create')}
                     onCreateWithAI={() => handleNavigate('generate')}
                     onManageBenchmarks={() => setShowBenchmarkModal(true)}
+                    onSaveFolders={handleSaveFolders}
+                    onMoveToFolder={handleMoveToFolder}
                 />
                 {showBenchmarkModal && (
                     <ManageBenchmarksModal 

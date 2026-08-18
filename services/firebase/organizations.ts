@@ -82,6 +82,12 @@ export const updateOrganization = async (id: string, name: string, subdomain: st
     return getOrganizationById(id);
 };
 
+export const updateOrganizationWorkoutFolders = async (id: string, folders: { id: string; name: string; createdAt: number }[]) => {
+    if(isOffline || !db || !id) return;
+    await updateDoc(doc(db, 'organizations', id), { workoutFolders: folders });
+    return getOrganizationById(id);
+};
+
 export const updateOrganizationLogos = async (id: string, logos: { light: string; dark: string }) => {
     if(isOffline || !db || !id) return;
     await updateDoc(doc(db, 'organizations', id), { logoUrlLight: logos.light, logoUrlDark: logos.dark });

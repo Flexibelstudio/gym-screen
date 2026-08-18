@@ -173,6 +173,7 @@ export interface Workout {
   openAsOfficial?: boolean; // NYTT: Öppna direkt i funktionärsläge
   durationMinutes?: number; // NYTT: Planerad passlängd i minuter
   publishAt?: number; // timestamp; passet är osynligt för medlemmar före denna tidpunkt
+  folderId?: string;          // Egen mapp i Hantera Pass (intern ordning, påverkar inte medlemsvyn)
   createdByUid?: string;      // Vem som skapade passet (stämplas vid första sparningen)
   createdByName?: string;     // Visningsnamn, sparas så listan slipper slå upp användare
   runCount?: number;          // Antal körningar på skärm (räknas av servern)
@@ -318,6 +319,9 @@ export interface Organization {
   appIconUrl?: string;
   primaryColor?: string;
   globalConfig: StudioConfig;
+  /** Egna mappar för att hålla ordning i Hantera Pass. Ren adminordning — mappar
+   *  påverkar aldrig vad medlemmar eller skärmen ser (det styrs av kategorin). */
+  workoutFolders?: { id: string; name: string; createdAt: number }[];
   studios: Studio[];
   locations?: Location[]; // Nytt: Orter / Studios
   customPages?: CustomPage[];
