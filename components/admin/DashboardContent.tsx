@@ -824,7 +824,7 @@ const ManageWorkoutsView: React.FC<{
                 .sort((a, b) => (b.runCount || 0) - (a.runCount || 0))
                 .slice(0, FAVORITES_COUNT);
         }
-        if (activeFolder === 'assigned') return base.filter(w => !!w.assignedToUid || w.category === PT_CATEGORY);
+        if (activeFolder === 'assigned') return base.filter(w => !!w.assignedToUid);
         if (activeFolder === 'benchmarks') return base.filter(w => !!w.benchmarkId);
         if (activeFolder === 'nofolder') return base.filter(w => !w.folderId);
         if (activeFolder.startsWith('cat:')) {
@@ -849,7 +849,7 @@ const ManageWorkoutsView: React.FC<{
     const countFor = (key: string) => {
         if (key === 'all') return tabScopedWorkouts.filter(w => !w.assignedToUid && w.category !== PT_CATEGORY).length;
         if (key === 'favorites') return Math.min(FAVORITES_COUNT, tabScopedWorkouts.filter(w => (w.runCount || 0) > 0).length);
-        if (key === 'assigned') return tabScopedWorkouts.filter(w => !!w.assignedToUid || w.category === PT_CATEGORY).length;
+        if (key === 'assigned') return tabScopedWorkouts.filter(w => !!w.assignedToUid).length;
         if (key === 'benchmarks') return tabScopedWorkouts.filter(w => !!w.benchmarkId).length;
         if (key === 'nofolder') return tabScopedWorkouts.filter(w => !w.folderId).length;
         if (key.startsWith('cat:')) return tabScopedWorkouts.filter(w => w.category === key.slice(4)).length;
@@ -1077,6 +1077,15 @@ const ManageWorkoutsView: React.FC<{
                                     <span className="text-xs opacity-70 flex-shrink-0">{countFor('cat:' + cat.name)}</span>
                                 </button>
                             ))}
+                            {/* PT-pass är en reserverad kategori — den finns inte bland
+                                gymmets egna, men hör hemma här i listan. */}
+                            <button
+                                onClick={() => { setActiveFolder('cat:' + PT_CATEGORY); setCurrentPage(1); }}
+                                className={`w-full flex items-center justify-between gap-2 px-3 py-2 rounded-xl text-sm font-bold transition-colors ${activeFolder === 'cat:' + PT_CATEGORY ? 'bg-primary/10 text-primary' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'}`}
+                            >
+                                <span className="flex items-center gap-2 truncate"><span>📁</span> <span className="truncate">{PT_CATEGORY}</span></span>
+                                <span className="text-xs opacity-70 flex-shrink-0">{countFor('cat:' + PT_CATEGORY)}</span>
+                            </button>
                         </div>
                     )}
 
