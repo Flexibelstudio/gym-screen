@@ -1117,8 +1117,8 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
     const [saveState, setSaveState] = useState<'idle' | 'saving' | 'saved'>('idle');
     // Varje historiksteg är en fullupplöst kopia av hela ritytan (~30 MB på en
     // 4K-skärm). Utan tak växer minnet obegränsat under ett pass vid tavlan och
-    // gör hela skärmen seg — därför max 20 steg bakåt.
-    const MAX_HISTORY = 20;
+    // gör hela skärmen seg — därför max 5 steg bakåt.
+    const MAX_HISTORY = 5;
     const [history, setHistory] = useState<ImageData[]>([]);
     const [isArchiveVisible, setIsArchiveVisible] = useState(false);
     const [isInfoModalVisible, setIsInfoModalVisible] = useState(false);
