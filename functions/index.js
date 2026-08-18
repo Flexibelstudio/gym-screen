@@ -35,6 +35,7 @@ const {
 const {
   verifyCoachUnlockCode,
   setCoachUnlockCode,
+  getCoachUnlockCode,
   migrateCoachUnlockCodes
 } = require("./src/coachAuth");
 
@@ -66,5 +67,6 @@ module.exports = {
   backfillWorkoutFlags,
   verifyCoachUnlockCode,
   setCoachUnlockCode,
+  getCoachUnlockCode,
   migrateCoachUnlockCodes
 };

@@ -14,7 +14,7 @@ import { WelcomePaywall } from './components/WelcomePaywall';
 import PendingCoachScreen from './components/PendingCoachScreen';
 
 // --- Services ---
-import { createOrganization, updateOrganization, updateOrganizationPasswords, updateOrganizationLogos, updateOrganizationPrimaryColor, updateOrganizationCustomPages, archiveOrganization as deleteOrganization, updateOrganizationInfoCarousel, updateOrganizationFavicon, updateOrganizationAppIcon } from './services/firebaseService';
+import { createOrganization, updateOrganization, updateOrganizationLogos, updateOrganizationPrimaryColor, updateOrganizationCustomPages, archiveOrganization as deleteOrganization, updateOrganizationInfoCarousel, updateOrganizationFavicon, updateOrganizationAppIcon } from './services/firebaseService';
 import { Toast } from './components/ui/ToastNotification';
 
 // --- Custom Hooks ---
@@ -752,17 +752,6 @@ const App: React.FC = () => {
     }
   };
   
-  const handleUpdateOrganizationPasswords = async (organizationId: string, passwords: Organization['passwords']) => {
-    try {
-        const updatedOrg = await updateOrganizationPasswords(organizationId, passwords);
-        setAllOrganizations(prev => prev.map(o => (o.id === organizationId ? updatedOrg : o)));
-        if (selectedOrganization?.id === organizationId) selectOrganization(updatedOrg);
-    } catch (error) {
-        console.error("Failed to update passwords:", error);
-        throw error;
-    }
-  };
-
   const handleUpdateOrganizationLogos = async (organizationId: string, logos: { light: string; dark: string }) => {
     try {
         const updatedOrg = await updateOrganizationLogos(organizationId, logos);
@@ -1141,7 +1130,6 @@ const App: React.FC = () => {
                     createStudio: handleCreateStudio,
                     updateStudio: handleUpdateStudio,
                     deleteStudio: handleDeleteStudio,
-                    updatePasswords: handleUpdateOrganizationPasswords,
                     updateLogos: handleUpdateOrganizationLogos,
                     updateFavicon: handleUpdateOrganizationFavicon,
                     updateAppIcon: handleUpdateOrganizationAppIcon,
