@@ -9,7 +9,7 @@ export interface UseWorkoutActionsDeps {
   currentUser: { uid: string } | null;
   selectedOrganization: Organization | null;
   selectedStudio?: { locationId?: string } | null;
-  userData?: { locationId?: string; locationIds?: string[] } | null;
+  userData?: { uid?: string; locationId?: string; locationIds?: string[] } | null;
   workouts: Workout[];
   activeWorkout: Workout | null;
   page: Page;

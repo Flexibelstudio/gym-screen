@@ -6,7 +6,7 @@ import { DumbbellIcon, BuildingIcon, UsersIcon, SpeakerphoneIcon, SparklesIcon, 
 import { motion, AnimatePresence } from 'framer-motion';
 import { AIGeneratorScreen } from '../AIGeneratorScreen';
 import { WorkoutBuilderScreen } from '../WorkoutBuilderScreen';
-import { deepCopyAndPrepareAsNew, getWorkoutStatusInfo, getWorkoutVisibilityIssues, OTHER_CATEGORY } from '../../utils/workoutUtils';
+import { deepCopyAndPrepareAsNew, getWorkoutStatusInfo, getWorkoutVisibilityIssues, isWorkoutLoggable, OTHER_CATEGORY } from '../../utils/workoutUtils';
 import { ManageBenchmarksModal, FeatureInfoModal } from './AdminModals';
 import { updateOrganizationBenchmarks, updateOrganizationWorkoutFolders, resolveAndCreateExercises, updateGlobalConfig, listenToGlobalSummerChallenge, listenToMembers, listenToCommunityLogs, listenToCommunityLogsByLocations, getOrganizationLogs, getSmartScreenPricing } from '../../services/firebaseService';
 import { WorkoutPresentationModal } from '../WorkoutDetailScreen';
@@ -938,8 +938,8 @@ const ManageWorkoutsView: React.FC<{
     };
 
     return (
-        <div className="space-y-6 animate-fade-in pb-12 w-full">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="flex flex-col animate-fade-in w-full h-[calc(100vh-7rem)] gap-6">
+            <div className="flex-shrink-0 flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div className="flex items-center gap-4">
                     <div>
                         <h3 className="text-3xl font-extrabold text-gray-900 dark:text-white tracking-tight">Hantera Pass</h3>
@@ -1007,7 +1007,7 @@ const ManageWorkoutsView: React.FC<{
             </div>
 
             {/* TABBAR FÖR BIBLIOTEK vs UTKAST */}
-            <div className="flex bg-gray-100 dark:bg-gray-800 p-1.5 rounded-2xl border border-gray-200 dark:border-gray-700 w-fit">
+            <div className="flex-shrink-0 flex bg-gray-100 dark:bg-gray-800 p-1.5 rounded-2xl border border-gray-200 dark:border-gray-700 w-fit">
                 <button
                     onClick={() => setActiveTab('official')}
                     className={`px-6 py-2.5 rounded-xl text-sm font-black uppercase tracking-widest transition-all ${
@@ -1031,9 +1031,9 @@ const ManageWorkoutsView: React.FC<{
             </div>
 
             <div className="bg-white dark:bg-gray-800 rounded-[2.5rem] shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden flex flex-col">
-                <div className="grid grid-cols-1 lg:grid-cols-[240px_minmax(0,1fr)] gap-6">
+                <div className="flex-grow min-h-0 grid grid-cols-1 lg:grid-cols-[240px_minmax(0,1fr)] gap-6">
                 {/* MAPPAR — ren adminordning, påverkar inte medlemsvyn */}
-                <aside className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 self-start lg:sticky lg:top-4">
+                <aside className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 flex flex-col min-h-0 overflow-y-auto">
                     <div className="p-5 sticky top-0 z-10 bg-gray-50 dark:bg-gray-900/50 border-b border-gray-100 dark:border-gray-700">
                         <span className="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.2em]">Våra pass</span>
                     </div>
@@ -1204,7 +1204,7 @@ const ManageWorkoutsView: React.FC<{
                     </div>
                 </aside>
 
-                <div>
+                <div className="flex flex-col min-h-0">
                 {activeFolder === 'benchmarks' && onManageBenchmarks && (
                     <div className="mb-4 flex flex-wrap items-center justify-between gap-3 p-4 rounded-2xl bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-900/30">
                         <p className="text-sm text-amber-800 dark:text-amber-300">
@@ -1287,10 +1287,10 @@ const ManageWorkoutsView: React.FC<{
                         </button>
                     </div>
                 )}
-                <div className="overflow-x-auto">
+                <div className="flex-grow min-h-0 overflow-auto rounded-2xl border border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800">
                     <table className="w-full text-left border-collapse min-w-[800px]">
                         <thead>
-                            <tr className="bg-gray-50 dark:bg-gray-900/50 border-b border-gray-100 dark:border-gray-700">
+                            <tr className="bg-gray-50 dark:bg-gray-900/50 border-b border-gray-100 dark:border-gray-700 sticky top-0 z-30">
                                 {onMoveToFolder && (
                                     <th className="pl-5 pr-0 py-5 w-10 sticky left-0 z-20 bg-gray-50 dark:bg-gray-900/50">
                                         <input
@@ -1420,8 +1420,10 @@ const ManageWorkoutsView: React.FC<{
                                         <td className="p-5 text-sm">
                                             {workout.logCount ? (
                                                 <span className="inline-flex items-center justify-center min-w-[2rem] px-2 py-1 rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-400 font-black">{workout.logCount}</span>
-                                            ) : (
+                                            ) : isWorkoutLoggable(workout) ? (
                                                 <span className="text-gray-400">–</span>
+                                            ) : (
+                                                <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400 whitespace-nowrap" title="Ingen övning i passet har loggning påslagen">Ej loggbart</span>
                                             )}
                                         </td>
                                         <td className="p-5 text-sm text-gray-600 dark:text-gray-300 font-mono">
@@ -1639,7 +1641,7 @@ const ManageWorkoutsView: React.FC<{
 
                 {/* Pagination */}
                 {totalPages > 1 && (
-                    <div className="flex items-center justify-between p-6 border-t border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50">
+                    <div className="flex-shrink-0 flex items-center justify-between p-4 mt-3 rounded-2xl border border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50">
                         <button 
                             onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                             disabled={currentPage === 1}
