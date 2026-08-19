@@ -65,8 +65,10 @@ const SystemImages = () => (
  * kodändring behövs, bilden dyker upp automatiskt.
  */
 const ImageSlot: React.FC<{ src: string; alt: string; label: string; className?: string }> = ({ src, alt, label, className = '' }) => {
-    const [missing, setMissing] = useState(false);
-    if (missing) {
+    // Bilden får ligga som .jpg, .png eller .webp — vi provar i tur och ordning.
+    const candidates = [src, src.replace(/\.jpg$/, '.png'), src.replace(/\.jpg$/, '.webp')];
+    const [attempt, setAttempt] = useState(0);
+    if (attempt >= candidates.length) {
         return (
             <div className={`flex flex-col items-center justify-center bg-gray-100 border border-dashed border-gray-300 rounded-2xl text-center p-6 ${className}`}>
                 <span className="text-3xl mb-2">📷</span>
@@ -74,7 +76,7 @@ const ImageSlot: React.FC<{ src: string; alt: string; label: string; className?:
             </div>
         );
     }
-    return <img src={src} alt={alt} onError={() => setMissing(true)} className={`object-cover rounded-2xl border border-gray-200 ${className}`} loading="lazy" decoding="async" />;
+    return <img key={candidates[attempt]} src={candidates[attempt]} alt={alt} onError={() => setAttempt(a => a + 1)} className={`object-cover rounded-2xl border border-gray-200 ${className}`} loading="lazy" decoding="async" />;
 };
 
 /**
@@ -82,15 +84,20 @@ const ImageSlot: React.FC<{ src: string; alt: string; label: string; className?:
  * (landing/hero.jpg) och faller sist tillbaka på produktmockupen. Så fort en
  * riktig film eller bild läggs i public/landing/ tar den över.
  */
+const HERO_IMAGES = ['/landing/hero.jpg', '/landing/hero.png', '/landing/hero.webp'];
+
 const HeroMedia: React.FC = () => {
     const [stage, setStage] = useState<'video' | 'image' | 'mockup'>('video');
+    const [imageAttempt, setImageAttempt] = useState(0);
     if (stage === 'mockup') return <SystemImages />;
     if (stage === 'image') {
+        if (imageAttempt >= HERO_IMAGES.length) return <SystemImages />;
         return (
             <img
-                src="/landing/hero.jpg"
+                key={HERO_IMAGES[imageAttempt]}
+                src={HERO_IMAGES[imageAttempt]}
                 alt="SmartStudio på skärmen i en studio"
-                onError={() => setStage('mockup')}
+                onError={() => setImageAttempt(a => a + 1)}
                 className="w-full h-auto rounded-3xl border border-gray-200 shadow-xl"
             />
         );
@@ -236,7 +243,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginClick, onRegist
                         {[
                             { nr: '1', title: 'Skissa passet', desc: 'Skriv passet för hand på whiteboarden eller i en anteckning — precis som du alltid gjort.', src: '/landing/steg1-whiteboard.jpg', label: 'Bild kommer: whiteboardskissen' },
                             { nr: '2', title: 'AI:n bygger det', desc: 'Passet tolkas automatiskt: övningar, block och timer — klart på skärmen i lokalen.', src: '/landing/steg2-skarm.jpg', label: 'Bild kommer: passet på skärmen' },
-                            { nr: '3', title: 'Coachen kör passet', desc: 'Följ mig-läget styr skärmen: timern rullar, alla ser samma övning och coachen slipper räkna. Ni coachar i stället för att administrera.', src: '/landing/steg3-followme.jpg', label: 'Bild kommer: Följ mig-läget på skärmen' },
+                            { nr: '3', title: 'Skärmen kör passet', desc: 'Timern rullar och alla ser samma övning på väggen. Med coach som styr i Följ mig-läget — eller helt utan, när dagens pass bara ska stå uppe och gälla.', src: '/landing/steg3-followme.jpg', label: 'Bild kommer: passet igång på skärmen' },
                         ].map((step, i) => (
                             <motion.div
                                 key={step.nr}
@@ -260,7 +267,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginClick, onRegist
             <section id="features" className="py-24 bg-gray-50 relative">
                 <div className="max-w-7xl mx-auto px-6">
                     <div className="text-center mb-16">
-                        <h2 className="text-3xl md:text-5xl font-bold mb-4">Allt coachen behöver på skärmen.</h2>
+                        <h2 className="text-3xl md:text-5xl font-bold mb-4">Allt passet behöver på skärmen.</h2>
                         <p className="text-gray-600 max-w-2xl mx-auto">
                             Byggt för boxägare, personliga tränare och gymkedjor. Ett pass tar minuter att bygga och syns direkt på skärmen i lokalen — ni sparar timmar varje vecka, höjer kvaliteten på passen och lyfter hela verksamheten till nästa nivå.
                         </p>
