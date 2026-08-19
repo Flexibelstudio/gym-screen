@@ -98,7 +98,7 @@ const HeroMedia: React.FC = () => {
                 src={HERO_IMAGES[imageAttempt]}
                 alt="SmartStudio på skärmen i en studio"
                 onError={() => setImageAttempt(a => a + 1)}
-                className="w-full h-auto rounded-3xl border border-gray-200 shadow-xl"
+                className="w-full max-h-[520px] object-cover object-center rounded-3xl border border-gray-200 shadow-xl"
             />
         );
     }
