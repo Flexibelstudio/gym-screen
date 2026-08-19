@@ -240,7 +240,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginClick, onRegist
                         {[
                             { nr: '1', title: 'Skissa passet', desc: 'Skriv passet för hand på whiteboarden eller i en anteckning — precis som du alltid gjort.', src: '/landing/steg1-whiteboard.jpg', label: 'Bild kommer: whiteboardskissen' },
                             { nr: '2', title: 'AI:n bygger det', desc: 'Passet tolkas automatiskt: övningar, block och timer — klart på skärmen i lokalen.', src: '/landing/steg2-skarm.jpg', label: 'Bild kommer: passet på skärmen' },
-                            { nr: '3', title: 'Skärmen kör passet', desc: 'Timern rullar och alla ser samma övning på väggen. Coachen kan styra passet från mobilen — eller låta skärmen sköta sig själv medan dagens pass står uppe.', src: '/landing/steg3-followme.jpg', label: 'Bild kommer: passet igång på skärmen' },
+                            { nr: '3', title: 'Skärmen kör passet', desc: 'Timern rullar och passet syns från hela rummet. Ingen behöver fråga vad som gäller eller hur lång tid det är kvar.', src: '/landing/steg3-followme.jpg', label: 'Bild kommer: passet igång på skärmen' },
                         ].map((step, i) => (
                             <motion.div
                                 key={step.nr}
