@@ -514,9 +514,6 @@ app.post("/webhook", express.raw({type: 'application/json'}), async (req, res) =
               name: currentOrgData.name || "Näst bästa gymmet",
               ownerUid: currentOrgData.ownerUid || userId,
               maxFreeCoaches: currentOrgData.maxFreeCoaches || 5,
-              passwords: {
-                coach: (currentOrgData.passwords && currentOrgData.passwords.coach) || "1234"
-              },
               status: "active",
               studios: currentOrgData.studios || [],
               subdomain: currentOrgData.subdomain || "",
@@ -530,12 +527,6 @@ app.post("/webhook", express.raw({type: 'application/json'}), async (req, res) =
             }
 
             await db.collection('organizations').doc(orgId).set(exactStructure, { merge: true });
-
-            // Steg 1 coachkoden: dubbelskrivning — samma kod skrivs även till det låsta
-            // stället (organizations/{id}/private/auth) som callablen läser ifrån.
-            await db.collection('organizations').doc(orgId)
-              .collection('private').doc('auth')
-              .set({ coachUnlockCode: exactStructure.passwords.coach }, { merge: true });
 
             const userUpdateData = {
               role: 'organizationadmin',
@@ -1014,13 +1005,12 @@ const onOrganizationCreated = onDocumentCreated({
 }, async (event) => {
   const newOrg = event.data.data();
   if (newOrg) {
-    // Steg 1 coachkoden: nya organisationer får koden speglad till det låsta stället
-    // direkt, så verifyCoachUnlockCode fungerar även för gym skapade efter migreringen.
-    const initialCoachCode = newOrg.passwords && newOrg.passwords.coach;
-    if (typeof initialCoachCode === 'string' && initialCoachCode.length > 0) {
-      await event.data.ref.collection('private').doc('auth')
-        .set({ coachUnlockCode: initialCoachCode }, { merge: true });
-    }
+    // Coachkoden ägs helt av servern (del C): varje ny organisation seedas med
+    // standardkoden 1234 på det låsta stället — klienten skriver inga koder alls.
+    // Fanns ett passwords.coach med (äldre klientversion) används det i stället.
+    const initialCoachCode = (newOrg.passwords && newOrg.passwords.coach) || '1234';
+    await event.data.ref.collection('private').doc('auth')
+      .set({ coachUnlockCode: initialCoachCode }, { merge: true });
 
     await notifySystemOwners(
       'Ny organisation!',
@@ -1136,6 +1126,53 @@ const onOrganizationUpdated = onDocumentUpdated({
     }
   }
 
+  // --- Räkna passkörningar per skärm ---
+  // En "körning" = ett pass blir aktivt på en skärm (coachen startar ett block).
+  // Räknas PER SKÄRM: samma pass som körs samtidigt i tre studios är tre körningar.
+  // Inom samma skärm räknas passet bara en gång per timme, så att block-hopp fram
+  // och tillbaka i samma pass inte blåser upp siffran.
+  const RUN_WINDOW_MS = 60 * 60 * 1000;
+  const studioActiveWorkout = (studios, studioId) => {
+    const st = (studios || []).find(s => s && s.id === studioId);
+    return (st && st.remoteState && st.remoteState.activeWorkoutId) || null;
+  };
+
+  const afterStudios = afterData.studios || [];
+  const beforeStudios = beforeData.studios || [];
+  const startedRuns = [];
+  for (const studio of afterStudios) {
+    if (!studio || !studio.id) continue;
+    const nowActive = studioActiveWorkout(afterStudios, studio.id);
+    const wasActive = studioActiveWorkout(beforeStudios, studio.id);
+    // Bara övergången till ett NYTT aktivt pass räknas — inte varje timer-tick.
+    if (nowActive && nowActive !== wasActive) {
+      startedRuns.push({ studioId: studio.id, workoutId: nowActive });
+    }
+  }
+
+  for (const run of startedRuns) {
+    try {
+      const workoutRef = db.collection('workouts').doc(run.workoutId);
+      await db.runTransaction(async (tx) => {
+        const snap = await tx.get(workoutRef);
+        if (!snap.exists) return;
+        const data = snap.data();
+        const now = Date.now();
+        const lastByStudio = data.lastRunByStudio || {};
+        const lastForThisStudio = lastByStudio[run.studioId] || 0;
+        if (now - lastForThisStudio < RUN_WINDOW_MS) return; // samma skärm, samma pass, inom en timme
+
+        tx.update(workoutRef, {
+          runCount: (data.runCount || 0) + 1,
+          lastRunAt: now,
+          [`lastRunByStudio.${run.studioId}`]: now
+        });
+      });
+    } catch (e) {
+      console.warn('Kunde inte räkna passkörning', run.workoutId, e.message);
+    }
+  }
+
   // --- Kategoribyte: döp om passen automatiskt ---
   // Pass pekar på kategorins NAMN, inte dess id. Utan detta kopplas alla pass loss
   // när en kategori döps om i Globala inställningar (hände i prod aug 2026).
@@ -1204,10 +1241,31 @@ const flexUpdateOrganization = onCall({
 /**
  * --- TRIGGER: Nytt pass publicerat ---
  */
+/**
+ * Klienten känner inte alltid till användarens visningsnamn (Firebase Auth har inte
+ * alltid displayName satt). Servern slår därför upp namnet ur users-kollektionen och
+ * skriver det på passet, så Hantera Pass-listan kan visa "skapad av" direkt.
+ */
+const fillCreatorName = async (event) => {
+  const data = event.data && event.data.data();
+  if (!data || !data.createdByUid || data.createdByName) return;
+  try {
+    const userSnap = await admin.firestore().collection('users').doc(data.createdByUid).get();
+    if (!userSnap.exists) return;
+    const u = userSnap.data();
+    const name = [u.firstName, u.lastName].filter(Boolean).join(' ').trim() || u.email || null;
+    if (name) await event.data.ref.update({ createdByName: name });
+  } catch (e) {
+    console.warn('Kunde inte fylla i skaparens namn:', e.message);
+  }
+};
+
 const onWorkoutCreated = onDocumentCreated({
   document: "workouts/{workoutId}"
 }, async (event) => {
   const newWorkout = event.data.data();
+
+  await fillCreatorName(event);
   
   if (newWorkout && newWorkout.isPublished && !newWorkout.isMemberDraft && newWorkout.organizationId && !newWorkout.silentPublish) {
     await notifyOrganizationMembers(
@@ -1314,6 +1372,26 @@ const flexGeminiProxy = onCall({
   } catch (error) {
     console.error("Gemini API Error under proxy:", error);
     throw new HttpsError("internal", "Ett internt fel uppstod vid AI-anrop.");
+  }
+});
+
+/**
+ * Räknar hur många gånger medlemmar loggat ett visst pass. Bara nyskapade loggar
+ * räknas (en redigerad logg är samma träningstillfälle). 'manual' är egna
+ * aktiviteter utan koppling till ett pass och räknas inte.
+ */
+const countWorkoutLog = onDocumentCreated({
+  document: "workoutLogs/{logId}"
+}, async (event) => {
+  const log = event.data && event.data.data();
+  if (!log || !log.workoutId || log.workoutId === 'manual') return;
+  try {
+    await db.collection('workouts').doc(log.workoutId).update({
+      logCount: admin.firestore.FieldValue.increment(1)
+    });
+  } catch (e) {
+    // Passet kan vara raderat — då finns inget att räkna på.
+    console.warn('Kunde inte räkna logg för pass', log.workoutId, e.message);
   }
 });
 
@@ -1424,6 +1502,7 @@ module.exports = {
   flexUpdateOrganization,
   onWorkoutCreated,
   onWorkoutUpdated,
+  countWorkoutLog,
   flexGeminiProxy,
   aggregateLeaderboard
 };

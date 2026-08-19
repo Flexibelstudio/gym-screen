@@ -12,6 +12,7 @@ const {
   flexUpdateOrganization,
   onWorkoutCreated,
   onWorkoutUpdated,
+  countWorkoutLog,
   flexGeminiProxy,
   aggregateLeaderboard
 } = require("./src/training");
@@ -35,6 +36,7 @@ const {
 const {
   verifyCoachUnlockCode,
   setCoachUnlockCode,
+  getCoachUnlockCode,
   migrateCoachUnlockCodes
 } = require("./src/coachAuth");
 
@@ -52,6 +54,7 @@ module.exports = {
   flexUpdateOrganization,
   onWorkoutCreated,
   onWorkoutUpdated,
+  countWorkoutLog,
   flexGeminiProxy,
   aggregateLeaderboard,
   createBooking,
@@ -66,5 +69,6 @@ module.exports = {
   backfillWorkoutFlags,
   verifyCoachUnlockCode,
   setCoachUnlockCode,
+  getCoachUnlockCode,
   migrateCoachUnlockCodes
 };

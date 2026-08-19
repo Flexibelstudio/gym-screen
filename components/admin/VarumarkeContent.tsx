@@ -1,11 +1,12 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Organization } from '../../types';
 import { InputField, ImageUploaderForBanner } from './AdminShared';
+import { httpsCallable } from 'firebase/functions';
+import { functions } from '../../services/firebaseService';
 
 interface VarumarkeContentProps {
     organization: Organization;
-    onUpdatePasswords: (organizationId: string, passwords: Organization['passwords']) => Promise<void>;
     onUpdateLogos: (organizationId: string, logos: { light: string; dark: string }) => Promise<void>;
     onUpdateFavicon: (organizationId: string, faviconUrl: string) => Promise<void>;
     onUpdateAppIcon?: (organizationId: string, appIconUrl: string) => Promise<void>;
@@ -14,9 +15,37 @@ interface VarumarkeContentProps {
 }
 
 export const VarumarkeContent: React.FC<VarumarkeContentProps> = ({ 
-    organization, onUpdatePasswords, onUpdateLogos, onUpdateFavicon, onUpdateAppIcon, onUpdatePrimaryColor, onShowToast
+    organization, onUpdateLogos, onUpdateFavicon, onUpdateAppIcon, onUpdatePrimaryColor, onShowToast
 }) => {
-    const [passwords, setPasswords] = useState(organization.passwords);
+    // Coachkoden hämtas och byts via servern, som kontrollerar att anroparen är
+    // org-admin. Medlemmar kan inte läsa den — men här i adminvyn visas den som förut.
+    const [currentCoachCode, setCurrentCoachCode] = useState<string | null>(null);
+    const [newCoachCode, setNewCoachCode] = useState('');
+    const [isLoadingCode, setIsLoadingCode] = useState(true);
+    const [isSavingCode, setIsSavingCode] = useState(false);
+    const [codeStatus, setCodeStatus] = useState<{ ok: boolean; text: string } | null>(null);
+
+    useEffect(() => {
+        let cancelled = false;
+        const fetchCode = async () => {
+            setIsLoadingCode(true);
+            try {
+                const getCode = httpsCallable<{ organizationId: string }, { code: string | null }>(functions, 'getCoachUnlockCode');
+                const res = await getCode({ organizationId: organization.id });
+                if (!cancelled) {
+                    setCurrentCoachCode(res.data?.code ?? null);
+                    setNewCoachCode(res.data?.code ?? '');
+                }
+            } catch (err) {
+                console.error('getCoachUnlockCode misslyckades:', err);
+                if (!cancelled) setCodeStatus({ ok: false, text: 'Kunde inte hämta koden. Ladda om sidan och försök igen.' });
+            } finally {
+                if (!cancelled) setIsLoadingCode(false);
+            }
+        };
+        fetchCode();
+        return () => { cancelled = true; };
+    }, [organization.id]);
     const [logoLight, setLogoLight] = useState(organization.logoUrlLight || '');
     const [logoDark, setLogoDark] = useState(organization.logoUrlDark || '');
     const [favicon, setFavicon] = useState(organization.faviconUrl || '');
@@ -25,7 +54,6 @@ export const VarumarkeContent: React.FC<VarumarkeContentProps> = ({
     const [isSaving, setIsSaving] = useState(false);
 
     const isDirty = 
-        passwords.coach !== organization.passwords.coach ||
         logoLight !== (organization.logoUrlLight || '') ||
         logoDark !== (organization.logoUrlDark || '') ||
         favicon !== (organization.faviconUrl || '') ||
@@ -36,7 +64,6 @@ export const VarumarkeContent: React.FC<VarumarkeContentProps> = ({
         setIsSaving(true);
         try {
             const promises: Promise<any>[] = [
-                onUpdatePasswords(organization.id, passwords),
                 onUpdateLogos(organization.id, { light: logoLight, dark: logoDark }),
                 onUpdateFavicon(organization.id, favicon),
                 onUpdatePrimaryColor(organization.id, primaryColor)
@@ -50,6 +77,34 @@ export const VarumarkeContent: React.FC<VarumarkeContentProps> = ({
             onShowToast("Kunde inte spara ändringar.");
         } finally {
             setIsSaving(false);
+        }
+    };
+
+    const handleSaveCoachCode = async () => {
+        if (newCoachCode.length < 4 || newCoachCode.length > 12) {
+            setCodeStatus({ ok: false, text: 'Koden ska vara 4–12 tecken.' });
+            return;
+        }
+        setIsSavingCode(true);
+        setCodeStatus(null);
+        try {
+            const setCode = httpsCallable<{ organizationId: string; code: string }, { ok: boolean }>(functions, 'setCoachUnlockCode');
+            await setCode({ organizationId: organization.id, code: newCoachCode });
+            setCurrentCoachCode(newCoachCode);
+            setCodeStatus({ ok: true, text: 'Coachkoden är bytt. Den nya koden gäller direkt på alla skärmar.' });
+            onShowToast('Coachkoden är bytt!');
+        } catch (err: any) {
+            const c = String(err?.code || '');
+            if (c.includes('permission-denied')) {
+                setCodeStatus({ ok: false, text: 'Du har inte behörighet att byta koden för det här gymmet.' });
+            } else if (c.includes('invalid-argument')) {
+                setCodeStatus({ ok: false, text: 'Koden ska vara 4–12 tecken.' });
+            } else {
+                console.error('setCoachUnlockCode misslyckades:', err);
+                setCodeStatus({ ok: false, text: err?.message || 'Kunde inte byta koden. Försök igen.' });
+            }
+        } finally {
+            setIsSavingCode(false);
         }
     };
 
@@ -70,19 +125,32 @@ export const VarumarkeContent: React.FC<VarumarkeContentProps> = ({
             </div>
             
             <div className="p-6 sm:p-8 space-y-8">
-                {/* Passwords */}
+                {/* Coachkod — byts via servern, visas aldrig */}
                 <section>
-                    <h4 className="text-sm font-bold uppercase tracking-wider text-gray-400 mb-4">Lösenord</h4>
+                    <h4 className="text-sm font-bold uppercase tracking-wider text-gray-400 mb-4">Coachkod</h4>
                     <div className="bg-gray-50 dark:bg-gray-900/30 p-6 rounded-xl border border-gray-100 dark:border-gray-700">
                         <div className="max-w-md">
-                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Coach-lösenord</label>
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Coachkod</label>
                             <input 
                                 type="text" 
-                                value={passwords.coach} 
-                                onChange={e => setPasswords(p => ({...p, coach: e.target.value}))} 
-                                className="w-full bg-white dark:bg-black p-3 rounded-xl border border-gray-300 dark:border-gray-600 font-mono text-lg tracking-widest focus:ring-2 focus:ring-primary focus:outline-none transition" 
+                                value={isLoadingCode ? 'Hämtar…' : newCoachCode} 
+                                onChange={e => { setNewCoachCode(e.target.value); setCodeStatus(null); }} 
+                                placeholder="Kod (4–12 tecken)"
+                                autoComplete="off"
+                                disabled={isLoadingCode}
+                                className="w-full bg-white dark:bg-black p-3 rounded-xl border border-gray-300 dark:border-gray-600 font-mono text-lg tracking-widest focus:ring-2 focus:ring-primary focus:outline-none transition disabled:opacity-60" 
                             />
-                            <p className="text-xs text-gray-500 mt-2">Detta lösenord används för att komma åt coach-vyn på surfplattorna.</p>
+                            <button 
+                                onClick={handleSaveCoachCode} 
+                                disabled={isSavingCode || isLoadingCode || !newCoachCode || newCoachCode === currentCoachCode}
+                                className="mt-3 bg-primary hover:brightness-95 text-white font-semibold py-2.5 px-6 rounded-xl disabled:opacity-50 shadow-sm transition-transform active:scale-95"
+                            >
+                                {isSavingCode ? 'Byter…' : 'Byt kod'}
+                            </button>
+                            {codeStatus && (
+                                <p className={`text-sm font-semibold mt-3 ${codeStatus.ok ? 'text-primary' : 'text-danger'}`}>{codeStatus.text}</p>
+                            )}
+                            <p className="text-xs text-gray-500 mt-2">Koden låser upp coach-verktygen på skärmarna. Bara organisationsadministratörer kan se och byta den.</p>
                         </div>
                     </div>
                 </section>

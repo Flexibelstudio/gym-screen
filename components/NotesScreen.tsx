@@ -204,7 +204,9 @@ const SmartObjectItem: React.FC<{
     onUpdate: (id: string, updates: Partial<SmartObject>) => void;
     onRemove: (id: string) => void;
     containerBounds: { width: number; height: number };
-}> = React.memo(({ obj, onUpdate, onRemove, containerBounds }) => {
+    /** Räknare som ritytan läser: > 0 betyder att något objekt är markerat. */
+    selectionCountRef?: React.MutableRefObject<number>;
+}> = React.memo(({ obj, onUpdate, onRemove, containerBounds, selectionCountRef }) => {
     const isArrow = obj.type === 'arrow';
     const arrowX = isArrow ? Math.min(obj.x, obj.endX || obj.x) : obj.x;
     const arrowY = isArrow ? Math.min(obj.y, obj.endY || obj.y) : obj.y;
@@ -221,6 +223,14 @@ const SmartObjectItem: React.FC<{
     const rafId = useRef<number | null>(null);
 
     const [isSelected, setIsSelected] = useState(false);
+
+    // Rapportera markeringen till ritytan. Så länge något är markerat 'offras'
+    // första trycket utanför: det avmarkerar bara och ritar inget streck.
+    useEffect(() => {
+        if (!isSelected || !selectionCountRef) return;
+        selectionCountRef.current += 1;
+        return () => { selectionCountRef.current -= 1; };
+    }, [isSelected, selectionCountRef]);
 
     useEffect(() => {
         const handleOutsidePointer = (e: PointerEvent) => {
@@ -1105,6 +1115,10 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
     const [isResolving, setIsResolving] = useState(false); // Ny state för att visa att vi matchar mot banken
     const [parseError, setParseError] = useState<string | null>(null);
     const [saveState, setSaveState] = useState<'idle' | 'saving' | 'saved'>('idle');
+    // Varje historiksteg är en fullupplöst kopia av hela ritytan (~30 MB på en
+    // 4K-skärm). Utan tak växer minnet obegränsat under ett pass vid tavlan och
+    // gör hela skärmen seg — därför max 5 steg bakåt.
+    const MAX_HISTORY = 5;
     const [history, setHistory] = useState<ImageData[]>([]);
     const [isArchiveVisible, setIsArchiveVisible] = useState(false);
     const [isInfoModalVisible, setIsInfoModalVisible] = useState(false);
@@ -1150,10 +1164,18 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
     useEffect(() => {
         if (!selectedOrganization?.id) return;
         const unsubscribe = listenToCoachNotes(selectedOrganization.id, (notes) => {
-            setCoachNotes(notes);
+            // Skärmen visar bara anteckningar från sin egen ort. Anteckningar utan
+            // ort (äldre, eller skrivna av någon utan ort) visas överallt — annars
+            // skulle de försvinna spårlöst från tavlan.
+            const screenLocationId = selectedStudio?.locationId || null;
+            const hasMultipleLocations = (selectedOrganization?.locations?.length || 0) >= 2;
+            const visible = (screenLocationId && hasMultipleLocations)
+                ? notes.filter(n => !n.locationId || n.locationId === screenLocationId)
+                : notes;
+            setCoachNotes(visible);
         });
         return () => unsubscribe();
-    }, [selectedOrganization?.id]);
+    }, [selectedOrganization?.id, selectedStudio?.locationId, selectedOrganization?.locations?.length]);
 
     const handleSelectCoachNote = (note: CoachNote) => {
         setIsCoachNotesModalOpen(false);
@@ -1181,6 +1203,9 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
     };
 
     const isDrawing = useRef(false);
+    // > 0 när ett smart objekt (text/pil/bild) är markerat — då ska första trycket
+    // på ritytan bara avmarkera, inte rita.
+    const selectionCountRef = useRef(0);
     const points = useRef<{x: number, y: number}[]>([]);
     
     const [timerBlock, setTimerBlock] = useState<WorkoutBlock | null>(null);
@@ -1225,7 +1250,7 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
             ctx.stroke();
             
             // Update history so undo/save works
-            setHistory(prev => [...prev, ctx.getImageData(0, 0, canvas.width, canvas.height)]);
+            setHistory(prev => [...prev.slice(-(MAX_HISTORY - 1)), ctx.getImageData(0, 0, canvas.width, canvas.height)]);
         }
     }, [selectedStudio?.remoteState?.latestStroke]);
     
@@ -1432,6 +1457,11 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
         };
 
         const startDrawing = (e: PointerEvent) => {
+            if (selectionCountRef.current > 0) {
+                // Något objekt är markerat: det här trycket avmarkerar bara
+                // (objektets egen lyssnare släpper markeringen) — rita inget.
+                return;
+            }
             if (animationState !== 'finished') setAnimationState('finished');
             e.preventDefault();
             isDrawing.current = true;
@@ -1496,7 +1526,7 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
             }
 
             const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-            setHistory(prev => [...prev, imageData]);
+            setHistory(prev => [...prev.slice(-(MAX_HISTORY - 1)), imageData]);
             points.current = [];
         };
 
@@ -1852,6 +1882,7 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
                         onUpdate={updateSmartObject} 
                         onRemove={removeSmartObject} 
                         containerBounds={getContainerBounds()}
+                        selectionCountRef={selectionCountRef}
                     />
                 ))}
             </div>

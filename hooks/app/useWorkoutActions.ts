@@ -1,5 +1,5 @@
 import { Page, Workout, WorkoutBlock, Passkategori, UserRole, Organization, StudioConfig } from '../../types';
-import { deepCopyAndPrepareAsNew, isWorkoutVisibleNow, getMemberLocationIds, isWorkoutVisibleForLocations, getDefaultLoggingForBlockTag, OTHER_CATEGORY } from '../../utils/workoutUtils';
+import { deepCopyAndPrepareAsNew, isWorkoutVisibleNow, getMemberLocationIds, isWorkoutVisibleForLocations, isWorkoutVisibleOnScreen, getDefaultLoggingForBlockTag, OTHER_CATEGORY } from '../../utils/workoutUtils';
 import { saveCustomProgram, saveAdminActivity, updateCoachNote } from '../../services/firebaseService';
 import { useConfirm } from '../../components/ConfirmContext';
 
@@ -9,7 +9,7 @@ export interface UseWorkoutActionsDeps {
   currentUser: { uid: string } | null;
   selectedOrganization: Organization | null;
   selectedStudio?: { locationId?: string } | null;
-  userData?: { locationId?: string; locationIds?: string[] } | null;
+  userData?: { uid?: string; locationId?: string; locationIds?: string[] } | null;
   workouts: Workout[];
   activeWorkout: Workout | null;
   page: Page;
@@ -310,7 +310,10 @@ export function useWorkoutActions(deps: UseWorkoutActionsDeps) {
 
     let categoryWorkouts = workouts.filter((w) => 
       w.category === passkategori && 
-      isWorkoutVisibleForLocations(w, activeLocationIds, now) && 
+      // Tilldelade pass (PT) hör till en enskild medlem: aldrig på skärmen,
+      // och i appen bara för den de tilldelats.
+      (deps.isStudioMode ? isWorkoutVisibleOnScreen(w) : true) &&
+      isWorkoutVisibleForLocations(w, activeLocationIds, now, deps.userData?.uid) && 
       !w.isMemberDraft
     );
 

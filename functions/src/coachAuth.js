@@ -147,6 +147,38 @@ const setCoachUnlockCode = onCall({
 });
 
 /**
+ * getCoachUnlockCode — in: { organizationId }, ut: { code: string | null }
+ *
+ * Lämnar ut koden ENBART till org-admin (eller systemägare) — servern kontrollerar
+ * behörigheten innan något lämnar databasen. Medlemmar och coacher nekas.
+ * Används av adminvyn (Varumärke) så att admin ser gymmets kod precis som förut.
+ * null betyder att ingen kod är konfigurerad ännu.
+ */
+const getCoachUnlockCode = onCall({
+  enforceAppCheck: process.env.NODE_ENV === "production"
+}, async (request) => {
+  if (process.env.NODE_ENV === "production" && request.app == undefined) {
+    throw new HttpsError("unauthenticated", "Ogiltig App Check.");
+  }
+
+  const data = request.data || {};
+  const organizationId = data.organizationId;
+  if (typeof organizationId !== "string" || organizationId.length === 0) {
+    throw new HttpsError("invalid-argument", "organizationId krävs.");
+  }
+
+  const caller = await getCallerData(request.auth);
+  const isOrgAdmin = caller.role === "organizationadmin" && caller.organizationId === organizationId;
+  if (caller.role !== "systemowner" && !isOrgAdmin) {
+    throw new HttpsError("permission-denied", "Endast organisationsadmin kan se coachkoden.");
+  }
+
+  const authDoc = await privateAuthRef(organizationId).get();
+  const stored = authDoc.exists ? authDoc.data().coachUnlockCode : undefined;
+  return { code: (typeof stored === "string" && stored.length > 0) ? stored : null };
+});
+
+/**
  * migrateCoachUnlockCodes — in: { dryRun?: boolean }, ut: rapport
  *
  * Backfillar coachUnlockCode från passwords.coach för alla organisationer.
@@ -209,5 +241,6 @@ const migrateCoachUnlockCodes = onCall({
 module.exports = {
   verifyCoachUnlockCode,
   setCoachUnlockCode,
+  getCoachUnlockCode,
   migrateCoachUnlockCodes
 };

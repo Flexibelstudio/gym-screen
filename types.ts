@@ -173,6 +173,16 @@ export interface Workout {
   openAsOfficial?: boolean; // NYTT: Öppna direkt i funktionärsläge
   durationMinutes?: number; // NYTT: Planerad passlängd i minuter
   publishAt?: number; // timestamp; passet är osynligt för medlemmar före denna tidpunkt
+  folderId?: string;          // Egen mapp i Hantera Pass (intern ordning, påverkar inte medlemsvyn)
+  /** Tilldelat pass (PT): syns ENBART för den här medlemmen i appen, aldrig på skärmen. */
+  assignedToUid?: string;
+  assignedToName?: string;
+  createdByUid?: string;      // Vem som skapade passet (stämplas vid första sparningen)
+  createdByName?: string;     // Visningsnamn, sparas så listan slipper slå upp användare
+  runCount?: number;          // Antal körningar på skärm (räknas av servern)
+  logCount?: number;          // Antal gånger medlemmar loggat passet (räknas av servern)
+  lastRunAt?: number;         // Senaste körningen (timestamp)
+  lastRunByStudio?: { [studioId: string]: number }; // Senaste körning per skärm — grund för 1-timmesfönstret
   expiresAt?: number; // timestamp; passet är osynligt för medlemmar från och med denna tidpunkt
   locationIds?: string[]; // tom eller saknas = syns för ALLA orter
   sourceNoteId?: string; // Anteckningen passet skapades från, används för att länka tillbaka
@@ -312,10 +322,10 @@ export interface Organization {
   faviconUrl?: string;
   appIconUrl?: string;
   primaryColor?: string;
-  passwords?: {
-    coach: string;
-  };
   globalConfig: StudioConfig;
+  /** Egna mappar för att hålla ordning i Hantera Pass. Ren adminordning — mappar
+   *  påverkar aldrig vad medlemmar eller skärmen ser (det styrs av kategorin). */
+  workoutFolders?: { id: string; name: string; createdAt: number; parentId?: string }[];
   studios: Studio[];
   locations?: Location[]; // Nytt: Orter / Studios
   customPages?: CustomPage[];
@@ -732,6 +742,10 @@ export interface Lead {
 export interface CoachNote {
     id: string;
     organizationId: string;
+    /** Coachens ort när anteckningen skapades. Skärmar med egen ort visar bara
+     *  anteckningar från sin ort. Saknas fältet (äldre anteckningar) visas den
+     *  överallt, precis som förut. */
+    locationId?: string;
     createdBy: string;
     creatorName: string;
     creatorPhotoUrl?: string;

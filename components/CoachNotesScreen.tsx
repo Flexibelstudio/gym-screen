@@ -149,6 +149,7 @@ export const CoachNotesScreen: React.FC<CoachNotesScreenProps> = ({ onBack, onWo
             const imageUrl = await resizeAndCompressImage(file, 1000, 1000, 0.7);
             await saveCoachNote({
                 organizationId: selectedOrganization.id,
+                locationId: userData.locationId || undefined,
                 createdBy: userData.uid,
                 creatorName: `${userData.firstName || ''} ${userData.lastName || ''}`.trim() || 'Coach',
                 creatorPhotoUrl: userData.photoUrl,
@@ -207,6 +208,7 @@ export const CoachNotesScreen: React.FC<CoachNotesScreenProps> = ({ onBack, onWo
             } else {
                 await saveCoachNote({
                     organizationId: selectedOrganization.id,
+                    locationId: userData.locationId || undefined,
                     createdBy: userData.uid,
                     creatorName: `${userData.firstName || ''} ${userData.lastName || ''}`.trim() || 'Coach',
                     creatorPhotoUrl: userData.photoUrl,

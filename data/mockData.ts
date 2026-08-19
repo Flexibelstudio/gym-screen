@@ -232,9 +232,6 @@ export const MOCK_ORGANIZATIONS: Organization[] = [
         logoUrlLight: 'https://icongr.am/clarity/tools.svg?size=128&color=000000',
         logoUrlDark: 'https://cdn.jsdelivr.net/gh/orling/grommet-icon-loader@1.0.0/src/icons/grommet.svg',
         primaryColor: '#14b8a6',
-        passwords: {
-            coach: '1234',
-        },
         globalConfig: {
             enableScreensaver: true,
             screensaverTimeoutMinutes: 15,

@@ -56,7 +56,7 @@ export const createOrganization = async (name: string, subdomain: string): Promi
     };
 
     const newOrg: Organization = { 
-        id, name, subdomain, passwords: { coach: '1234' }, studios: [], locations: [defaultLocation], customPages: [], status: 'active',
+        id, name, subdomain, studios: [], locations: [defaultLocation], customPages: [], status: 'active',
         inviteCode: initialInviteCode,
         coachCode: initialCoachCode,
         globalConfig: { customCategories: [{ id: '1', name: 'Standard', prompt: '' }] } 
@@ -82,9 +82,9 @@ export const updateOrganization = async (id: string, name: string, subdomain: st
     return getOrganizationById(id);
 };
 
-export const updateOrganizationPasswords = async (id: string, passwords: Organization['passwords']) => {
+export const updateOrganizationWorkoutFolders = async (id: string, folders: { id: string; name: string; createdAt: number; parentId?: string }[]) => {
     if(isOffline || !db || !id) return;
-    await updateDoc(doc(db, 'organizations', id), { passwords });
+    await updateDoc(doc(db, 'organizations', id), { workoutFolders: folders });
     return getOrganizationById(id);
 };
 

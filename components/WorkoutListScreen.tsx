@@ -10,7 +10,7 @@ import WorkoutDetailScreen from './WorkoutDetailScreen';
 import { LineChart, Line, XAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import { Modal } from './ui/Modal';
 import { PasswordModal } from './PasswordModal';
-import { isWorkoutVisibleNow, getMemberLocationIds, isWorkoutVisibleForLocations } from '../utils/workoutUtils';
+import { isWorkoutVisibleNow, getMemberLocationIds, isWorkoutVisibleForLocations, isWorkoutVisibleOnScreen } from '../utils/workoutUtils';
 
 interface WorkoutListScreenProps {
     passkategori?: string;
@@ -76,12 +76,14 @@ export const WorkoutListScreen: React.FC<WorkoutListScreenProps> = React.memo(({
                 const matchesCategory = !selectedCategory || w.category === selectedCategory;
                 const matchesSearch = (w.title || '').toLowerCase().includes(searchTerm.toLowerCase()) || 
                                     (w.coachTips && (w.coachTips || '').toLowerCase().includes(searchTerm.toLowerCase()));
-                return isWorkoutVisibleForLocations(w, activeLocationIds, now) && matchesCategory && matchesSearch;
+                return isWorkoutVisibleForLocations(w, activeLocationIds, now, currentUser?.uid) && matchesCategory && matchesSearch;
             });
         }
 
         let visible = sourceWorkouts.filter(w => {
-            if (!isWorkoutVisibleForLocations(w, activeLocationIds, now)) return false;
+            // Tilldelade pass (PT) syns aldrig på skärmen och bara för sin egen medlem.
+            if (isStudioMode && !isWorkoutVisibleOnScreen(w)) return false;
+            if (!isWorkoutVisibleForLocations(w, activeLocationIds, now, currentUser?.uid)) return false;
 
             const categoryConfig = studioConfig.customCategories.find(c => c.name === w.category);
             const isCategoryLocked = categoryConfig?.isLocked === true;
@@ -125,11 +127,19 @@ export const WorkoutListScreen: React.FC<WorkoutListScreenProps> = React.memo(({
             visible = visible.filter(w => !latestOnlyNames.has(w.category) || allowedWorkoutIds.has(w.id));
         }
 
-        return visible.filter(w => {
+        const result = visible.filter(w => {
             const matchesCategory = !selectedCategory || w.category === selectedCategory;
             const matchesSearch = (w.title || '').toLowerCase().includes(searchTerm.toLowerCase()) || 
                                 (w.coachTips && (w.coachTips || '').toLowerCase().includes(searchTerm.toLowerCase()));
             return matchesCategory && matchesSearch;
+        });
+
+        // Medlemmens personliga pass ligger alltid överst — det är det som är
+        // beställt av coachen och det medlemmen ska göra härnäst.
+        return [...result].sort((a, b) => {
+            const aMine = a.assignedToUid ? 1 : 0;
+            const bMine = b.assignedToUid ? 1 : 0;
+            return bMine - aMine;
         });
     }, [workouts, customPrograms, selectedCategory, searchTerm, isStudioMode, studioConfig, activeTab]);
     
@@ -177,13 +187,18 @@ export const WorkoutListScreen: React.FC<WorkoutListScreenProps> = React.memo(({
                 onClick={() => {
                     setSelectedWorkoutHistory(workout);
                 }}
-                className={`cursor-pointer group relative overflow-hidden rounded-2xl p-4 sm:p-5 transition-all bg-white dark:bg-[#0f141e] border-2 border-gray-200 dark:border-white/10 hover:border-gray-300 dark:hover:border-white/20 shadow-md flex flex-col`}
+                className={`cursor-pointer group relative overflow-hidden rounded-2xl p-4 sm:p-5 transition-all bg-white dark:bg-[#0f141e] border-2 shadow-md flex flex-col ${workout.assignedToUid ? 'border-primary dark:border-primary shadow-primary/20' : 'border-gray-200 dark:border-white/10 hover:border-gray-300 dark:hover:border-white/20'}`}
                 style={{ touchAction: 'manipulation' }}
             >
                 {/* Decorative Background */}
                 <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-full blur-3xl -mr-10 -mt-10 pointer-events-none"></div>
 
                 <div className="relative z-10 flex-grow flex flex-col">
+                    {workout.assignedToUid && (
+                        <div className="mb-3 self-start bg-primary text-white px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider">
+                            ★ Personligt pass
+                        </div>
+                    )}
                     <div className="flex justify-between items-start mb-3 w-full">
                         <div className="flex items-center gap-2 flex-1 pr-2">
                              <h3 className="text-base font-bold text-gray-900 dark:text-white leading-[1.2]">

@@ -281,6 +281,33 @@ export function isWorkoutVisibleNow(w: Workout, now: number = Date.now()): boole
     return true;
 }
 
+/**
+ * Tilldelade pass (PT) hör till EN medlem. De ska aldrig visas på skärmen i lokalen
+ * och aldrig i någon annan medlems app. Passet är fortfarande publicerat — det är
+ * tilldelningen, inte publiceringen, som styr vem som ser det.
+ */
+export function isWorkoutVisibleForMember(w: Workout, memberUid?: string | null): boolean {
+    // PT-kategorin räknas som personlig även innan någon tilldelats — ett
+    // otilldelat PT-pass ska inte ligga öppet i gymmets utbud under tiden.
+    if (w.category === PT_CATEGORY && !w.assignedToUid) return false;
+    if (!w.assignedToUid) return true;
+    return !!memberUid && w.assignedToUid === memberUid;
+}
+
+/**
+ * Ett pass går att logga om minst en övning har loggning påslagen. Saknas det
+ * helt kan medlemmen inte logga något — och då är en tom loggsiffra inte ett
+ * tecken på att ingen tränat passet, utan på att det inte går.
+ */
+export function isWorkoutLoggable(w: Workout): boolean {
+    return (w.blocks || []).some(b => (b.exercises || []).some(e => e.loggingEnabled === true));
+}
+
+/** Skärmen visar aldrig tilldelade pass, oavsett vem som är inloggad. */
+export function isWorkoutVisibleOnScreen(w: Workout): boolean {
+    return !w.assignedToUid && w.category !== PT_CATEGORY;
+}
+
 export function getMemberLocationIds(user?: { locationId?: string; locationIds?: string[] } | null): string[] {
     if (!user) return [];
     const set = new Set<string>();
@@ -293,8 +320,9 @@ export function getMemberLocationIds(user?: { locationId?: string; locationIds?:
     return Array.from(set);
 }
 
-export function isWorkoutVisibleForLocations(w: Workout, memberLocationIds: string[], now: number = Date.now()): boolean {
+export function isWorkoutVisibleForLocations(w: Workout, memberLocationIds: string[], now: number = Date.now(), memberUid?: string | null): boolean {
     if (!isWorkoutVisibleNow(w, now)) return false;
+    if (!isWorkoutVisibleForMember(w, memberUid)) return false;
     if (!w.locationIds || w.locationIds.length === 0) return true;
     if (!memberLocationIds || memberLocationIds.length === 0) return false;
     return w.locationIds.some(id => memberLocationIds.includes(id));
@@ -308,6 +336,15 @@ export function isWorkoutVisibleForLocations(w: Workout, memberLocationIds: stri
  */
 export const OTHER_CATEGORY = 'Övriga pass';
 
+/**
+ * Reserverad kategori för pass som byggs åt en enskild medlem (PT). Precis som
+ * Övriga pass finns den INTE i gymmets customCategories. Pass i den här kategorin
+ * visas aldrig på skärmen och aldrig i gymmets vanliga passlistor — de når bara
+ * den medlem passet tilldelats. Byter man till en riktig kategori beter sig
+ * passet som vilket pass som helst igen.
+ */
+export const PT_CATEGORY = 'PT-pass';
+
 export function getWorkoutVisibilityIssues(
     w: Workout,
     customCategories?: { name: string; isLocked?: boolean }[],
@@ -319,6 +356,10 @@ export function getWorkoutVisibilityIssues(
     const cat = (w.category || '').trim();
     if (!cat || cat === 'Ej kategoriserad' || cat === 'AI Genererat') {
         issues.push('Ingen passkategori vald. Passet syns inte på startsidan i appen. Medlemmen hittar det bara genom att öppna en kategori och sedan välja filtret Alla.');
+    } else if (cat === PT_CATEGORY) {
+        if (!w.assignedToUid) {
+            issues.push('PT-passet är inte tilldelat någon medlem än — ingen kan se det.');
+        }
     } else if (cat !== OTHER_CATEGORY && customCategories && customCategories.length > 0) {
         const cfg = customCategories.find(c => c.name === cat);
         if (!cfg) {
