@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { SparklesIcon, DumbbellIcon, BuildingIcon, ClockIcon, UsersIcon, ChevronDownIcon, DocumentTextIcon, PencilIcon, SpeakerphoneIcon, ChartBarIcon, TrophyIcon, QrCodeIcon } from './icons';
+import { SparklesIcon, DumbbellIcon, BuildingIcon, ClockIcon, UsersIcon, ChevronDownIcon, DocumentTextIcon, PencilIcon, SpeakerphoneIcon, ChartBarIcon, TrophyIcon, QrCodeIcon, LightningIcon } from './icons';
 import { GalleryImage, Partner } from '../types';
 import { getGalleryImages, getPartners, createLead } from '../services/firebaseService';
 
@@ -65,8 +65,10 @@ const SystemImages = () => (
  * kodändring behövs, bilden dyker upp automatiskt.
  */
 const ImageSlot: React.FC<{ src: string; alt: string; label: string; className?: string }> = ({ src, alt, label, className = '' }) => {
-    const [missing, setMissing] = useState(false);
-    if (missing) {
+    // Bilden får ligga som .jpg, .png eller .webp — vi provar i tur och ordning.
+    const candidates = [src, src.replace(/\.jpg$/, '.png'), src.replace(/\.jpg$/, '.webp')];
+    const [attempt, setAttempt] = useState(0);
+    if (attempt >= candidates.length) {
         return (
             <div className={`flex flex-col items-center justify-center bg-gray-100 border border-dashed border-gray-300 rounded-2xl text-center p-6 ${className}`}>
                 <span className="text-3xl mb-2">📷</span>
@@ -74,7 +76,7 @@ const ImageSlot: React.FC<{ src: string; alt: string; label: string; className?:
             </div>
         );
     }
-    return <img src={src} alt={alt} onError={() => setMissing(true)} className={`object-cover rounded-2xl border border-gray-200 ${className}`} loading="lazy" decoding="async" />;
+    return <img key={candidates[attempt]} src={candidates[attempt]} alt={alt} onError={() => setAttempt(a => a + 1)} className={`object-cover rounded-2xl border border-gray-200 ${className}`} loading="lazy" decoding="async" />;
 };
 
 /**
@@ -82,16 +84,21 @@ const ImageSlot: React.FC<{ src: string; alt: string; label: string; className?:
  * (landing/hero.jpg) och faller sist tillbaka på produktmockupen. Så fort en
  * riktig film eller bild läggs i public/landing/ tar den över.
  */
+const HERO_IMAGES = ['/landing/hero.jpg', '/landing/hero.png', '/landing/hero.webp'];
+
 const HeroMedia: React.FC = () => {
     const [stage, setStage] = useState<'video' | 'image' | 'mockup'>('video');
+    const [imageAttempt, setImageAttempt] = useState(0);
     if (stage === 'mockup') return <SystemImages />;
     if (stage === 'image') {
+        if (imageAttempt >= HERO_IMAGES.length) return <SystemImages />;
         return (
             <img
-                src="/landing/hero.jpg"
+                key={HERO_IMAGES[imageAttempt]}
+                src={HERO_IMAGES[imageAttempt]}
                 alt="SmartStudio på skärmen i en studio"
-                onError={() => setStage('mockup')}
-                className="w-full h-auto rounded-3xl border border-gray-200 shadow-xl"
+                onError={() => setImageAttempt(a => a + 1)}
+                className="w-full max-h-[520px] object-cover object-center rounded-3xl border border-gray-200 shadow-xl"
             />
         );
     }
@@ -193,10 +200,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginClick, onRegist
                                 </span>
                             </h1>
                             <p className="text-xl text-gray-600 mb-8 max-w-2xl mx-auto lg:mx-0 leading-relaxed">
-                                Att digitalisera gymmet behöver inte betyda krångliga menyer. Rita upp passet för hand på whiteboarden, precis som du alltid gjort. Vi tolkar texten, sätter upp timern och visar passet snyggt för dina medlemmar.
-                            </p>
-                            <p className="text-sm font-bold text-primary mb-6 uppercase tracking-wider">
-                                Skolan har redan gjort resan. Nu är det gymmens tur.
+                                Byggt i en riktig studio, av oss som står i den varje dag. Rita upp passet för hand på whiteboarden precis som du alltid gjort — vi tolkar texten, sätter upp timern och visar passet snyggt för dina medlemmar.
                             </p>
                             <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
                                 <button onClick={onRegisterGymClick || onLoginClick} className="bg-primary hover:brightness-95 text-white text-lg px-8 py-4 rounded-full font-bold transition-all transform hover:scale-105 shadow-[0_0_20px_-5px_rgba(20,184,166,0.5)]">
@@ -236,7 +240,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginClick, onRegist
                         {[
                             { nr: '1', title: 'Skissa passet', desc: 'Skriv passet för hand på whiteboarden eller i en anteckning — precis som du alltid gjort.', src: '/landing/steg1-whiteboard.jpg', label: 'Bild kommer: whiteboardskissen' },
                             { nr: '2', title: 'AI:n bygger det', desc: 'Passet tolkas automatiskt: övningar, block och timer — klart på skärmen i lokalen.', src: '/landing/steg2-skarm.jpg', label: 'Bild kommer: passet på skärmen' },
-                            { nr: '3', title: 'Coachen kör passet', desc: 'Följ mig-läget styr skärmen: timern rullar, alla ser samma övning och coachen slipper räkna. Ni coachar i stället för att administrera.', src: '/landing/steg3-followme.jpg', label: 'Bild kommer: Följ mig-läget på skärmen' },
+                            { nr: '3', title: 'Skärmen kör passet', desc: 'Timern rullar och passet syns från hela rummet. Ingen behöver fråga vad som gäller eller hur lång tid det är kvar.', src: '/landing/steg3-followme.jpg', label: 'Bild kommer: passet igång på skärmen' },
                         ].map((step, i) => (
                             <motion.div
                                 key={step.nr}
@@ -246,7 +250,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginClick, onRegist
                                 transition={{ delay: i * 0.15, duration: 0.5 }}
                                 className="text-center"
                             >
-                                <ImageSlot src={step.src} alt={step.title} label={step.label} className="w-full h-64 mb-6" />
+                                <ImageSlot src={step.src} alt={step.title} label={step.label} className="w-full h-80 md:h-96 mb-6" />
                                 <div className="w-10 h-10 rounded-full bg-primary text-black font-black text-lg flex items-center justify-center mx-auto mb-4">{step.nr}</div>
                                 <h3 className="text-xl font-bold text-gray-900 mb-2">{step.title}</h3>
                                 <p className="text-gray-600 leading-relaxed">{step.desc}</p>
@@ -260,7 +264,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginClick, onRegist
             <section id="features" className="py-24 bg-gray-50 relative">
                 <div className="max-w-7xl mx-auto px-6">
                     <div className="text-center mb-16">
-                        <h2 className="text-3xl md:text-5xl font-bold mb-4">Allt coachen behöver på skärmen.</h2>
+                        <h2 className="text-3xl md:text-5xl font-bold mb-4">Allt passet behöver på skärmen.</h2>
                         <p className="text-gray-600 max-w-2xl mx-auto">
                             Byggt för boxägare, personliga tränare och gymkedjor. Ett pass tar minuter att bygga och syns direkt på skärmen i lokalen — ni sparar timmar varje vecka, höjer kvaliteten på passen och lyfter hela verksamheten till nästa nivå.
                         </p>
@@ -297,6 +301,12 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginClick, onRegist
                             icon={<PencilIcon className="w-8 h-8" />}
                             delay={0.5}
                         />
+                        <FeatureCard 
+                            title="Idétorka? Låt AI:n ta fram pass" 
+                            desc="Skriv vad ni önskar, så får ni ett passförslag. Ett bollplank när inspirationen tryter — ni bestämmer fortfarande."
+                            icon={<LightningIcon className="w-8 h-8" />}
+                            delay={0.6}
+                        />
                     </div>
                 </div>
             </section>
@@ -312,6 +322,9 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginClick, onRegist
                         className="bg-gradient-to-b from-white to-gray-50 border border-primary/30 shadow-lg rounded-3xl p-10 md:p-14 text-center relative overflow-hidden"
                     >
                         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[500px] h-[250px] bg-primary/10 blur-[100px] rounded-full pointer-events-none"></div>
+                        <p className="text-sm font-bold text-primary mb-4 uppercase tracking-wider relative z-10">
+                            Skolan har redan gjort resan. Nu är det gymmens tur.
+                        </p>
                         <span className="inline-block py-1.5 px-4 rounded-full bg-orange-500 text-white text-xs font-black uppercase tracking-widest mb-4 relative z-10">
                             Introduktionspris
                         </span>
@@ -327,7 +340,6 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginClick, onRegist
                         <ul className="text-left max-w-md mx-auto space-y-3 mb-10 relative z-10">
                             {[
                                 'Skärmappen: timer, whiteboard och AI-passbyggare',
-                                'Följ mig-läget: coachen kör passet, skärmen håller takten',
                                 'Info-karusellen: skärmen jobbar även mellan passen',
                                 'Ingen installation — allt körs i webbläsaren',
                             ].map(item => (
@@ -339,6 +351,9 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginClick, onRegist
                                 </li>
                             ))}
                         </ul>
+                        <p className="text-sm text-gray-500 mb-2 relative z-10">
+                            Ni behöver en touchskärm i lokalen. Går att köpa via oss.
+                        </p>
                         <p className="text-sm text-gray-500 mb-8 relative z-10">
                             Medlemsappen är ett <strong className="text-gray-700">tillval</strong> — läs mer om den nedan.
                         </p>
