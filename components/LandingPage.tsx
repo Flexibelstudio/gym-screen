@@ -158,7 +158,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginClick, onRegist
                         <span className="text-xl font-bold tracking-tight">SmartStudio</span>
                     </div>
                     <div className="flex gap-4">
-                        <button onClick={() => setIsDemoModalOpen(true)} className="text-sm font-semibold text-primary hover:text-teal-400 transition-colors hidden sm:block">
+                        <button onClick={() => setIsDemoModalOpen(true)} className="text-sm font-semibold text-primary hover:brightness-90 transition-colors hidden sm:block">
                             Boka Demo
                         </button>
                         <button onClick={onLoginClick} className="text-sm font-semibold text-gray-600 hover:text-gray-900 transition-colors">
@@ -188,15 +188,18 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginClick, onRegist
                             </span>
                             <h1 className="text-5xl lg:text-7xl font-black tracking-tight leading-none mb-6">
                                 Skriv, klistra in en anteckning eller ladda upp en bild. <br />
-                                <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-teal-200">
+                                <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-emerald-400">
                                     Låt AI göra resten.
                                 </span>
                             </h1>
                             <p className="text-xl text-gray-600 mb-8 max-w-2xl mx-auto lg:mx-0 leading-relaxed">
                                 Att digitalisera gymmet behöver inte betyda krångliga menyer. Rita upp passet för hand på whiteboarden, precis som du alltid gjort. Vi tolkar texten, sätter upp timern och visar passet snyggt för dina medlemmar.
                             </p>
+                            <p className="text-sm font-bold text-primary mb-6 uppercase tracking-wider">
+                                Skolan har redan gjort resan. Nu är det gymmens tur.
+                            </p>
                             <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
-                                <button onClick={onRegisterGymClick || onLoginClick} className="bg-primary hover:bg-teal-400 text-black text-lg px-8 py-4 rounded-full font-bold transition-all transform hover:scale-105 shadow-[0_0_20px_-5px_rgba(20,184,166,0.5)]">
+                                <button onClick={onRegisterGymClick || onLoginClick} className="bg-primary hover:brightness-95 text-white text-lg px-8 py-4 rounded-full font-bold transition-all transform hover:scale-105 shadow-[0_0_20px_-5px_rgba(20,184,166,0.5)]">
                                     Byt ut din whiteboard idag
                                 </button>
                                 <button 
@@ -233,7 +236,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginClick, onRegist
                         {[
                             { nr: '1', title: 'Skissa passet', desc: 'Skriv passet för hand på whiteboarden eller i en anteckning — precis som du alltid gjort.', src: '/landing/steg1-whiteboard.jpg', label: 'Bild kommer: whiteboardskissen' },
                             { nr: '2', title: 'AI:n bygger det', desc: 'Passet tolkas automatiskt: övningar, block och timer — klart på skärmen i lokalen.', src: '/landing/steg2-skarm.jpg', label: 'Bild kommer: passet på skärmen' },
-                            { nr: '3', title: 'Medlemmen loggar', desc: 'QR-koden skannas, resultaten loggas och personbästa räknas ut. Utvecklingen syns svart på vitt.', src: '/landing/steg3-mobil.jpg', label: 'Bild kommer: loggning i mobilen' },
+                            { nr: '3', title: 'Coachen kör passet', desc: 'Följ mig-läget styr skärmen: timern rullar, alla ser samma övning och coachen slipper räkna. Ni coachar i stället för att administrera.', src: '/landing/steg3-followme.jpg', label: 'Bild kommer: Följ mig-läget på skärmen' },
                         ].map((step, i) => (
                             <motion.div
                                 key={step.nr}
@@ -298,12 +301,63 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginClick, onRegist
                 </div>
             </section>
 
+            {/* Pris — allt som ingår */}
+            <section className="py-24 bg-white relative border-t border-gray-100">
+                <div className="max-w-4xl mx-auto px-6">
+                    <motion.div
+                        initial={{ opacity: 0, y: 20 }}
+                        whileInView={{ opacity: 1, y: 0 }}
+                        viewport={{ once: true }}
+                        transition={{ duration: 0.6 }}
+                        className="bg-gradient-to-b from-white to-gray-50 border border-primary/30 shadow-lg rounded-3xl p-10 md:p-14 text-center relative overflow-hidden"
+                    >
+                        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[500px] h-[250px] bg-primary/10 blur-[100px] rounded-full pointer-events-none"></div>
+                        <span className="inline-block py-1.5 px-4 rounded-full bg-orange-500 text-white text-xs font-black uppercase tracking-widest mb-4 relative z-10">
+                            Introduktionspris
+                        </span>
+                        <h2 className="text-3xl md:text-4xl font-bold mb-2 relative z-10">Ett pris per skärm. Inga överraskningar.</h2>
+                        <div className="my-6 relative z-10">
+                            <p className="text-5xl md:text-6xl font-black text-gray-900">
+                                995 kr<span className="text-xl font-bold text-gray-400">/mån per skärm</span>
+                            </p>
+                            <p className="text-sm font-bold text-gray-400 mt-2">
+                                Ordinarie pris <span className="line-through">1 995 kr/mån</span> — introduktionspriset gäller er som kommer med nu.
+                            </p>
+                        </div>
+                        <ul className="text-left max-w-md mx-auto space-y-3 mb-10 relative z-10">
+                            {[
+                                'Skärmappen: timer, whiteboard och AI-passbyggare',
+                                'Följ mig-läget: coachen kör passet, skärmen håller takten',
+                                'Info-karusellen: skärmen jobbar även mellan passen',
+                                'Ingen installation — allt körs i webbläsaren',
+                            ].map(item => (
+                                <li key={item} className="flex items-start gap-3 text-gray-700">
+                                    <svg className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                                    </svg>
+                                    <span>{item}</span>
+                                </li>
+                            ))}
+                        </ul>
+                        <p className="text-sm text-gray-500 mb-8 relative z-10">
+                            Medlemsappen är ett <strong className="text-gray-700">tillval</strong> — läs mer om den nedan.
+                        </p>
+                        <button
+                            onClick={() => setIsDemoModalOpen(true)}
+                            className="bg-orange-500 hover:brightness-95 text-white text-lg px-10 py-4 rounded-full font-bold transition-all transform hover:scale-105 relative z-10 shadow-lg shadow-orange-500/20"
+                        >
+                            Boka en kostnadsfri demo
+                        </button>
+                    </motion.div>
+                </div>
+            </section>
+
             {/* Medlemsappen */}
             <section className="py-24 bg-gradient-to-b from-white to-gray-50 relative border-t border-gray-100">
                 <div className="max-w-7xl mx-auto px-6">
                     <div className="text-center mb-16">
                         <span className="inline-block py-1 px-3 rounded-full bg-primary/10 border border-primary/20 text-primary text-xs font-bold uppercase tracking-widest mb-6">
-                            Medlemsappen — ett smart tillval
+Tillval · Medlemsappen
                         </span>
                         <h2 className="text-3xl md:text-5xl font-bold mb-4">Skärmen visar passet. Appen får dem att komma tillbaka.</h2>
                         <p className="text-gray-600 max-w-3xl mx-auto text-lg leading-relaxed">
@@ -337,46 +391,6 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginClick, onRegist
                         <ImageSlot src="/landing/app-styrka.jpg" alt="Min styrka i medlemsappen" label="Bild kommer: Min styrka i appen" className="w-56 h-96" />
                         <ImageSlot src="/landing/app-diplom.jpg" alt="Diplom i medlemsappen" label="Bild kommer: diplom i appen" className="w-56 h-96" />
                     </div>
-                </div>
-            </section>
-
-            {/* Pris — allt som ingår */}
-            <section className="py-24 bg-white relative border-t border-gray-100">
-                <div className="max-w-4xl mx-auto px-6">
-                    <motion.div
-                        initial={{ opacity: 0, y: 20 }}
-                        whileInView={{ opacity: 1, y: 0 }}
-                        viewport={{ once: true }}
-                        transition={{ duration: 0.6 }}
-                        className="bg-gradient-to-b from-white to-gray-50 border border-primary/30 shadow-lg rounded-3xl p-10 md:p-14 text-center relative overflow-hidden"
-                    >
-                        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[500px] h-[250px] bg-primary/10 blur-[100px] rounded-full pointer-events-none"></div>
-                        <h2 className="text-3xl md:text-4xl font-bold mb-2 relative z-10">Ett pris per skärm. Inga överraskningar.</h2>
-                        <p className="text-5xl md:text-6xl font-black text-gray-900 my-6 relative z-10">
-                            Från 995 kr<span className="text-xl font-bold text-gray-400">/mån per skärm</span>
-                        </p>
-                        <ul className="text-left max-w-md mx-auto space-y-3 mb-10 relative z-10">
-                            {[
-                                'Skärmappen: timer, whiteboard och AI-passbyggare',
-                                'Medlemsappen som tillval: loggning, personbästa, milstolpar och diplom',
-                                'Info-karusellen: skärmen jobbar även mellan passen',
-                                'Ingen installation — allt körs i webbläsaren',
-                            ].map(item => (
-                                <li key={item} className="flex items-start gap-3 text-gray-300">
-                                    <svg className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
-                                    </svg>
-                                    <span>{item}</span>
-                                </li>
-                            ))}
-                        </ul>
-                        <button
-                            onClick={() => setIsDemoModalOpen(true)}
-                            className="bg-primary hover:bg-teal-400 text-black text-lg px-10 py-4 rounded-full font-bold transition-all transform hover:scale-105 relative z-10"
-                        >
-                            Boka en kostnadsfri demo
-                        </button>
-                    </motion.div>
                 </div>
             </section>
 
@@ -492,14 +506,14 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginClick, onRegist
                     >
                         <h2 className="text-4xl md:text-5xl font-bold mb-6 text-gray-900 tracking-tight">Redo att ta din studio till nästa nivå?</h2>
                         <p className="text-lg text-gray-600 mb-2">
-                            Från <span className="font-black text-gray-900">995 kr/mån</span> per skärm.
+                            <span className="font-black text-gray-900">995 kr/mån</span> per skärm i introduktionspris — ordinarie 1 995 kr/mån.
                         </p>
                         <p className="text-xl text-gray-600 mb-10 max-w-2xl mx-auto leading-relaxed">
                             Boka en kostnadsfri demo så visar vi hur SmartStudio kan spara tid och lyfta upplevelsen för dina medlemmar.
                         </p>
                         <button 
                             onClick={() => setIsDemoModalOpen(true)}
-                            className="bg-primary hover:bg-teal-400 text-black text-lg px-10 py-4 rounded-full font-bold transition-all transform hover:scale-105 shadow-[0_0_30px_-5px_rgba(20,184,166,0.4)]"
+                            className="bg-orange-500 hover:brightness-95 text-white text-lg px-10 py-4 rounded-full font-bold transition-all transform hover:scale-105 shadow-lg shadow-orange-500/20"
                         >
                             Boka Demo
                         </button>
