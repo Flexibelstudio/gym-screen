@@ -3,7 +3,7 @@ import React from 'react';
 import { WorkoutBlock, Exercise, Organization } from '../types';
 import { useWorkout } from '../context/WorkoutContext';
 import { PlayIcon, InformationCircleIcon } from './icons';
-import { getSideLabel } from '../utils/workoutUtils';
+import { getSideLabel, getGroupColorHex } from '../utils/workoutUtils';
 
 interface RepsOnlyScreenProps {
     block: WorkoutBlock;
@@ -68,7 +68,8 @@ export const RepsOnlyScreen: React.FC<RepsOnlyScreenProps> = ({ block, onFinish,
             {/* Exercises List */}
             <div className="w-full flex-1 flex flex-col overflow-hidden pb-1">
                 {block.exercises.map((ex, i) => {
-                    const useGroupColor = !!ex.groupColor;
+                    const groupHex = getGroupColorHex(ex.groupColor);
+                    const useGroupColor = !!groupHex;
                     const nextEx = block.exercises[i + 1];
                     const isGroupedWithNext = nextEx && ex.groupId && ex.groupId === nextEx.groupId;
                     
@@ -90,7 +91,7 @@ export const RepsOnlyScreen: React.FC<RepsOnlyScreenProps> = ({ block, onFinish,
                                 : 'border-gray-100 dark:border-white/10'
                             } ${padding} ${mbClass}`}
                             style={{ 
-                                borderLeftColor: useGroupColor ? undefined : '#3b82f6' // blue-500
+                                borderLeftColor: groupHex || '#3b82f6' // blue-500 som standard
                             }}
                         >
                             <div className="flex items-center w-full gap-6 md:gap-8">

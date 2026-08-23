@@ -742,6 +742,26 @@ const PassProgramModule: React.FC<{
     );
 };
 
+/**
+ * Vyns urval och sortering ligger kvar mellan besöken. Går man in på ett pass
+ * och backar ut monteras vyn om från grunden — utan det här minnet nollställs
+ * sorteringen varje gång, vilket gör listan oanvändbar när man jobbar sig
+ * igenom flera pass i rad. Minnet lever så länge fliken är öppen och nollställs
+ * vid omladdning.
+ */
+type ManageWorkoutsSort = { key: 'title' | 'category' | 'createdAt' | 'createdByName' | 'isPublished' | 'runCount' | 'logCount' | 'lastRunAt', direction: 'asc' | 'desc' | 'none' };
+const manageWorkoutsMemory: {
+    sortConfig: ManageWorkoutsSort;
+    activeFolder: string;
+    activeTab: 'official' | 'drafts';
+    searchTerm: string;
+} = {
+    sortConfig: { key: 'createdAt', direction: 'none' },
+    activeFolder: 'all',
+    activeTab: 'official',
+    searchTerm: ''
+};
+
 const ManageWorkoutsView: React.FC<{
     workouts: Workout[];
     locations?: { id: string; name: string }[];
@@ -772,7 +792,7 @@ const ManageWorkoutsView: React.FC<{
     // automatiskt för varje kategori gymmet skapat), 'folder:<id>' = egen mapp,
     // 'nofolder' = pass utan egen mapp.
     const FAVORITES_COUNT = 10;
-    const [activeFolder, setActiveFolder] = useState<string>('all');
+    const [activeFolder, setActiveFolder] = useState<string>(manageWorkoutsMemory.activeFolder);
     const [isFolderMenuFor, setIsFolderMenuFor] = useState<string | null>(null);
     const [newFolderName, setNewFolderName] = useState('');
     // null = ingen inmatning öppen, '' = ny mapp på toppnivå, '<id>' = undermapp till den mappen
@@ -789,14 +809,11 @@ const ManageWorkoutsView: React.FC<{
     const folderIdsWithin = (id: string) => [id, ...childrenOf(id).map(c => c.id)];
     const categories = organization?.globalConfig?.customCategories || [];
     
-    const [activeTab, setActiveTab] = useState<'official' | 'drafts'>('official');
-    const [searchTerm, setSearchTerm] = useState('');
+    const [activeTab, setActiveTab] = useState<'official' | 'drafts'>(manageWorkoutsMemory.activeTab);
+    const [searchTerm, setSearchTerm] = useState(manageWorkoutsMemory.searchTerm);
     const [currentPage, setCurrentPage] = useState(1);
     const [previewWorkout, setPreviewWorkout] = useState<Workout | null>(null);
-    const [sortConfig, setSortConfig] = useState<{ key: 'title' | 'category' | 'createdAt' | 'createdByName' | 'isPublished' | 'runCount' | 'logCount' | 'lastRunAt', direction: 'asc' | 'desc' | 'none' }>({
-        key: 'createdAt',
-        direction: 'none'
-    });
+    const [sortConfig, setSortConfig] = useState<ManageWorkoutsSort>(manageWorkoutsMemory.sortConfig);
     const [publishConfirmWorkoutId, setPublishConfirmWorkoutId] = useState<string | null>(null);
     const [deleteConfirmWorkoutId, setDeleteConfirmWorkoutId] = useState<string | null>(null);
     const [copyConfirmWorkoutId, setCopyConfirmWorkoutId] = useState<string | null>(null);
@@ -929,6 +946,14 @@ const ManageWorkoutsView: React.FC<{
     useEffect(() => {
         setCurrentPage(1);
     }, [searchTerm, sortConfig, activeTab, activeFolder]);
+
+    // Lägg undan urvalet så det finns kvar nästa gång vyn öppnas
+    useEffect(() => {
+        manageWorkoutsMemory.sortConfig = sortConfig;
+        manageWorkoutsMemory.activeFolder = activeFolder;
+        manageWorkoutsMemory.activeTab = activeTab;
+        manageWorkoutsMemory.searchTerm = searchTerm;
+    }, [sortConfig, activeFolder, activeTab, searchTerm]);
 
     const handleListScroll = (e: React.UIEvent<HTMLDivElement>) => {
         if (!hasMore) return;
