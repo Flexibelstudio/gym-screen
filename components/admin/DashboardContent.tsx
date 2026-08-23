@@ -2,7 +2,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { Organization, Workout, UserData, BenchmarkDefinition } from '../../types';
-import { DumbbellIcon, BuildingIcon, UsersIcon, SpeakerphoneIcon, SparklesIcon, CopyIcon, PencilIcon, TrashIcon, ShuffleIcon, SearchIcon, ChevronLeftIcon, ChevronRightIcon, ChevronUpIcon, ChevronDownIcon, TrophyIcon, EyeIcon, ChartBarIcon, PlusIcon } from '../icons';
+import { DumbbellIcon, BuildingIcon, UsersIcon, SpeakerphoneIcon, SparklesIcon, CopyIcon, PencilIcon, TrashIcon, ShuffleIcon, SearchIcon, ChevronLeftIcon, ChevronRightIcon, ChevronUpIcon, ChevronDownIcon, TrophyIcon, EyeIcon, ChartBarIcon, PlusIcon, StarIcon } from '../icons';
 import { motion, AnimatePresence } from 'framer-motion';
 import { AIGeneratorScreen } from '../AIGeneratorScreen';
 import { WorkoutBuilderScreen } from '../WorkoutBuilderScreen';
@@ -10,6 +10,7 @@ import { deepCopyAndPrepareAsNew, getWorkoutStatusInfo, getWorkoutVisibilityIssu
 import { ManageBenchmarksModal, FeatureInfoModal } from './AdminModals';
 import { updateOrganizationBenchmarks, updateOrganizationWorkoutFolders, resolveAndCreateExercises, updateGlobalConfig, listenToGlobalSummerChallenge, listenToMembers, listenToCommunityLogs, listenToCommunityLogsByLocations, getOrganizationLogs, getSmartScreenPricing } from '../../services/firebaseService';
 import { WorkoutPresentationModal } from '../WorkoutDetailScreen';
+import { useAuth } from '../../context/AuthContext';
 
 // ... (Types and Interfaces remain same)
 
@@ -749,7 +750,7 @@ const PassProgramModule: React.FC<{
  * igenom flera pass i rad. Minnet lever så länge fliken är öppen och nollställs
  * vid omladdning.
  */
-type ManageWorkoutsSort = { key: 'title' | 'category' | 'createdAt' | 'createdByName' | 'isPublished' | 'runCount' | 'logCount' | 'lastRunAt', direction: 'asc' | 'desc' | 'none' };
+type ManageWorkoutsSort = { key: 'title' | 'category' | 'createdAt' | 'createdByName' | 'isPublished' | 'runCount' | 'logCount' | 'lastRunAt' | 'myRating' | 'avgRating', direction: 'asc' | 'desc' | 'none' };
 const manageWorkoutsMemory: {
     sortConfig: ManageWorkoutsSort;
     activeFolder: string;
@@ -781,7 +782,23 @@ const ManageWorkoutsView: React.FC<{
     onMoveToFolder?: (workout: Workout, folderId: string | undefined) => Promise<void>;
     members?: { uid: string; firstName?: string; lastName?: string; email?: string }[];
     onAssignToMember?: (workout: Workout, member: { uid: string; name: string } | null) => Promise<void>;
-}> = ({ workouts, locations, organization, onEdit, onDelete, onDuplicate, onTogglePublish, onCopyToLibrary, onMoveToLibrary, onMoveToOtherPass, onBack, onCreateNew, onCreateWithAI, onManageBenchmarks, onSaveFolders, onMoveToFolder, members, onAssignToMember }) => {
+    onRateWorkout?: (workout: Workout, rating: number | null) => Promise<void>;
+}> = ({ workouts, locations, organization, onEdit, onDelete, onDuplicate, onTogglePublish, onCopyToLibrary, onMoveToLibrary, onMoveToOtherPass, onBack, onCreateNew, onCreateWithAI, onManageBenchmarks, onSaveFolders, onMoveToFolder, members, onAssignToMember, onRateWorkout }) => {
+
+    const { currentUser } = useAuth();
+    const myUid = currentUser?.uid || null;
+
+    // Betyget är personalens eget omdöme om passet. Man ser alltid sitt eget,
+    // och snittet först när minst två satt betyg — annars är "snittet" bara en
+    // persons åsikt utklädd till statistik.
+    const myRatingOf = (w: Workout) => (myUid && w.ratings ? (w.ratings[myUid] || 0) : 0);
+    const ratingValues = (w: Workout) => Object.values(w.ratings || {}).filter(v => typeof v === 'number' && v > 0);
+    const avgRatingOf = (w: Workout) => {
+        const vals = ratingValues(w);
+        if (vals.length < 2) return 0;
+        return vals.reduce((sum, v) => sum + v, 0) / vals.length;
+    };
+
     
     const [isCreateMenuOpen, setIsCreateMenuOpen] = useState(false);
 
@@ -903,6 +920,13 @@ const ManageWorkoutsView: React.FC<{
                 // Körningskolumnerna saknas på pass som aldrig körts — de behandlas
                 // som 0 så att sorteringen blir meningsfull i stället för godtycklig.
                 const numericKey = sortConfig.key === 'runCount' || sortConfig.key === 'logCount' || sortConfig.key === 'lastRunAt';
+                // Betygen ligger inte som fält på passet utan räknas fram.
+                if (sortConfig.key === 'myRating' || sortConfig.key === 'avgRating') {
+                    const pick = sortConfig.key === 'myRating' ? myRatingOf : avgRatingOf;
+                    const cmp = pick(a) - pick(b);
+                    if (cmp !== 0) return sortConfig.direction === 'asc' ? cmp : -cmp;
+                    return (b.createdAt || 0) - (a.createdAt || 0);
+                }
                 // Pass utan skapare (gamla pass) sorteras sist oavsett riktning.
                 if (sortConfig.key === 'createdByName') {
                     const an = a.createdByName || '';
@@ -1359,6 +1383,12 @@ const ManageWorkoutsView: React.FC<{
                                 <th onClick={() => handleSort('lastRunAt')} className="p-5 text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.2em] cursor-pointer hover:text-primary transition-colors">
                                     <div className="flex items-center">Senast <SortIcon column="lastRunAt" /></div>
                                 </th>
+                                <th onClick={() => handleSort('myRating')} className="p-5 text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.2em] cursor-pointer hover:text-primary transition-colors">
+                                    <div className="flex items-center whitespace-nowrap">Mitt betyg <SortIcon column="myRating" /></div>
+                                </th>
+                                <th onClick={() => handleSort('avgRating')} className="p-5 text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.2em] cursor-pointer hover:text-primary transition-colors">
+                                    <div className="flex items-center">Snitt <SortIcon column="avgRating" /></div>
+                                </th>
                                 <th onClick={() => handleSort('isPublished')} className="p-5 text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.2em] cursor-pointer hover:text-primary transition-colors">
                                     <div className="flex items-center">Status <SortIcon column="isPublished" /></div>
                                 </th>
@@ -1461,6 +1491,42 @@ const ManageWorkoutsView: React.FC<{
                                             {workout.lastRunAt
                                                 ? new Date(workout.lastRunAt).toLocaleDateString('sv-SE', { year: 'numeric', month: 'short', day: 'numeric' })
                                                 : <span className="text-gray-400">–</span>}
+                                        </td>
+                                        <td className="p-5">
+                                            <div className="flex items-center gap-0.5">
+                                                {[1, 2, 3, 4, 5].map(star => {
+                                                    const mine = myRatingOf(workout);
+                                                    return (
+                                                        <button
+                                                            key={star}
+                                                            type="button"
+                                                            disabled={!onRateWorkout || !myUid}
+                                                            title={mine === star ? 'Klicka igen för att ta bort ditt betyg' : `Sätt ${star} av 5`}
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                if (!onRateWorkout) return;
+                                                                onRateWorkout(workout, mine === star ? null : star);
+                                                            }}
+                                                            className={`transition-transform hover:scale-125 disabled:cursor-default disabled:hover:scale-100 ${star <= mine ? 'text-amber-400' : 'text-gray-300 dark:text-gray-600'}`}
+                                                        >
+                                                            <StarIcon className="w-5 h-5" filled={star <= mine} />
+                                                        </button>
+                                                    );
+                                                })}
+                                            </div>
+                                        </td>
+                                        <td className="p-5 text-sm">
+                                            {(() => {
+                                                const vals = ratingValues(workout);
+                                                if (vals.length < 2) return <span className="text-gray-400">–</span>;
+                                                const avg = avgRatingOf(workout);
+                                                return (
+                                                    <span className="inline-flex items-center gap-1 whitespace-nowrap">
+                                                        <span className="font-black text-amber-500">{avg.toFixed(1).replace('.', ',')}</span>
+                                                        <span className="text-xs text-gray-400">({vals.length})</span>
+                                                    </span>
+                                                );
+                                            })()}
                                         </td>
                                         <td className="p-5">
                                             {(() => {
@@ -1857,6 +1923,9 @@ const PassProgramContent: React.FC<DashboardContentProps & {
     organization, autoExpandCategory, setAutoExpandCategory, onDuplicateWorkout, setCustomBackHandler
 }) => {
     
+    const { currentUser } = useAuth();
+    const currentUserUid = currentUser?.uid || null;
+
     const [showBenchmarkModal, setShowBenchmarkModal] = useState(false);
     // Medlemslistan behövs för att kunna tilldela pass till en enskild medlem (PT).
     const [ptMembers, setPtMembers] = useState<any[]>([]);
@@ -1950,6 +2019,19 @@ const PassProgramContent: React.FC<DashboardContentProps & {
         });
     };
 
+    // Betyget sparas som ett värde per person på passet. Null tar bort mitt betyg.
+    const handleRateWorkout = async (workout: Workout, rating: number | null) => {
+        const uid = currentUserUid;
+        if (!uid) return;
+        const next = { ...(workout.ratings || {}) };
+        if (rating === null) {
+            delete next[uid];
+        } else {
+            next[uid] = rating;
+        }
+        await onSaveWorkout({ ...workout, ratings: next });
+    };
+
     const handleUpdateBenchmarks = async (benchmarks: BenchmarkDefinition[]) => {
         await updateOrganizationBenchmarks(organization.id, benchmarks);
     };
@@ -2017,6 +2099,7 @@ const PassProgramContent: React.FC<DashboardContentProps & {
                     onMoveToFolder={handleMoveToFolder}
                     members={ptMembers}
                     onAssignToMember={handleAssignToMember}
+                    onRateWorkout={handleRateWorkout}
                 />
                 {showBenchmarkModal && (
                     <ManageBenchmarksModal 
