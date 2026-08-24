@@ -18,6 +18,8 @@ import { useStudio } from '../context/StudioContext';
 
 // --- Local Storage Key ---
 const ACTIVE_LOG_STORAGE_KEY = 'smart-skarm-active-log';
+// Ett påbörjat pass erbjuds i sex timmar. Äldre än så städas bort.
+const ACTIVE_LOG_MAX_AGE_MS = 6 * 60 * 60 * 1000;
 
 import { ActivityCalendar } from './dashboard/ActivityCalendar';
 import { BodyHeatmap } from './dashboard/BodyHeatmap';
@@ -553,9 +555,22 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
             try {
                 const parsed = JSON.parse(saved);
                 if (parsed.memberId === userData.uid) {
-                    const title = parsed.workoutTitle || "Namnlöst pass";
-                    setActiveSession({ ...parsed, displayTitle: title });
-                    return;
+                    const ts = typeof parsed.timestamp === 'number' ? parsed.timestamp : 0;
+                    const isFresh = ts > 0 && (Date.now() - ts) < ACTIVE_LOG_MAX_AGE_MS;
+                    const hasContent = Array.isArray(parsed.exerciseResults)
+                        ? parsed.exerciseResults.length > 0
+                        : false;
+                    const hasCustomActivity = !!(parsed.customActivity && parsed.customActivity.name);
+
+                    if (!isFresh) {
+                        // För gammalt för att kallas samma pass.
+                        localStorage.removeItem(ACTIVE_LOG_STORAGE_KEY);
+                    } else if (hasContent || hasCustomActivity) {
+                        const title = parsed.workoutTitle || "Namnlöst pass";
+                        setActiveSession({ ...parsed, displayTitle: title });
+                        return;
+                    }
+                    // Sparat men tomt: erbjud inte "fortsätt" på ingenting.
                 }
             } catch(e) { console.warn(e); }
         }
