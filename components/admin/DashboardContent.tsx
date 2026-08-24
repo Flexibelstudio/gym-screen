@@ -894,6 +894,42 @@ const ManageWorkoutsView: React.FC<{
         return 0;
     };
 
+    // Samma mappar som spalten till vänster, men platt — mobilen visar dem som
+    // en rullgardin i stället för en spalt. Undermappar får ett indrag i namnet
+    // så hierarkin syns även här.
+    const folderOptions = useMemo(() => {
+        const opts: { value: string; label: string }[] = [
+            { value: 'all', label: `📋 Alla pass (${countFor('all')})` },
+            { value: 'favorites', label: `⭐ Mest körda (${countFor('favorites')})` },
+            { value: 'benchmarks', label: `🏆 Benchmarks (${countFor('benchmarks')})` },
+            { value: 'assigned', label: `👤 Tilldelade pass (${countFor('assigned')})` },
+        ];
+        categories.forEach(cat => {
+            opts.push({ value: 'cat:' + cat.name, label: `📁 ${cat.name} (${countFor('cat:' + cat.name)})` });
+        });
+        opts.push({ value: 'cat:' + PT_CATEGORY, label: `📁 ${PT_CATEGORY} (${countFor('cat:' + PT_CATEGORY)})` });
+        topFolders.forEach(folder => {
+            opts.push({ value: 'folder:' + folder.id, label: `🗂️ ${folder.name} (${countFor('folder:' + folder.id)})` });
+            childrenOf(folder.id).forEach(child => {
+                opts.push({ value: 'folder:' + child.id, label: `   ↳ ${child.name} (${countFor('folder:' + child.id)})` });
+            });
+        });
+        opts.push({ value: 'nofolder', label: `➖ Utan mapp (${countFor('nofolder')})` });
+        return opts;
+    }, [tabScopedWorkouts, categories, customFolders]);
+
+    const MOBILE_SORT_OPTIONS: { value: ManageWorkoutsSort['key']; label: string }[] = [
+        { value: 'createdAt', label: 'Skapad' },
+        { value: 'title', label: 'Titel' },
+        { value: 'category', label: 'Kategori' },
+        { value: 'createdByName', label: 'Skapad av' },
+        { value: 'runCount', label: 'Körd' },
+        { value: 'logCount', label: 'Loggat' },
+        { value: 'lastRunAt', label: 'Senast körd' },
+        { value: 'myRating', label: 'Mitt betyg' },
+        { value: 'avgRating', label: 'Snitt' },
+    ];
+
     // Handle Sort Toggle
     const handleSort = (key: typeof sortConfig.key) => {
         setSortConfig(prev => {
@@ -997,7 +1033,7 @@ const ManageWorkoutsView: React.FC<{
     };
 
     return (
-        <div className="flex flex-col animate-fade-in w-full h-[calc(100vh-7rem)] gap-6">
+        <div className="flex flex-col animate-fade-in w-full lg:h-[calc(100vh-7rem)] gap-6">
             <div className="flex-shrink-0 flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div className="flex items-center gap-4">
                     <div>
@@ -1092,7 +1128,7 @@ const ManageWorkoutsView: React.FC<{
             <div className="bg-white dark:bg-gray-800 rounded-[2.5rem] shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden flex flex-col">
                 <div className="flex-grow min-h-0 grid grid-cols-1 lg:grid-cols-[240px_minmax(0,1fr)] gap-6">
                 {/* MAPPAR — ren adminordning, påverkar inte medlemsvyn */}
-                <aside className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 flex flex-col min-h-0 overflow-y-auto">
+                <aside className="hidden lg:flex bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 flex-col min-h-0 overflow-y-auto">
                     <div className="p-5 sticky top-0 z-10 bg-gray-50 dark:bg-gray-900/50 border-b border-gray-100 dark:border-gray-700">
                         <span className="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.2em]">Våra pass</span>
                     </div>
@@ -1272,7 +1308,7 @@ const ManageWorkoutsView: React.FC<{
                     </div>
                 </aside>
 
-                <div className="flex flex-col min-h-0">
+                <div className="flex flex-col min-h-0 p-4 lg:p-0">
                 {onMoveToFolder && selectedIds.length > 0 && (
                     <div className="mb-4 flex flex-wrap items-center gap-3 p-4 rounded-2xl bg-primary/5 border border-primary/20">
                         <span className="text-sm font-bold text-primary">{selectedIds.length} pass markerade</span>
@@ -1342,7 +1378,171 @@ const ManageWorkoutsView: React.FC<{
                         </button>
                     </div>
                 )}
-                <div onScroll={handleListScroll} className="flex-grow min-h-0 overflow-auto rounded-2xl border border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800">
+                {/* MOBIL: mappar och sortering som rullgardiner. Tabellen kräver 800 px
+                    bredd och de låsta kolumnerna täcker hela en telefonskärm — därför
+                    får mobilen en kortlista i stället, utan sidledsscroll. */}
+                <div className="lg:hidden flex flex-col gap-3 mb-4">
+                    <label className="flex flex-col gap-1">
+                        <span className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400">Mapp</span>
+                        <select
+                            value={activeFolder}
+                            onChange={e => { setActiveFolder(e.target.value); setCurrentPage(1); }}
+                            className="w-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl px-3 py-2.5 text-sm font-bold text-gray-700 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-primary"
+                        >
+                            {folderOptions.map(opt => (
+                                <option key={opt.value} value={opt.value}>{opt.label}</option>
+                            ))}
+                        </select>
+                    </label>
+
+                    <div className="flex items-end gap-2">
+                        <label className="flex flex-col gap-1 flex-grow min-w-0">
+                            <span className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400">Sortera på</span>
+                            <select
+                                value={sortConfig.direction === 'none' ? '' : sortConfig.key}
+                                onChange={e => {
+                                    const value = e.target.value;
+                                    if (!value) { setSortConfig({ key: 'createdAt', direction: 'none' }); return; }
+                                    setSortConfig({ key: value as ManageWorkoutsSort['key'], direction: 'asc' });
+                                }}
+                                className="w-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl px-3 py-2.5 text-sm font-bold text-gray-700 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-primary"
+                            >
+                                <option value="">Ingen sortering</option>
+                                {MOBILE_SORT_OPTIONS.map(opt => (
+                                    <option key={opt.value} value={opt.value}>{opt.label}</option>
+                                ))}
+                            </select>
+                        </label>
+                        <button
+                            type="button"
+                            disabled={sortConfig.direction === 'none'}
+                            onClick={() => setSortConfig(prev => ({ ...prev, direction: prev.direction === 'asc' ? 'desc' : 'asc' }))}
+                            className="flex-shrink-0 px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm font-bold text-gray-600 dark:text-gray-300 disabled:opacity-40"
+                            title={sortConfig.direction === 'desc' ? 'Fallande' : 'Stigande'}
+                        >
+                            {sortConfig.direction === 'desc' ? '↓' : '↑'}
+                        </button>
+                    </div>
+                </div>
+
+                {/* MOBIL: kortlista */}
+                <div className="lg:hidden flex flex-col gap-3">
+                    {paginatedWorkouts.length === 0 && (
+                        <div className="p-8 text-center text-gray-400 bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700">
+                            Inga pass här.
+                        </div>
+                    )}
+                    {paginatedWorkouts.map(workout => {
+                        const statusInfo = getWorkoutStatusInfo(workout, Date.now(), organization?.globalConfig?.customCategories);
+                        const mine = myRatingOf(workout);
+                        const vals = ratingValues(workout);
+                        const isSelected = selectedIds.includes(workout.id);
+                        return (
+                            <div
+                                key={workout.id}
+                                className={`p-4 rounded-2xl border bg-white dark:bg-gray-800 ${isSelected ? 'border-primary' : 'border-gray-100 dark:border-gray-700'}`}
+                            >
+                                <div className="flex items-start gap-3">
+                                    {onMoveToFolder && (
+                                        <input
+                                            type="checkbox"
+                                            checked={isSelected}
+                                            onChange={() => setSelectedIds(prev => prev.includes(workout.id) ? prev.filter(x => x !== workout.id) : [...prev, workout.id])}
+                                            className="mt-1 w-5 h-5 rounded accent-teal-500 flex-shrink-0"
+                                        />
+                                    )}
+                                    <button onClick={() => onEdit(workout)} className="flex-grow min-w-0 text-left">
+                                        <div className="font-bold text-gray-900 dark:text-white break-words">{workout.title}</div>
+                                        {workout.category && (
+                                            <div className="mt-1 inline-block text-[11px] font-bold px-2 py-0.5 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300">
+                                                {workout.category}
+                                            </div>
+                                        )}
+                                    </button>
+                                    <span className={`flex-shrink-0 text-[10px] font-black uppercase tracking-wider px-2 py-1 rounded-lg ${statusInfo.styleClass}`}>
+                                        {statusInfo.label}
+                                    </span>
+                                </div>
+
+                                <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-gray-500 dark:text-gray-400">
+                                    <span>Körd <strong className="text-gray-700 dark:text-gray-200">{workout.runCount || 0}</strong></span>
+                                    <span>Loggat <strong className="text-gray-700 dark:text-gray-200">{workout.logCount || 0}</strong></span>
+                                    {workout.lastRunAt && (
+                                        <span>Senast {new Date(workout.lastRunAt).toLocaleDateString('sv-SE', { day: 'numeric', month: 'short' })}</span>
+                                    )}
+                                    {workout.createdByName && <span>Av {workout.createdByName}</span>}
+                                    {workout.assignedToName && <span className="text-primary font-bold">👤 {workout.assignedToName}</span>}
+                                </div>
+
+                                <div className="mt-3 flex items-center justify-between gap-2">
+                                    <div className="flex items-center gap-0.5">
+                                        {[1, 2, 3, 4, 5].map(star => (
+                                            <button
+                                                key={star}
+                                                type="button"
+                                                disabled={!onRateWorkout || !myUid}
+                                                onClick={() => { if (onRateWorkout) onRateWorkout(workout, mine === star ? null : star); }}
+                                                className={star <= mine ? 'text-amber-400' : 'text-gray-300 dark:text-gray-600'}
+                                            >
+                                                <StarIcon className="w-5 h-5" filled={star <= mine} />
+                                            </button>
+                                        ))}
+                                        {vals.length >= 2 && (
+                                            <span className="ml-2 text-xs font-black text-amber-500">
+                                                {avgRatingOf(workout).toFixed(1).replace('.', ',')} <span className="text-gray-400 font-normal">({vals.length})</span>
+                                            </span>
+                                        )}
+                                    </div>
+
+                                    <div className="flex items-center gap-1 flex-shrink-0">
+                                        <button onClick={() => setPreviewWorkout(workout)} className="p-2 text-gray-400 rounded-lg" title="Förhandsgranska">
+                                            <EyeIcon className="w-5 h-5" />
+                                        </button>
+                                        <button onClick={() => onEdit(workout)} className="p-2 text-gray-400 rounded-lg" title="Redigera">
+                                            <PencilIcon className="w-5 h-5" />
+                                        </button>
+                                        {onAssignToMember && (
+                                            <button
+                                                onClick={() => { setAssignFor(workout); setAssignSearch(''); }}
+                                                className={`p-2 rounded-lg ${workout.assignedToUid ? 'text-primary' : 'text-gray-400'}`}
+                                                title="Tilldela en medlem"
+                                            >
+                                                <span className="text-base leading-none">👤</span>
+                                            </button>
+                                        )}
+                                        <button onClick={() => setDeleteConfirmWorkoutId(workout.id)} className="p-2 text-gray-400 rounded-lg" title="Radera">
+                                            <TrashIcon className="w-5 h-5" />
+                                        </button>
+                                    </div>
+                                </div>
+
+                                {onMoveToFolder && customFolders.length > 0 && (
+                                    <select
+                                        value={workout.folderId || ''}
+                                        onChange={async (e) => { await onMoveToFolder(workout, e.target.value || undefined); }}
+                                        className="mt-3 w-full bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl px-3 py-2 text-xs font-bold text-gray-600 dark:text-gray-300"
+                                    >
+                                        <option value="">🗂️ Ingen mapp</option>
+                                        {customFolders.map(folder => (
+                                            <option key={folder.id} value={folder.id}>🗂️ {folder.name}</option>
+                                        ))}
+                                    </select>
+                                )}
+                            </div>
+                        );
+                    })}
+
+                    {hasMore && (
+                        <button
+                            onClick={() => setCurrentPage(p => p + 1)}
+                            className="w-full py-3 rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm font-bold text-primary"
+                        >
+                            Visa fler pass
+                        </button>
+                    )}
+                </div>
+
+                <div onScroll={handleListScroll} className="hidden lg:block flex-grow min-h-0 overflow-auto rounded-2xl border border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800">
                     <table className="w-full text-left border-collapse min-w-[800px]">
                         <thead>
                             <tr className="bg-gray-50 dark:bg-gray-900/50 border-b border-gray-100 dark:border-gray-700 sticky top-0 z-30">
