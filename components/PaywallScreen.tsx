@@ -41,15 +41,15 @@ export const PaywallScreen: React.FC<{ onLogout: () => void, userData?: any }> =
     };
 
     return (
-        <div className="min-h-screen bg-black flex flex-col items-center justify-center p-6 text-center w-full">
+        <div className="min-h-screen bg-white dark:bg-black flex flex-col items-center justify-center p-6 text-center w-full">
             <motion.div 
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="max-w-md w-full bg-gray-900 border border-gray-800 rounded-[2.5rem] p-10 shadow-2xl"
+                className="max-w-md w-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-[2.5rem] p-10 shadow-2xl"
             >
 
                 <h2 className="text-3xl font-black text-white mb-4">Aktivera Medlemskap</h2>
-                <p className="text-gray-400 mb-8">
+                <p className="text-gray-500 dark:text-gray-400 mb-8">
                     Få full tillgång till den nya medlemsappen med passloggning, statistik och personliga mål för endast <strong>39 kr/mån</strong>.
                 </p>
                 

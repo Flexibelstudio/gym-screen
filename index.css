@@ -2,6 +2,21 @@
 @tailwind components;
 @tailwind utilities;
 
+/*
+ * Webbläsarens egna kontroller — rullgardiner, datumväljare, textmarkering,
+ * autofyll och rullningslister — följer inte Tailwinds dark-klass utan
+ * operativsystemets utseende. På en telefon som står i mörkt läge blev därför
+ * varje <select> svart även när appen kördes i ljust läge. color-scheme är det
+ * enda som styr detta, och den måste följa appens tema.
+ */
+:root, html.light {
+  color-scheme: light;
+}
+
+html.dark {
+  color-scheme: dark;
+}
+
 /* Custom keyframes & styles moved from index.html */
 /* Hide scrollbar for Chrome, Safari and Opera */
 ::-webkit-scrollbar {

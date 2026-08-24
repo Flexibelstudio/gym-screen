@@ -45,11 +45,11 @@ export const WelcomePaywall: React.FC<WelcomePaywallProps> = ({ onLogout, userDa
     };
 
     return (
-        <div className="min-h-screen bg-black flex flex-col items-center justify-center p-6 text-center">
+        <div className="min-h-screen bg-white dark:bg-black flex flex-col items-center justify-center p-6 text-center">
             <motion.div 
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}
-                className="max-w-2xl w-full bg-gray-900 border border-gray-800 rounded-[2.5rem] p-10 shadow-2xl"
+                className="max-w-2xl w-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-[2.5rem] p-10 shadow-2xl"
             >
                 <div className="mb-8">
                     <div className="w-20 h-20 bg-primary/20 rounded-full flex items-center justify-center mx-auto mb-6">
@@ -58,7 +58,7 @@ export const WelcomePaywall: React.FC<WelcomePaywallProps> = ({ onLogout, userDa
                         </svg>
                     </div>
                     <h1 className="text-4xl font-black text-white mb-4 text-balance">Aktivera {userData?.organizationName || 'ditt gym'}</h1>
-                    <p className="text-xl text-gray-400">
+                    <p className="text-xl text-gray-500 dark:text-gray-400">
                         Välkommen som partner! För att låsa upp din licens och aktivera SmartStudio i din verksamhet behöver du bekräfta ditt abonnemang.
                     </p>
                 </div>
@@ -69,30 +69,30 @@ export const WelcomePaywall: React.FC<WelcomePaywallProps> = ({ onLogout, userDa
                     </div>
                 )}
 
-                <div className="bg-black/40 rounded-2xl p-6 mb-8 border border-gray-800 text-left space-y-4">
+                <div className="bg-black/40 rounded-2xl p-6 mb-8 border border-gray-200 dark:border-gray-800 text-left space-y-4">
                     <div className="flex items-start gap-4">
                         <div className="w-8 h-8 shrink-0 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold text-sm">1</div>
-                        <p className="text-gray-300">Licensavgift: <strong>995 kr / månad</strong> (exkl. moms).</p>
+                        <p className="text-gray-600 dark:text-gray-300">Licensavgift: <strong>995 kr / månad</strong> (exkl. moms).</p>
                     </div>
                     <div className="flex items-start gap-4">
                         <div className="w-8 h-8 shrink-0 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold text-sm">2</div>
-                        <p className="text-gray-300">Licensen omfattar <strong>1 aktiv skärm</strong>.</p>
+                        <p className="text-gray-600 dark:text-gray-300">Licensen omfattar <strong>1 aktiv skärm</strong>.</p>
                     </div>
                     <div className="flex items-start gap-4">
                         <div className="w-8 h-8 shrink-0 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold text-sm">3</div>
-                        <p className="text-gray-300">Bindningstid <strong>12 månader</strong>. Löper vidare med 12 månader åt gången om inte uppsägning sker senast <strong>3 månader</strong> innan periodens slut.</p>
+                        <p className="text-gray-600 dark:text-gray-300">Bindningstid <strong>12 månader</strong>. Löper vidare med 12 månader åt gången om inte uppsägning sker senast <strong>3 månader</strong> innan periodens slut.</p>
                     </div>
                     <div className="flex items-start gap-4">
                         <div className="w-8 h-8 shrink-0 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold text-sm">4</div>
-                        <p className="text-gray-300">Licensen inkluderar <strong>5 coacher</strong>. Därefter tillkommer en kostnad på <strong>19 kr / månad</strong> per extra coach.</p>
+                        <p className="text-gray-600 dark:text-gray-300">Licensen inkluderar <strong>5 coacher</strong>. Därefter tillkommer en kostnad på <strong>19 kr / månad</strong> per extra coach.</p>
                     </div>
                     <div className="flex items-start gap-4">
                         <div className="w-8 h-8 shrink-0 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold text-sm">5</div>
-                        <p className="text-gray-300">Extra skärmar kan läggas till för <strong>995 kr / månad</strong> per skärm (ingen bindningstid).</p>
+                        <p className="text-gray-600 dark:text-gray-300">Extra skärmar kan läggas till för <strong>995 kr / månad</strong> per skärm (ingen bindningstid).</p>
                     </div>
                 </div>
 
-                <div className="mb-8 p-5 bg-gray-800/30 rounded-xl border border-gray-700 hover:border-primary/50 transition-colors">
+                <div className="mb-8 p-5 bg-gray-800/30 rounded-xl border border-gray-300 dark:border-gray-700 hover:border-primary/50 transition-colors">
                     <label className="flex items-center gap-4 cursor-pointer group text-left">
                         <div className="relative">
                             <input 
@@ -105,7 +105,7 @@ export const WelcomePaywall: React.FC<WelcomePaywallProps> = ({ onLogout, userDa
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={4} d="M5 13l4 4L19 7" />
                             </svg>
                         </div>
-                        <span className="text-sm text-gray-300 group-hover:text-white leading-snug">
+                        <span className="text-sm text-gray-600 dark:text-gray-300 group-hover:text-white leading-snug">
                             Jag bekräftar beställningen av SmartStudio och godkänner avtalsvillkoren om 12 månaders bindningstid, 995 kr/månad samt eventuella tilläggskostnader (19 kr/månad per extra coach, 995 kr/månad per extra skärm - löpande månadsvis utan bindningstid).
                         </span>
                     </label>

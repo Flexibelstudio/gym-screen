@@ -194,7 +194,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onClose, onRegisterGym
         <>
             <div className="text-center mb-6 shrink-0">
                 <h2 className="text-2xl font-bold text-white uppercase tracking-tight">Logga in</h2>
-                <p className="text-gray-400 mt-1 text-sm font-medium">För administratörer och medlemmar</p>
+                <p className="text-gray-500 dark:text-gray-400 mt-1 text-sm font-medium">För administratörer och medlemmar</p>
             </div>
             
             <div className="space-y-6 flex-1 min-h-0 overflow-y-auto pr-1 pb-1 custom-scrollbar">
@@ -215,7 +215,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onClose, onRegisterGym
                             placeholder="E-postadress"
                             required
                             autoComplete="username"
-                            className="w-full bg-black text-white p-4 rounded-xl border border-gray-700 focus:ring-2 focus:ring-primary focus:outline-none transition"
+                            className="w-full bg-white dark:bg-black text-gray-900 dark:text-white p-4 rounded-xl border border-gray-300 dark:border-gray-700 focus:ring-2 focus:ring-primary focus:outline-none transition"
                         />
                     </div>
                     <div className="relative">
@@ -228,12 +228,12 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onClose, onRegisterGym
                             placeholder="Lösenord"
                             required
                             autoComplete="current-password"
-                            className="w-full bg-black text-white p-4 pr-12 rounded-xl border border-gray-700 focus:ring-2 focus:ring-primary focus:outline-none transition"
+                            className="w-full bg-white dark:bg-black text-gray-900 dark:text-white p-4 pr-12 rounded-xl border border-gray-300 dark:border-gray-700 focus:ring-2 focus:ring-primary focus:outline-none transition"
                         />
                         <button
                             type="button"
                             onClick={() => setShowPassword(!showPassword)}
-                            className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white transition-colors"
+                            className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 dark:text-gray-400 hover:text-white transition-colors"
                         >
                             {showPassword ? <EyeOffIcon className="w-5 h-5" /> : <EyeIcon className="w-5 h-5" />}
                         </button>
@@ -267,7 +267,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onClose, onRegisterGym
 
                     {/* HÄR ÄR DEN TYDLIGA PILLER-KNAPPEN FÖR ATT REGISTRERA GYM */}
                     {onRegisterGym && (
-                        <div className="mt-8 pt-6 border-t border-gray-800 flex flex-col items-center">
+                        <div className="mt-8 pt-6 border-t border-gray-200 dark:border-gray-800 flex flex-col items-center">
                             <p className="text-gray-500 text-xs mb-4 font-bold uppercase tracking-widest">Driver du ett gym?</p>
                             <button 
                                 type="button" 
@@ -287,7 +287,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onClose, onRegisterGym
         <>
             <div className="text-center mb-6 shrink-0">
                 <h2 className="text-2xl font-bold text-white uppercase tracking-tight">Återställ lösenord</h2>
-                <p className="text-gray-400 mt-1">Ange din e-post så skickar vi en länk.</p>
+                <p className="text-gray-500 dark:text-gray-400 mt-1">Ange din e-post så skickar vi en länk.</p>
             </div>
             <div className="space-y-6 flex-1 min-h-0 overflow-y-auto pr-1 pb-1 custom-scrollbar" onKeyDown={(e) => { if (e.key === 'Enter') handleResetPassword(e); }}>
                 <div>
@@ -300,7 +300,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onClose, onRegisterGym
                         placeholder="E-postadress"
                         required
                         autoFocus
-                        className="w-full bg-black text-white p-4 rounded-xl border border-gray-700 focus:ring-2 focus:ring-primary focus:outline-none transition"
+                        className="w-full bg-white dark:bg-black text-gray-900 dark:text-white p-4 rounded-xl border border-gray-300 dark:border-gray-700 focus:ring-2 focus:ring-primary focus:outline-none transition"
                     />
                 </div>
                 
@@ -331,15 +331,15 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onClose, onRegisterGym
         <>
             <div className="text-center mb-6 shrink-0">
                 <h2 className="text-2xl font-bold text-white uppercase tracking-tight">Skapa konto</h2>
-                <p className="text-gray-400 mt-1">Gå med i ett befintligt gym</p>
+                <p className="text-gray-500 dark:text-gray-400 mt-1">Gå med i ett befintligt gym</p>
             </div>
             <div className="space-y-4 flex-1 min-h-0 overflow-y-auto pr-1 pb-1 custom-scrollbar" onKeyDown={(e) => { if (e.key === 'Enter') handleRegister(e); }}>
                 
                 {/* Invite Confirmation Banner or Error */}
                 {isCheckingCode ? (
-                    <div className="bg-gray-800/80 border border-gray-700 rounded-2xl p-4 flex items-center justify-center gap-3 animate-pulse">
+                    <div className="bg-gray-800/80 border border-gray-300 dark:border-gray-700 rounded-2xl p-4 flex items-center justify-center gap-3 animate-pulse">
                         <div className="w-5 h-5 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
-                        <span className="text-xs font-bold text-gray-300">Kontrollerar inbjudningskod...</span>
+                        <span className="text-xs font-bold text-gray-600 dark:text-gray-300">Kontrollerar inbjudningskod...</span>
                     </div>
                 ) : inviteDetails?.isValid ? (
                     <div className="space-y-3">
@@ -362,8 +362,8 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onClose, onRegisterGym
 
                         {/* Ort-väljare om org-övergripande kod har flera orter */}
                         {!inviteDetails.locationId && inviteDetails.locations && inviteDetails.locations.length > 1 && (
-                            <div className="bg-gray-800/80 border border-gray-700 rounded-2xl p-4 space-y-1.5 animate-fade-in">
-                                <label htmlFor="select-location" className="block text-[10px] font-black text-gray-300 uppercase tracking-widest">
+                            <div className="bg-gray-800/80 border border-gray-300 dark:border-gray-700 rounded-2xl p-4 space-y-1.5 animate-fade-in">
+                                <label htmlFor="select-location" className="block text-[10px] font-black text-gray-600 dark:text-gray-300 uppercase tracking-widest">
                                     Välj din ort <span className="text-primary">*</span>
                                 </label>
                                 <select
@@ -371,7 +371,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onClose, onRegisterGym
                                     value={invitedLocationId || ''}
                                     onChange={(e) => setInvitedLocationId(e.target.value)}
                                     required
-                                    className="w-full bg-black text-white p-3 rounded-xl border border-gray-700 focus:ring-2 focus:ring-primary focus:outline-none transition text-sm font-bold"
+                                    className="w-full bg-white dark:bg-black text-gray-900 dark:text-white p-3 rounded-xl border border-gray-300 dark:border-gray-700 focus:ring-2 focus:ring-primary focus:outline-none transition text-sm font-bold"
                                 >
                                     <option value="" disabled>-- Välj din ort --</option>
                                     {inviteDetails.locations.map(loc => (
@@ -394,7 +394,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onClose, onRegisterGym
 
                 <div className="flex flex-col items-center mb-4">
                     <div 
-                        className="w-24 h-24 rounded-full bg-gray-800 border-2 border-gray-700 flex items-center justify-center overflow-hidden cursor-pointer hover:border-primary transition-colors relative group"
+                        className="w-24 h-24 rounded-full bg-gray-100 dark:bg-gray-800 border-2 border-gray-300 dark:border-gray-700 flex items-center justify-center overflow-hidden cursor-pointer hover:border-primary transition-colors relative group"
                         onClick={() => fileInputRef.current?.click()}
                     >
                         {profileImage ? (
@@ -428,7 +428,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onClose, onRegisterGym
                             onChange={(e) => setFirstName(e.target.value)}
                             placeholder="Anna"
                             required
-                            className="w-full bg-black text-white p-3 rounded-xl border border-gray-700 focus:ring-2 focus:ring-primary focus:outline-none transition"
+                            className="w-full bg-white dark:bg-black text-gray-900 dark:text-white p-3 rounded-xl border border-gray-300 dark:border-gray-700 focus:ring-2 focus:ring-primary focus:outline-none transition"
                         />
                     </div>
                     <div>
@@ -439,7 +439,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onClose, onRegisterGym
                             onChange={(e) => setLastName(e.target.value)}
                             placeholder="Andersson"
                             required
-                            className="w-full bg-black text-white p-3 rounded-xl border border-gray-700 focus:ring-2 focus:ring-primary focus:outline-none transition"
+                            className="w-full bg-white dark:bg-black text-gray-900 dark:text-white p-3 rounded-xl border border-gray-300 dark:border-gray-700 focus:ring-2 focus:ring-primary focus:outline-none transition"
                         />
                     </div>
                 </div>
@@ -462,7 +462,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onClose, onRegisterGym
                                 }
                                 setBirthDate(v);
                             }}
-                            className="w-full bg-black text-white p-3 rounded-xl border border-gray-700 focus:ring-2 focus:ring-primary focus:outline-none transition font-bold tracking-widest"
+                            className="w-full bg-white dark:bg-black text-gray-900 dark:text-white p-3 rounded-xl border border-gray-300 dark:border-gray-700 focus:ring-2 focus:ring-primary focus:outline-none transition font-bold tracking-widest"
                         />
                     </div>
                     <div>
@@ -478,7 +478,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onClose, onRegisterGym
                                     key={opt.value}
                                     type="button"
                                     onClick={() => setGender(opt.value)}
-                                    className={`py-3 px-2 rounded-xl text-xs font-bold transition-all border ${gender === opt.value ? 'bg-primary border-primary text-black transform scale-[0.98]' : 'bg-black border-gray-700 text-gray-400 hover:border-gray-500'}`}
+                                    className={`py-3 px-2 rounded-xl text-xs font-bold transition-all border ${gender === opt.value ? 'bg-primary border-primary text-black transform scale-[0.98]' : 'bg-black border-gray-300 dark:border-gray-700 text-gray-500 dark:text-gray-400 hover:border-gray-500'}`}
                                 >
                                     {opt.label}
                                 </button>
@@ -500,7 +500,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onClose, onRegisterGym
                             onChange={(e) => setInviteCode(e.target.value.toUpperCase())}
                             placeholder="KOD (6 tecken)"
                             required
-                            className="w-full bg-black text-white p-3 rounded-xl border border-gray-700 focus:ring-2 focus:ring-primary focus:outline-none transition text-center font-black tracking-widest text-lg uppercase"
+                            className="w-full bg-white dark:bg-black text-gray-900 dark:text-white p-3 rounded-xl border border-gray-300 dark:border-gray-700 focus:ring-2 focus:ring-primary focus:outline-none transition text-center font-black tracking-widest text-lg uppercase"
                             maxLength={6}
                         />
                     </div>
@@ -516,7 +516,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onClose, onRegisterGym
                         placeholder="din@email.com"
                         required
                         autoComplete="username"
-                        className="w-full bg-black text-white p-3 rounded-xl border border-gray-700 focus:ring-2 focus:ring-primary focus:outline-none transition"
+                        className="w-full bg-white dark:bg-black text-gray-900 dark:text-white p-3 rounded-xl border border-gray-300 dark:border-gray-700 focus:ring-2 focus:ring-primary focus:outline-none transition"
                     />
                 </div>
                 <div className="grid grid-cols-2 gap-4">
@@ -530,12 +530,12 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onClose, onRegisterGym
                             placeholder="Minst 6 tecken"
                             required
                             autoComplete="new-password"
-                            className="w-full bg-black text-white p-3 pr-10 rounded-xl border border-gray-700 focus:ring-2 focus:ring-primary focus:outline-none transition"
+                            className="w-full bg-white dark:bg-black text-gray-900 dark:text-white p-3 pr-10 rounded-xl border border-gray-300 dark:border-gray-700 focus:ring-2 focus:ring-primary focus:outline-none transition"
                         />
                         <button
                             type="button"
                             onClick={() => setShowPassword(!showPassword)}
-                            className="absolute right-3 top-[32px] text-gray-400 hover:text-white transition-colors"
+                            className="absolute right-3 top-[32px] text-gray-500 dark:text-gray-400 hover:text-white transition-colors"
                         >
                             {showPassword ? <EyeOffIcon className="w-4 h-4" /> : <EyeIcon className="w-4 h-4" />}
                         </button>
@@ -550,7 +550,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onClose, onRegisterGym
                             placeholder="Upprepa"
                             required
                             autoComplete="new-password"
-                            className="w-full bg-black text-white p-3 pr-10 rounded-xl border border-gray-700 focus:ring-2 focus:ring-primary focus:outline-none transition"
+                            className="w-full bg-white dark:bg-black text-gray-900 dark:text-white p-3 pr-10 rounded-xl border border-gray-300 dark:border-gray-700 focus:ring-2 focus:ring-primary focus:outline-none transition"
                         />
                     </div>
                 </div>
@@ -607,7 +607,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onClose, onRegisterGym
     );
 
     return (
-        <div className="min-h-screen flex flex-col items-center justify-center bg-black text-white p-4 font-sans">
+        <div className="min-h-screen flex flex-col items-center justify-center bg-white dark:bg-black text-gray-900 dark:text-white p-4 font-sans">
             <motion.div 
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -618,7 +618,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onClose, onRegisterGym
                         <CloseIcon className="w-8 h-8" />
                     </button>
                 )}
-                <div className="bg-gray-900 border border-gray-800 rounded-[2.5rem] p-6 sm:p-10 max-h-[90vh] sm:max-h-[95vh] w-full max-w-md flex flex-col shadow-[0_50px_100px_-20px_rgba(0,0,0,0.5)]">
+                <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-[2.5rem] p-6 sm:p-10 max-h-[90vh] sm:max-h-[95vh] w-full max-w-md flex flex-col shadow-[0_50px_100px_-20px_rgba(0,0,0,0.5)]">
                     {view === 'login' && renderLoginView()}
                     {view === 'reset' && renderResetView()}
                     {view === 'register' && renderRegisterView()}
