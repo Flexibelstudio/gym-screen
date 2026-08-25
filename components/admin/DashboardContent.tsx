@@ -2,7 +2,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { Organization, Workout, UserData, BenchmarkDefinition } from '../../types';
-import { DumbbellIcon, BuildingIcon, UsersIcon, SpeakerphoneIcon, SparklesIcon, CopyIcon, PencilIcon, TrashIcon, ShuffleIcon, SearchIcon, ChevronLeftIcon, ChevronRightIcon, ChevronUpIcon, ChevronDownIcon, TrophyIcon, EyeIcon, ChartBarIcon, PlusIcon } from '../icons';
+import { DumbbellIcon, BuildingIcon, UsersIcon, SpeakerphoneIcon, SparklesIcon, CopyIcon, PencilIcon, TrashIcon, ShuffleIcon, SearchIcon, ChevronLeftIcon, ChevronRightIcon, ChevronUpIcon, ChevronDownIcon, TrophyIcon, EyeIcon, ChartBarIcon, PlusIcon, StarIcon } from '../icons';
 import { motion, AnimatePresence } from 'framer-motion';
 import { AIGeneratorScreen } from '../AIGeneratorScreen';
 import { WorkoutBuilderScreen } from '../WorkoutBuilderScreen';
@@ -10,6 +10,7 @@ import { deepCopyAndPrepareAsNew, getWorkoutStatusInfo, getWorkoutVisibilityIssu
 import { ManageBenchmarksModal, FeatureInfoModal } from './AdminModals';
 import { updateOrganizationBenchmarks, updateOrganizationWorkoutFolders, resolveAndCreateExercises, updateGlobalConfig, listenToGlobalSummerChallenge, listenToMembers, listenToCommunityLogs, listenToCommunityLogsByLocations, getOrganizationLogs, getSmartScreenPricing } from '../../services/firebaseService';
 import { WorkoutPresentationModal } from '../WorkoutDetailScreen';
+import { useAuth } from '../../context/AuthContext';
 
 // ... (Types and Interfaces remain same)
 
@@ -742,6 +743,26 @@ const PassProgramModule: React.FC<{
     );
 };
 
+/**
+ * Vyns urval och sortering ligger kvar mellan besöken. Går man in på ett pass
+ * och backar ut monteras vyn om från grunden — utan det här minnet nollställs
+ * sorteringen varje gång, vilket gör listan oanvändbar när man jobbar sig
+ * igenom flera pass i rad. Minnet lever så länge fliken är öppen och nollställs
+ * vid omladdning.
+ */
+type ManageWorkoutsSort = { key: 'title' | 'category' | 'createdAt' | 'createdByName' | 'isPublished' | 'runCount' | 'logCount' | 'lastRunAt' | 'myRating' | 'avgRating', direction: 'asc' | 'desc' | 'none' };
+const manageWorkoutsMemory: {
+    sortConfig: ManageWorkoutsSort;
+    activeFolder: string;
+    activeTab: 'official' | 'drafts';
+    searchTerm: string;
+} = {
+    sortConfig: { key: 'createdAt', direction: 'none' },
+    activeFolder: 'all',
+    activeTab: 'official',
+    searchTerm: ''
+};
+
 const ManageWorkoutsView: React.FC<{
     workouts: Workout[];
     locations?: { id: string; name: string }[];
@@ -761,7 +782,23 @@ const ManageWorkoutsView: React.FC<{
     onMoveToFolder?: (workout: Workout, folderId: string | undefined) => Promise<void>;
     members?: { uid: string; firstName?: string; lastName?: string; email?: string }[];
     onAssignToMember?: (workout: Workout, member: { uid: string; name: string } | null) => Promise<void>;
-}> = ({ workouts, locations, organization, onEdit, onDelete, onDuplicate, onTogglePublish, onCopyToLibrary, onMoveToLibrary, onMoveToOtherPass, onBack, onCreateNew, onCreateWithAI, onManageBenchmarks, onSaveFolders, onMoveToFolder, members, onAssignToMember }) => {
+    onRateWorkout?: (workout: Workout, rating: number | null) => Promise<void>;
+}> = ({ workouts, locations, organization, onEdit, onDelete, onDuplicate, onTogglePublish, onCopyToLibrary, onMoveToLibrary, onMoveToOtherPass, onBack, onCreateNew, onCreateWithAI, onManageBenchmarks, onSaveFolders, onMoveToFolder, members, onAssignToMember, onRateWorkout }) => {
+
+    const { currentUser } = useAuth();
+    const myUid = currentUser?.uid || null;
+
+    // Betyget är personalens eget omdöme om passet. Man ser alltid sitt eget,
+    // och snittet först när minst två satt betyg — annars är "snittet" bara en
+    // persons åsikt utklädd till statistik.
+    const myRatingOf = (w: Workout) => (myUid && w.ratings ? (w.ratings[myUid] || 0) : 0);
+    const ratingValues = (w: Workout) => Object.values(w.ratings || {}).filter(v => typeof v === 'number' && v > 0);
+    const avgRatingOf = (w: Workout) => {
+        const vals = ratingValues(w);
+        if (vals.length < 2) return 0;
+        return vals.reduce((sum, v) => sum + v, 0) / vals.length;
+    };
+
     
     const [isCreateMenuOpen, setIsCreateMenuOpen] = useState(false);
 
@@ -772,7 +809,7 @@ const ManageWorkoutsView: React.FC<{
     // automatiskt för varje kategori gymmet skapat), 'folder:<id>' = egen mapp,
     // 'nofolder' = pass utan egen mapp.
     const FAVORITES_COUNT = 10;
-    const [activeFolder, setActiveFolder] = useState<string>('all');
+    const [activeFolder, setActiveFolder] = useState<string>(manageWorkoutsMemory.activeFolder);
     const [isFolderMenuFor, setIsFolderMenuFor] = useState<string | null>(null);
     const [newFolderName, setNewFolderName] = useState('');
     // null = ingen inmatning öppen, '' = ny mapp på toppnivå, '<id>' = undermapp till den mappen
@@ -789,14 +826,11 @@ const ManageWorkoutsView: React.FC<{
     const folderIdsWithin = (id: string) => [id, ...childrenOf(id).map(c => c.id)];
     const categories = organization?.globalConfig?.customCategories || [];
     
-    const [activeTab, setActiveTab] = useState<'official' | 'drafts'>('official');
-    const [searchTerm, setSearchTerm] = useState('');
+    const [activeTab, setActiveTab] = useState<'official' | 'drafts'>(manageWorkoutsMemory.activeTab);
+    const [searchTerm, setSearchTerm] = useState(manageWorkoutsMemory.searchTerm);
     const [currentPage, setCurrentPage] = useState(1);
     const [previewWorkout, setPreviewWorkout] = useState<Workout | null>(null);
-    const [sortConfig, setSortConfig] = useState<{ key: 'title' | 'category' | 'createdAt' | 'createdByName' | 'isPublished' | 'runCount' | 'logCount' | 'lastRunAt', direction: 'asc' | 'desc' | 'none' }>({
-        key: 'createdAt',
-        direction: 'none'
-    });
+    const [sortConfig, setSortConfig] = useState<ManageWorkoutsSort>(manageWorkoutsMemory.sortConfig);
     const [publishConfirmWorkoutId, setPublishConfirmWorkoutId] = useState<string | null>(null);
     const [deleteConfirmWorkoutId, setDeleteConfirmWorkoutId] = useState<string | null>(null);
     const [copyConfirmWorkoutId, setCopyConfirmWorkoutId] = useState<string | null>(null);
@@ -860,6 +894,42 @@ const ManageWorkoutsView: React.FC<{
         return 0;
     };
 
+    // Samma mappar som spalten till vänster, men platt — mobilen visar dem som
+    // en rullgardin i stället för en spalt. Undermappar får ett indrag i namnet
+    // så hierarkin syns även här.
+    const folderOptions = useMemo(() => {
+        const opts: { value: string; label: string }[] = [
+            { value: 'all', label: `📋 Alla pass (${countFor('all')})` },
+            { value: 'favorites', label: `⭐ Mest körda (${countFor('favorites')})` },
+            { value: 'benchmarks', label: `🏆 Benchmarks (${countFor('benchmarks')})` },
+            { value: 'assigned', label: `👤 Tilldelade pass (${countFor('assigned')})` },
+        ];
+        categories.forEach(cat => {
+            opts.push({ value: 'cat:' + cat.name, label: `📁 ${cat.name} (${countFor('cat:' + cat.name)})` });
+        });
+        opts.push({ value: 'cat:' + PT_CATEGORY, label: `📁 ${PT_CATEGORY} (${countFor('cat:' + PT_CATEGORY)})` });
+        topFolders.forEach(folder => {
+            opts.push({ value: 'folder:' + folder.id, label: `🗂️ ${folder.name} (${countFor('folder:' + folder.id)})` });
+            childrenOf(folder.id).forEach(child => {
+                opts.push({ value: 'folder:' + child.id, label: `   ↳ ${child.name} (${countFor('folder:' + child.id)})` });
+            });
+        });
+        opts.push({ value: 'nofolder', label: `➖ Utan mapp (${countFor('nofolder')})` });
+        return opts;
+    }, [tabScopedWorkouts, categories, customFolders]);
+
+    const MOBILE_SORT_OPTIONS: { value: ManageWorkoutsSort['key']; label: string }[] = [
+        { value: 'createdAt', label: 'Skapad' },
+        { value: 'title', label: 'Titel' },
+        { value: 'category', label: 'Kategori' },
+        { value: 'createdByName', label: 'Skapad av' },
+        { value: 'runCount', label: 'Körd' },
+        { value: 'logCount', label: 'Loggat' },
+        { value: 'lastRunAt', label: 'Senast körd' },
+        { value: 'myRating', label: 'Mitt betyg' },
+        { value: 'avgRating', label: 'Snitt' },
+    ];
+
     // Handle Sort Toggle
     const handleSort = (key: typeof sortConfig.key) => {
         setSortConfig(prev => {
@@ -886,6 +956,13 @@ const ManageWorkoutsView: React.FC<{
                 // Körningskolumnerna saknas på pass som aldrig körts — de behandlas
                 // som 0 så att sorteringen blir meningsfull i stället för godtycklig.
                 const numericKey = sortConfig.key === 'runCount' || sortConfig.key === 'logCount' || sortConfig.key === 'lastRunAt';
+                // Betygen ligger inte som fält på passet utan räknas fram.
+                if (sortConfig.key === 'myRating' || sortConfig.key === 'avgRating') {
+                    const pick = sortConfig.key === 'myRating' ? myRatingOf : avgRatingOf;
+                    const cmp = pick(a) - pick(b);
+                    if (cmp !== 0) return sortConfig.direction === 'asc' ? cmp : -cmp;
+                    return (b.createdAt || 0) - (a.createdAt || 0);
+                }
                 // Pass utan skapare (gamla pass) sorteras sist oavsett riktning.
                 if (sortConfig.key === 'createdByName') {
                     const an = a.createdByName || '';
@@ -930,6 +1007,14 @@ const ManageWorkoutsView: React.FC<{
         setCurrentPage(1);
     }, [searchTerm, sortConfig, activeTab, activeFolder]);
 
+    // Lägg undan urvalet så det finns kvar nästa gång vyn öppnas
+    useEffect(() => {
+        manageWorkoutsMemory.sortConfig = sortConfig;
+        manageWorkoutsMemory.activeFolder = activeFolder;
+        manageWorkoutsMemory.activeTab = activeTab;
+        manageWorkoutsMemory.searchTerm = searchTerm;
+    }, [sortConfig, activeFolder, activeTab, searchTerm]);
+
     const handleListScroll = (e: React.UIEvent<HTMLDivElement>) => {
         if (!hasMore) return;
         const el = e.currentTarget;
@@ -948,7 +1033,7 @@ const ManageWorkoutsView: React.FC<{
     };
 
     return (
-        <div className="flex flex-col animate-fade-in w-full h-[calc(100vh-7rem)] gap-6">
+        <div className="flex flex-col animate-fade-in w-full lg:h-[calc(100vh-7rem)] gap-6">
             <div className="flex-shrink-0 flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div className="flex items-center gap-4">
                     <div>
@@ -1043,7 +1128,7 @@ const ManageWorkoutsView: React.FC<{
             <div className="bg-white dark:bg-gray-800 rounded-[2.5rem] shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden flex flex-col">
                 <div className="flex-grow min-h-0 grid grid-cols-1 lg:grid-cols-[240px_minmax(0,1fr)] gap-6">
                 {/* MAPPAR — ren adminordning, påverkar inte medlemsvyn */}
-                <aside className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 flex flex-col min-h-0 overflow-y-auto">
+                <aside className="hidden lg:flex bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 flex-col min-h-0 overflow-y-auto">
                     <div className="p-5 sticky top-0 z-10 bg-gray-50 dark:bg-gray-900/50 border-b border-gray-100 dark:border-gray-700">
                         <span className="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.2em]">Våra pass</span>
                     </div>
@@ -1223,7 +1308,7 @@ const ManageWorkoutsView: React.FC<{
                     </div>
                 </aside>
 
-                <div className="flex flex-col min-h-0">
+                <div className="flex flex-col min-h-0 p-4 lg:p-0">
                 {onMoveToFolder && selectedIds.length > 0 && (
                     <div className="mb-4 flex flex-wrap items-center gap-3 p-4 rounded-2xl bg-primary/5 border border-primary/20">
                         <span className="text-sm font-bold text-primary">{selectedIds.length} pass markerade</span>
@@ -1293,7 +1378,171 @@ const ManageWorkoutsView: React.FC<{
                         </button>
                     </div>
                 )}
-                <div onScroll={handleListScroll} className="flex-grow min-h-0 overflow-auto rounded-2xl border border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800">
+                {/* MOBIL: mappar och sortering som rullgardiner. Tabellen kräver 800 px
+                    bredd och de låsta kolumnerna täcker hela en telefonskärm — därför
+                    får mobilen en kortlista i stället, utan sidledsscroll. */}
+                <div className="lg:hidden flex flex-col gap-3 mb-4">
+                    <label className="flex flex-col gap-1">
+                        <span className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400">Mapp</span>
+                        <select
+                            value={activeFolder}
+                            onChange={e => { setActiveFolder(e.target.value); setCurrentPage(1); }}
+                            className="w-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl px-3 py-2.5 text-sm font-bold text-gray-700 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-primary"
+                        >
+                            {folderOptions.map(opt => (
+                                <option key={opt.value} value={opt.value}>{opt.label}</option>
+                            ))}
+                        </select>
+                    </label>
+
+                    <div className="flex items-end gap-2">
+                        <label className="flex flex-col gap-1 flex-grow min-w-0">
+                            <span className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400">Sortera på</span>
+                            <select
+                                value={sortConfig.direction === 'none' ? '' : sortConfig.key}
+                                onChange={e => {
+                                    const value = e.target.value;
+                                    if (!value) { setSortConfig({ key: 'createdAt', direction: 'none' }); return; }
+                                    setSortConfig({ key: value as ManageWorkoutsSort['key'], direction: 'asc' });
+                                }}
+                                className="w-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl px-3 py-2.5 text-sm font-bold text-gray-700 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-primary"
+                            >
+                                <option value="">Ingen sortering</option>
+                                {MOBILE_SORT_OPTIONS.map(opt => (
+                                    <option key={opt.value} value={opt.value}>{opt.label}</option>
+                                ))}
+                            </select>
+                        </label>
+                        <button
+                            type="button"
+                            disabled={sortConfig.direction === 'none'}
+                            onClick={() => setSortConfig(prev => ({ ...prev, direction: prev.direction === 'asc' ? 'desc' : 'asc' }))}
+                            className="flex-shrink-0 px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm font-bold text-gray-600 dark:text-gray-300 disabled:opacity-40"
+                            title={sortConfig.direction === 'desc' ? 'Fallande' : 'Stigande'}
+                        >
+                            {sortConfig.direction === 'desc' ? '↓' : '↑'}
+                        </button>
+                    </div>
+                </div>
+
+                {/* MOBIL: kortlista */}
+                <div className="lg:hidden flex flex-col gap-3">
+                    {paginatedWorkouts.length === 0 && (
+                        <div className="p-8 text-center text-gray-400 bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700">
+                            Inga pass här.
+                        </div>
+                    )}
+                    {paginatedWorkouts.map(workout => {
+                        const statusInfo = getWorkoutStatusInfo(workout, Date.now(), organization?.globalConfig?.customCategories);
+                        const mine = myRatingOf(workout);
+                        const vals = ratingValues(workout);
+                        const isSelected = selectedIds.includes(workout.id);
+                        return (
+                            <div
+                                key={workout.id}
+                                className={`p-4 rounded-2xl border bg-white dark:bg-gray-800 ${isSelected ? 'border-primary' : 'border-gray-100 dark:border-gray-700'}`}
+                            >
+                                <div className="flex items-start gap-3">
+                                    {onMoveToFolder && (
+                                        <input
+                                            type="checkbox"
+                                            checked={isSelected}
+                                            onChange={() => setSelectedIds(prev => prev.includes(workout.id) ? prev.filter(x => x !== workout.id) : [...prev, workout.id])}
+                                            className="mt-1 w-5 h-5 rounded accent-teal-500 flex-shrink-0"
+                                        />
+                                    )}
+                                    <button onClick={() => onEdit(workout)} className="flex-grow min-w-0 text-left">
+                                        <div className="font-bold text-gray-900 dark:text-white break-words">{workout.title}</div>
+                                        {workout.category && (
+                                            <div className="mt-1 inline-block text-[11px] font-bold px-2 py-0.5 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300">
+                                                {workout.category}
+                                            </div>
+                                        )}
+                                    </button>
+                                    <span className={`flex-shrink-0 text-[10px] font-black uppercase tracking-wider px-2 py-1 rounded-lg ${statusInfo.styleClass}`}>
+                                        {statusInfo.label}
+                                    </span>
+                                </div>
+
+                                <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-gray-500 dark:text-gray-400">
+                                    <span>Körd <strong className="text-gray-700 dark:text-gray-200">{workout.runCount || 0}</strong></span>
+                                    <span>Loggat <strong className="text-gray-700 dark:text-gray-200">{workout.logCount || 0}</strong></span>
+                                    {workout.lastRunAt && (
+                                        <span>Senast {new Date(workout.lastRunAt).toLocaleDateString('sv-SE', { day: 'numeric', month: 'short' })}</span>
+                                    )}
+                                    {workout.createdByName && <span>Av {workout.createdByName}</span>}
+                                    {workout.assignedToName && <span className="text-primary font-bold">👤 {workout.assignedToName}</span>}
+                                </div>
+
+                                <div className="mt-3 flex items-center justify-between gap-2">
+                                    <div className="flex items-center gap-0.5">
+                                        {[1, 2, 3, 4, 5].map(star => (
+                                            <button
+                                                key={star}
+                                                type="button"
+                                                disabled={!onRateWorkout || !myUid}
+                                                onClick={() => { if (onRateWorkout) onRateWorkout(workout, mine === star ? null : star); }}
+                                                className={star <= mine ? 'text-amber-400' : 'text-gray-300 dark:text-gray-600'}
+                                            >
+                                                <StarIcon className="w-5 h-5" filled={star <= mine} />
+                                            </button>
+                                        ))}
+                                        {vals.length >= 2 && (
+                                            <span className="ml-2 text-xs font-black text-amber-500">
+                                                {avgRatingOf(workout).toFixed(1).replace('.', ',')} <span className="text-gray-400 font-normal">({vals.length})</span>
+                                            </span>
+                                        )}
+                                    </div>
+
+                                    <div className="flex items-center gap-1 flex-shrink-0">
+                                        <button onClick={() => setPreviewWorkout(workout)} className="p-2 text-gray-400 rounded-lg" title="Förhandsgranska">
+                                            <EyeIcon className="w-5 h-5" />
+                                        </button>
+                                        <button onClick={() => onEdit(workout)} className="p-2 text-gray-400 rounded-lg" title="Redigera">
+                                            <PencilIcon className="w-5 h-5" />
+                                        </button>
+                                        {onAssignToMember && (
+                                            <button
+                                                onClick={() => { setAssignFor(workout); setAssignSearch(''); }}
+                                                className={`p-2 rounded-lg ${workout.assignedToUid ? 'text-primary' : 'text-gray-400'}`}
+                                                title="Tilldela en medlem"
+                                            >
+                                                <span className="text-base leading-none">👤</span>
+                                            </button>
+                                        )}
+                                        <button onClick={() => setDeleteConfirmWorkoutId(workout.id)} className="p-2 text-gray-400 rounded-lg" title="Radera">
+                                            <TrashIcon className="w-5 h-5" />
+                                        </button>
+                                    </div>
+                                </div>
+
+                                {onMoveToFolder && customFolders.length > 0 && (
+                                    <select
+                                        value={workout.folderId || ''}
+                                        onChange={async (e) => { await onMoveToFolder(workout, e.target.value || undefined); }}
+                                        className="mt-3 w-full bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl px-3 py-2 text-xs font-bold text-gray-600 dark:text-gray-300"
+                                    >
+                                        <option value="">🗂️ Ingen mapp</option>
+                                        {customFolders.map(folder => (
+                                            <option key={folder.id} value={folder.id}>🗂️ {folder.name}</option>
+                                        ))}
+                                    </select>
+                                )}
+                            </div>
+                        );
+                    })}
+
+                    {hasMore && (
+                        <button
+                            onClick={() => setCurrentPage(p => p + 1)}
+                            className="w-full py-3 rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm font-bold text-primary"
+                        >
+                            Visa fler pass
+                        </button>
+                    )}
+                </div>
+
+                <div onScroll={handleListScroll} className="hidden lg:block flex-grow min-h-0 overflow-auto rounded-2xl border border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800">
                     <table className="w-full text-left border-collapse min-w-[800px]">
                         <thead>
                             <tr className="bg-gray-50 dark:bg-gray-900/50 border-b border-gray-100 dark:border-gray-700 sticky top-0 z-30">
@@ -1333,6 +1582,12 @@ const ManageWorkoutsView: React.FC<{
                                 </th>
                                 <th onClick={() => handleSort('lastRunAt')} className="p-5 text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.2em] cursor-pointer hover:text-primary transition-colors">
                                     <div className="flex items-center">Senast <SortIcon column="lastRunAt" /></div>
+                                </th>
+                                <th onClick={() => handleSort('myRating')} className="p-5 text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.2em] cursor-pointer hover:text-primary transition-colors">
+                                    <div className="flex items-center whitespace-nowrap">Mitt betyg <SortIcon column="myRating" /></div>
+                                </th>
+                                <th onClick={() => handleSort('avgRating')} className="p-5 text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.2em] cursor-pointer hover:text-primary transition-colors">
+                                    <div className="flex items-center">Snitt <SortIcon column="avgRating" /></div>
                                 </th>
                                 <th onClick={() => handleSort('isPublished')} className="p-5 text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.2em] cursor-pointer hover:text-primary transition-colors">
                                     <div className="flex items-center">Status <SortIcon column="isPublished" /></div>
@@ -1436,6 +1691,42 @@ const ManageWorkoutsView: React.FC<{
                                             {workout.lastRunAt
                                                 ? new Date(workout.lastRunAt).toLocaleDateString('sv-SE', { year: 'numeric', month: 'short', day: 'numeric' })
                                                 : <span className="text-gray-400">–</span>}
+                                        </td>
+                                        <td className="p-5">
+                                            <div className="flex items-center gap-0.5">
+                                                {[1, 2, 3, 4, 5].map(star => {
+                                                    const mine = myRatingOf(workout);
+                                                    return (
+                                                        <button
+                                                            key={star}
+                                                            type="button"
+                                                            disabled={!onRateWorkout || !myUid}
+                                                            title={mine === star ? 'Klicka igen för att ta bort ditt betyg' : `Sätt ${star} av 5`}
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                if (!onRateWorkout) return;
+                                                                onRateWorkout(workout, mine === star ? null : star);
+                                                            }}
+                                                            className={`transition-transform hover:scale-125 disabled:cursor-default disabled:hover:scale-100 ${star <= mine ? 'text-amber-400' : 'text-gray-300 dark:text-gray-600'}`}
+                                                        >
+                                                            <StarIcon className="w-5 h-5" filled={star <= mine} />
+                                                        </button>
+                                                    );
+                                                })}
+                                            </div>
+                                        </td>
+                                        <td className="p-5 text-sm">
+                                            {(() => {
+                                                const vals = ratingValues(workout);
+                                                if (vals.length < 2) return <span className="text-gray-400">–</span>;
+                                                const avg = avgRatingOf(workout);
+                                                return (
+                                                    <span className="inline-flex items-center gap-1 whitespace-nowrap">
+                                                        <span className="font-black text-amber-500">{avg.toFixed(1).replace('.', ',')}</span>
+                                                        <span className="text-xs text-gray-400">({vals.length})</span>
+                                                    </span>
+                                                );
+                                            })()}
                                         </td>
                                         <td className="p-5">
                                             {(() => {
@@ -1832,6 +2123,9 @@ const PassProgramContent: React.FC<DashboardContentProps & {
     organization, autoExpandCategory, setAutoExpandCategory, onDuplicateWorkout, setCustomBackHandler
 }) => {
     
+    const { currentUser } = useAuth();
+    const currentUserUid = currentUser?.uid || null;
+
     const [showBenchmarkModal, setShowBenchmarkModal] = useState(false);
     // Medlemslistan behövs för att kunna tilldela pass till en enskild medlem (PT).
     const [ptMembers, setPtMembers] = useState<any[]>([]);
@@ -1925,6 +2219,19 @@ const PassProgramContent: React.FC<DashboardContentProps & {
         });
     };
 
+    // Betyget sparas som ett värde per person på passet. Null tar bort mitt betyg.
+    const handleRateWorkout = async (workout: Workout, rating: number | null) => {
+        const uid = currentUserUid;
+        if (!uid) return;
+        const next = { ...(workout.ratings || {}) };
+        if (rating === null) {
+            delete next[uid];
+        } else {
+            next[uid] = rating;
+        }
+        await onSaveWorkout({ ...workout, ratings: next });
+    };
+
     const handleUpdateBenchmarks = async (benchmarks: BenchmarkDefinition[]) => {
         await updateOrganizationBenchmarks(organization.id, benchmarks);
     };
@@ -1992,6 +2299,7 @@ const PassProgramContent: React.FC<DashboardContentProps & {
                     onMoveToFolder={handleMoveToFolder}
                     members={ptMembers}
                     onAssignToMember={handleAssignToMember}
+                    onRateWorkout={handleRateWorkout}
                 />
                 {showBenchmarkModal && (
                     <ManageBenchmarksModal 

@@ -12,7 +12,7 @@ import { ParticipantFinishList } from './timer/ParticipantFinishList';
 import { DumbbellIcon, InformationCircleIcon, LightningIcon, SparklesIcon, ChevronRightIcon, ClockIcon, PlayIcon, SettingsIcon, RefreshIcon } from './icons'; // Added SettingsIcon if available, else standard icons
 import { useStudio } from '../context/StudioContext';
 import { useAuth } from '../context/AuthContext';
-import { getSideLabel, getBlockProfile, getBlockPlanParts } from '../utils/workoutUtils';
+import { getSideLabel, getBlockProfile, getBlockPlanParts, getGroupColorHex } from '../utils/workoutUtils';
 
 // --- Constants ---
 const HYROX_RIGHT_PANEL_WIDTH = '450px';
@@ -366,7 +366,8 @@ const StandardListView: React.FC<{
     return (
         <div className={`w-full h-full flex flex-col overflow-hidden pb-1`}>
             {exercises.map((ex, i) => {
-                const useGroupColor = !!ex.groupColor;
+                const groupHex = getGroupColorHex(ex.groupColor);
+                const useGroupColor = !!groupHex;
                 const nextEx = exercises[i + 1];
                 const isGroupedWithNext = nextEx && ex.groupId && ex.groupId === nextEx.groupId;
                 
@@ -388,7 +389,7 @@ const StandardListView: React.FC<{
                             : 'border-gray-100 dark:border-white/10'
                         } ${padding} ${mbClass}`}
                         style={{ 
-                            borderLeftColor: useGroupColor ? undefined : (isHyrox ? '#6366f1' : `rgb(${timerStyle.pulseRgb})`)
+                            borderLeftColor: groupHex || (isHyrox ? '#6366f1' : `rgb(${timerStyle.pulseRgb})`)
                         }}
                     >
                         <div className="flex items-center w-full gap-6 md:gap-8">

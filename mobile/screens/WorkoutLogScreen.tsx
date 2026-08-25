@@ -16,7 +16,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Confetti } from '../../components/WorkoutCompleteModal';
 import { useStudio } from '../../context/StudioContext';
 import { BlockGroup, LocalSetDetail, LastPerformanceRecord, LocalExerciseResult, LogData, WorkoutData } from './workout-log/types';
-import { ACTIVE_LOG_STORAGE_KEY, ChevronDownIcon, extractPerformanceFromLogEx, TimeInput, getRandomDiplomaTitle, getFunComparison, isExerciseMatch, GROUP_COLORS, cleanForFirestore, normalizeDecimalInput } from './workout-log/utils';
+import { ACTIVE_LOG_STORAGE_KEY, activeLogHasContent, isActiveLogFresh, ChevronDownIcon, extractPerformanceFromLogEx, TimeInput, getRandomDiplomaTitle, getFunComparison, isExerciseMatch, GROUP_COLORS, cleanForFirestore, normalizeDecimalInput } from './workout-log/utils';
 import { CustomActivityForm } from './workout-log/CustomActivityForm';
 import { PostWorkoutForm } from './workout-log/PostWorkoutForm';
 import { OneRMCalculatorModal } from './workout-log/OneRMCalculatorModal';
@@ -343,6 +343,10 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
   const scanSource = source || route?.params?.source;
   const [inStudio, setInStudio] = useState<boolean | null>(scanSource === 'qr_scan' ? true : null);
   const [workoutLoadFailed, setWorkoutLoadFailed] = useState(false);
+  // Räknare som tvingar en ny hämtning av passet. iOS kastar bort sidan när
+  // telefonen legat låst, och första försöket efter återkomsten sker ofta innan
+  // inloggningen hunnit förnyas.
+  const [reloadKey, setReloadKey] = useState(0);
 
   const [history, setHistory] = useState<Record<string, LastPerformanceRecord>>({}); 
   const [personalBests, setPersonalBests] = useState<Record<string, PersonalBest>>({});
@@ -616,8 +620,12 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
 
   // --- LOAD INITIAL DATA ---
   useEffect(() => {
-    if (!finalOrgId) { setLoading(false); return; }
-    if (!isManualMode && !wId) { setLoading(false); return; }
+    // Organisationen eller passets id kan komma en tick senare, särskilt för
+    // ett nyskapat konto vars behörigheter inte hunnit slå igenom. Att sluta
+    // ladda här gör att vyn påstår att passet saknar övningar innan den ens
+    // frågat. Vi står kvar i laddningsläge tills vi vet.
+    if (!finalOrgId) return;
+    if (!isManualMode && !wId) return;
     if (!isManualMode && workout?.id === wId) return; // Already initialized for this workout
 
     const init = async () => {
@@ -679,17 +687,30 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
             let loadedCustomActivity: any = null;
             let skipInsights = false;
 
+            let hasSavedSession = false;
             if (savedSessionRaw) {
                 const saved = JSON.parse(savedSessionRaw);
-                if (saved.workoutId === (wId || 'manual') && saved.memberId === userId) {
+                const matchesThisPass = saved.workoutId === (wId || 'manual') && saved.memberId === userId;
+                if (matchesThisPass && !isActiveLogFresh(saved)) {
+                    // Äldre än sex timmar: inte samma träningspass längre.
+                    localStorage.removeItem(ACTIVE_LOG_STORAGE_KEY);
+                } else if (matchesThisPass) {
                     loadedResults = saved.exerciseResults;
                     loadedLogData = saved.logData;
                     loadedSessionStats = saved.sessionStats;
                     loadedCustomActivity = saved.customActivity;
                     if (typeof saved.restTimerEnabled === 'boolean') setRestTimerEnabled(saved.restTimerEnabled);
-                    setViewMode('logging');
+                    hasSavedSession = true;
                     skipInsights = true;
                 }
+            }
+
+            // Loggningsläget slås på först när vi vet att det finns något att
+            // logga. Tidigare byttes vyn här uppe, vilket gav en tom loggningsvy
+            // när passhämtningen misslyckats — och autosparningen skrev sedan
+            // över medlemmens arbete med tomheten.
+            if (hasSavedSession && (foundWorkout || isManualMode)) {
+                setViewMode('logging');
             }
 
             if (foundWorkout) {
@@ -889,17 +910,70 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
                      });
                      setHistory(historyMap);
                  }
+
+                 // Passet kunde inte hämtas — typiskt när iPhone kastat bort sidan
+                 // och inloggningen behöver förnyas. Medlemmens egna siffror är
+                 // redan återställda ovan, så vi visar dem i stället för en tom
+                 // vy. Passet självt hämtas om när appen kommer i förgrunden.
+                 if (!isManualMode && hasSavedSession && loadedResults && loadedResults.length > 0) {
+                     setViewMode('logging');
+                 }
             }
         } catch (error) { console.error(error); }
         finally { setLoading(false); }
     };
     
     init();
-}, [wId, finalOrgId, userId, isManualMode]);
+}, [wId, finalOrgId, userId, isManualMode, reloadKey]);
+
+  // Kommer appen tillbaka i förgrunden utan att passet finns laddat: försök igen.
+  useEffect(() => {
+    if (isManualMode || !wId) return;
+    const onVisible = () => {
+      if (document.visibilityState !== 'visible') return;
+      if (!workout) setReloadKey(k => k + 1);
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    window.addEventListener('focus', onVisible);
+    return () => {
+      document.removeEventListener('visibilitychange', onVisible);
+      window.removeEventListener('focus', onVisible);
+    };
+  }, [isManualMode, wId, workout]);
+
+  // Säkerhetsnät: står vi kvar i laddningsläge för att organisationen aldrig kom,
+  // ska vi inte snurra i all evighet.
+  useEffect(() => {
+    if (!loading) return;
+    const timeoutId = setTimeout(() => {
+      setLoading(false);
+      if (!workout && !isManualMode) setWorkoutLoadFailed(true);
+    }, 20000);
+    return () => clearTimeout(timeoutId);
+  }, [loading, workout, isManualMode]);
 
   // --- AUTO-SAVE LOGIC ---
   useEffect(() => {
     if (loading || isSubmitting || !userId || (!wId && !isManualMode)) return;
+
+    // SPÄRR MOT DATAFÖRLUST: skriv aldrig över en sparad session som har
+    // innehåll med en tom. Utan den här spärren räckte det att passhämtningen
+    // misslyckades en gång för att medlemmens hela loggning skulle försvinna
+    // för alltid — vyn renderades tom och tomheten sparades direkt över.
+    const wouldBeEmpty = exerciseResults.length === 0 && !customActivity?.name;
+    if (wouldBeEmpty) {
+        try {
+            const existingRaw = localStorage.getItem(ACTIVE_LOG_STORAGE_KEY);
+            if (existingRaw) {
+                const existing = JSON.parse(existingRaw);
+                if (existing.memberId === userId
+                    && existing.workoutId === (wId || 'manual')
+                    && activeLogHasContent(existing)) {
+                    return;
+                }
+            }
+        } catch (e) { /* trasigt sparat värde får skrivas över */ }
+    }
 
     const sessionData = {
         workoutId: wId || 'manual',

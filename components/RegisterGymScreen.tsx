@@ -82,19 +82,19 @@ export const RegisterGymScreen: React.FC<RegisterGymScreenProps> = ({ onCancel }
     };
 
     return (
-        <div className="min-h-screen flex flex-col items-center justify-center bg-black p-4 w-full">
+        <div className="min-h-screen flex flex-col items-center justify-center bg-white dark:bg-black p-4 w-full">
             <motion.div 
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="w-full max-w-md bg-gray-900 border border-gray-700 rounded-lg p-8 relative"
+                className="w-full max-w-md bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-lg p-8 relative"
             >
                 <button onClick={onCancel} className="absolute top-4 right-4 text-gray-500 hover:text-white transition-colors">
                     <CloseIcon className="w-6 h-6" />
                 </button>
 
                 <div className="text-center mb-8">
-                    <h2 className="text-3xl font-bold text-white tracking-tight">Registrera ditt gym</h2>
-                    <p className="text-gray-400 mt-2">Börja använda SmartStudio i din verksamhet idag.</p>
+                    <h2 className="text-3xl font-bold text-gray-900 dark:text-white tracking-tight">Registrera ditt gym</h2>
+                    <p className="text-gray-500 dark:text-gray-400 mt-2">Börja använda SmartStudio i din verksamhet idag.</p>
                 </div>
 
                 {error && (
@@ -116,7 +116,7 @@ export const RegisterGymScreen: React.FC<RegisterGymScreenProps> = ({ onCancel }
                             value={gymName}
                             onChange={(e) => setGymName(e.target.value)}
                             placeholder="t.ex. Flexibel Fitness"
-                            className="w-full bg-black text-white p-3 rounded-md border border-gray-700 focus:ring-2 focus:ring-primary focus:outline-none transition-all"
+                            className="w-full bg-white dark:bg-black text-gray-900 dark:text-white p-3 rounded-md border border-gray-300 dark:border-gray-700 focus:ring-2 focus:ring-primary focus:outline-none transition-all"
                         />
                     </div>
                     <div className="grid grid-cols-2 gap-4">
@@ -128,7 +128,7 @@ export const RegisterGymScreen: React.FC<RegisterGymScreenProps> = ({ onCancel }
                                 value={firstName}
                                 onChange={(e) => setFirstName(e.target.value)}
                                 placeholder="Anna"
-                                className="w-full bg-black text-white p-3 rounded-md border border-gray-700 focus:ring-2 focus:ring-primary focus:outline-none transition-all"
+                                className="w-full bg-white dark:bg-black text-gray-900 dark:text-white p-3 rounded-md border border-gray-300 dark:border-gray-700 focus:ring-2 focus:ring-primary focus:outline-none transition-all"
                             />
                         </div>
                         <div>
@@ -139,7 +139,7 @@ export const RegisterGymScreen: React.FC<RegisterGymScreenProps> = ({ onCancel }
                                 value={lastName}
                                 onChange={(e) => setLastName(e.target.value)}
                                 placeholder="Andersson"
-                                className="w-full bg-black text-white p-3 rounded-md border border-gray-700 focus:ring-2 focus:ring-primary focus:outline-none transition-all"
+                                className="w-full bg-white dark:bg-black text-gray-900 dark:text-white p-3 rounded-md border border-gray-300 dark:border-gray-700 focus:ring-2 focus:ring-primary focus:outline-none transition-all"
                             />
                         </div>
                     </div>
@@ -151,7 +151,7 @@ export const RegisterGymScreen: React.FC<RegisterGymScreenProps> = ({ onCancel }
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
                             placeholder="namn@gym.se"
-                            className="w-full bg-black text-white p-3 rounded-md border border-gray-700 focus:ring-2 focus:ring-primary focus:outline-none transition-all"
+                            className="w-full bg-white dark:bg-black text-gray-900 dark:text-white p-3 rounded-md border border-gray-300 dark:border-gray-700 focus:ring-2 focus:ring-primary focus:outline-none transition-all"
                         />
                     </div>
                     <div>
@@ -163,12 +163,12 @@ export const RegisterGymScreen: React.FC<RegisterGymScreenProps> = ({ onCancel }
                                 value={password}
                                 onChange={(e) => setPassword(e.target.value)}
                                 placeholder="Minst 6 tecken"
-                                className="w-full bg-black text-white p-3 pr-12 rounded-md border border-gray-700 focus:ring-2 focus:ring-primary focus:outline-none transition-all"
+                                className="w-full bg-white dark:bg-black text-gray-900 dark:text-white p-3 pr-12 rounded-md border border-gray-300 dark:border-gray-700 focus:ring-2 focus:ring-primary focus:outline-none transition-all"
                             />
                             <button
                                 type="button"
                                 onClick={() => setShowPassword(!showPassword)}
-                                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-300 focus:outline-none p-1"
+                                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 dark:text-gray-400 hover:text-gray-300 focus:outline-none p-1"
                                 aria-label={showPassword ? "Dölj lösenord" : "Visa lösenord"}
                             >
                                 {showPassword ? (

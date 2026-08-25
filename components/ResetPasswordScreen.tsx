@@ -101,11 +101,11 @@ export const ResetPasswordScreen: React.FC = () => {
     };
 
     return (
-        <div id="reset-password-page-container" className="min-h-screen bg-black flex flex-col items-center justify-center p-4">
+        <div id="reset-password-page-container" className="min-h-screen bg-white dark:bg-black flex flex-col items-center justify-center p-4">
             {/* Header / Logo */}
             <div className="flex items-center gap-3 mb-8">
-                <img src="/favicon.png" alt="SmartStudio Logo" className="w-12 h-12 rounded-xl shadow-lg border border-slate-800" />
-                <span className="text-xl font-black text-white uppercase tracking-tight">SmartStudio</span>
+                <img src="/favicon.png" alt="SmartStudio Logo" className="w-12 h-12 rounded-xl shadow-lg border border-gray-200 dark:border-slate-800" />
+                <span className="text-xl font-black text-gray-900 dark:text-white uppercase tracking-tight">SmartStudio</span>
             </div>
 
             <motion.div 
@@ -113,7 +113,7 @@ export const ResetPasswordScreen: React.FC = () => {
                 initial={{ opacity: 0, y: 15 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.4, ease: "easeOut" }}
-                className="w-full max-w-md bg-slate-900 border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-2xl relative overflow-hidden"
+                className="w-full max-w-md bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-3xl p-6 sm:p-8 shadow-2xl relative overflow-hidden"
             >
                 {/* Background ambient glow glow */}
                 <div className="absolute -top-24 -right-24 w-48 h-48 bg-teal-500/10 rounded-full blur-3xl pointer-events-none" />
@@ -128,8 +128,8 @@ export const ResetPasswordScreen: React.FC = () => {
                             exit={{ opacity: 0 }}
                             className="flex flex-col items-center justify-center py-12 text-center"
                         >
-                            <div className="w-12 h-12 rounded-full border-4 border-slate-800 border-t-teal-500 animate-spin mb-4" />
-                            <p className="text-slate-400 font-medium text-sm">Verifierar återställningskod...</p>
+                            <div className="w-12 h-12 rounded-full border-4 border-gray-200 dark:border-slate-800 border-t-teal-500 animate-spin mb-4" />
+                            <p className="text-gray-500 dark:text-slate-400 font-medium text-sm">Verifierar återställningskod...</p>
                         </motion.div>
                     ) : verificationError ? (
                         <motion.div 
@@ -142,13 +142,13 @@ export const ResetPasswordScreen: React.FC = () => {
                             <div className="w-16 h-16 bg-red-500/10 text-red-400 rounded-full flex items-center justify-center mx-auto mb-4">
                                 <AlertCircle className="w-8 h-8" />
                             </div>
-                            <h2 className="text-xl font-bold text-white mb-2 uppercase tracking-tight">Ett fel uppstod</h2>
-                            <p className="text-slate-400 text-sm mb-8 leading-relaxed px-2">
+                            <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-2 uppercase tracking-tight">Ett fel uppstod</h2>
+                            <p className="text-gray-500 dark:text-slate-400 text-sm mb-8 leading-relaxed px-2">
                                 {verificationError}
                             </p>
                             <button
                                 onClick={handleGoToLogin}
-                                className="inline-flex items-center gap-2 text-slate-400 hover:text-white transition-colors text-sm font-semibold"
+                                className="inline-flex items-center gap-2 text-gray-500 dark:text-slate-400 hover:text-white transition-colors text-sm font-semibold"
                             >
                                 <ArrowLeft className="w-4 h-4" /> Det går bra att logga in ändå
                             </button>
@@ -164,8 +164,8 @@ export const ResetPasswordScreen: React.FC = () => {
                             <div className="w-16 h-16 bg-emerald-500/10 text-emerald-400 rounded-full flex items-center justify-center mx-auto mb-4">
                                 <CheckCircle2 className="w-8 h-8" />
                             </div>
-                            <h2 className="text-xl font-bold text-white mb-2 uppercase tracking-tight">Klart!</h2>
-                            <p className="text-slate-400 text-sm mb-8 leading-relaxed px-2">
+                            <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-2 uppercase tracking-tight">Klart!</h2>
+                            <p className="text-gray-500 dark:text-slate-400 text-sm mb-8 leading-relaxed px-2">
                                 Ditt lösenord har uppdaterats framgångsrikt. Du kan nu logga in med ditt nya lösenord.
                             </p>
                             <button
@@ -185,8 +185,8 @@ export const ResetPasswordScreen: React.FC = () => {
                             className="space-y-6"
                         >
                             <div className="text-center mb-6">
-                                <h2 className="text-2xl font-bold text-white uppercase tracking-tight">Nytt lösenord</h2>
-                                <p className="text-xs text-slate-400 mt-1">
+                                <h2 className="text-2xl font-bold text-gray-900 dark:text-white uppercase tracking-tight">Nytt lösenord</h2>
+                                <p className="text-xs text-gray-500 dark:text-slate-400 mt-1">
                                     Välj ett nytt lösenord för kontot <strong className="text-slate-200">{email}</strong>
                                 </p>
                             </div>
@@ -200,7 +200,7 @@ export const ResetPasswordScreen: React.FC = () => {
 
                             {/* New Password input */}
                             <div className="space-y-2">
-                                <label className="text-xs font-bold uppercase tracking-wider text-slate-400 block" htmlFor="new-password">
+                                <label className="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-slate-400 block" htmlFor="new-password">
                                     Nytt lösenord
                                 </label>
                                 <div className="relative">
@@ -214,7 +214,7 @@ export const ResetPasswordScreen: React.FC = () => {
                                         onChange={(e) => setPassword(e.target.value)}
                                         placeholder="Minst 6 tecken"
                                         required
-                                        className="w-full bg-black text-white p-4 pl-12 pr-12 rounded-xl border border-slate-800 focus:border-teal-500 focus:outline-none transition text-sm"
+                                        className="w-full bg-white dark:bg-black text-gray-900 dark:text-white p-4 pl-12 pr-12 rounded-xl border border-gray-200 dark:border-slate-800 focus:border-teal-500 focus:outline-none transition text-sm"
                                     />
                                     <button
                                         type="button"
@@ -228,7 +228,7 @@ export const ResetPasswordScreen: React.FC = () => {
 
                             {/* Confirm Password input */}
                             <div className="space-y-2">
-                                <label className="text-xs font-bold uppercase tracking-wider text-slate-400 block" htmlFor="confirm-new-password">
+                                <label className="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-slate-400 block" htmlFor="confirm-new-password">
                                     Bekräfta lösenord
                                 </label>
                                 <div className="relative">
@@ -242,7 +242,7 @@ export const ResetPasswordScreen: React.FC = () => {
                                         onChange={(e) => setConfirmPassword(e.target.value)}
                                         placeholder="Upprepa lösenordet"
                                         required
-                                        className="w-full bg-black text-white p-4 pl-12 pr-12 rounded-xl border border-slate-800 focus:border-teal-500 focus:outline-none transition text-sm"
+                                        className="w-full bg-white dark:bg-black text-gray-900 dark:text-white p-4 pl-12 pr-12 rounded-xl border border-gray-200 dark:border-slate-800 focus:border-teal-500 focus:outline-none transition text-sm"
                                     />
                                     <button
                                         type="button"

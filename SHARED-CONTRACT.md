@@ -51,7 +51,17 @@ Organization.allowMemberPromotionCode: Sätter om organisationen har tillstånd 
 3. Genomför ändringen i kod/regler.
 Versionslogg förs längst ner i denna fil.
 
+## 8. Bokningsfunktionernas kontrakt (createBooking/cancelBooking, v1.3)
+- `createBooking` accepterar `paymentType: 'klippkort' | 'betalning' | 'medlemskap'` samt valfri `joinWaitlist: boolean`.
+  - `medlemskap` kräver aktivt client_membership; inga klipp dras.
+  - `klippkort` drar ALLTID klipp (tidigare tyst medlemskaps-bypass är borttagen) och validerar kortets giltighet mot tjänsten.
+  - Fullt pass + `joinWaitlist: true` → bokning skapas med `status: 'waiting'` (ingen plats/klipp dras). Svar: `{ success, bookingId, waitlisted }`.
+- `cancelBooking` lyfter automatiskt första bokningen med `status: 'waiting'` (äldst `createdAt`) till `confirmed` när en plats frigörs; klipp dras vid uppflytt (saknas giltigt kort → `paymentType` byts till `'betalning'`).
+- `bookings.status` har nu även värdet `'waiting'`. Appar som räknar deltagare ska exkludera `waiting` och `cancelled`.
+- `passes`-dokument kan ha `validForCategories: string[]` och `validForServiceIds: string[]` (tomt = gäller allt). `services` kan ha `category: string`. `purchasePass` kopierar giltighetsfälten från `passType`.
+
 ---
 Version 1.0 — 2026-07-20 — Initialt kontrakt.
 Version 1.1 — 2026-07-25 — Tillägg av Stripe-noteringar för memberPromotionCode.
 Version 1.2 — 2026-07-25 — Tillägg av allowMemberPromotionCode för behörighetsspärr av medlemsrabattkod.
+Version 1.3 — 2026-08-20 — createBooking/cancelBooking: betaltyp 'medlemskap', väntelista (status 'waiting' + automatiskt köupprop), klippkorts-giltighet (validForCategories/validForServiceIds, services.category).

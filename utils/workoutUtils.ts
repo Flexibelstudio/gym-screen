@@ -189,6 +189,27 @@ export function getRepsForPercentage(pct: number): number {
   return Math.max(1, Math.min(30, Math.round((100 / pct - 1) * 30)));
 }
 
+/**
+ * Supersetens färg lagras som en Tailwind-klass ("bg-blue-500") på övningen.
+ * På skärmen räcker inte klassen: kortets grundstil sätter redan en ramfärg
+ * med en dark-variant, och den vinner över den påklistrade klassen i mörkt
+ * läge — därför försvann färgerna när passet kördes. Vi översätter i stället
+ * klassen till en riktig färg och sätter den direkt på vänsterkanten.
+ */
+export const GROUP_COLOR_HEX: Record<string, string> = {
+    'bg-blue-500': '#3b82f6',
+    'bg-pink-500': '#ec4899',
+    'bg-lime-500': '#84cc16',
+    'bg-orange-500': '#f97316',
+    'bg-purple-500': '#a855f7',
+    'bg-yellow-400': '#facc15'
+};
+
+export const getGroupColorHex = (groupColor?: string | null): string | null => {
+    if (!groupColor) return null;
+    return GROUP_COLOR_HEX[groupColor] || null;
+};
+
 export const getSideLabel = (side?: 'V' | 'H' | 'V/H' | 'ALT' | null): string | null => {
     switch (side) {
         case 'V': return 'VÄNSTER';

@@ -82,14 +82,14 @@ const ExerciseEditorModal: React.FC<ExerciseEditorModalProps> = ({ exercise, ban
 
     return (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={onClose}>
-            <div className="bg-gray-800 rounded-xl p-6 w-full max-w-lg text-white shadow-2xl border-gray-700" onClick={e => e.stopPropagation()}>
+            <div className="bg-white dark:bg-gray-800 rounded-xl p-6 w-full max-w-lg text-gray-900 dark:text-white shadow-2xl border border-gray-200 dark:border-gray-700" onClick={e => e.stopPropagation()}>
                 <h2 className="text-2xl font-bold mb-6">{exercise?.id ? 'Redigera övning' : 'Lägg till ny övning'}</h2>
                 <div className="space-y-4">
-                    <div><label className="text-sm text-gray-400">Namn</label><input type="text" value={localExercise.name || ''} onChange={(e) => setLocalExercise(p => ({ ...p, name: e.target.value }))} className="w-full bg-black p-3 rounded" disabled={isSaving} /></div>
-                    <div><label className="text-sm text-gray-400">Beskrivning</label><textarea value={localExercise.description || ''} onChange={(e) => setLocalExercise(p => ({ ...p, description: e.target.value }))} rows={4} className="w-full bg-black p-3 rounded" disabled={isSaving} /></div>
+                    <div><label className="text-sm text-gray-500 dark:text-gray-400">Namn</label><input type="text" value={localExercise.name || ''} onChange={(e) => setLocalExercise(p => ({ ...p, name: e.target.value }))} className="w-full bg-gray-50 dark:bg-black border border-gray-200 dark:border-gray-700 p-3 rounded" disabled={isSaving} /></div>
+                    <div><label className="text-sm text-gray-500 dark:text-gray-400">Beskrivning</label><textarea value={localExercise.description || ''} onChange={(e) => setLocalExercise(p => ({ ...p, description: e.target.value }))} rows={4} className="w-full bg-gray-50 dark:bg-black border border-gray-200 dark:border-gray-700 p-3 rounded" disabled={isSaving} /></div>
                     <div>
-                        <label className="text-sm text-gray-400">Taggar (komma-separerade)</label>
-                        <input type="text" value={localExercise.tags?.join(', ') || ''} onChange={(e) => setLocalExercise(p => ({ ...p, tags: e.target.value.split(',').map(t => t.trim()).filter(t => t) }))} placeholder="t.ex. axlar, styrka, hantlar" className="w-full bg-black p-3 rounded" disabled={isSaving} />
+                        <label className="text-sm text-gray-500 dark:text-gray-400">Taggar (komma-separerade)</label>
+                        <input type="text" value={localExercise.tags?.join(', ') || ''} onChange={(e) => setLocalExercise(p => ({ ...p, tags: e.target.value.split(',').map(t => t.trim()).filter(t => t) }))} placeholder="t.ex. axlar, styrka, hantlar" className="w-full bg-gray-50 dark:bg-black border border-gray-200 dark:border-gray-700 p-3 rounded" disabled={isSaving} />
                     </div>
                 </div>
                 <div className="mt-6 flex gap-4">
@@ -99,7 +99,7 @@ const ExerciseEditorModal: React.FC<ExerciseEditorModalProps> = ({ exercise, ban
             </div>
             {renameWarning && (
                 <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-[60] p-4" onClick={() => setRenameWarning(null)}>
-                    <div className="bg-gray-800 rounded-xl p-6 w-full max-w-lg text-white shadow-2xl border border-amber-500/40" onClick={e => e.stopPropagation()}>
+                    <div className="bg-white dark:bg-gray-800 rounded-xl p-6 w-full max-w-lg text-gray-900 dark:text-white shadow-2xl border border-amber-500/40" onClick={e => e.stopPropagation()}>
                         <h2 className="text-xl font-bold mb-3 text-amber-400">Byta namn delar medlemmarnas historik</h2>
                         <p className="text-sm text-gray-300 mb-3">
                             Du byter från <span className="font-bold text-white">{renameWarning.from}</span> till <span className="font-bold text-white">{renameWarning.to}</span>.
@@ -170,7 +170,7 @@ const MergeModal: React.FC<MergeModalProps> = ({ sourceExercise, bank, onMerge, 
 
     return (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={onClose}>
-            <div className="bg-gray-800 rounded-xl p-6 w-full max-w-lg text-white shadow-2xl border-gray-700 flex flex-col max-h-[80vh]" onClick={e => e.stopPropagation()}>
+            <div className="bg-white dark:bg-gray-800 rounded-xl p-6 w-full max-w-lg text-gray-900 dark:text-white shadow-2xl border border-gray-200 dark:border-gray-700 flex flex-col max-h-[80vh]" onClick={e => e.stopPropagation()}>
                 <h2 className="text-2xl font-bold mb-2">Slå ihop övning</h2>
                 <p className="text-gray-400 mb-4">
                     Välj vilken övning du vill slå ihop <strong className="text-white">{sourceExercise.name}</strong> med.
@@ -181,13 +181,13 @@ const MergeModal: React.FC<MergeModalProps> = ({ sourceExercise, bank, onMerge, 
                     value={searchTerm} 
                     onChange={(e) => setSearchTerm(e.target.value)} 
                     placeholder="Sök efter övning att behålla..." 
-                    className="w-full bg-black p-3 rounded mb-4" 
+                    className="w-full bg-gray-50 dark:bg-black border border-gray-200 dark:border-gray-700 p-3 rounded mb-4" 
                     disabled={isMerging} 
                 />
                 
                 <div className="flex-1 overflow-y-auto space-y-2 pr-2 custom-scrollbar">
                     {filteredBank.map(ex => (
-                        <div key={ex.id} className="bg-gray-900 p-3 rounded flex justify-between items-center">
+                        <div key={ex.id} className="bg-gray-50 dark:bg-gray-900 p-3 rounded flex justify-between items-center">
                             <span className="font-medium truncate mr-2">{ex.name}</span>
                             <button 
                                 onClick={() => handleMerge(ex.id)} 

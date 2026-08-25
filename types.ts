@@ -182,6 +182,10 @@ export interface Workout {
   runCount?: number;          // Antal körningar på skärm (räknas av servern)
   logCount?: number;          // Antal gånger medlemmar loggat passet (räknas av servern)
   lastRunAt?: number;         // Senaste körningen (timestamp)
+  // Coachernas eget betyg på passet, 1–5 per person. Nyckeln är personens uid.
+  // Bara personal sätter betyg — medlemmarnas upplevelse fångas redan av RPE på
+  // träningsloggen. Vem som satt vad visas aldrig i listan, bara snittet.
+  ratings?: { [uid: string]: number };
   lastRunByStudio?: { [studioId: string]: number }; // Senaste körning per skärm — grund för 1-timmesfönstret
   expiresAt?: number; // timestamp; passet är osynligt för medlemmar från och med denna tidpunkt
   locationIds?: string[]; // tom eller saknas = syns för ALLA orter

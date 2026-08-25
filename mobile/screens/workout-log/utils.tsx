@@ -2,6 +2,33 @@ import React, { useState, useEffect } from 'react';
 import { LastPerformanceRecord } from './types';
 
 export const ACTIVE_LOG_STORAGE_KEY = 'smart-skarm-active-log';
+
+/**
+ * En påbörjad loggning håller sex timmar. Längre än så är det inte längre samma
+ * träningspass, och ett halvfärdigt pass från i tisdags ska inte erbjuda
+ * "fortsätt" på lördagen.
+ */
+export const ACTIVE_LOG_MAX_AGE_MS = 6 * 60 * 60 * 1000;
+
+/** Har den sparade sessionen något medlemmen faktiskt fyllt i? */
+export const activeLogHasContent = (session: any): boolean => {
+    if (!session) return false;
+    const results = session.exerciseResults;
+    if (Array.isArray(results) && results.length > 0) return true;
+    if (session.customActivity && (session.customActivity.name || session.customActivity.duration)) return true;
+    return false;
+};
+
+/** Sparad session som är för gammal räknas som obefintlig. */
+export const isActiveLogFresh = (session: any, now: number = Date.now()): boolean => {
+    if (!session) return false;
+    const ts = typeof session.timestamp === 'number' ? session.timestamp : 0;
+    if (!ts) return false;
+    const age = now - ts;
+    // Negativ ålder betyder att enhetens klocka går fel — då litar vi på sessionen
+    // hellre än att kasta medlemmens arbete.
+    return age < ACTIVE_LOG_MAX_AGE_MS;
+};
 export const DEFAULT_REST_SECONDS = 90;
 
 /**

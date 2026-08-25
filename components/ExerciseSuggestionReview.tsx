@@ -16,14 +16,14 @@ const SuggestionEditorModal: React.FC<{ suggestion: SuggestedExercise, onSaveAnd
 
     return (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4" onClick={onClose}>
-            <div className="bg-gray-800 rounded-xl p-6 w-full max-w-lg text-white shadow-2xl border-gray-700" onClick={e => e.stopPropagation()}>
+            <div className="bg-white dark:bg-gray-800 rounded-xl p-6 w-full max-w-lg text-gray-900 dark:text-white shadow-2xl border border-gray-200 dark:border-gray-700" onClick={e => e.stopPropagation()}>
                 <h2 className="text-2xl font-bold mb-6">Redigera & Godkänn Förslag</h2>
                 <div className="space-y-4">
-                    <div><label className="text-sm text-gray-400">Namn</label><input type="text" value={local.name} onChange={(e) => setLocal(p => ({ ...p, name: e.target.value }))} className="w-full bg-black p-3 rounded" disabled={isSaving} /></div>
-                    <div><label className="text-sm text-gray-400">Beskrivning</label><textarea value={local.description} onChange={(e) => setLocal(p => ({ ...p, description: e.target.value }))} rows={4} className="w-full bg-black p-3 rounded" disabled={isSaving} /></div>
+                    <div><label className="text-sm text-gray-500 dark:text-gray-400">Namn</label><input type="text" value={local.name} onChange={(e) => setLocal(p => ({ ...p, name: e.target.value }))} className="w-full bg-gray-50 dark:bg-black border border-gray-200 dark:border-gray-700 p-3 rounded" disabled={isSaving} /></div>
+                    <div><label className="text-sm text-gray-500 dark:text-gray-400">Beskrivning</label><textarea value={local.description} onChange={(e) => setLocal(p => ({ ...p, description: e.target.value }))} rows={4} className="w-full bg-gray-50 dark:bg-black border border-gray-200 dark:border-gray-700 p-3 rounded" disabled={isSaving} /></div>
                     <div>
-                        <label className="text-sm text-gray-400">Taggar (komma-separerade)</label>
-                        <input type="text" value={local.tags?.join(', ') || ''} onChange={(e) => setLocal(p => ({ ...p, tags: e.target.value.split(',').map(t => t.trim()).filter(t => t) }))} placeholder="t.ex. axlar, styrka, hantlar" className="w-full bg-black p-3 rounded" disabled={isSaving} />
+                        <label className="text-sm text-gray-500 dark:text-gray-400">Taggar (komma-separerade)</label>
+                        <input type="text" value={local.tags?.join(', ') || ''} onChange={(e) => setLocal(p => ({ ...p, tags: e.target.value.split(',').map(t => t.trim()).filter(t => t) }))} placeholder="t.ex. axlar, styrka, hantlar" className="w-full bg-gray-50 dark:bg-black border border-gray-200 dark:border-gray-700 p-3 rounded" disabled={isSaving} />
                     </div>
                 </div>
                 <div className="mt-6 flex gap-4">
