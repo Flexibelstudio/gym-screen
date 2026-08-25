@@ -510,15 +510,15 @@ export const ExerciseLogCard: React.FC<{
                                     </div>
                                     
                                     {showReps && (
-                                        <div className="bg-gray-50 dark:bg-gray-800 rounded-xl p-3.5 border border-gray-100 dark:border-gray-700 shadow-inner">
-                                            <input type="text" inputMode="numeric" value={set.reps} onChange={(e) => handleSetChange(index, 'reps', e.target.value)} placeholder="0" className="w-full bg-transparent text-gray-900 dark:text-white font-black text-xl focus:outline-none text-center" disabled={set.completed} />
+                                        <div className="min-w-0 bg-gray-50 dark:bg-gray-800 rounded-xl p-3 sm:p-3.5 border border-gray-100 dark:border-gray-700 shadow-inner">
+                                            <input type="text" inputMode="numeric" value={set.reps} onChange={(e) => handleSetChange(index, 'reps', e.target.value)} placeholder="0" size={1} className="w-full min-w-0 bg-transparent text-gray-900 dark:text-white font-black text-lg sm:text-xl focus:outline-none text-center" disabled={set.completed} />
                                         </div>
                                     )}
                                     
                                     {showWeight && (
-                                        <div className="relative">
-                                            <div className="bg-gray-50 dark:bg-gray-800 rounded-xl p-3.5 border border-gray-100 dark:border-gray-700 shadow-inner">
-                                                <input type="text" inputMode="decimal" value={set.weight} onChange={(e) => handleSetChange(index, 'weight', normalizeDecimalInput(e.target.value))} placeholder="0" className="w-full bg-transparent text-gray-900 dark:text-white font-black text-xl focus:outline-none text-center" disabled={set.completed} />
+                                        <div className="relative min-w-0">
+                                            <div className="min-w-0 bg-gray-50 dark:bg-gray-800 rounded-xl p-3 sm:p-3.5 border border-gray-100 dark:border-gray-700 shadow-inner">
+                                                <input type="text" inputMode="decimal" value={set.weight} onChange={(e) => handleSetChange(index, 'weight', normalizeDecimalInput(e.target.value))} placeholder="0" size={1} className="w-full min-w-0 bg-transparent text-gray-900 dark:text-white font-black text-lg sm:text-xl focus:outline-none text-center" disabled={set.completed} />
                                             </div>
                                         </div>
                                     )}
@@ -528,7 +528,7 @@ export const ExerciseLogCard: React.FC<{
                                         // gissa att "12,37" betyder 12 minuter 22 sekunder. Samma
                                         // TimeInput som egna aktiviteter redan använder; värdet
                                         // lagras oförändrat som decimala minuter.
-                                        <div className={set.completed ? 'pointer-events-none opacity-60' : ''}>
+                                        <div className={`min-w-0 ${set.completed ? 'pointer-events-none opacity-60' : ''}`}>
                                             <TimeInput
                                                 value={set.time != null ? String(set.time) : ''}
                                                 onChange={(val) => handleSetChange(index, 'time', val)}
@@ -539,14 +539,14 @@ export const ExerciseLogCard: React.FC<{
                                     )}
 
                                     {showDistance && (
-                                        <div className="bg-gray-50 dark:bg-gray-800 rounded-xl p-3.5 border border-gray-100 dark:border-gray-700 shadow-inner">
-                                            <input type="text" inputMode="decimal" value={set.distance || ''} onChange={(e) => handleSetChange(index, 'distance', normalizeDecimalInput(e.target.value))} placeholder="0" className="w-full bg-transparent text-gray-900 dark:text-white font-black text-xl focus:outline-none text-center" disabled={set.completed} />
+                                        <div className="min-w-0 bg-gray-50 dark:bg-gray-800 rounded-xl p-3 sm:p-3.5 border border-gray-100 dark:border-gray-700 shadow-inner">
+                                            <input type="text" inputMode="decimal" value={set.distance || ''} onChange={(e) => handleSetChange(index, 'distance', normalizeDecimalInput(e.target.value))} placeholder="0" size={1} className="w-full min-w-0 bg-transparent text-gray-900 dark:text-white font-black text-lg sm:text-xl focus:outline-none text-center" disabled={set.completed} />
                                         </div>
                                     )}
 
                                     {showKcal && (
                                         <div className="bg-gray-50 dark:bg-gray-800 rounded-xl p-3.5 border border-gray-100 dark:border-gray-700 shadow-inner">
-                                            <input type="number" inputMode="numeric" value={set.kcal || ''} onChange={(e) => handleSetChange(index, 'kcal', e.target.value)} placeholder="0" className="w-full bg-transparent text-gray-900 dark:text-white font-black text-xl focus:outline-none text-center" disabled={set.completed} />
+                                            <input type="number" inputMode="numeric" value={set.kcal || ''} onChange={(e) => handleSetChange(index, 'kcal', e.target.value)} placeholder="0" size={1} className="w-full min-w-0 bg-transparent text-gray-900 dark:text-white font-black text-lg sm:text-xl focus:outline-none text-center" disabled={set.completed} />
                                         </div>
                                     )}
 
