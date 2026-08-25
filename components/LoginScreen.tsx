@@ -193,7 +193,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onClose, onRegisterGym
     const renderLoginView = () => (
         <>
             <div className="text-center mb-6 shrink-0">
-                <h2 className="text-2xl font-bold text-white uppercase tracking-tight">Logga in</h2>
+                <h2 className="text-2xl font-bold text-gray-900 dark:text-white uppercase tracking-tight">Logga in</h2>
                 <p className="text-gray-500 dark:text-gray-400 mt-1 text-sm font-medium">För administratörer och medlemmar</p>
             </div>
             
@@ -286,7 +286,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onClose, onRegisterGym
     const renderResetView = () => (
         <>
             <div className="text-center mb-6 shrink-0">
-                <h2 className="text-2xl font-bold text-white uppercase tracking-tight">Återställ lösenord</h2>
+                <h2 className="text-2xl font-bold text-gray-900 dark:text-white uppercase tracking-tight">Återställ lösenord</h2>
                 <p className="text-gray-500 dark:text-gray-400 mt-1">Ange din e-post så skickar vi en länk.</p>
             </div>
             <div className="space-y-6 flex-1 min-h-0 overflow-y-auto pr-1 pb-1 custom-scrollbar" onKeyDown={(e) => { if (e.key === 'Enter') handleResetPassword(e); }}>
@@ -330,7 +330,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onClose, onRegisterGym
     const renderRegisterView = () => (
         <>
             <div className="text-center mb-6 shrink-0">
-                <h2 className="text-2xl font-bold text-white uppercase tracking-tight">Skapa konto</h2>
+                <h2 className="text-2xl font-bold text-gray-900 dark:text-white uppercase tracking-tight">Skapa konto</h2>
                 <p className="text-gray-500 dark:text-gray-400 mt-1">Gå med i ett befintligt gym</p>
             </div>
             <div className="space-y-4 flex-1 min-h-0 overflow-y-auto pr-1 pb-1 custom-scrollbar" onKeyDown={(e) => { if (e.key === 'Enter') handleRegister(e); }}>
@@ -353,7 +353,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onClose, onRegisterGym
                             )}
                             <div className="min-w-0">
                                 <span className="text-[10px] font-black tracking-widest uppercase text-primary block">Inbjudan bekräftad</span>
-                                <h3 className="text-sm sm:text-base font-black text-white tracking-tight truncate">
+                                <h3 className="text-sm sm:text-base font-black text-gray-900 dark:text-white tracking-tight truncate">
                                     Du går med i {inviteDetails.organizationName}
                                     {inviteDetails.locationName ? ` — ${inviteDetails.locationName}` : ''}
                                 </h3>
@@ -406,7 +406,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onClose, onRegisterGym
                             </svg>
                         )}
                         <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
-                            <span className="text-xs text-white font-bold">Ändra</span>
+                            <span className="text-xs text-gray-900 dark:text-white font-bold">Ändra</span>
                         </div>
                     </div>
                     <input 
@@ -614,7 +614,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onClose, onRegisterGym
                 className="w-full max-w-md relative"
             >
                 {onClose && (
-                    <button onClick={onClose} className="absolute -top-12 right-0 text-white hover:text-gray-300 p-2">
+                    <button onClick={onClose} className="absolute -top-12 right-0 text-gray-900 dark:text-white hover:text-gray-300 p-2">
                         <CloseIcon className="w-8 h-8" />
                     </button>
                 )}

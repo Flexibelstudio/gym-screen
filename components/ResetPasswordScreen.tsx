@@ -105,7 +105,7 @@ export const ResetPasswordScreen: React.FC = () => {
             {/* Header / Logo */}
             <div className="flex items-center gap-3 mb-8">
                 <img src="/favicon.png" alt="SmartStudio Logo" className="w-12 h-12 rounded-xl shadow-lg border border-gray-200 dark:border-slate-800" />
-                <span className="text-xl font-black text-white uppercase tracking-tight">SmartStudio</span>
+                <span className="text-xl font-black text-gray-900 dark:text-white uppercase tracking-tight">SmartStudio</span>
             </div>
 
             <motion.div 
@@ -142,7 +142,7 @@ export const ResetPasswordScreen: React.FC = () => {
                             <div className="w-16 h-16 bg-red-500/10 text-red-400 rounded-full flex items-center justify-center mx-auto mb-4">
                                 <AlertCircle className="w-8 h-8" />
                             </div>
-                            <h2 className="text-xl font-bold text-white mb-2 uppercase tracking-tight">Ett fel uppstod</h2>
+                            <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-2 uppercase tracking-tight">Ett fel uppstod</h2>
                             <p className="text-gray-500 dark:text-slate-400 text-sm mb-8 leading-relaxed px-2">
                                 {verificationError}
                             </p>
@@ -164,7 +164,7 @@ export const ResetPasswordScreen: React.FC = () => {
                             <div className="w-16 h-16 bg-emerald-500/10 text-emerald-400 rounded-full flex items-center justify-center mx-auto mb-4">
                                 <CheckCircle2 className="w-8 h-8" />
                             </div>
-                            <h2 className="text-xl font-bold text-white mb-2 uppercase tracking-tight">Klart!</h2>
+                            <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-2 uppercase tracking-tight">Klart!</h2>
                             <p className="text-gray-500 dark:text-slate-400 text-sm mb-8 leading-relaxed px-2">
                                 Ditt lösenord har uppdaterats framgångsrikt. Du kan nu logga in med ditt nya lösenord.
                             </p>
@@ -185,7 +185,7 @@ export const ResetPasswordScreen: React.FC = () => {
                             className="space-y-6"
                         >
                             <div className="text-center mb-6">
-                                <h2 className="text-2xl font-bold text-white uppercase tracking-tight">Nytt lösenord</h2>
+                                <h2 className="text-2xl font-bold text-gray-900 dark:text-white uppercase tracking-tight">Nytt lösenord</h2>
                                 <p className="text-xs text-gray-500 dark:text-slate-400 mt-1">
                                     Välj ett nytt lösenord för kontot <strong className="text-slate-200">{email}</strong>
                                 </p>

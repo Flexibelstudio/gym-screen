@@ -55,3 +55,5 @@ ui-debug.log
 /playwright-report/
 /blob-report/
 /test-results/
+# Filer som ska raderas (flyttade hit, ligger utanfor bygget)
+_to_delete/

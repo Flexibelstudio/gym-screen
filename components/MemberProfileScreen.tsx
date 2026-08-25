@@ -1606,7 +1606,7 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                         <div className="relative z-10">
                             <div>
                                 <div className="flex items-center gap-2 mb-1">
-                                    <p className="text-xs font-black uppercase tracking-widest text-white/70">Din Träningsprofil</p>
+                                    <p className="text-sm font-black uppercase tracking-widest text-white/70">Din Träningsprofil</p>
                                     <button 
                                         onClick={() => setShowArchetypeInfo(true)}
                                         className="w-5 h-5 rounded-full bg-white/20 flex items-center justify-center hover:bg-white/30 transition-colors"
@@ -1615,12 +1615,12 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                                         <span className="text-xs font-bold text-white">i</span>
                                     </button>
                                 </div>
-                                <h3 className="text-3xl font-black flex items-center gap-3">
+                                <h3 className="text-xl font-black flex items-center gap-2">
                                     {archetype.title}
-                                    <span className="bg-white/20 p-1.5 rounded-lg">{archetype.icon}</span>
+                                    <span className="bg-white/20 p-1 rounded-lg">{archetype.icon}</span>
                                 </h3>
                             </div>
-                            <p className="text-lg font-medium text-white/90 leading-relaxed max-w-lg mt-4">{archetype.desc}</p>
+                            <p className="text-xs font-bold text-white/90 leading-relaxed max-w-lg mt-2">{archetype.desc}</p>
                         </div>
                         <div className="absolute -bottom-10 -right-10 w-48 h-48 bg-white/20 rounded-full blur-[60px] pointer-events-none"></div>
                     </div>

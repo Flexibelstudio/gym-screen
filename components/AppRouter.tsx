@@ -10,7 +10,6 @@ import SavedWorkoutsScreen from './SavedWorkoutsScreen';
 import WorkoutDetailScreen from './WorkoutDetailScreen';
 import { TimerScreen } from './TimerScreen';
 import { RepsOnlyScreen } from './RepsOnlyScreen';
-import { WarmupScreen } from './WarmupScreen';
 import { WorkoutLogScreen } from '../mobile/screens/WorkoutLogScreen';
 import { MemberProfileScreen } from './MemberProfileScreen';
 

@@ -93,7 +93,7 @@ export const RegisterGymScreen: React.FC<RegisterGymScreenProps> = ({ onCancel }
                 </button>
 
                 <div className="text-center mb-8">
-                    <h2 className="text-3xl font-bold text-white tracking-tight">Registrera ditt gym</h2>
+                    <h2 className="text-3xl font-bold text-gray-900 dark:text-white tracking-tight">Registrera ditt gym</h2>
                     <p className="text-gray-500 dark:text-gray-400 mt-2">Börja använda SmartStudio i din verksamhet idag.</p>
                 </div>
 
