@@ -566,6 +566,13 @@ export const createLead = async (leadData: Omit<Lead, 'id' | 'createdAt' | 'stat
             status: 'new',
             createdAt: Date.now()
         };
+
+        // Firestore vagrar ta emot undefined. Ett tomt telefonfalt skickas som
+        // undefined fran formularen, och da forsvann hela leadet med
+        // "Unsupported field value". Vi plockar bort de tomma faltan istallet.
+        Object.keys(newLead).forEach(key => {
+            if ((newLead as any)[key] === undefined) delete (newLead as any)[key];
+        });
         
         // Vi sparar leadet först. Om detta misslyckas kastas ett fel och vi returnerar false.
         await setDoc(newDocRef, newLead);

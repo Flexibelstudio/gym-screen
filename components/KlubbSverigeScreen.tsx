@@ -34,7 +34,7 @@ export const KlubbSverigeScreen: React.FC = () => {
     const [isSent, setIsSent] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
-    const canSubmit = gymName.trim() && orgNumber.trim() && name.trim() && email.trim();
+    const canSubmit = gymName.trim() && orgNumber.trim() && name.trim() && email.trim() && phone.trim();
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -47,7 +47,7 @@ export const KlubbSverigeScreen: React.FC = () => {
                 name: name.trim(),
                 email: email.trim(),
                 gymName: gymName.trim(),
-                phone: phone.trim() || undefined,
+                phone: phone.trim(),
                 message: message.trim() || undefined,
                 source: 'klubbsverige',
                 orgNumber: orgNumber.trim(),
@@ -134,8 +134,8 @@ export const KlubbSverigeScreen: React.FC = () => {
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div>
-                            <label className={labelClass}>Telefon</label>
-                            <input type="tel" value={phone} onChange={e => setPhone(e.target.value)} className={fieldClass} />
+                            <label className={labelClass}>Telefon *</label>
+                            <input type="tel" value={phone} onChange={e => setPhone(e.target.value)} required className={fieldClass} />
                         </div>
                         <div>
                             <label className={labelClass}>Antal skärmar</label>
