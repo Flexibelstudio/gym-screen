@@ -26,7 +26,8 @@ import {
   writeBatch, 
   serverTimestamp,
   runTransaction,
-  deleteField
+  deleteField,
+  increment
 } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import { getToken } from 'firebase/messaging';
@@ -167,6 +168,19 @@ export const calculateBodyWeightHistory = (
 export const updateUserGoals = async (uid: string, goals: MemberGoals) => {
     if (isOffline || !db || !uid) return;
     await updateDoc(doc(db, 'users', uid), { goals: sanitizeData(goals) });
+};
+
+/**
+ * Räknar upp medlemmens delningar av värvningslänken. Misslyckas den tyst gör
+ * det inget — delningen ska aldrig blockeras av en räknare.
+ */
+export const incrementReferralShares = async (uid: string): Promise<void> => {
+    if (isOffline || !db || !uid) return;
+    try {
+        await updateDoc(doc(db, 'users', uid), { referralShares: increment(1) });
+    } catch (e) {
+        console.warn('Kunde inte räkna delningen', e);
+    }
 };
 
 export const updateUserProfile = async (uid: string, data: Partial<UserData> | Record<string, any>) => {

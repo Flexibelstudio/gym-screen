@@ -259,6 +259,27 @@ export interface Location {
   createdAt?: number;
   inviteCode?: string;
   coachCode?: string;
+  /** Egen värvningslänk för orten. Tom = organisationens länk används. */
+  referralUrl?: string;
+}
+
+/**
+ * Värva en vän. Gymmet pekar ut sitt eget formulär — vi lagrar aldrig
+ * kompisens uppgifter, de hamnar direkt i gymmets CRM. Vi skickar med vem som
+ * värvade och vilken ort som en förifyllning i länken, så att gymmet vet vem
+ * som ska belönas utan att kompisen behöver gissa.
+ */
+export interface ReferralConfig {
+  enabled?: boolean;
+  /** Formulärets adress hos gymmet. */
+  url?: string;
+  /** Parameternamn för värvarens namn, t.ex. "varvare". Tom = skickas inte. */
+  referrerParam?: string;
+  /** Parameternamn för orten, t.ex. "ort". Tom = skickas inte. */
+  locationParam?: string;
+  /** Rubrik och text som medlemmen ser. */
+  title?: string;
+  description?: string;
 }
 
 export interface CompanyDetails {
@@ -342,6 +363,8 @@ export interface Organization {
   inviteCode?: string;
   coachCode?: string;
   inviteCodes?: string[]; // Includes location-specific codes for querying
+  /** Värva en vän — se ReferralConfig. */
+  referral?: ReferralConfig;
   maxFreeCoaches?: number;
   lastActiveAt?: number;
   discountType?: 'percentage' | 'fixed';
@@ -430,6 +453,10 @@ export interface SuggestedExercise {
 
 export interface UserData {
   uid: string;
+  /** Antal gånger medlemmen delat värvningslänken eller visat QR-koden.
+   *  Säger inget om hur många som faktiskt blev medlemmar — det vet bara
+   *  gymmets CRM. Används för att se vilka som sprider ordet. */
+  referralShares?: number;
   email?: string;
   role: UserRole;
   status?: 'active' | 'inactive' | 'pending_coach';

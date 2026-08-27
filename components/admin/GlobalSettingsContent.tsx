@@ -1,11 +1,11 @@
 
 import React, { useState } from 'react';
-import { StudioConfig, Organization, ThemeOption, TimerSoundProfile } from '../../types';
+import { StudioConfig, Organization, ThemeOption, TimerSoundProfile, ReferralConfig } from '../../types';
 import { ToggleSwitch, InformationCircleIcon, SpeakerphoneIcon, LockIcon } from '../icons';
 import { SelectField } from './AdminShared';
 import { CategoryPromptManager } from '../CategoryPromptManager';
 import { FeatureInfoModal } from './AdminModals';
-import { saveAdminActivity } from '../../services/firebaseService';
+import { saveAdminActivity, updateOrganizationReferral, listenToMembers } from '../../services/firebaseService';
 import { useAuth } from '../../context/AuthContext';
 import { playTimerSound } from '../../hooks/useWorkoutTimer';
 
@@ -18,6 +18,195 @@ interface GlobalSettingsContentProps {
     handleSaveConfig: (configOverride?: StudioConfig) => Promise<void>;
     onTriggerUpgrade: () => void;
 }
+
+
+/**
+ * Värva en vän — inställningar.
+ *
+ * Gymmet pekar ut sitt EGET formulär. Vi lagrar aldrig den värvades uppgifter,
+ * de hamnar direkt i gymmets CRM. Det enda vi gör är att förifylla vem som
+ * värvade och vilken ort, så att gymmet vet vem som ska belönas.
+ *
+ * Parameternamnen måste matcha fältnamnen i gymmets formulär. Gissar vi fel
+ * tappas värvaren tyst — därför visar vi en levande förhandsvisning av länken.
+ */
+const ReferralSettings: React.FC<{ organization: Organization }> = ({ organization }) => {
+    const [draft, setDraft] = useState<ReferralConfig>(organization.referral || {});
+    const [isSaving, setIsSaving] = useState(false);
+    const [saved, setSaved] = useState(false);
+
+    const set = <K extends keyof ReferralConfig>(key: K, value: ReferralConfig[K]) => {
+        setDraft(prev => ({ ...prev, [key]: value }));
+        setSaved(false);
+    };
+
+    const preview = React.useMemo(() => {
+        const base = (draft.url || '').trim();
+        if (!base) return null;
+        try {
+            const url = new URL(base.startsWith('http') ? base : `https://${base}`);
+            if ((draft.referrerParam || '').trim()) url.searchParams.set(draft.referrerParam!.trim(), 'Marie A.');
+            if ((draft.locationParam || '').trim()) url.searchParams.set(draft.locationParam!.trim(), organization.locations?.[0]?.name || 'Hisings Kärra');
+            return decodeURI(url.toString());
+        } catch {
+            return null;
+        }
+    }, [draft.url, draft.referrerParam, draft.locationParam, organization.locations]);
+
+    const handleSave = async () => {
+        setIsSaving(true);
+        try {
+            await updateOrganizationReferral(organization.id, draft);
+            setSaved(true);
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    // Vilka sprider ordet. Vi kan bara räkna delningar — om någon faktiskt blev
+    // medlem vet bara gymmets CRM. Därför står det "delningar", inte "värvade".
+    const [sharers, setSharers] = useState<any[]>([]);
+    React.useEffect(() => {
+        if (!organization?.id) return;
+        const unsub = listenToMembers(organization.id, (members: any[]) => {
+            const withShares = (members || [])
+                .filter(m => (m.referralShares || 0) > 0)
+                .sort((a, b) => (b.referralShares || 0) - (a.referralShares || 0));
+            setSharers(withShares);
+        });
+        return () => { if (typeof unsub === 'function') unsub(); };
+    }, [organization?.id]);
+
+    const field = "w-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl px-3 py-2.5 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary";
+    const label = "block text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 mb-1";
+
+    return (
+        <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-5 space-y-5">
+            <label className="flex items-start gap-3 cursor-pointer">
+                <input
+                    type="checkbox"
+                    checked={!!draft.enabled}
+                    onChange={e => set('enabled', e.target.checked)}
+                    className="mt-0.5 w-5 h-5 rounded accent-teal-500 flex-shrink-0"
+                />
+                <span>
+                    <span className="block font-bold text-gray-900 dark:text-white">Visa i medlemsappen</span>
+                    <span className="block text-xs text-gray-500 dark:text-gray-400">
+                        Medlemmen får en rad på startsidan med QR-kod och delningslänk.
+                    </span>
+                </span>
+            </label>
+
+            <div>
+                <label className={label}>Länk till ert formulär</label>
+                <input
+                    type="url"
+                    value={draft.url || ''}
+                    onChange={e => set('url', e.target.value)}
+                    placeholder="https://ertgym.se/prova-pa"
+                    className={field}
+                />
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                    <label className={label}>Fältnamn: värvare</label>
+                    <input
+                        type="text"
+                        value={draft.referrerParam || ''}
+                        onChange={e => set('referrerParam', e.target.value)}
+                        placeholder="varvare"
+                        className={field}
+                    />
+                </div>
+                <div>
+                    <label className={label}>Fältnamn: ort</label>
+                    <input
+                        type="text"
+                        value={draft.locationParam || ''}
+                        onChange={e => set('locationParam', e.target.value)}
+                        placeholder="ort"
+                        className={field}
+                    />
+                </div>
+            </div>
+
+            <div>
+                <label className={label}>Rubrik i appen</label>
+                <input
+                    type="text"
+                    value={draft.title || ''}
+                    onChange={e => set('title', e.target.value)}
+                    placeholder="Bjud in en vän"
+                    className={field}
+                />
+            </div>
+
+            <div>
+                <label className={label}>Kort text</label>
+                <input
+                    type="text"
+                    value={draft.description || ''}
+                    onChange={e => set('description', e.target.value)}
+                    placeholder="Visa koden för din kompis så kan hon anmäla sig direkt."
+                    className={field}
+                />
+            </div>
+
+            {preview && (
+                <div className="p-3 rounded-xl bg-gray-50 dark:bg-gray-900 border border-gray-100 dark:border-gray-700">
+                    <div className={label}>Så här ser länken ut</div>
+                    <div className="text-xs font-mono text-gray-600 dark:text-gray-300 break-all">{preview}</div>
+                </div>
+            )}
+
+            <div className="p-4 rounded-xl bg-primary/5 border border-primary/20 text-sm text-gray-600 dark:text-gray-300 space-y-2">
+                <div className="font-black text-gray-900 dark:text-white">Tips: vad formuläret bör innehålla</div>
+                <ul className="list-disc pl-5 space-y-1 text-xs">
+                    <li>Namn och mobilnummer. Varje extra fält halverar antalet som fyller i.</li>
+                    <li>Ett fält som heter samma sak som fältnamnet ovan, där värvaren hamnar. Gör det obligatoriskt om ni ska ge en belöning.</li>
+                    <li>En kryssruta för samtycke att bli kontaktad.</li>
+                    <li>Ett tydligt erbjudande högst upp — vad får kompisen?</li>
+                </ul>
+                <div className="text-xs pt-1">
+                    Fyller ni i fältnamnen ovan kommer värvare och ort förifyllda. Kan ert formulär inte ta emot
+                    förifyllning: lämna dem tomma och fråga i formuläret i stället.
+                </div>
+            </div>
+
+            <div className="flex items-center gap-3">
+                <button
+                    onClick={handleSave}
+                    disabled={isSaving}
+                    className="px-5 py-2.5 rounded-xl bg-primary text-white font-bold disabled:opacity-50"
+                >
+                    {isSaving ? 'Sparar...' : 'Spara'}
+                </button>
+                {saved && <span className="text-sm font-bold text-primary">Sparat</span>}
+            </div>
+
+            {sharers.length > 0 && (
+                <div className="pt-4 border-t border-gray-100 dark:border-gray-700">
+                    <div className={label}>Vilka sprider ordet</div>
+                    <div className="divide-y divide-gray-100 dark:divide-gray-700">
+                        {sharers.slice(0, 15).map(m => (
+                            <div key={m.uid} className="flex items-center justify-between py-2 text-sm">
+                                <span className="text-gray-700 dark:text-gray-200 truncate">
+                                    {[m.firstName, m.lastName].filter(Boolean).join(' ') || m.email}
+                                </span>
+                                <span className="font-black text-primary flex-shrink-0 ml-3">{m.referralShares}</span>
+                            </div>
+                        ))}
+                    </div>
+                    <p className="text-xs text-gray-400 mt-2">
+                        Antalet är hur många gånger länken delats eller QR-koden visats — inte hur många som
+                        blev medlemmar. Det vet bara ert CRM.
+                    </p>
+                </div>
+            )}
+        </div>
+    );
+};
 
 export const GlobalSettingsContent: React.FC<GlobalSettingsContentProps> = ({ 
     config, isSavingConfig, isConfigDirty, handleUpdateConfigField, handleSaveConfig, organization, onTriggerUpgrade 
@@ -338,6 +527,11 @@ export const GlobalSettingsContent: React.FC<GlobalSettingsContentProps> = ({
                         onCategoriesChange={(newCats) => handleUpdateConfigField('customCategories', newCats)}
                         isSaving={isSavingConfig}
                     />
+                </section>
+
+                <section>
+                    <h4 className="text-sm font-bold uppercase tracking-wider text-gray-400 mb-4">Värva en vän</h4>
+                    <ReferralSettings organization={organization} />
                 </section>
             </div>
             

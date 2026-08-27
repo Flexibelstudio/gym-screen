@@ -111,6 +111,28 @@ export const LocationsContent: React.FC<LocationsContentProps> = ({ organization
         }
     };
 
+    /**
+     * Egen värvningslänk för orten. Tom betyder att organisationens länk används
+     * — de flesta gym behöver bara en, men den som har skilda formulär per ort
+     * ska slippa samsas om en.
+     */
+    const handleSaveReferralUrl = async (locId: string, url: string) => {
+        setIsSaving(true);
+        try {
+            const updatedLocations = locations.map(l =>
+                l.id === locId ? { ...l, referralUrl: url.trim() } : l
+            );
+            await updateOrganizationLocations(organization.id, updatedLocations);
+            setLocations(updatedLocations);
+            setToast({ message: url.trim() ? "Värvningslänk sparad!" : "Värvningslänk borttagen — organisationens används.", visible: true });
+        } catch (e) {
+            console.error(e);
+            alert("Kunde inte spara värvningslänken.");
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
     const handleGenerateMissingCodes = async (locId: string) => {
         setIsSaving(true);
         try {
@@ -193,6 +215,22 @@ export const LocationsContent: React.FC<LocationsContentProps> = ({ organization
                                             </button>
                                         </div>
                                     )}
+                                    <div className="mt-3">
+                                        <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 mb-1">
+                                            Egen värvningslänk (valfri)
+                                        </label>
+                                        <input
+                                            type="url"
+                                            defaultValue={loc.referralUrl || ''}
+                                            onBlur={(e) => {
+                                                if ((e.target.value || '').trim() !== (loc.referralUrl || '').trim()) {
+                                                    handleSaveReferralUrl(loc.id, e.target.value);
+                                                }
+                                            }}
+                                            placeholder="Lämna tom för att använda organisationens länk"
+                                            className="w-full sm:max-w-md bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl px-3 py-2 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary"
+                                        />
+                                    </div>
                                 </div>
                             </div>
                             
