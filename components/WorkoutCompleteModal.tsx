@@ -230,10 +230,14 @@ export const WorkoutCompleteModal: React.FC<WorkoutCompleteModalProps> = ({
               {message.subtitle}
             </p>
 
-            {finishTime !== undefined && finishTime > 0 && (
+            {/* Passets tid är den längd coachen angett i Hantera Pass — inget
+                annat. Den uppmätta tiden per block sa ingenting för medlemmen
+                och stod dessutom under etiketten "Total tid", vilket var fel.
+                Saknar passet en angiven längd visas ingen tid alls. */}
+            {(workout.durationMinutes || 0) > 0 && (
               <div className="bg-gray-50 dark:bg-gray-950/80 rounded-2xl p-4 mb-8 border border-gray-200 dark:border-white/10 inline-block px-8 shadow-inner">
-                <p className="text-[10px] font-black uppercase tracking-[0.25em] text-gray-400 mb-0.5">Total Tid</p>
-                <p className="font-mono text-4xl sm:text-5xl font-black text-record tabular-nums">{formatTime(finishTime)}</p>
+                <p className="text-[10px] font-black uppercase tracking-[0.25em] text-gray-400 mb-0.5">Passets tid</p>
+                <p className="font-mono text-4xl sm:text-5xl font-black text-record tabular-nums">{workout.durationMinutes} min</p>
               </div>
             )}
 

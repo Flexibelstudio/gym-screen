@@ -1,11 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { Lead } from '../../types';
-import { getLeads, updateLeadStatus } from '../../services/firebaseService';
+import { getLeads, updateLeadStatus, updateLeadVerified } from '../../services/firebaseService';
 import { MailIcon, PhoneIcon, CheckCircleIcon, ArchiveIcon } from '../icons';
 
 export const LeadsManagementTab: React.FC = () => {
     const [leads, setLeads] = useState<Lead[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+    // Källfilter. 'all' = allt, annars ett source-värde. Leads utan source är
+    // gamla förfrågningar från landningssidan och räknas som 'website'.
+    const [sourceFilter, setSourceFilter] = useState<string>('all');
 
     useEffect(() => {
         loadLeads();
@@ -22,6 +25,16 @@ export const LeadsManagementTab: React.FC = () => {
         await updateLeadStatus(id, newStatus);
         setLeads(leads.map(lead => lead.id === id ? { ...lead, status: newStatus } : lead));
     };
+
+    const handleVerifiedChange = async (id: string, verified: boolean) => {
+        await updateLeadVerified(id, verified);
+        setLeads(leads.map(lead => lead.id === id ? { ...lead, memberVerified: verified } : lead));
+    };
+
+    const sourceOf = (lead: Lead) => lead.source || 'website';
+    const availableSources = Array.from(new Set(leads.map(sourceOf)));
+    const visibleLeads = sourceFilter === 'all' ? leads : leads.filter(l => sourceOf(l) === sourceFilter);
+    const sourceLabel = (src: string) => src === 'klubbsverige' ? 'KlubbSverige' : src === 'website' ? 'Landningssidan' : src;
 
     const getStatusBadge = (status: Lead['status']) => {
         switch (status) {
@@ -54,17 +67,44 @@ export const LeadsManagementTab: React.FC = () => {
                 </div>
             ) : (
                 <div className="space-y-4">
-                    {leads.map(lead => (
+                    {availableSources.length > 1 && (
+                        <div className="flex flex-wrap items-center gap-2 pb-2">
+                            <span className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400">Källa</span>
+                            {['all', ...availableSources].map(src => (
+                                <button
+                                    key={src}
+                                    onClick={() => setSourceFilter(src)}
+                                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${sourceFilter === src ? 'bg-primary text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300'}`}
+                                >
+                                    {src === 'all' ? `Alla (${leads.length})` : `${sourceLabel(src)} (${leads.filter(l => sourceOf(l) === src).length})`}
+                                </button>
+                            ))}
+                        </div>
+                    )}
+                    {visibleLeads.map(lead => (
                         <div key={lead.id} className={`p-5 rounded-xl border transition-colors ${lead.status === 'new' ? 'bg-green-50/50 border-green-200 dark:bg-green-900/10 dark:border-green-900/30' : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700'}`}>
                             <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
                                 <div className="flex-grow">
                                     <div className="flex items-center gap-3 mb-2">
                                         <h3 className="text-lg font-bold text-gray-900 dark:text-white">{lead.gymName}</h3>
                                         {getStatusBadge(lead.status)}
+                                        {lead.source === 'klubbsverige' && (
+                                            <span className="px-2 py-1 bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400 rounded-full text-xs font-black uppercase tracking-wider">
+                                                KlubbSverige
+                                            </span>
+                                        )}
+                                        {lead.memberVerified && (
+                                            <span className="px-2 py-1 bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400 rounded-full text-xs font-bold">
+                                                Medlemskap verifierat
+                                            </span>
+                                        )}
                                         <span className="text-xs text-gray-500">{new Date(lead.createdAt).toLocaleDateString('sv-SE', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
                                     </div>
                                     <div className="text-sm text-gray-700 dark:text-gray-300 mb-3 space-y-1">
                                         <p><span className="font-medium">Kontaktperson:</span> {lead.name}</p>
+                                        {lead.orgNumber && <p><span className="font-medium">Org.nr:</span> <span className="font-mono">{lead.orgNumber}</span></p>}
+                                        {lead.screensInterested ? <p><span className="font-medium">Antal skärmar:</span> {lead.screensInterested}</p> : null}
+                                        {lead.campaignCode && <p><span className="font-medium">Kampanjkod:</span> <span className="font-mono">{lead.campaignCode}</span></p>}
                                         <div className="flex items-center gap-4">
                                             <p className="flex items-center gap-1"><MailIcon className="w-4 h-4 text-gray-400" /> {lead.email}</p>
                                             {lead.phone && <p className="flex items-center gap-1"><PhoneIcon className="w-4 h-4 text-gray-400" /> {lead.phone}</p>}
@@ -78,6 +118,16 @@ export const LeadsManagementTab: React.FC = () => {
                                 </div>
                                 
                                 <div className="flex flex-col gap-2 min-w-[140px]">
+                                    {lead.orgNumber && (
+                                        <button
+                                            onClick={() => handleVerifiedChange(lead.id, !lead.memberVerified)}
+                                            className={`flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-colors ${lead.memberVerified ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400' : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300'}`}
+                                            title="Stäm av org.nr mot KlubbSveriges medlemsregister"
+                                        >
+                                            {lead.memberVerified ? 'Verifierad' : 'Markera verifierad'}
+                                        </button>
+                                    )}
+
                                     <a 
                                         href={`mailto:${lead.email}?subject=${encodeURIComponent('Angående er förfrågan om SmartStudio')}`}
                                         className="flex items-center justify-center gap-2 px-4 py-2 bg-primary text-black font-bold rounded-lg hover:bg-primary/90 transition-colors text-sm"

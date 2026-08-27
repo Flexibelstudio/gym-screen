@@ -137,7 +137,7 @@ const ReferralSettings: React.FC<{ organization: Organization }> = ({ organizati
                     type="text"
                     value={draft.title || ''}
                     onChange={e => set('title', e.target.value)}
-                    placeholder="Bjud in en vän"
+                    placeholder="Träna med en vän hos [ert namn]"
                     className={field}
                 />
             </div>
@@ -148,7 +148,7 @@ const ReferralSettings: React.FC<{ organization: Organization }> = ({ organizati
                     type="text"
                     value={draft.description || ''}
                     onChange={e => set('description', e.target.value)}
-                    placeholder="Visa koden för din kompis så kan hon anmäla sig direkt."
+                    placeholder="Visa koden för din kompis så kan hon anmäla sig till ett pass hos oss."
                     className={field}
                 />
             </div>
@@ -167,6 +167,8 @@ const ReferralSettings: React.FC<{ organization: Organization }> = ({ organizati
                     <li>Ett fält som heter samma sak som fältnamnet ovan, där värvaren hamnar. Gör det obligatoriskt om ni ska ge en belöning.</li>
                     <li>En kryssruta för samtycke att bli kontaktad.</li>
                     <li>Ett tydligt erbjudande högst upp — vad får kompisen?</li>
+                    <li>Skriv gärna ut ert eget namn i rubriken. Det ska vara tydligt att man bjuder in
+                        någon att träna hos er, inte att ladda ner en app.</li>
                 </ul>
                 <div className="text-xs pt-1">
                     Fyller ni i fältnamnen ovan kommer värvare och ort förifyllda. Kan ert formulär inte ta emot

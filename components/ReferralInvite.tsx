@@ -59,8 +59,16 @@ export const ReferralInvite: React.FC<ReferralInviteProps> = ({ organization, us
 
     if (!referral?.enabled || !shareUrl) return null;
 
-    const title = referral.title?.trim() || 'Bjud in en vän';
-    const description = referral.description?.trim() || 'Visa koden för din kompis så kan hon anmäla sig direkt.';
+    // Det ska aldrig kunna läsas som en inbjudan till appen. Man bjuder in
+    // någon att träna hos gymmet — därför står gymmets eller ortens namn i
+    // rubriken så fort vi vet det.
+    const placeName = organization?.name || null;
+    const title = referral.title?.trim()
+        || (placeName ? `Träna med en vän hos ${placeName}` : 'Träna med en vän');
+    const description = referral.description?.trim()
+        || (placeName
+            ? `Visa koden för din kompis så kan hon anmäla sig till ett pass hos ${placeName}.`
+            : 'Visa koden för din kompis så kan hon anmäla sig till ett pass hos oss.');
     const shareCount = userData.referralShares || 0;
 
     // Räknaren får aldrig stå i vägen för själva delningen.
@@ -141,7 +149,8 @@ export const ReferralInvite: React.FC<ReferralInviteProps> = ({ organization, us
                             </div>
 
                             <p className="mt-3 text-center text-xs text-gray-400">
-                                Din vän skannar koden med kameran
+                                Din vän skannar koden med kameran och anmäler sig
+                                {placeName ? ` till ${placeName}` : ''}
                             </p>
 
                             <div className="mt-5 flex flex-col gap-2">

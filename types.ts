@@ -768,6 +768,16 @@ export interface Lead {
     message?: string;
     status: 'new' | 'contacted' | 'archived';
     createdAt: number;
+    /** Varifrån leadet kom. Tomt = landningssidan, som förut. */
+    source?: 'website' | 'klubbsverige' | string;
+    /** Organisationsnummer — används för att stämma av medlemskap. */
+    orgNumber?: string;
+    /** Koden personen kom in via, t.ex. ur ?kod= i länken. */
+    campaignCode?: string;
+    /** Sätts av admin när org.nr stämts av mot medlemsregistret. */
+    memberVerified?: boolean;
+    /** Antal skärmar eller anläggningar personen är intresserad av. */
+    screensInterested?: number;
 }
 
 export interface CoachNote {

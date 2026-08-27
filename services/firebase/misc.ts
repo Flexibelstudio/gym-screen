@@ -576,8 +576,10 @@ export const createLead = async (leadData: Omit<Lead, 'id' | 'createdAt' | 'stat
         setDoc(doc(collection(db, 'mail')), {
             to: 'hej@smartstudio.se',
             message: {
-                subject: `Ny förfrågan från ${leadData.gymName}`,
-                text: `Ny förfrågan från landningssidan:\n\nNamn: ${leadData.name}\nE-post: ${leadData.email}\nGym: ${leadData.gymName}\nTelefon: ${leadData.phone || '-'}\nMeddelande: ${leadData.message || '-'}`
+                subject: (leadData as any).source === 'klubbsverige'
+                    ? `KlubbSverige: ny förfrågan från ${leadData.gymName}`
+                    : `Ny förfrågan från ${leadData.gymName}`,
+                text: `Ny förfrågan:\n\nKälla: ${(leadData as any).source || 'landningssidan'}\nNamn: ${leadData.name}\nE-post: ${leadData.email}\nGym: ${leadData.gymName}\nOrg.nr: ${(leadData as any).orgNumber || '-'}\nTelefon: ${leadData.phone || '-'}\nAntal skärmar: ${(leadData as any).screensInterested || '-'}\nKampanjkod: ${(leadData as any).campaignCode || '-'}\nMeddelande: ${leadData.message || '-'}`
             }
         }).catch(e => console.log("Mail notification skipped (expected if Trigger Email is not set up):", e.message));
 
@@ -585,6 +587,19 @@ export const createLead = async (leadData: Omit<Lead, 'id' | 'createdAt' | 'stat
     } catch (error) {
         console.error("Error creating lead:", error);
         return false;
+    }
+};
+
+/**
+ * Markerar att org.nr stämts av mot KlubbSveriges medlemsregister. Verifieringen
+ * är manuell i version ett — någon jämför numret och kryssar i rutan.
+ */
+export const updateLeadVerified = async (id: string, memberVerified: boolean): Promise<void> => {
+    if (isOffline || !db) return;
+    try {
+        await updateDoc(doc(db, 'leads', id), { memberVerified });
+    } catch (error) {
+        console.error("Error updating lead verification:", error);
     }
 };
 
