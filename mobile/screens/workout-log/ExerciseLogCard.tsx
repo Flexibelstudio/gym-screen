@@ -6,6 +6,27 @@ import { calculate1RM, getRepsForPercentage, getTargetWeightForExercise, getRest
 import { LocalExerciseResult, LastPerformanceRecord, LocalSetDetail } from './types';
 import { ChevronDownIcon, formatLastPerformance, formatLastPerformanceSets, TimeInput, GROUP_COLORS, GRID_COLS_MAP, DEFAULT_REST_SECONDS, normalizeDecimalInput } from './utils';
 
+/**
+ * Vilket set som just nu har RIR-rutan öppen — delat mellan alla övningskort.
+ *
+ * I ett superset ligger övningarna i skilda kort och "Lägg till set" gäller hela
+ * gruppen. Med ett minne per kort blev rutan kvar i den föregående övningen så
+ * fort man gick vidare till nästa. Därför bor valet här: bara ett set i hela
+ * loggen kan ha rutan öppen, och allt annat man rör vid stänger den.
+ */
+let openRirKey: string | null = null;
+const rirListeners = new Set<() => void>();
+const setOpenRirKey = (key: string | null) => {
+    if (openRirKey === key) return;
+    openRirKey = key;
+    rirListeners.forEach(listener => listener());
+};
+const useOpenRirKey = () => React.useSyncExternalStore(
+    (onChange: () => void) => { rirListeners.add(onChange); return () => { rirListeners.delete(onChange); }; },
+    () => openRirKey,
+    () => null
+);
+
 export const ExerciseLogCard: React.FC<{
   name: string;
   result: LocalExerciseResult;
@@ -44,9 +65,15 @@ export const ExerciseLogCard: React.FC<{
 
     // RIR-rutan hör till det set du precis bockade av — inte till alla avbockade set.
     // Låg den kvar växte loggen med en ruta per set och skymde det du höll på med.
-    // Så fort du går vidare till nästa set fälls den in; värdet finns kvar som en
-    // liten markering du kan trycka på om du vill ändra dig.
-    const [rirOpenIdx, setRirOpenIdx] = useState<number | null>(null);
+    // Så fort du går vidare fälls den in; värdet finns kvar som en liten markering
+    // du kan trycka på om du vill ändra dig.
+    const openRir = useOpenRirKey();
+    const rirKeyFor = (index: number) => `${result.blockId}#${result.exerciseId}#${index}`;
+    const rirPrefix = `${result.blockId}#${result.exerciseId}#`;
+    useEffect(() => () => {
+        // Lämnar kortet scenen ska inte dess öppna ruta spöka vidare.
+        if (openRirKey && openRirKey.startsWith(rirPrefix)) setOpenRirKey(null);
+    }, [rirPrefix]);
     const groupSetAddedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     useEffect(() => () => { if (groupSetAddedTimerRef.current) clearTimeout(groupSetAddedTimerRef.current); }, []);
 
@@ -97,8 +124,8 @@ export const ExerciseLogCard: React.FC<{
         newSets[index] = { ...newSets[index], [field]: value };
         onUpdate({ setDetails: newSets });
         if (invalidSetIdx === index) { setInvalidSetIdx(null); }
-        if (field !== ('rir' as any) && rirOpenIdx !== null && rirOpenIdx !== index) {
-            setRirOpenIdx(null);
+        if (field !== ('rir' as any) && openRir !== null && openRir !== rirKeyFor(index)) {
+            setOpenRirKey(null);
         }
     };
 
@@ -127,9 +154,9 @@ export const ExerciseLogCard: React.FC<{
          onUpdate({ setDetails: newSets });
 
          if (isNowCompleted) {
-             setRirOpenIdx(index);
-         } else {
-             setRirOpenIdx(prev => (prev === index ? null : prev));
+             setOpenRirKey(rirKeyFor(index));
+         } else if (openRir === rirKeyFor(index)) {
+             setOpenRirKey(null);
          }
 
          if (!wasCompleted && isNowCompleted && showWeight && showReps) {
@@ -189,7 +216,7 @@ export const ExerciseLogCard: React.FC<{
         const lastSet = result.setDetails[result.setDetails.length - 1];
         const newSet = lastSet ? { ...lastSet, completed: false, rir: null } : { weight: '', reps: '', time: '', distance: '', kcal: '', completed: false, rir: null };
         onUpdate({ setDetails: [...result.setDetails, newSet] });
-        setRirOpenIdx(null);
+        setOpenRirKey(null);
     };
 
     const handleRemoveSet = (index: number) => {
@@ -515,8 +542,8 @@ export const ExerciseLogCard: React.FC<{
                         const isWeightAndRepsOnly = showWeight && showReps && !showTime && !showDistance && !showKcal;
                         const hasValidWeightAndReps = (parseFloat(set.weight) > 0) && (parseFloat(set.reps) > 0);
                         const rirIsRelevant = Boolean(set.completed) && isWeightAndRepsOnly && hasValidWeightAndReps && isStrengthLike;
-                        const showRirRow = rirIsRelevant && rirOpenIdx === index;
-                        const showRirBadge = rirIsRelevant && rirOpenIdx !== index && set.rir !== null && set.rir !== undefined;
+                        const showRirRow = rirIsRelevant && openRir === rirKeyFor(index);
+                        const showRirBadge = rirIsRelevant && openRir !== rirKeyFor(index) && set.rir !== null && set.rir !== undefined;
                         const missingFields = getMissingFields(set);
                         const canComplete = set.completed || missingFields.length === 0;
 
@@ -529,14 +556,14 @@ export const ExerciseLogCard: React.FC<{
                                     
                                     {showReps && (
                                         <div className="min-w-0 bg-gray-50 dark:bg-gray-800 rounded-xl p-3 sm:p-3.5 border border-gray-100 dark:border-gray-700 shadow-inner">
-                                            <input type="text" inputMode="numeric" value={set.reps} onChange={(e) => handleSetChange(index, 'reps', e.target.value)} onFocus={() => { if (rirOpenIdx !== null && rirOpenIdx !== index) setRirOpenIdx(null); }} placeholder="0" size={1} className="w-full min-w-0 bg-transparent text-gray-900 dark:text-white font-black text-lg sm:text-xl focus:outline-none text-center" disabled={set.completed} />
+                                            <input type="text" inputMode="numeric" value={set.reps} onChange={(e) => handleSetChange(index, 'reps', e.target.value)} onFocus={() => { if (openRir !== null && openRir !== rirKeyFor(index)) setOpenRirKey(null); }} placeholder="0" size={1} className="w-full min-w-0 bg-transparent text-gray-900 dark:text-white font-black text-lg sm:text-xl focus:outline-none text-center" disabled={set.completed} />
                                         </div>
                                     )}
                                     
                                     {showWeight && (
                                         <div className="relative min-w-0">
                                             <div className="min-w-0 bg-gray-50 dark:bg-gray-800 rounded-xl p-3 sm:p-3.5 border border-gray-100 dark:border-gray-700 shadow-inner">
-                                                <input type="text" inputMode="decimal" value={set.weight} onChange={(e) => handleSetChange(index, 'weight', normalizeDecimalInput(e.target.value))} onFocus={() => { if (rirOpenIdx !== null && rirOpenIdx !== index) setRirOpenIdx(null); }} placeholder="0" size={1} className="w-full min-w-0 bg-transparent text-gray-900 dark:text-white font-black text-lg sm:text-xl focus:outline-none text-center" disabled={set.completed} />
+                                                <input type="text" inputMode="decimal" value={set.weight} onChange={(e) => handleSetChange(index, 'weight', normalizeDecimalInput(e.target.value))} onFocus={() => { if (openRir !== null && openRir !== rirKeyFor(index)) setOpenRirKey(null); }} placeholder="0" size={1} className="w-full min-w-0 bg-transparent text-gray-900 dark:text-white font-black text-lg sm:text-xl focus:outline-none text-center" disabled={set.completed} />
                                             </div>
                                         </div>
                                     )}
@@ -568,8 +595,19 @@ export const ExerciseLogCard: React.FC<{
                                         </div>
                                     )}
 
+                                    {/* Krysset går ändå inte att trycka på när setet är avbockat.
+                                        Därför får RIR-markeringen den platsen i stället för en egen
+                                        rad under — samma yta, en rad mindre att scrolla förbi. */}
                                     <div className="flex justify-center">
-                                        {result.setDetails.length > 1 && (
+                                        {showRirBadge ? (
+                                            <button
+                                                type="button"
+                                                onClick={() => setOpenRirKey(rirKeyFor(index))}
+                                                className="h-10 px-2.5 rounded-xl bg-primary/10 text-primary border border-primary/20 text-[11px] font-black flex items-center justify-center active:scale-95 transition-transform"
+                                            >
+                                                RIR {set.rir === 3 ? '3+' : set.rir}
+                                            </button>
+                                        ) : result.setDetails.length > 1 && (
                                             <button 
                                                 onClick={() => handleRemoveSet(index)} 
                                                 className="w-10 h-10 rounded-xl bg-gray-50 dark:bg-gray-800 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 flex items-center justify-center p-2 active:scale-95 transition-all shadow-sm" 
@@ -600,17 +638,6 @@ export const ExerciseLogCard: React.FC<{
                                         <span className="text-xs font-bold text-green-700 dark:text-green-400">
                                             {setFeedback.text}
                                         </span>
-                                    </div>
-                                )}
-                                {showRirBadge && (
-                                    <div className="mt-1 mb-2 flex justify-end">
-                                        <button
-                                            type="button"
-                                            onClick={() => setRirOpenIdx(index)}
-                                            className="px-2.5 py-1 rounded-lg text-[11px] font-black bg-primary/10 text-primary border border-primary/20 active:scale-95 transition-transform"
-                                        >
-                                            RIR {set.rir === 3 ? '3+' : set.rir}
-                                        </button>
                                     </div>
                                 )}
                                 {showRirRow && (
@@ -669,6 +696,7 @@ export const ExerciseLogCard: React.FC<{
                         <button 
                             onClick={() => {
                                 onAddGroupSet();
+                                setOpenRirKey(null);
                                 setGroupSetAdded(true);
                                 if (groupSetAddedTimerRef.current) clearTimeout(groupSetAddedTimerRef.current);
                                 groupSetAddedTimerRef.current = setTimeout(() => setGroupSetAdded(false), 2200);
