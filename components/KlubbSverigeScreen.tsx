@@ -79,10 +79,10 @@ export const KlubbSverigeScreen: React.FC = () => {
                     className="w-full max-w-md bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-3xl p-8 text-center shadow-xl"
                 >
                     <div className="text-5xl mb-4">🎉</div>
-                    <h1 className="text-2xl font-black text-gray-900 dark:text-white mb-2">Tack för din intresseanmälan</h1>
+                    <h1 className="text-2xl font-black text-gray-900 dark:text-white mb-2">Tack! Vi hör av oss</h1>
                     <p className="text-gray-600 dark:text-gray-400">
-                        Vi kontaktar dig inom kort. Vi stämmer av ert organisationsnummer mot
-                        KlubbSveriges medlemsregister och återkommer med ert pris.
+                        Vi kontaktar dig inom kort för att boka in en demo. Innan dess stämmer vi av
+                        ert organisationsnummer mot KlubbSveriges medlemsregister, så att ni får rätt pris direkt.
                     </p>
                 </motion.div>
             </div>
@@ -106,7 +106,8 @@ export const KlubbSverigeScreen: React.FC = () => {
                 </h1>
                 <p className="text-gray-600 dark:text-gray-400 mb-8 leading-relaxed">
                     Som medlem i KlubbSverige får ni 15 % rabatt på mjukvaran, på gällande pris.
-                    Fyll i formuläret så hör vi av oss med ert pris och en genomgång av systemet.
+                    Fyll i formuläret så kontaktar vi er och bokar in en demo — vi visar systemet,
+                    svarar på frågor och ger er ert pris. Ingen kostnad och inget åtagande.
                 </p>
 
                 <form onSubmit={handleSubmit} className="space-y-5 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-3xl p-6 sm:p-8 shadow-sm">
@@ -163,11 +164,11 @@ export const KlubbSverigeScreen: React.FC = () => {
                         disabled={!canSubmit || isSending}
                         className="w-full py-4 rounded-2xl bg-primary text-white font-black text-lg disabled:opacity-50 active:scale-[0.99] transition-transform"
                     >
-                        {isSending ? 'Skickar…' : 'Skicka intresseanmälan'}
+                        {isSending ? 'Skickar…' : 'Boka en demo'}
                     </button>
 
                     <p className="text-xs text-gray-400 text-center">
-                        Vi använder uppgifterna för att kontakta er om SmartStudio. Inget annat.
+                        Vi använder uppgifterna för att kontakta er om en demo av SmartStudio. Inget annat.
                     </p>
                 </form>
             </div>
