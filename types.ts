@@ -456,7 +456,6 @@ export interface UserData {
   /** Antal gånger medlemmen delat värvningslänken eller visat QR-koden.
    *  Säger inget om hur många som faktiskt blev medlemmar — det vet bara
    *  gymmets CRM. Används för att se vilka som sprider ordet. */
-  referralShares?: number;
   email?: string;
   role: UserRole;
   status?: 'active' | 'inactive' | 'pending_coach';

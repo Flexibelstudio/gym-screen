@@ -4,7 +4,6 @@ import QRCode from 'react-qr-code';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Organization, UserData } from '../types';
 import { buildReferralUrl } from '../utils/workoutUtils';
-import { incrementReferralShares } from '../services/firebaseService';
 import { CloseIcon, UsersIcon } from './icons';
 
 /**
@@ -69,13 +68,8 @@ export const ReferralInvite: React.FC<ReferralInviteProps> = ({ organization, us
         || (placeName
             ? `Visa koden för din kompis så kan hon anmäla sig till ett pass hos ${placeName}.`
             : 'Visa koden för din kompis så kan hon anmäla sig till ett pass hos oss.');
-    const shareCount = userData.referralShares || 0;
-
-    // Räknaren får aldrig stå i vägen för själva delningen.
-    const countShare = () => { incrementReferralShares(userData.uid); };
 
     const handleShare = async () => {
-        countShare();
         const shareData = { title, text: description, url: shareUrl };
         if (typeof navigator !== 'undefined' && (navigator as any).share) {
             try {
@@ -99,7 +93,7 @@ export const ReferralInvite: React.FC<ReferralInviteProps> = ({ organization, us
             {/* Låg rad på startsidan. Ska gå att hitta på två sekunder när
                 kompisen står bredvid, utan att tävla med siffrorna ovanför. */}
             <button
-                onClick={() => { setIsOpen(true); countShare(); }}
+                onClick={() => setIsOpen(true)}
                 className="w-full flex items-center gap-3 p-4 rounded-2xl bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 shadow-sm text-left active:scale-[0.99] transition-transform"
             >
                 <span className="w-10 h-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center flex-shrink-0">
@@ -109,11 +103,6 @@ export const ReferralInvite: React.FC<ReferralInviteProps> = ({ organization, us
                     <span className="block font-black text-gray-900 dark:text-white leading-tight">{title}</span>
                     <span className="block text-xs text-gray-500 dark:text-gray-400 truncate">{description}</span>
                 </span>
-                {shareCount > 0 && (
-                    <span className="flex-shrink-0 text-xs font-black text-primary bg-primary/10 px-2 py-1 rounded-lg">
-                        {shareCount}
-                    </span>
-                )}
             </button>
 
             <AnimatePresence>
@@ -164,18 +153,12 @@ export const ReferralInvite: React.FC<ReferralInviteProps> = ({ organization, us
                                     href={shareUrl}
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    onClick={countShare}
                                     className="w-full py-3 rounded-2xl border border-gray-200 dark:border-gray-700 text-center font-bold text-gray-600 dark:text-gray-300"
                                 >
                                     Öppna formuläret
                                 </a>
                             </div>
 
-                            {shareCount > 0 && (
-                                <p className="mt-4 text-center text-xs font-bold text-gray-400">
-                                    Du har delat {shareCount} {shareCount === 1 ? 'gång' : 'gånger'}
-                                </p>
-                            )}
                         </motion.div>
                     </motion.div>
                 )}

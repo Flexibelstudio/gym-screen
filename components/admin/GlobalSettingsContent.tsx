@@ -5,7 +5,7 @@ import { ToggleSwitch, InformationCircleIcon, SpeakerphoneIcon, LockIcon } from 
 import { SelectField } from './AdminShared';
 import { CategoryPromptManager } from '../CategoryPromptManager';
 import { FeatureInfoModal } from './AdminModals';
-import { saveAdminActivity, updateOrganizationReferral, listenToMembers } from '../../services/firebaseService';
+import { saveAdminActivity, updateOrganizationReferral } from '../../services/firebaseService';
 import { useAuth } from '../../context/AuthContext';
 import { playTimerSound } from '../../hooks/useWorkoutTimer';
 
@@ -63,19 +63,6 @@ const ReferralSettings: React.FC<{ organization: Organization }> = ({ organizati
         }
     };
 
-    // Vilka sprider ordet. Vi kan bara räkna delningar — om någon faktiskt blev
-    // medlem vet bara gymmets CRM. Därför står det "delningar", inte "värvade".
-    const [sharers, setSharers] = useState<any[]>([]);
-    React.useEffect(() => {
-        if (!organization?.id) return;
-        const unsub = listenToMembers(organization.id, (members: any[]) => {
-            const withShares = (members || [])
-                .filter(m => (m.referralShares || 0) > 0)
-                .sort((a, b) => (b.referralShares || 0) - (a.referralShares || 0));
-            setSharers(withShares);
-        });
-        return () => { if (typeof unsub === 'function') unsub(); };
-    }, [organization?.id]);
 
     const field = "w-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl px-3 py-2.5 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary";
     const label = "block text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 mb-1";
@@ -186,26 +173,6 @@ const ReferralSettings: React.FC<{ organization: Organization }> = ({ organizati
                 </button>
                 {saved && <span className="text-sm font-bold text-primary">Sparat</span>}
             </div>
-
-            {sharers.length > 0 && (
-                <div className="pt-4 border-t border-gray-100 dark:border-gray-700">
-                    <div className={label}>Vilka sprider ordet</div>
-                    <div className="divide-y divide-gray-100 dark:divide-gray-700">
-                        {sharers.slice(0, 15).map(m => (
-                            <div key={m.uid} className="flex items-center justify-between py-2 text-sm">
-                                <span className="text-gray-700 dark:text-gray-200 truncate">
-                                    {[m.firstName, m.lastName].filter(Boolean).join(' ') || m.email}
-                                </span>
-                                <span className="font-black text-primary flex-shrink-0 ml-3">{m.referralShares}</span>
-                            </div>
-                        ))}
-                    </div>
-                    <p className="text-xs text-gray-400 mt-2">
-                        Antalet är hur många gånger länken delats eller QR-koden visats — inte hur många som
-                        blev medlemmar. Det vet bara ert CRM.
-                    </p>
-                </div>
-            )}
         </div>
     );
 };
