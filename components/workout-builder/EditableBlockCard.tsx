@@ -25,10 +25,13 @@ interface ExerciseItemProps {
     onExerciseSavedToBank?: (exercise: BankExercise) => void;
     enableWorkoutLogging?: boolean;
     onShowToast: (message: string) => void;
-    onUpdateGroupColor?: (groupId: string, newColor: string) => void;
+    onUpdateGroupColor?: (exerciseId: string, newColor: string) => void;
     blockId: string;
     blockTag?: string;
 }
+
+/** Enbart tidsstämpel räckte inte — två grupper kunde få samma id. */
+const newGroupId = () => `group-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
 export const GROUP_COLORS = [
     { bg: 'bg-blue-500', border: 'border-blue-500', lightBg: 'bg-blue-50 dark:bg-blue-900/20' },
@@ -42,6 +45,10 @@ export const GROUP_COLORS = [
 const ExerciseItem: React.FC<ExerciseItemProps> = ({ exercise, onUpdate, onRemove, exerciseBank, index, total, onMove, organizationId, onExerciseSavedToBank, enableWorkoutLogging, onShowToast, onUpdateGroupColor, blockId, blockTag }) => {
     const [searchQuery, setSearchQuery] = useState('');
     const [isSearchVisible, setIsSearchVisible] = useState(false);
+    // Övningar ur den globala banken har låst namnfält så att ingen råkar döpa
+    // om en bankövning. Men man måste kunna BYTA övning — det är en annan sak.
+    // I bytesläge visar fältet en sökruta i stället för det låsta namnet.
+    const [isReplacing, setIsReplacing] = useState(false);
     const searchContainerRef = useRef<HTMLDivElement>(null);
     const [isGeneratingDesc, setIsGeneratingDesc] = useState(false);
 
@@ -93,6 +100,7 @@ const ExerciseItem: React.FC<ExerciseItemProps> = ({ exercise, onUpdate, onRemov
         const handleClickOutside = (event: MouseEvent) => {
             if (searchContainerRef.current && !searchContainerRef.current.contains(event.target as Node)) {
                 setIsSearchVisible(false);
+                setIsReplacing(false);
             }
         };
         document.addEventListener("mousedown", handleClickOutside);
@@ -120,6 +128,7 @@ const ExerciseItem: React.FC<ExerciseItemProps> = ({ exercise, onUpdate, onRemov
         });
         setIsSearchVisible(false);
         setSearchQuery('');
+        setIsReplacing(false);
     };
 
     const handleToggleLogging = () => {
@@ -316,19 +325,30 @@ const ExerciseItem: React.FC<ExerciseItemProps> = ({ exercise, onUpdate, onRemov
                     <div className="relative flex-grow min-w-[150px]">
                         <input
                             type="text"
-                            value={exercise.name}
-                            onChange={handleNameChange}
+                            value={isGlobal && isReplacing ? searchQuery : exercise.name}
+                            onChange={(e) => {
+                                if (isGlobal) {
+                                    // Låst namn: det man skriver är en sökning, inte ett nytt namn.
+                                    setSearchQuery(e.target.value);
+                                    setIsSearchVisible(true);
+                                } else {
+                                    handleNameChange(e);
+                                }
+                            }}
                             onFocus={() => {
-                                if (!isGlobal) {
+                                if (isGlobal) {
+                                    setIsReplacing(true);
+                                    setSearchQuery('');
+                                    setIsSearchVisible(true);
+                                } else {
                                     setIsSearchVisible(true);
                                     setSearchQuery(exercise.name);
                                 }
                             }}
-                            readOnly={isGlobal}
-                            placeholder={isGlobal ? exercise.name : "Sök eller skriv övningsnamn"}
+                            placeholder={isGlobal && isReplacing ? "Sök en annan övning…" : (isGlobal ? exercise.name : "Sök eller skriv övningsnamn")}
                             className={`appearance-none w-full border border-gray-300 dark:border-gray-600 rounded-lg p-2 focus:ring-2 focus:ring-primary focus:outline-none transition-all font-semibold placeholder-gray-400 dark:placeholder-gray-500 pr-8 ${
-                                isGlobal 
-                                ? 'bg-gray-200 dark:bg-gray-800/80 cursor-not-allowed text-gray-500 dark:text-gray-400 select-none' 
+                                isGlobal && !isReplacing
+                                ? 'bg-gray-200 dark:bg-gray-800/80 cursor-pointer text-gray-500 dark:text-gray-400'
                                 : '!bg-white dark:!bg-gray-700 !text-gray-900 dark:!text-white'
                             }`}
                         />
@@ -434,7 +454,7 @@ const ExerciseItem: React.FC<ExerciseItemProps> = ({ exercise, onUpdate, onRemov
                                 onClick={() => {
                                     const currentIndex = GROUP_COLORS.findIndex(c => c.bg === exercise.groupColor);
                                     const nextIndex = (currentIndex + 1) % GROUP_COLORS.length;
-                                    onUpdateGroupColor(exercise.groupId!, GROUP_COLORS[nextIndex].bg);
+                                    onUpdateGroupColor(exercise.id, GROUP_COLORS[nextIndex].bg);
                                 }}
                                 className={`w-6 h-6 rounded-full shadow-sm border-2 border-white dark:border-gray-800 ${exercise.groupColor} transform active:scale-95 transition-transform`}
                                 title="Byt färg på gruppen"
@@ -639,7 +659,7 @@ export const EditableBlockCard: React.FC<EditableBlockCardProps> = ({
             onUpdate({ ...block, exercises });
         } else {
             // Link
-            const newGroupId = ex1.groupId || ex2.groupId || `group-${Date.now()}`;
+            const groupIdForPair = ex1.groupId || ex2.groupId || newGroupId();
             
             // Find an unused color if creating a new group
             let newGroupColor = ex1.groupColor || ex2.groupColor;
@@ -656,7 +676,7 @@ export const EditableBlockCard: React.FC<EditableBlockCardProps> = ({
                 if (i === index || i === index + 1 || 
                     (oldGroup1 && exercises[i].groupId === oldGroup1) || 
                     (oldGroup2 && exercises[i].groupId === oldGroup2)) {
-                    exercises[i] = { ...exercises[i], groupId: newGroupId, groupColor: newGroupColor };
+                    exercises[i] = { ...exercises[i], groupId: groupIdForPair, groupColor: newGroupColor };
                 }
             }
             
@@ -665,14 +685,36 @@ export const EditableBlockCard: React.FC<EditableBlockCardProps> = ({
         }
     };
 
-    const updateGroupColor = (groupId: string, newColor: string) => {
-        const updatedExercises = block.exercises.map(ex => {
-            if (ex.groupId === groupId) {
-                return { ...ex, groupColor: newColor };
-            }
-            return ex;
-        });
-        onUpdate({ ...block, exercises: updatedExercises });
+    /**
+     * Färgbytet gällde tidigare alla övningar med samma grupp-id. Två superset
+     * kan dela id — id:t sattes med enbart tidsstämpel, och pass som kopierats
+     * eller byggts av AI kan bära med sig samma id på två ställen. Då bytte
+     * båda supersetten färg samtidigt.
+     *
+     * Nu utgår vi från den övning man klickade på och färgar bara det
+     * sammanhängande superset den ingår i. Används id:t även någon annanstans
+     * får den här gruppen ett eget, unikt id på köpet — felet självläker.
+     */
+    const updateGroupColor = (exerciseId: string, newColor: string) => {
+        const exercises = [...block.exercises];
+        const idx = exercises.findIndex(ex => ex.id === exerciseId);
+        if (idx === -1) return;
+
+        const groupId = exercises[idx].groupId;
+        if (!groupId) return;
+
+        let start = idx;
+        let end = idx;
+        while (start - 1 >= 0 && exercises[start - 1].groupId === groupId) start--;
+        while (end + 1 < exercises.length && exercises[end + 1].groupId === groupId) end++;
+
+        const usedElsewhere = exercises.some((ex, i) => ex.groupId === groupId && (i < start || i > end));
+        const nextGroupId = usedElsewhere ? newGroupId() : groupId;
+
+        for (let i = start; i <= end; i++) {
+            exercises[i] = { ...exercises[i], groupId: nextGroupId, groupColor: newColor };
+        }
+        onUpdate({ ...block, exercises });
     };
 
     const settingsText = useMemo(() => {
