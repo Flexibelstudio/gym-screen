@@ -51,6 +51,10 @@ export const PasswordModal: React.FC<PasswordModalProps> = ({ onClose, onSuccess
         setPassword('');
       }
     } catch (err: any) {
+      // Logga alltid råfelet. Utan det går det inte att skilja "ingen inloggad"
+      // från "App Check släppte inte igenom" — båda kommer tillbaka som
+      // unauthenticated och gav förut samma intetsägande text på skärmen.
+      console.error('verifyCoachUnlockCode misslyckades:', err?.code, err?.message, err);
       const code = String(err?.code || '');
       if (code.includes('failed-precondition')) {
         setError('Ingen coachkod är satt för det här gymmet. Kontakta er administratör.');
@@ -59,9 +63,13 @@ export const PasswordModal: React.FC<PasswordModalProps> = ({ onClose, onSuccess
       } else if (code.includes('permission-denied')) {
         setError('Du har inte behörighet till det här gymmet.');
       } else if (code.includes('unauthenticated')) {
-        setError('Du måste vara inloggad för att låsa upp.');
+        // Servern skiljer på saknad inloggning och avvisad App Check. Visa dess
+        // egen text när den finns — annars döljer vi den verkliga orsaken.
+        const serverMsg = String(err?.message || '');
+        setError(serverMsg && !serverMsg.toLowerCase().includes('internal')
+          ? serverMsg
+          : 'Du måste vara inloggad för att låsa upp.');
       } else {
-        console.error('verifyCoachUnlockCode misslyckades:', err);
         setError(err?.message || 'Kunde inte verifiera koden. Försök igen.');
       }
     } finally {

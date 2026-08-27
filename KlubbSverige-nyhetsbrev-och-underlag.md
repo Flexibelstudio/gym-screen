@@ -18,9 +18,9 @@ Det sparar massor av admin för coacherna och ger medlemmarna en premiumkänsla 
 
 Vi är stolta nya partner till KlubbSverige – och vill gärna visa dig hur det ser ut i drift.
 
-**Exklusivt för KlubbSverige:** 15% rabatt på mjukvaran – alltid, så länge du är medlem. Boka en kostnadsfri demo så visar vi dig SmartStudio i drift.
+**Exklusivt för KlubbSverige:** 15% rabatt på mjukvaran – alltid, så länge du är medlem.
 
-*[Lägg till kontaktuppgifter + CTA-länk här.]*
+Boka en kostnadsfri demo på **smartstudio.se/klubbsverige** – fyll i dina uppgifter så hör vi av oss och visar SmartStudio i drift.
 
 ---
 
