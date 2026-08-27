@@ -84,6 +84,17 @@ export const KlubbSverigeScreen: React.FC = () => {
                         Vi kontaktar dig inom kort för att boka in en demo. Innan dess stämmer vi av
                         ert organisationsnummer mot KlubbSveriges medlemsregister, så att ni får rätt pris direkt.
                     </p>
+
+                    {/* De flesta kommer hit direkt från nyhetsbrevet och har aldrig sett
+                        produkten. Utan den här vägen vidare slutar besöket i en
+                        återvändsgränd just när nyfikenheten är som störst. Formuläret
+                        lägger vi däremot inte tillbaka — det bjuder bara in till dubbletter. */}
+                    <a
+                        href="/"
+                        className="mt-6 inline-block w-full py-3 rounded-2xl border border-gray-200 dark:border-gray-700 font-bold text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+                    >
+                        Se hur SmartStudio fungerar
+                    </a>
                 </motion.div>
             </div>
         );
