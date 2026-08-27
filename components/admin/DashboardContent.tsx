@@ -8,7 +8,7 @@ import { AIGeneratorScreen } from '../AIGeneratorScreen';
 import { WorkoutBuilderScreen } from '../WorkoutBuilderScreen';
 import { deepCopyAndPrepareAsNew, getWorkoutStatusInfo, getWorkoutVisibilityIssues, isWorkoutLoggable, OTHER_CATEGORY, PT_CATEGORY } from '../../utils/workoutUtils';
 import { ManageBenchmarksModal, FeatureInfoModal } from './AdminModals';
-import { updateOrganizationBenchmarks, updateOrganizationWorkoutFolders, resolveAndCreateExercises, updateGlobalConfig, listenToGlobalSummerChallenge, listenToMembers, listenToCommunityLogs, listenToCommunityLogsByLocations, getOrganizationLogs, getSmartScreenPricing } from '../../services/firebaseService';
+import { updateOrganizationBenchmarks, updateOrganizationWorkoutFolders, resolveAndCreateExercises, updateGlobalConfig, listenToGlobalSummerChallenge, listenToMembers, listenToCommunityLogs, listenToCommunityLogsByLocations, getOrganizationLogsSince, getSmartScreenPricing } from '../../services/firebaseService';
 import { WorkoutPresentationModal } from '../WorkoutDetailScreen';
 import { useAuth } from '../../context/AuthContext';
 
@@ -501,15 +501,18 @@ const MemberAppStatsPanel: React.FC<{ organizationId: string; joinSlideActive: b
         if (!organizationId) return;
         let cancelled = false;
         setIsLoading(true);
-        getOrganizationLogs(organizationId, 500)
+        // Hämta hela perioden, inte de N senaste loggarna. Med ett tak fylldes
+        // hela 30-dagarsfönstret av taket i sig, och siffran frös på exakt det
+        // talet — det såg ut som data men var i själva verket gränsen.
+        const cutoff = Date.now() - 30 * 24 * 60 * 60 * 1000;
+        getOrganizationLogsSince(organizationId, cutoff)
             .then(data => { if (!cancelled) { setLogs(data || []); setIsLoading(false); } })
             .catch(() => { if (!cancelled) { setLogs([]); setIsLoading(false); } });
         return () => { cancelled = true; };
     }, [organizationId]);
 
     const summary = useMemo(() => {
-        const cutoff = Date.now() - 30 * 24 * 60 * 60 * 1000;
-        const recent = logs.filter(l => (l.date || 0) >= cutoff);
+        const recent = logs;
         const members = new Set(recent.map(l => l.memberId).filter(Boolean));
         const rpeValues = recent.map(l => l.rpe).filter(r => typeof r === 'number' && r > 0);
         const avgRpe = rpeValues.length > 0 ? rpeValues.reduce((a, b) => a + b, 0) / rpeValues.length : null;
