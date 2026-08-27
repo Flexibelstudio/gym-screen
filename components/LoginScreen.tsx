@@ -12,6 +12,18 @@ interface LoginScreenProps {
     onRegisterGym?: () => void;
 }
 
+const BrandMark: React.FC = () => (
+    <div className="flex items-center justify-center gap-2.5 mb-5">
+        <img
+            src="/favicon.png"
+            alt="SmartStudio"
+            className="w-10 h-10 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700"
+            referrerPolicy="no-referrer"
+        />
+        <span className="text-lg font-black text-gray-900 dark:text-white uppercase tracking-tight">SmartStudio</span>
+    </div>
+);
+
 export const LoginScreen: React.FC<LoginScreenProps> = ({ onClose, onRegisterGym }) => {
     const { signIn, signInAsStudio, sendPasswordResetEmail } = useAuth();
     const [view, setView] = useState<'login' | 'reset' | 'register'>('login');
@@ -193,6 +205,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onClose, onRegisterGym
     const renderLoginView = () => (
         <>
             <div className="text-center mb-6 shrink-0">
+                <BrandMark />
                 <h2 className="text-2xl font-bold text-gray-900 dark:text-white uppercase tracking-tight">Logga in</h2>
                 <p className="text-gray-500 dark:text-gray-400 mt-1 text-sm font-medium">För administratörer och medlemmar</p>
             </div>
@@ -286,6 +299,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onClose, onRegisterGym
     const renderResetView = () => (
         <>
             <div className="text-center mb-6 shrink-0">
+                <BrandMark />
                 <h2 className="text-2xl font-bold text-gray-900 dark:text-white uppercase tracking-tight">Återställ lösenord</h2>
                 <p className="text-gray-500 dark:text-gray-400 mt-1">Ange din e-post så skickar vi en länk.</p>
             </div>
@@ -330,6 +344,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onClose, onRegisterGym
     const renderRegisterView = () => (
         <>
             <div className="text-center mb-6 shrink-0">
+                <BrandMark />
                 <h2 className="text-2xl font-bold text-gray-900 dark:text-white uppercase tracking-tight">Skapa konto</h2>
                 <p className="text-gray-500 dark:text-gray-400 mt-1">Gå med i ett befintligt gym</p>
             </div>

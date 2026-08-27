@@ -93,6 +93,15 @@ export const RegisterGymScreen: React.FC<RegisterGymScreenProps> = ({ onCancel }
                 </button>
 
                 <div className="text-center mb-8">
+                    <div className="flex items-center justify-center gap-2.5 mb-5">
+                        <img
+                            src="/favicon.png"
+                            alt="SmartStudio"
+                            className="w-10 h-10 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700"
+                            referrerPolicy="no-referrer"
+                        />
+                        <span className="text-lg font-black text-gray-900 dark:text-white uppercase tracking-tight">SmartStudio</span>
+                    </div>
                     <h2 className="text-3xl font-bold text-gray-900 dark:text-white tracking-tight">Registrera ditt gym</h2>
                     <p className="text-gray-500 dark:text-gray-400 mt-2">Börja använda SmartStudio i din verksamhet idag.</p>
                 </div>
