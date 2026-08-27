@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { httpsCallable } from 'firebase/functions';
-import { functions } from '../services/firebaseService';
+import { auth, functions } from '../services/firebaseService';
 import { motion } from 'framer-motion';
 import { CloseIcon, LockClosedIcon, EyeIcon, EyeOffIcon } from './icons';
 
@@ -63,12 +63,21 @@ export const PasswordModal: React.FC<PasswordModalProps> = ({ onClose, onSuccess
       } else if (code.includes('permission-denied')) {
         setError('Du har inte behörighet till det här gymmet.');
       } else if (code.includes('unauthenticated')) {
-        // Servern skiljer på saknad inloggning och avvisad App Check. Visa dess
-        // egen text när den finns — annars döljer vi den verkliga orsaken.
+        // Två helt olika fel kommer tillbaka som unauthenticated: ingen inloggad
+        // användare, eller att App Check avvisade skärmen. Servern hinner inte
+        // alltid säga vilket — när enforceAppCheck slår till avvisas anropet innan
+        // vår kod körs och meddelandet blir intetsägande. Därför avgör vi här:
+        // finns en inloggad användare kan det omöjligt vara inloggningen som saknas.
         const serverMsg = String(err?.message || '');
-        setError(serverMsg && !serverMsg.toLowerCase().includes('internal')
-          ? serverMsg
-          : 'Du måste vara inloggad för att låsa upp.');
+        const signedIn = !!auth?.currentUser;
+        console.error('Coachkod nekad. Inloggad användare:', auth?.currentUser?.uid || 'ingen', '| serverns text:', serverMsg);
+        if (serverMsg.includes('App Check')) {
+          setError('Säkerhetskontrollen (App Check) släppte inte igenom den här skärmen. Kontakta support.');
+        } else if (!signedIn) {
+          setError('Du måste vara inloggad för att låsa upp. Logga in igen och försök på nytt.');
+        } else {
+          setError('Skärmen är inloggad men blockerades av säkerhetskontrollen (App Check). Kontakta support så öppnar vi upp domänen.');
+        }
       } else {
         setError(err?.message || 'Kunde inte verifiera koden. Försök igen.');
       }
