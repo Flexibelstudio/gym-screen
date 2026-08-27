@@ -41,6 +41,12 @@ export const ExerciseLogCard: React.FC<{
     // samtliga övningar i gruppen — alltså ovanför skärmkanten. Utan kvittens här
     // ser det ut som att ingenting hände.
     const [groupSetAdded, setGroupSetAdded] = useState(false);
+
+    // RIR-rutan hör till det set du precis bockade av — inte till alla avbockade set.
+    // Låg den kvar växte loggen med en ruta per set och skymde det du höll på med.
+    // Så fort du går vidare till nästa set fälls den in; värdet finns kvar som en
+    // liten markering du kan trycka på om du vill ändra dig.
+    const [rirOpenIdx, setRirOpenIdx] = useState<number | null>(null);
     const groupSetAddedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     useEffect(() => () => { if (groupSetAddedTimerRef.current) clearTimeout(groupSetAddedTimerRef.current); }, []);
 
@@ -91,6 +97,9 @@ export const ExerciseLogCard: React.FC<{
         newSets[index] = { ...newSets[index], [field]: value };
         onUpdate({ setDetails: newSets });
         if (invalidSetIdx === index) { setInvalidSetIdx(null); }
+        if (field !== ('rir' as any) && rirOpenIdx !== null && rirOpenIdx !== index) {
+            setRirOpenIdx(null);
+        }
     };
 
     const handleToggleComplete = (index: number) => {
@@ -116,6 +125,12 @@ export const ExerciseLogCard: React.FC<{
          const isNowCompleted = !wasCompleted;
          newSets[index] = { ...newSets[index], completed: isNowCompleted };
          onUpdate({ setDetails: newSets });
+
+         if (isNowCompleted) {
+             setRirOpenIdx(index);
+         } else {
+             setRirOpenIdx(prev => (prev === index ? null : prev));
+         }
 
          if (!wasCompleted && isNowCompleted && showWeight && showReps) {
              const s = result.setDetails[index];
@@ -174,6 +189,7 @@ export const ExerciseLogCard: React.FC<{
         const lastSet = result.setDetails[result.setDetails.length - 1];
         const newSet = lastSet ? { ...lastSet, completed: false, rir: null } : { weight: '', reps: '', time: '', distance: '', kcal: '', completed: false, rir: null };
         onUpdate({ setDetails: [...result.setDetails, newSet] });
+        setRirOpenIdx(null);
     };
 
     const handleRemoveSet = (index: number) => {
@@ -498,7 +514,9 @@ export const ExerciseLogCard: React.FC<{
                         const isActiveSet = index === result.setDetails.findIndex(sd => !sd.completed);
                         const isWeightAndRepsOnly = showWeight && showReps && !showTime && !showDistance && !showKcal;
                         const hasValidWeightAndReps = (parseFloat(set.weight) > 0) && (parseFloat(set.reps) > 0);
-                        const showRirRow = Boolean(set.completed) && isWeightAndRepsOnly && hasValidWeightAndReps && isStrengthLike;
+                        const rirIsRelevant = Boolean(set.completed) && isWeightAndRepsOnly && hasValidWeightAndReps && isStrengthLike;
+                        const showRirRow = rirIsRelevant && rirOpenIdx === index;
+                        const showRirBadge = rirIsRelevant && rirOpenIdx !== index && set.rir !== null && set.rir !== undefined;
                         const missingFields = getMissingFields(set);
                         const canComplete = set.completed || missingFields.length === 0;
 
@@ -511,14 +529,14 @@ export const ExerciseLogCard: React.FC<{
                                     
                                     {showReps && (
                                         <div className="min-w-0 bg-gray-50 dark:bg-gray-800 rounded-xl p-3 sm:p-3.5 border border-gray-100 dark:border-gray-700 shadow-inner">
-                                            <input type="text" inputMode="numeric" value={set.reps} onChange={(e) => handleSetChange(index, 'reps', e.target.value)} placeholder="0" size={1} className="w-full min-w-0 bg-transparent text-gray-900 dark:text-white font-black text-lg sm:text-xl focus:outline-none text-center" disabled={set.completed} />
+                                            <input type="text" inputMode="numeric" value={set.reps} onChange={(e) => handleSetChange(index, 'reps', e.target.value)} onFocus={() => { if (rirOpenIdx !== null && rirOpenIdx !== index) setRirOpenIdx(null); }} placeholder="0" size={1} className="w-full min-w-0 bg-transparent text-gray-900 dark:text-white font-black text-lg sm:text-xl focus:outline-none text-center" disabled={set.completed} />
                                         </div>
                                     )}
                                     
                                     {showWeight && (
                                         <div className="relative min-w-0">
                                             <div className="min-w-0 bg-gray-50 dark:bg-gray-800 rounded-xl p-3 sm:p-3.5 border border-gray-100 dark:border-gray-700 shadow-inner">
-                                                <input type="text" inputMode="decimal" value={set.weight} onChange={(e) => handleSetChange(index, 'weight', normalizeDecimalInput(e.target.value))} placeholder="0" size={1} className="w-full min-w-0 bg-transparent text-gray-900 dark:text-white font-black text-lg sm:text-xl focus:outline-none text-center" disabled={set.completed} />
+                                                <input type="text" inputMode="decimal" value={set.weight} onChange={(e) => handleSetChange(index, 'weight', normalizeDecimalInput(e.target.value))} onFocus={() => { if (rirOpenIdx !== null && rirOpenIdx !== index) setRirOpenIdx(null); }} placeholder="0" size={1} className="w-full min-w-0 bg-transparent text-gray-900 dark:text-white font-black text-lg sm:text-xl focus:outline-none text-center" disabled={set.completed} />
                                             </div>
                                         </div>
                                     )}
@@ -582,6 +600,17 @@ export const ExerciseLogCard: React.FC<{
                                         <span className="text-xs font-bold text-green-700 dark:text-green-400">
                                             {setFeedback.text}
                                         </span>
+                                    </div>
+                                )}
+                                {showRirBadge && (
+                                    <div className="mt-1 mb-2 flex justify-end">
+                                        <button
+                                            type="button"
+                                            onClick={() => setRirOpenIdx(index)}
+                                            className="px-2.5 py-1 rounded-lg text-[11px] font-black bg-primary/10 text-primary border border-primary/20 active:scale-95 transition-transform"
+                                        >
+                                            RIR {set.rir === 3 ? '3+' : set.rir}
+                                        </button>
                                     </div>
                                 )}
                                 {showRirRow && (
