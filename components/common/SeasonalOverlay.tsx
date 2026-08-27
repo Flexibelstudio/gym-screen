@@ -230,6 +230,15 @@ const HalloweenMascot = () => (
 );
 
 const GymThermometerMascot = ({ isStudioMode = false }: { isStudioMode?: boolean }) => {
+    // Klippbanan som ger termometern sin runda kula hade ett fast id. Renderas
+    // komponenten på två ställen samtidigt — eller ligger en gammal kvar en
+    // bråkdel av en sekund under en övergång — pekar webbläsaren på fel element
+    // och klippningen faller bort. Då ritas vätskan som den rektangel den är,
+    // och kulan blir fyrkantig. Ett eget id per instans löser det.
+    const clipUid = React.useId().replace(/:/g, '');
+    const largeClipId = `glass-inner-large-${clipUid}`;
+    const smallClipId = `glass-inner-small-${clipUid}`;
+
     const { selectedOrganization, selectedStudio, studioConfig } = useStudio();
     const { userData } = useAuth();
     
@@ -486,7 +495,7 @@ const GymThermometerMascot = ({ isStudioMode = false }: { isStudioMode?: boolean
                             <stop offset="0%" stopColor={color} />
                             <stop offset="100%" stopColor={color === '#ef4444' ? '#991b1b' : color === '#f97316' ? '#c2410c' : color === '#eab308' ? '#a16207' : '#1e40af'} />
                         </linearGradient>
-                        <clipPath id="glass-inner-large">
+                        <clipPath id={largeClipId}>
                             <path d="M 12,14 L 12,112 A 22,22 0 1,0 28,112 L 28,14 A 8,8 0 0,0 12,14 Z" />
                         </clipPath>
                     </defs>
@@ -505,7 +514,7 @@ const GymThermometerMascot = ({ isStudioMode = false }: { isStudioMode?: boolean
                         strokeWidth="1.5"
                     />
 
-                    <g clipPath="url(#glass-inner-large)">
+                    <g clipPath={`url(#${largeClipId})`}>
                         <rect 
                             x="-10" 
                             y={currentY} 
@@ -571,7 +580,7 @@ const GymThermometerMascot = ({ isStudioMode = false }: { isStudioMode?: boolean
                         <stop offset="0%" stopColor={color} />
                         <stop offset="100%" stopColor={color === '#ef4444' ? '#991b1b' : color === '#f97316' ? '#c2410c' : color === '#eab308' ? '#a16207' : '#1e40af'} />
                     </linearGradient>
-                    <clipPath id="glass-inner-small">
+                    <clipPath id={smallClipId}>
                         <path d="M 12,14 L 12,112 A 22,22 0 1,0 28,112 L 28,14 A 8,8 0 0,0 12,14 Z" />
                     </clipPath>
                 </defs>
@@ -590,7 +599,7 @@ const GymThermometerMascot = ({ isStudioMode = false }: { isStudioMode?: boolean
                     strokeWidth="1.5"
                 />
 
-                <g clipPath="url(#glass-inner-small)">
+                <g clipPath={`url(#${smallClipId})`}>
                     <rect 
                         x="-10" 
                         y={currentY} 

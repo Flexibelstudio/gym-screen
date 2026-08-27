@@ -114,7 +114,8 @@ const createBooking = onCall(async (request) => {
     .where("clientId", "==", targetClientId)
     .where("status", "==", "active")
     .get();
-  const activeMemberships = cmSnap.docs.map((d) => d.data()).filter((cm) => new Date(cm.endDate) >= now);
+  // Tomt endDate = löper tills vidare (aktivt)
+  const activeMemberships = cmSnap.docs.map((d) => d.data()).filter((cm) => !cm.endDate || new Date(cm.endDate) >= now);
 
   // Medlemskapsrestriktion på passet
   if (slot.allowedMemberships && slot.allowedMemberships.length > 0 && caller.role === "member" && !isAdminBooking) {
@@ -623,7 +624,7 @@ const createKioskOrder = onCall(async (request) => {
   if (paymentMethod === "membership_invoice") {
     const cmSnap = await db.collection("client_memberships")
       .where("clientId", "==", caller.uid).where("status", "==", "active").get();
-    const active = cmSnap.docs.some((d) => new Date(d.data().endDate) >= new Date());
+    const active = cmSnap.docs.some((d) => !d.data().endDate || new Date(d.data().endDate) >= new Date());
     if (!active) {
       throw new HttpsError("failed-precondition", "Endast medlemmar med ett aktivt löpande medlemskap (månadsbetalning) kan handla på kredit.");
     }
