@@ -3,9 +3,9 @@
 ## Nyhetsbrevstext (första utskicket)
 
 ### Rubrikförslag
-- Sluta stå med ryggen mot dina medlemmar
-- Vi investerar miljoner i gymmet – men står ändå och kladdar på en whiteboard
-- Från whiteboard till välkomnande
+- Skolorna digitaliserade whiteboarden – nu är det gymmens tur
+- Skolorna gick över för länge sedan. Nu är det gymmens tur.
+- Whiteboarden är redan historia i skolan – dags för gymmen
 
 ### Text
 Vi som driver gym lägger enorma summor på att bygga snygga, moderna anläggningar. Ändå står våra coacher ofta kvar vid samma gamla whiteboard och skriver dagens pass för hand – med (oftast) ganska dålig handstil, och med ryggen mot medlemmarna precis när de kommer in genom dörren.
@@ -16,11 +16,16 @@ Det var därför vi byggde SmartStudio. Coachen tar helt enkelt en bild på pass
 
 Det sparar massor av admin för coacherna och ger medlemmarna en premiumkänsla direkt när de kliver in. Men framför allt frigör det coachen att göra det som faktiskt betyder något: att möta människorna i rummet.
 
+Skolorna gjorde resan för länge sedan – ingen lärare vill tillbaka till pennan och tavlan. Samma skifte händer nu i träningssalarna.
+
 Vi är stolta nya partner till KlubbSverige – och vill gärna visa dig hur det ser ut i drift.
 
 **Exklusivt för KlubbSverige:** 15% rabatt på mjukvaran – alltid, så länge du är medlem.
 
 Boka en kostnadsfri demo på **smartstudio.se/klubbsverige** – fyll i dina uppgifter så hör vi av oss och visar SmartStudio i drift.
+
+Varma hälsningar,
+Karin, SmartStudio
 
 ---
 
@@ -29,17 +34,24 @@ Boka en kostnadsfri demo på **smartstudio.se/klubbsverige** – fyll i dina upp
 ### För nyhetsbrevet / utskicket
 - [ ] **Logotyp** i hög upplösning (helst transparent PNG, gärna både för ljus och mörk bakgrund)
 - [ ] **Nyhetsbrevstexten** (artikeln ovan, med vald rubrik)
-- [ ] **1–2 bilder** på skärmen i drift i en studio – gärna med en coach/medlemmar i bild
+- [x] **Bilder** finns i `public/landing/`: **hero.jpg** (klass + skärm, huvudbild), samt **steg1-whiteboard / steg2-skarm / steg3-followme** (flödet handskrivet → AI → pass)
 - [ ] **Kort demo-film** (10–30 sek) om möjligt – säljer det här allra bäst
 - [ ] **Kontaktuppgifter:** namn, telefon, mejl, hemsida (smartstudio.se)
 - [ ] **CTA-länk:** var man bokar demo / läser mer
 - [x] **Medlemserbjudande unikt för KlubbSverige** (krav enligt avtal §3.7.1): **15% rabatt på mjukvaran på gällande pris, permanent så länge man är medlem** (nu ≈ 846 kr/skärm/mån, efter introt ≈ 1 696 kr)
 
 ### För er partnersida på KlubbSveriges hemsida (bakom medlemsinloggning)
-- [ ] Kort **företagsbeskrivning** (1–2 meningar om SmartStudio)
-- [ ] **Vad ni erbjuder** / sortiment
-- [ ] **Prislista** (ordinarie 1 995 kr/skärm/mån + ev. KlubbSverige-pris)
-- [ ] Ev. **filmer/bilder**
+**Företagsbeskrivning (välj A eller B – kolla med Mikael):**
+> **A (2 meningar):** SmartStudio är en digital träningsplattform byggd av gymägare, för gymägare. Vi driver egna studios och skapade SmartStudio för att lösa det vi själva saknade – ett smidigt sätt att förvandla coachens pass till en snygg, digital upplevelse på skärmen som sparar tid och lyfter känslan i salen.
+>
+> **B (kort):** SmartStudio är en digital träningsplattform byggd av gymägare – vi driver egna studios och byggde verktyget vi själva saknade: coachens pass förvandlat till en snygg, digital upplevelse på skärmen.
+
+**Pris:**
+> KlubbSverige-medlemmar får alltid 15% rabatt på mjukvaran, på gällande pris. Boka en kostnadsfri demo för aktuellt pris: smartstudio.se/klubbsverige
+
+**Kontakt:** Karin Gustafsson · karin@smartstudio.se · 0760 00 09 25
+
+**Bilder:** hero.jpg + steg1–3 (samma som ovan). Film saknas (ej blockerande).
 
 ### Att bestämma innan utskicket
 - ~~Exakt medlemserbjudande~~ → **klart: 15% rabatt på gällande pris**
