@@ -29,6 +29,15 @@ const FROM = "SmartStudio <no-reply@flexibelfriskvardhalsa.se>";
 
 const stamp = (ref, delivery) => ref.set({ delivery }, { merge: true });
 
+/**
+ * Staging skickar till samma inkorg som prod. Utan en markering i ämnesraden
+ * går ett testlead inte att skilja från ett riktigt, och då ringer man fel
+ * kund. Prod lämnas orörd.
+ */
+const PROJECT_ID = process.env.GCLOUD_PROJECT || process.env.GCP_PROJECT || "";
+const isProd = PROJECT_ID === "gym-screen";
+const subjectFor = (subject) => (isProd ? subject : `[TEST ${PROJECT_ID}] ${subject}`);
+
 const sendMail = onDocumentWritten(
   { document: "mail/{mailId}", secrets: [RESEND_API_KEY] },
   async (event) => {
@@ -64,7 +73,7 @@ const sendMail = onDocumentWritten(
         body: JSON.stringify({
           from: FROM,
           to: Array.isArray(to) ? to : [to],
-          subject: message.subject,
+          subject: subjectFor(message.subject),
           text: message.text || "",
           ...(message.html ? { html: message.html } : {}),
           ...(data.replyTo ? { reply_to: data.replyTo } : {})
