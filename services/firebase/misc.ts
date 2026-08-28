@@ -582,6 +582,9 @@ export const createLead = async (leadData: Omit<Lead, 'id' | 'createdAt' | 'stat
         // Vi använder .catch() direkt på Promise:t istället för try/catch för att vara helt säkra på att det inte bubblar upp.
         setDoc(doc(collection(db, 'mail')), {
             to: 'hej@smartstudio.se',
+            // Svara-till pekar på den som hörde av sig, så att ett svar går
+            // direkt till kunden i stället för till en no-reply-adress.
+            replyTo: leadData.email,
             message: {
                 subject: (leadData as any).source === 'klubbsverige'
                     ? `KlubbSverige: ny förfrågan från ${leadData.gymName}`

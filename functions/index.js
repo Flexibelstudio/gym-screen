@@ -34,6 +34,11 @@ const {
 } = require("./src/maintenance");
 
 const {
+  sendMail,
+  flushMailQueue
+} = require("./src/mail");
+
+const {
   verifyCoachUnlockCode,
   setCoachUnlockCode,
   getCoachUnlockCode,
@@ -70,5 +75,7 @@ module.exports = {
   verifyCoachUnlockCode,
   setCoachUnlockCode,
   getCoachUnlockCode,
-  migrateCoachUnlockCodes
+  migrateCoachUnlockCodes,
+  sendMail,
+  flushMailQueue
 };
