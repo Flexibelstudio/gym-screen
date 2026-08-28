@@ -30,7 +30,7 @@ export default defineConfig(({ mode }) => {
             display: 'standalone',
             // Installerad på hemskärmen ska appen aldrig vrida sig. Loggen är
             // byggd stående och bryts i liggande läge.
-            orientation: 'portrait',
+            orientation: 'portrait-primary',
             background_color: '#000000',
             theme_color: '#41c53c',
             icons: [

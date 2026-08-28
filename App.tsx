@@ -63,7 +63,6 @@ import { WorkoutDiplomaView } from './components/WorkoutDiplomaView';
 import { BirthDatePromptModal } from './components/modals/BirthDatePromptModal';
 import { LocationPromptModal } from './components/modals/LocationPromptModal';
 import { PWAInstallPrompt } from './components/PWAInstallPrompt';
-import { PortraitLock } from './components/PortraitLock';
 import { CoachWorkoutPreviewModal } from './components/CoachWorkoutPreviewModal';
 import { updateUserProfile, fetchCustomPrograms } from './services/firebaseService';
 
@@ -1421,11 +1420,6 @@ const App: React.FC = () => {
 
        <PWAInstallPrompt />
 
-       {/* Allt utom skärmen i lokalen. Att bara ta sessionRole === 'member'
-           höll inte: den som är coach eller admin har en annan roll även när
-           hon står med telefonen i handen, och fick då ingen spärr alls.
-           Komponenten kollar själv att det är en telefon. */}
-       {!isStudioMode && <PortraitLock />}
     </div>
   );
 }
