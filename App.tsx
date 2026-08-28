@@ -1421,9 +1421,11 @@ const App: React.FC = () => {
 
        <PWAInstallPrompt />
 
-       {/* Bara medlemsappen, och bara på telefon — komponenten kollar själv
-           att skärmens kortaste sida är en mobilstorlek. */}
-       {sessionRole === 'member' && <PortraitLock />}
+       {/* Allt utom skärmen i lokalen. Att bara ta sessionRole === 'member'
+           höll inte: den som är coach eller admin har en annan roll även när
+           hon står med telefonen i handen, och fick då ingen spärr alls.
+           Komponenten kollar själv att det är en telefon. */}
+       {!isStudioMode && <PortraitLock />}
     </div>
   );
 }
