@@ -175,6 +175,41 @@ const ConfettiRain = () => {
     );
 };
 
+/**
+ * Sommarsolen, nere i vänstra hörnet.
+ *
+ * Tidigare fanns bara ett sken här — en suddig gul cirkel utan något som lös.
+ * Det lästes som ett fel. Nu finns solen på riktigt, halvt bakom hörnet med
+ * strålarna ut i rummet, och skenet ligger bakom den som ljuset den kastar.
+ */
+const SUN_RAY_ANGLES = [-90, -68, -45, -22, 0];
+
+const SummerSun = () => (
+    <div className="fixed bottom-0 left-0 w-40 h-40 sm:w-48 sm:h-48 pointer-events-none z-[2000]">
+        <div className="absolute -bottom-16 -left-16 w-64 h-64 bg-amber-300/25 rounded-full blur-[70px]"></div>
+        <svg viewBox="0 0 100 100" className="absolute inset-0 w-full h-full drop-shadow-lg" aria-hidden="true">
+            {SUN_RAY_ANGLES.map(deg => {
+                const rad = (deg * Math.PI) / 180;
+                return (
+                    <line
+                        key={deg}
+                        x1={20 + Math.cos(rad) * 32}
+                        y1={80 + Math.sin(rad) * 32}
+                        x2={20 + Math.cos(rad) * 44}
+                        y2={80 + Math.sin(rad) * 44}
+                        stroke="#f59e0b"
+                        strokeWidth={5}
+                        strokeLinecap="round"
+                        opacity={0.85}
+                    />
+                );
+            })}
+            <circle cx="20" cy="80" r="26" fill="#fbbf24" />
+            <circle cx="20" cy="80" r="26" fill="#fde68a" opacity={0.5} />
+        </svg>
+    </div>
+);
+
 // --- Mascot Components ---
 
 const ChristmasMascot = ({ page }: { page: Page }) => {
@@ -735,6 +770,7 @@ export const SeasonalOverlay: React.FC<SeasonalOverlayProps> = React.memo(({ pag
             {/* 1. Background Particles */}
             {activeTheme !== 'none' && (activeTheme === 'winter' || activeTheme === 'christmas') && <SnowParticles />}
             {activeTheme === 'halloween' && <FogEffect />}
+            {(activeTheme === 'summer' || activeTheme === 'midsummer') && <SummerSun />}
             {activeTheme === 'valentines' && <FloatingHearts />}
             {activeTheme === 'newyear' && <ConfettiRain />}
             
