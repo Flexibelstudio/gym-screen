@@ -176,36 +176,25 @@ const ConfettiRain = () => {
 };
 
 /**
- * Sommarsolen, nere i vänstra hörnet.
- *
- * Tidigare fanns bara ett sken här — en suddig gul cirkel utan något som lös.
- * Det lästes som ett fel. Nu finns solen på riktigt, halvt bakom hörnet med
- * strålarna ut i rummet, och skenet ligger bakom den som ljuset den kastar.
+ * Sommarsolen, nere i vänstra hörnet. Återställd precis som den såg ut innan
+ * den råkade tappas bort: sol med solglasögon och ett leende.
  */
-const SUN_RAY_ANGLES = [-90, -68, -45, -22, 0];
-
-const SummerSun = () => (
-    <div className="fixed bottom-0 left-0 w-40 h-40 sm:w-48 sm:h-48 pointer-events-none z-[2000]">
-        <div className="absolute -bottom-16 -left-16 w-64 h-64 bg-amber-300/25 rounded-full blur-[70px]"></div>
-        <svg viewBox="0 0 100 100" className="absolute inset-0 w-full h-full drop-shadow-lg" aria-hidden="true">
-            {SUN_RAY_ANGLES.map(deg => {
-                const rad = (deg * Math.PI) / 180;
-                return (
-                    <line
-                        key={deg}
-                        x1={20 + Math.cos(rad) * 32}
-                        y1={80 + Math.sin(rad) * 32}
-                        x2={20 + Math.cos(rad) * 44}
-                        y2={80 + Math.sin(rad) * 44}
-                        stroke="#f59e0b"
-                        strokeWidth={5}
-                        strokeLinecap="round"
-                        opacity={0.85}
-                    />
-                );
-            })}
-            <circle cx="20" cy="80" r="26" fill="#fbbf24" />
-            <circle cx="20" cy="80" r="26" fill="#fde68a" opacity={0.5} />
+const SummerMascot = () => (
+    <div className="fixed bottom-0 left-4 w-40 h-40 pointer-events-none z-[2000]">
+        <svg viewBox="0 0 200 200" className="w-full h-full drop-shadow-xl">
+            {/* Sun Body */}
+            <circle cx="150" cy="150" r="40" fill="#fbbf24" />
+            {/* Rays */}
+            <g stroke="#fbbf24" strokeWidth="8" strokeLinecap="round">
+                <line x1="150" y1="90" x2="150" y2="70" />
+                <line x1="90" y1="150" x2="70" y2="150" />
+                <line x1="110" y1="110" x2="95" y2="95" />
+            </g>
+            {/* Sunglasses */}
+            <path d="M125,145 L175,145 L175,155 Q175,165 165,165 L160,165 Q150,165 150,155 L150,150 L145,150 L145,155 Q145,165 135,165 L130,165 Q120,165 120,155 Z" fill="#1f2937" />
+            <line x1="120" y1="148" x2="110" y2="140" stroke="#1f2937" strokeWidth="2" />
+            {/* Smile */}
+            <path d="M135,175 Q150,185 165,175" stroke="#b45309" strokeWidth="3" fill="none" strokeLinecap="round" />
         </svg>
     </div>
 );
@@ -770,7 +759,7 @@ export const SeasonalOverlay: React.FC<SeasonalOverlayProps> = React.memo(({ pag
             {/* 1. Background Particles */}
             {activeTheme !== 'none' && (activeTheme === 'winter' || activeTheme === 'christmas') && <SnowParticles />}
             {activeTheme === 'halloween' && <FogEffect />}
-            {(activeTheme === 'summer' || activeTheme === 'midsummer') && <SummerSun />}
+            {(activeTheme === 'summer' || activeTheme === 'midsummer') && <SummerMascot />}
             {activeTheme === 'valentines' && <FloatingHearts />}
             {activeTheme === 'newyear' && <ConfettiRain />}
             
