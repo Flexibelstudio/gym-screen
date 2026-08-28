@@ -175,8 +175,10 @@ const ConfettiRain = () => {
     );
 };
 
+// Nere i vänstra hörnet. Uppe till höger låg den i vägen för det man läser
+// först, och lyste dessutom bakom rubriker och siffror.
 const SummerSun = () => (
-    <div className="fixed top-[-100px] right-[-100px] w-[300px] h-[300px] bg-yellow-400/20 rounded-full blur-[80px] pointer-events-none z-[2000]"></div>
+    <div className="fixed bottom-[-100px] left-[-100px] w-[300px] h-[300px] bg-yellow-400/20 rounded-full blur-[80px] pointer-events-none z-[2000]"></div>
 );
 
 // --- Mascot Components ---
