@@ -1,79 +1,94 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect } from 'react';
 
 /**
- * Medlemsappen är byggd stående. Vrider man mobilen bryts kolumnerna i loggen
- * och knapparna hamnar utanför skärmen.
+ * Appen ska se likadan ut oavsett hur telefonen hålls.
  *
- * Installerad på hemskärmen låser manifestet appen till stående läge — det
- * sköter webbläsaren själv. I en vanlig flik finns ingen sådan spärr: iOS
- * saknar helt möjligheten att låsa rotationen. Då är det ärligare att be om
- * att telefonen vrids tillbaka än att visa en trasig vy.
+ * Installerad på hemskärmen sköter manifestet det. I en vanlig flik finns
+ * ingen spärr att sätta — iOS låter ingen webbsida hindra att skärmen vrids.
+ * Därför gör vi tvärtom: när telefonen vrids roterar vi appen lika mycket
+ * tillbaka, så att den följer med telefonens kropp. För den som håller i
+ * mobilen ser det ut som att ingenting hände.
  *
- * Vi läser den fysiska orienteringen via screen.orientation.angle, inte
- * fönstrets proportioner. Ett uppfällt tangentbord gör annars en liten telefon
- * bredare än den är hög, och rutan hade dykt upp mitt i att någon skriver.
+ * Komponenten ritar ingenting. Den sätter en klass på html-elementet och
+ * lämnar över till CSS:en i index.css.
  */
-/** Bara telefoner. Surfplattor och datorer ska aldrig få rutan. */
+
+/** Bara telefoner. Surfplattor och datorer ska aldrig roteras. */
 const isPhoneScreen = (): boolean => {
     if (typeof window === 'undefined') return false;
-    const shortestSide = Math.min(window.screen.width, window.screen.height);
-    return shortestSide <= 500;
+    return Math.min(window.screen.width, window.screen.height) <= 500;
 };
 
+type Rotation = 'none' | 'cw' | 'ccw';
+
 /**
- * Två oberoende mätningar, och det räcker att en av dem säger liggande.
- *
- * screen.orientation.angle är den exakta, men den saknas i äldre webbläsare och
- * har varit opålitlig i hemskärmsläge på iOS. Därför finns även måttet på
- * fönstret: i liggande läge är en telefon bredare än 500 pixlar. Ett uppfällt
- * tangentbord i stående läge gör visserligen fönstret lägre än det är brett,
- * men bredden är då kvar under 500 — så den fällan undviks.
+ * screen.orientation.angle är den exakta mätningen, men den rapporterar noll i
+ * lägen där telefonen faktiskt ligger ner. Därför mäter vi även fönstret: i
+ * liggande läge är en telefon bredare än 500 pixlar. Ett uppfällt tangentbord i
+ * stående läge gör fönstret lägre än det är brett, men bredden stannar under
+ * 500 — så den fällan undviks.
  */
-const readIsLandscape = (): boolean => {
-    if (typeof window === 'undefined') return false;
+const readRotation = (): Rotation => {
+    if (typeof window === 'undefined') return 'none';
 
     const angle = (window.screen as any)?.orientation?.angle;
-    if (angle === 90 || angle === 270) return true;
+    if (angle === 90) return 'ccw';
+    if (angle === 270) return 'cw';
 
     const legacy = (window as any).orientation;
-    if (legacy === 90 || legacy === -90) return true;
+    if (legacy === 90) return 'ccw';
+    if (legacy === -90) return 'cw';
 
-    if (window.innerWidth > window.innerHeight && window.innerWidth > 500) return true;
+    // Vinkeln teg men fönstret säger liggande. Vi vet inte åt vilket håll,
+    // och tar då det vanligaste.
+    if (window.innerWidth > window.innerHeight && window.innerWidth > 500) return 'ccw';
 
-    return false;
+    return 'none';
 };
 
 export const PortraitLock: React.FC = () => {
-    const [showPrompt, setShowPrompt] = useState(false);
-
     useEffect(() => {
-        const update = () => setShowPrompt(isPhoneScreen() && readIsLandscape());
-        update();
+        const root = document.documentElement;
+
+        const apply = () => {
+            const rotation = isPhoneScreen() ? readRotation() : 'none';
+
+            if (rotation === 'none') {
+                root.classList.remove('force-portrait');
+                root.removeAttribute('data-portrait-rotate');
+                root.style.removeProperty('--pl-w');
+                root.style.removeProperty('--pl-h');
+                return;
+            }
+
+            // Exakta pixlar, inte vh och vw. På iOS räknar vh in adressfältet
+            // och då hamnar appen en bit utanför skärmen.
+            root.style.setProperty('--pl-w', `${window.innerWidth}px`);
+            root.style.setProperty('--pl-h', `${window.innerHeight}px`);
+            root.setAttribute('data-portrait-rotate', rotation);
+            root.classList.add('force-portrait');
+        };
+
+        apply();
+
+        // Måtten är rätt först när webbläsaren hunnit lägga om fönstret.
+        const applySoon = () => { apply(); window.setTimeout(apply, 250); };
 
         const orientation = (window.screen as any)?.orientation;
-        orientation?.addEventListener?.('change', update);
-        window.addEventListener('orientationchange', update);
-        window.addEventListener('resize', update);
+        orientation?.addEventListener?.('change', applySoon);
+        window.addEventListener('orientationchange', applySoon);
+        window.addEventListener('resize', apply);
 
         return () => {
-            orientation?.removeEventListener?.('change', update);
-            window.removeEventListener('orientationchange', update);
-            window.removeEventListener('resize', update);
+            orientation?.removeEventListener?.('change', applySoon);
+            window.removeEventListener('orientationchange', applySoon);
+            window.removeEventListener('resize', apply);
+            root.classList.remove('force-portrait');
+            root.removeAttribute('data-portrait-rotate');
+            root.style.removeProperty('--pl-w');
+            root.style.removeProperty('--pl-h');
         };
     }, []);
 
-    if (!showPrompt) return null;
-
-    return (
-        <div className="fixed inset-0 z-[100000] bg-white dark:bg-black flex flex-col items-center justify-center text-center px-8">
-            <div className="w-14 h-14 rounded-2xl border-4 border-gray-900 dark:border-white mb-5" />
-            <p className="text-xl font-black text-gray-900 dark:text-white">
-                Vrid tillbaka telefonen
-            </p>
-            <p className="mt-2 text-sm text-gray-500 dark:text-gray-400 max-w-xs">
-                SmartStudio är byggd för stående läge. Då syns hela passet utan att du
-                behöver dra i sidled.
-            </p>
-        </div>
-    );
+    return null;
 };

@@ -508,3 +508,46 @@ html:not(.dark).studio-mode .bg-white\/60 {
   background-color: rgba(0, 0, 0, 0.65) !important;
 }
 
+
+/* ==========================================================================
+   STÅENDE LÄGE PÅ TELEFON
+
+   Telefonen går inte att hindra från att vrida sig i en webbläsarflik. Vi
+   roterar därför appen lika mycket tillbaka, så att den följer med telefonens
+   kropp i stället för att lägga om sig. För den som håller i mobilen ser det
+   ut som att ingenting hände.
+
+   Måtten kommer som pixlar från PortraitLock. Vi använder inte vh och vw —
+   på iOS räknar vh in adressfältet och appen hamnar då snett.
+   ========================================================================== */
+
+html.force-portrait,
+html.force-portrait body {
+    overflow: hidden !important;
+    width: 100%;
+    height: 100%;
+}
+
+html.force-portrait #root {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: var(--pl-h);
+    height: var(--pl-w);
+    overflow-x: hidden;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    transform-origin: top left;
+}
+
+/* Telefonen vriden åt ena hållet: appen roteras moturs och skjuts ner. */
+html.force-portrait[data-portrait-rotate="ccw"] #root {
+    top: var(--pl-h);
+    transform: rotate(-90deg);
+}
+
+/* Och åt andra hållet: medurs, och ut åt höger. */
+html.force-portrait[data-portrait-rotate="cw"] #root {
+    left: var(--pl-w);
+    transform: rotate(90deg);
+}
