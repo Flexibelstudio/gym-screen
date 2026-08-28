@@ -137,7 +137,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginClick, onRegist
 
     const handleLeadSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!leadForm.name || !leadForm.email || !leadForm.gymName) return;
+        if (!leadForm.name || !leadForm.email || !leadForm.gymName || !leadForm.phone) return;
         
         setIsSubmittingLead(true);
         const success = await createLead(leadForm);
@@ -616,9 +616,10 @@ Tillval · Medlemsappen
                                         />
                                     </div>
                                     <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-1">Telefonnummer (frivilligt)</label>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">Telefonnummer *</label>
                                         <input 
                                             type="tel" 
+                                            required
                                             value={leadForm.phone}
                                             onChange={e => setLeadForm({...leadForm, phone: e.target.value})}
                                             className="w-full bg-gray-50 border border-gray-300 rounded-xl px-4 py-3 text-gray-900 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all"

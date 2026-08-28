@@ -43,13 +43,167 @@ const findEligiblePass = async (db, clientId, service, serviceId, klippCost, now
 const createBooking = onCall(async (request) => {
   const db = admin.firestore();
   const caller = await getCallerData(request.auth);
-  const { slotId, serviceId, paymentType, clientId, clientName, clientEmail, joinWaitlist } = request.data;
+  const { slotId, serviceId, paymentType, clientId, clientName, clientEmail, joinWaitlist,
+    availabilityId, dateTime: requestedDateTime, trainerId: manualTrainerId } = request.data;
 
-  if (!slotId || !serviceId) {
-    throw new HttpsError("invalid-argument", "slotId och serviceId krävs.");
+  if (!serviceId) {
+    throw new HttpsError("invalid-argument", "serviceId krävs.");
   }
   if (!["klippkort", "betalning", "medlemskap"].includes(paymentType)) {
     throw new HttpsError("invalid-argument", "Ogiltig betaltyp. Tillåtna: klippkort, betalning, medlemskap.");
+  }
+
+  // ============================================================
+  // BEHANDLINGSLÄGE: bokning mot bokningsbar tid (availability)
+  // eller manuell bokning av personal utan utlagd tid.
+  // ============================================================
+  if (availabilityId || (!slotId && requestedDateTime)) {
+    const serviceSnap2 = await db.collection("services").doc(serviceId).get();
+    if (!serviceSnap2.exists) throw new HttpsError("not-found", "Hittade inte tjänsten.");
+    const service2 = serviceSnap2.data();
+    const duration = Number(service2.duration) || 30;
+    const buffer = Number(service2.bufferAfterMinutes) || 0;
+    const klippCost2 = service2.klippCost != null ? service2.klippCost : 1;
+
+    if (!requestedDateTime) throw new HttpsError("invalid-argument", "dateTime (starttid) krävs.");
+    const reqStart = new Date(requestedDateTime);
+    if (isNaN(reqStart.getTime())) throw new HttpsError("invalid-argument", "Ogiltig starttid.");
+    const reqBlockUntil = new Date(reqStart.getTime() + (duration + buffer) * 60000);
+
+    let av = null;
+    let organizationId2 = null;
+    let trainerId2 = null;
+    let trainerName2 = "";
+    let capacity = 1;
+
+    if (availabilityId) {
+      const avSnap = await db.collection("availabilities").doc(availabilityId).get();
+      if (!avSnap.exists) throw new HttpsError("not-found", "Den bokningsbara tiden finns inte längre.");
+      av = avSnap.data();
+      organizationId2 = av.organizationId;
+      trainerId2 = av.trainerId;
+      trainerName2 = av.trainerName || "";
+      capacity = Number(av.capacity) > 0 ? Number(av.capacity) : 1;
+
+      if (!(av.serviceIds || []).includes(serviceId)) {
+        throw new HttpsError("failed-precondition", "Denna tjänst kan inte bokas på den valda tiden.");
+      }
+      const winStart = new Date(`${av.date}T${av.startTime}:00`);
+      const winEnd = new Date(`${av.date}T${av.endTime}:00`);
+      const reqEnd = new Date(reqStart.getTime() + duration * 60000);
+      if (reqStart < winStart || reqEnd > winEnd) {
+        throw new HttpsError("failed-precondition", "Starttiden ligger utanför den bokningsbara tiden.");
+      }
+    } else {
+      // Manuell bokning utan utlagd tid – kräver personal
+      if (!isStaffRole(caller.role)) {
+        throw new HttpsError("permission-denied", "Endast personal kan boka utan utlagd bokningsbar tid.");
+      }
+      organizationId2 = caller.organizationId;
+      trainerId2 = manualTrainerId || caller.uid;
+      const tSnap = await db.collection("users").doc(trainerId2).get();
+      if (tSnap.exists) {
+        const t = tSnap.data();
+        trainerName2 = (`${t.firstName || ""} ${t.lastName || ""}`.trim()) || t.displayName || "";
+      }
+    }
+
+    const isAdminBooking2 = isStaffRole(caller.role) && !!clientId;
+    const targetClientId2 = isAdminBooking2 ? clientId : caller.uid;
+    const targetClientName2 = isAdminBooking2
+      ? (clientName || "")
+      : (caller.displayName || `${caller.firstName || ""} ${caller.lastName || ""}`.trim());
+    const targetClientEmail2 = isAdminBooking2 ? (clientEmail || "") : caller.email;
+
+    if (!isAdminBooking2 && caller.role === "member" && caller.organizationId !== organizationId2) {
+      throw new HttpsError("permission-denied", "Du kan bara boka i din egen anläggning.");
+    }
+    if (!availabilityId && !isStaffRole(caller.role)) {
+      throw new HttpsError("permission-denied", "Ej behörig.");
+    }
+
+    const now2 = new Date();
+    // Aktiva medlemskap (för betaltypen 'medlemskap')
+    const cmSnap2 = await db.collection("client_memberships")
+      .where("clientId", "==", targetClientId2)
+      .where("status", "==", "active")
+      .get();
+    const activeMemberships2 = cmSnap2.docs.map((d) => d.data())
+      .filter((cm) => !cm.endDate || new Date(cm.endDate) >= now2);
+    if (paymentType === "medlemskap" && activeMemberships2.length === 0) {
+      throw new HttpsError("failed-precondition", "Användaren har inget aktivt medlemskap. Välj klippkort eller betalning istället.");
+    }
+    let passRefToDeduct2 = null;
+    if (paymentType === "klippkort") {
+      const eligibleDoc = await findEligiblePass(db, targetClientId2, service2, serviceId, klippCost2, now2);
+      if (!eligibleDoc) {
+        throw new HttpsError("failed-precondition", "Användaren har inget giltigt klippkort för denna tjänst.");
+      }
+      passRefToDeduct2 = eligibleDoc.ref;
+    }
+
+    // Transaktion: krock-/kapacitetskontroll + klippavdrag + skapa bokning
+    const bookingRef2 = db.collection("bookings").doc();
+    await db.runTransaction(async (tx) => {
+      // Alla behandlingsbokningar för samma personal (krockar räknas över availability-gränser)
+      const existingSnap2 = await tx.get(
+        db.collection("bookings")
+          .where("trainerId", "==", trainerId2)
+          .where("organizationId", "==", organizationId2)
+      );
+      const overlapping = existingSnap2.docs
+        .map((d) => d.data())
+        .filter((b) => b.status !== "cancelled" && !b.slotId)
+        .filter((b) => {
+          const bStart = new Date(b.dateTime);
+          const bBlock = b.blockUntil ? new Date(b.blockUntil) : new Date(bStart.getTime() + (Number(b.duration) || 30) * 60000);
+          return reqStart < bBlock && bStart < reqBlockUntil;
+        });
+      // Dubbelbokning för kunden
+      if (overlapping.some((b) => b.clientId === targetClientId2)) {
+        throw new HttpsError("already-exists", "Användaren har redan en bokning som krockar med denna tid.");
+      }
+      if (overlapping.length >= capacity) {
+        throw new HttpsError("failed-precondition", "Tiden är inte längre ledig. Välj en annan starttid.");
+      }
+
+      let passData2 = null;
+      if (passRefToDeduct2) {
+        passData2 = (await tx.get(passRefToDeduct2)).data();
+        if (!passData2 || passData2.remainingKlipp < klippCost2) {
+          throw new HttpsError("failed-precondition", "Klippkortet har inte tillräckligt med klipp.");
+        }
+      }
+
+      tx.set(bookingRef2, {
+        id: bookingRef2.id,
+        slotId: null,
+        availabilityId: availabilityId || null,
+        clientId: targetClientId2,
+        clientName: targetClientName2,
+        clientEmail: targetClientEmail2,
+        serviceId: service2.id || serviceId,
+        serviceName: service2.name,
+        dateTime: reqStart.toISOString(),
+        duration,
+        blockUntil: reqBlockUntil.toISOString(),
+        trainerId: trainerId2,
+        trainerName: trainerName2,
+        status: "confirmed",
+        paymentType,
+        organizationId: organizationId2,
+        createdAt: new Date().toISOString(),
+      });
+      if (passRefToDeduct2) {
+        tx.update(passRefToDeduct2, { remainingKlipp: passData2.remainingKlipp - klippCost2 });
+      }
+    });
+
+    return { success: true, bookingId: bookingRef2.id, message: "Bokningen genomfördes!" };
+  }
+
+  if (!slotId) {
+    throw new HttpsError("invalid-argument", "slotId krävs.");
   }
 
   const slotSnap = await db.collection("slots").doc(slotId).get();
@@ -114,7 +268,8 @@ const createBooking = onCall(async (request) => {
     .where("clientId", "==", targetClientId)
     .where("status", "==", "active")
     .get();
-  const activeMemberships = cmSnap.docs.map((d) => d.data()).filter((cm) => new Date(cm.endDate) >= now);
+  // Tomt endDate = löper tills vidare (aktivt)
+  const activeMemberships = cmSnap.docs.map((d) => d.data()).filter((cm) => !cm.endDate || new Date(cm.endDate) >= now);
 
   // Medlemskapsrestriktion på passet
   if (slot.allowedMemberships && slot.allowedMemberships.length > 0 && caller.role === "member" && !isAdminBooking) {
@@ -229,6 +384,31 @@ const cancelBooking = onCall(async (request) => {
   if (booking.status === "waiting") {
     await bookingRef.update({ status: "cancelled" });
     return { success: true, message: "Du har lämnat kön." };
+  }
+
+  // Behandlingsbokning (ingen slot): avboka + ev. klippåterföring, ingen platsräkning/kö
+  if (!booking.slotId) {
+    const settingsSnap2 = await db.collection("org_settings").doc(booking.organizationId).get();
+    const settings2 = settingsSnap2.exists ? settingsSnap2.data() : {};
+    const cancelHours2 = settings2.cancelHoursBefore != null ? settings2.cancelHoursBefore : 24;
+    const diffH = (new Date(booking.dateTime).getTime() - Date.now()) / 3600000;
+    if (diffH < cancelHours2 && caller.role === "member") {
+      throw new HttpsError("failed-precondition", `Avbokning måste ske senast ${cancelHours2} timmar innan bokad tid. Kontakta oss direkt vid akuta förhinder.`);
+    }
+    if (booking.paymentType === "klippkort") {
+      const svcSnap2 = booking.serviceId ? await db.collection("services").doc(booking.serviceId).get() : null;
+      const svc2 = svcSnap2 && svcSnap2.exists ? svcSnap2.data() : null;
+      const passSnap2 = await db.collection("passes").where("clientId", "==", booking.clientId).get();
+      if (!passSnap2.empty) {
+        const matching2 = passSnap2.docs.filter((d) => passValidForService(d.data(), svc2, booking.serviceId));
+        const pool2 = matching2.length > 0 ? matching2 : passSnap2.docs;
+        const sorted2 = pool2.sort((a, b) => (b.data().createdAt || "").localeCompare(a.data().createdAt || ""));
+        const refData = sorted2[0].data();
+        await sorted2[0].ref.update({ remainingKlipp: (refData.remainingKlipp || 0) + 1 });
+      }
+    }
+    await bookingRef.update({ status: "cancelled" });
+    return { success: true, message: "Bokningen har avbokats framgångsrikt." };
   }
 
   // Avbokningspolicy (gäller bara medlemmar; personal kan avboka när som helst)
@@ -623,7 +803,7 @@ const createKioskOrder = onCall(async (request) => {
   if (paymentMethod === "membership_invoice") {
     const cmSnap = await db.collection("client_memberships")
       .where("clientId", "==", caller.uid).where("status", "==", "active").get();
-    const active = cmSnap.docs.some((d) => new Date(d.data().endDate) >= new Date());
+    const active = cmSnap.docs.some((d) => !d.data().endDate || new Date(d.data().endDate) >= new Date());
     if (!active) {
       throw new HttpsError("failed-precondition", "Endast medlemmar med ett aktivt löpande medlemskap (månadsbetalning) kan handla på kredit.");
     }

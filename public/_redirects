@@ -1,0 +1,6 @@
+# Appen är en enda sida. Utan den här regeln ger ett direkt anrop till
+# /klubbsverige eller /reset-password en 404 från Netlify, eftersom det inte
+# finns någon fil med det namnet. Regeln skickar alla adresser till index.html
+# och låter appen själv avgöra vad som ska visas. Statiska filer som faktiskt
+# finns serveras som vanligt — regeln gäller bara det som annars blivit 404.
+/*    /index.html   200

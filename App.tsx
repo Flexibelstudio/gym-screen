@@ -35,6 +35,7 @@ import { ReAuthModal } from './components/ReAuthModal';
 import { StudioConfigModal } from './components/AdminConfigScreen';
 import { LoginScreen } from './components/LoginScreen';
 import { ResetPasswordScreen } from './components/ResetPasswordScreen';
+import { KlubbSverigeScreen } from './components/KlubbSverigeScreen';
 import { StorageWarningBanner } from './components/StorageWarningBanner';
 
 const RegisterGymScreen = React.lazy(() => import('./components/RegisterGymScreen').then(m => ({ default: m.RegisterGymScreen })));
@@ -227,6 +228,13 @@ const App: React.FC = () => {
   const isResetPasswordPath = useMemo(() => {
     const path = window.location.pathname;
     return path === '/reset-password' || path === '/reset-password/';
+  }, []);
+
+  // KlubbSverige-ingången. Egen adress som inte länkas från någon publik meny —
+  // länken sprids bara via KlubbSveriges kanaler, och det är medlemsspärren.
+  const isKlubbSverigePath = useMemo(() => {
+    const path = window.location.pathname.replace(/\/$/, '').toLowerCase();
+    return path === '/klubbsverige';
   }, []);
 
   useEffect(() => {
@@ -886,6 +894,10 @@ const App: React.FC = () => {
   
   if (isResetPasswordPath) {
     return <ResetPasswordScreen />;
+  }
+
+  if (isKlubbSverigePath) {
+    return <KlubbSverigeScreen />;
   }
   
   if (publicLiveRaceId) {

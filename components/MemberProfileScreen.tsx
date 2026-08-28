@@ -22,6 +22,7 @@ const ACTIVE_LOG_STORAGE_KEY = 'smart-skarm-active-log';
 const ACTIVE_LOG_MAX_AGE_MS = 6 * 60 * 60 * 1000;
 
 import { ActivityCalendar } from './dashboard/ActivityCalendar';
+import { ReferralInvite } from './ReferralInvite';
 import { BodyHeatmap } from './dashboard/BodyHeatmap';
 import { WeeklyGoalRing } from './dashboard/WeeklyGoalRing';
 import { Leaderboard } from './dashboard/Leaderboard';
@@ -1624,6 +1625,10 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                         </div>
                         <div className="absolute -bottom-10 -right-10 w-48 h-48 bg-white/20 rounded-full blur-[60px] pointer-events-none"></div>
                     </div>
+
+                    {/* Värva en vän — låg rad, ska gå att hitta direkt när
+                        kompisen står bredvid. Visas bara när gymmet lagt in en länk. */}
+                    <ReferralInvite organization={selectedOrganization} userData={userData} />
 
                     {/* Sommar-Sisu status & rules (collapsible) (Card 2) */}
                     {isSummerThemeActive && isUserJoined && !isChallengeFullyExpired && (

@@ -210,6 +210,40 @@ export const getGroupColorHex = (groupColor?: string | null): string | null => {
     return GROUP_COLOR_HEX[groupColor] || null;
 };
 
+/**
+ * Bygger värvningslänken. Gymmets egen formuläradress plus två förifyllningar:
+ * vem som värvade och vilken ort. Saknar gymmet parameternamn skickas inget —
+ * länken fungerar ändå, men då får de fråga i formuläret i stället.
+ *
+ * Ortens egen länk går före organisationens, så att gym med skilda formulär per
+ * ort slipper samsas om en.
+ */
+export const buildReferralUrl = (opts: {
+    baseUrl?: string | null;
+    referrerParam?: string | null;
+    locationParam?: string | null;
+    referrerName?: string | null;
+    locationName?: string | null;
+}): string | null => {
+    const base = (opts.baseUrl || '').trim();
+    if (!base) return null;
+
+    let url: URL;
+    try {
+        url = new URL(base.startsWith('http') ? base : `https://${base}`);
+    } catch {
+        return null;
+    }
+
+    const refKey = (opts.referrerParam || '').trim();
+    if (refKey && opts.referrerName) url.searchParams.set(refKey, opts.referrerName);
+
+    const locKey = (opts.locationParam || '').trim();
+    if (locKey && opts.locationName) url.searchParams.set(locKey, opts.locationName);
+
+    return url.toString();
+};
+
 export const getSideLabel = (side?: 'V' | 'H' | 'V/H' | 'ALT' | null): string | null => {
     switch (side) {
         case 'V': return 'VÄNSTER';

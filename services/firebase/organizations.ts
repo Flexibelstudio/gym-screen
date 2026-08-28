@@ -2,7 +2,7 @@ import {
   collection, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, query, where, orderBy, onSnapshot, writeBatch, deleteField, serverTimestamp 
 } from 'firebase/firestore';
 import { db, isOffline, sanitizeData, generateInviteCode } from './init';
-import { Organization, CustomPage, InfoCarousel, CompanyDetails, BenchmarkDefinition, Studio, SmartScreenPricing } from '../../types';
+import { Organization, CustomPage, InfoCarousel, CompanyDetails, BenchmarkDefinition, Studio, SmartScreenPricing, ReferralConfig } from '../../types';
 import { MOCK_ORGANIZATIONS, MOCK_SMART_SCREEN_PRICING } from '../../data/mockData';
 
 export const getOrganizations = async (): Promise<Organization[]> => {
@@ -85,6 +85,16 @@ export const updateOrganization = async (id: string, name: string, subdomain: st
 export const updateOrganizationWorkoutFolders = async (id: string, folders: { id: string; name: string; createdAt: number; parentId?: string }[]) => {
     if(isOffline || !db || !id) return;
     await updateDoc(doc(db, 'organizations', id), { workoutFolders: folders });
+    return getOrganizationById(id);
+};
+
+/**
+ * Värva en vän: gymmets egen formulärlänk och hur den ska förifyllas.
+ * Vi lagrar aldrig den värvades uppgifter — de hamnar i gymmets CRM.
+ */
+export const updateOrganizationReferral = async (id: string, referral: ReferralConfig) => {
+    if(isOffline || !db || !id) return;
+    await updateDoc(doc(db, 'organizations', id), { referral });
     return getOrganizationById(id);
 };
 

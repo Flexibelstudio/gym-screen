@@ -244,6 +244,12 @@ service cloud.firestore {
       allow write: if isStaff(request.resource.data.organizationId) || (resource != null && isStaff(resource.data.organizationId));
     }
 
+    // Bokningsbar tid (behandlingar) – läsbar för org, hanteras av personal
+    match /availabilities/{id} {
+      allow read: if isSignedIn() && belongsToOrg(resource.data.organizationId);
+      allow write: if isStaff(request.resource.data.organizationId) || (resource != null && isStaff(resource.data.organizationId));
+    }
+
     match /bookings/{id} {
       allow read: if isSignedIn() && (request.auth.uid == resource.data.clientId || isStaff(resource.data.organizationId));
       allow write: if false;
@@ -251,7 +257,10 @@ service cloud.firestore {
 
     match /passes/{id} {
       allow read: if isSignedIn() && (request.auth.uid == resource.data.clientId || isStaff(resource.data.organizationId));
-      allow write: if false;
+      // Personal får SKAPA kort (gåvor/manuell tilldelning). Saldo/ändringar går
+      // fortfarande enbart via Cloud Functions (createBooking/cancelBooking/purchasePass).
+      allow create: if isStaff(request.resource.data.organizationId);
+      allow update, delete: if false;
     }
 
     match /client_memberships/{id} {

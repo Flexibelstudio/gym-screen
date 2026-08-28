@@ -26,7 +26,7 @@ import {
   writeBatch, 
   serverTimestamp,
   runTransaction,
-  deleteField
+  deleteField,
 } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import { getToken } from 'firebase/messaging';
