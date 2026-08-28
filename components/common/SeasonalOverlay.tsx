@@ -175,12 +175,6 @@ const ConfettiRain = () => {
     );
 };
 
-// Nere i vänstra hörnet. Uppe till höger låg den i vägen för det man läser
-// först, och lyste dessutom bakom rubriker och siffror.
-const SummerSun = () => (
-    <div className="fixed bottom-[-100px] left-[-100px] w-[300px] h-[300px] bg-yellow-400/20 rounded-full blur-[80px] pointer-events-none z-[2000]"></div>
-);
-
 // --- Mascot Components ---
 
 const ChristmasMascot = ({ page }: { page: Page }) => {
@@ -674,12 +668,26 @@ export const SeasonalOverlay: React.FC<SeasonalOverlayProps> = React.memo(({ pag
     const theme = useActiveTheme();
     const [globalChallenge, setGlobalChallenge] = useState<any>(null);
 
+    // Utmaningens riktiga datum kommer från servern. Innan de har landat säger
+    // gymmets egen inställning att utmaningen pågår, och termometern hann därför
+    // blinka till för att sedan försvinna när svaret kom och sa att den är slut.
+    // Vi ritar ingenting alls förrän vi vet.
+    const [challengeLoaded, setChallengeLoaded] = useState(false);
+
     useEffect(() => {
         if (isAdminView) return;
+        let settled = false;
+        const settle = () => { if (!settled) { settled = true; setChallengeLoaded(true); } };
+
         const unsubscribe = listenToGlobalSummerChallenge((data) => {
             setGlobalChallenge(data);
+            settle();
         });
-        return () => unsubscribe();
+
+        // Svarar servern inte alls ska overlayen inte bli osynlig för alltid.
+        const fallback = window.setTimeout(settle, 2000);
+
+        return () => { window.clearTimeout(fallback); unsubscribe(); };
     }, [isAdminView]);
 
     const configToUse = useMemo(() => {
@@ -718,6 +726,8 @@ export const SeasonalOverlay: React.FC<SeasonalOverlayProps> = React.memo(({ pag
 
     if (isAdminView) return null;
 
+    if (!challengeLoaded) return null;
+
     if (activeTheme === 'none' && !isChallengeActive) return null;
 
     return (
@@ -727,7 +737,6 @@ export const SeasonalOverlay: React.FC<SeasonalOverlayProps> = React.memo(({ pag
             {activeTheme === 'halloween' && <FogEffect />}
             {activeTheme === 'valentines' && <FloatingHearts />}
             {activeTheme === 'newyear' && <ConfettiRain />}
-            {activeTheme !== 'none' && (activeTheme === 'summer' || activeTheme === 'midsummer') && <SummerSun />}
             
             {/* 2. Corner Mascots */}
             {activeTheme === 'christmas' && <ChristmasMascot page={page} />}
