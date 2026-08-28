@@ -22,7 +22,6 @@ export const KlubbSverigeScreen: React.FC = () => {
     }, []);
 
     const [gymName, setGymName] = useState('');
-    const [orgNumber, setOrgNumber] = useState('');
     const [name, setName] = useState('');
     const [email, setEmail] = useState('');
     const [phone, setPhone] = useState('');
@@ -34,7 +33,7 @@ export const KlubbSverigeScreen: React.FC = () => {
     const [isSent, setIsSent] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
-    const canSubmit = gymName.trim() && orgNumber.trim() && name.trim() && email.trim() && phone.trim();
+    const canSubmit = gymName.trim() && name.trim() && email.trim() && phone.trim();
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -50,7 +49,6 @@ export const KlubbSverigeScreen: React.FC = () => {
                 phone: phone.trim(),
                 message: message.trim() || undefined,
                 source: 'klubbsverige',
-                orgNumber: orgNumber.trim(),
                 campaignCode: code.trim() || undefined,
                 memberVerified: false,
                 screensInterested: Number.isFinite(parsedScreens) && parsedScreens > 0 ? parsedScreens : undefined,
@@ -81,8 +79,8 @@ export const KlubbSverigeScreen: React.FC = () => {
                     <div className="text-5xl mb-4">🎉</div>
                     <h1 className="text-2xl font-black text-gray-900 dark:text-white mb-2">Tack! Vi hör av oss</h1>
                     <p className="text-gray-600 dark:text-gray-400">
-                        Vi kontaktar dig inom kort för att boka in en demo. Innan dess stämmer vi av
-                        ert organisationsnummer mot KlubbSveriges medlemsregister, så att ni får rätt pris direkt.
+                        Vi kontaktar dig inom kort för att boka in en demo och stämmer av ert
+                        medlemskap i KlubbSverige, så att ni får rätt pris direkt.
                     </p>
 
                     {/* De flesta kommer hit direkt från nyhetsbrevet och har aldrig sett
@@ -125,12 +123,6 @@ export const KlubbSverigeScreen: React.FC = () => {
                     <div>
                         <label className={labelClass}>Anläggningens namn *</label>
                         <input type="text" value={gymName} onChange={e => setGymName(e.target.value)} required className={fieldClass} />
-                    </div>
-
-                    <div>
-                        <label className={labelClass}>Organisationsnummer *</label>
-                        <input type="text" value={orgNumber} onChange={e => setOrgNumber(e.target.value)} required placeholder="XXXXXX-XXXX" className={fieldClass} />
-                        <p className="text-xs text-gray-400 mt-1.5">Används för att bekräfta ert medlemskap i KlubbSverige.</p>
                     </div>
 
                     <div>
