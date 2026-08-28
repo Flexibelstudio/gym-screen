@@ -244,6 +244,12 @@ service cloud.firestore {
       allow write: if isStaff(request.resource.data.organizationId) || (resource != null && isStaff(resource.data.organizationId));
     }
 
+    // Bokningsbar tid (behandlingar) – läsbar för org, hanteras av personal
+    match /availabilities/{id} {
+      allow read: if isSignedIn() && belongsToOrg(resource.data.organizationId);
+      allow write: if isStaff(request.resource.data.organizationId) || (resource != null && isStaff(resource.data.organizationId));
+    }
+
     match /bookings/{id} {
       allow read: if isSignedIn() && (request.auth.uid == resource.data.clientId || isStaff(resource.data.organizationId));
       allow write: if false;

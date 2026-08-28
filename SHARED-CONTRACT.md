@@ -60,8 +60,15 @@ Versionslogg förs längst ner i denna fil.
 - `bookings.status` har nu även värdet `'waiting'`. Appar som räknar deltagare ska exkludera `waiting` och `cancelled`.
 - `passes`-dokument kan ha `validForCategories: string[]` och `validForServiceIds: string[]` (tomt = gäller allt). `services` kan ha `category: string`. `purchasePass` kopierar giltighetsfälten från `passType`.
 
+## 9. Bokningsbar tid / behandlingar (v1.4)
+- Ny collection `availabilities`: { organizationId, trainerId, trainerName, locationId, date 'YYYY-MM-DD', startTime 'HH:mm', endTime 'HH:mm', serviceIds[], capacity (default 1), slotGranularityMinutes (null = tightast möjligt), recurrenceId?, createdAt }. Läs = org, skriv = staff.
+- `services` kan ha `bufferAfterMinutes` (fri tid efter behandling).
+- `createBooking` har ett behandlingsläge: anropa med `availabilityId` + `dateTime` (ISO-start) istället för `slotId`. Personal kan även boka utan availability (`dateTime` + valfri `trainerId`). Skapar bokning med `slotId: null`, `availabilityId`, `blockUntil` (start + duration + buffer). Krock-/kapacitetskontroll per trainer i transaktion.
+- Behandlingsbokningar har ingen väntelista; `cancelBooking` återför klipp och rör ingen bookedCount.
+
 ---
 Version 1.0 — 2026-07-20 — Initialt kontrakt.
 Version 1.1 — 2026-07-25 — Tillägg av Stripe-noteringar för memberPromotionCode.
 Version 1.2 — 2026-07-25 — Tillägg av allowMemberPromotionCode för behörighetsspärr av medlemsrabattkod.
 Version 1.3 — 2026-08-20 — createBooking/cancelBooking: betaltyp 'medlemskap', väntelista (status 'waiting' + automatiskt köupprop), klippkorts-giltighet (validForCategories/validForServiceIds, services.category).
+Version 1.4 — 2026-08-27 — Bokningsbar tid: collection 'availabilities', services.bufferAfterMinutes, createBooking behandlingsläge (availabilityId/dateTime, blockUntil), passes: staff får skapa (gåvor).
