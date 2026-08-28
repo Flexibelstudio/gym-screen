@@ -63,6 +63,7 @@ import { WorkoutDiplomaView } from './components/WorkoutDiplomaView';
 import { BirthDatePromptModal } from './components/modals/BirthDatePromptModal';
 import { LocationPromptModal } from './components/modals/LocationPromptModal';
 import { PWAInstallPrompt } from './components/PWAInstallPrompt';
+import { PortraitLock } from './components/PortraitLock';
 import { CoachWorkoutPreviewModal } from './components/CoachWorkoutPreviewModal';
 import { updateUserProfile, fetchCustomPrograms } from './services/firebaseService';
 
@@ -1419,6 +1420,10 @@ const App: React.FC = () => {
        )}
 
        <PWAInstallPrompt />
+
+       {/* Bara medlemsappen, och bara på telefon — komponenten kollar själv
+           att skärmens kortaste sida är en mobilstorlek. */}
+       {sessionRole === 'member' && <PortraitLock />}
     </div>
   );
 }

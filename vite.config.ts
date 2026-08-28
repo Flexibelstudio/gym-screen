@@ -28,6 +28,9 @@ export default defineConfig(({ mode }) => {
             description: 'SmartStudio - Din digitala träningspartner.',
             start_url: '/',
             display: 'standalone',
+            // Installerad på hemskärmen ska appen aldrig vrida sig. Loggen är
+            // byggd stående och bryts i liggande läge.
+            orientation: 'portrait',
             background_color: '#000000',
             theme_color: '#41c53c',
             icons: [
