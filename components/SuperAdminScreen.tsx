@@ -374,13 +374,11 @@ export const SuperAdminScreen: React.FC<SuperAdminScreenProps> = (props) => {
     }, [userRole]);
     
     const mainContentWrapperClass = useMemo(() => {
-        // Passbyggaren och passlistan behöver hela bredden — listan har många
-        // kolumner och tvingades annars till sidledsscroll även på stora skärmar.
-        if (activeTab === 'pass-program' && (passProgramSubView === 'builder' || passProgramSubView === 'manage')) {
-            return ''; 
-        }
-        return 'max-w-5xl mx-auto';
-    }, [activeTab, passProgramSubView]);
+        // Ingen extra bredbegränsning här. Den yttre ramen håller redan igen på
+        // riktigt breda skärmar; en spärr till innanför den lämnade en tom
+        // högerhalva på varje sida i adminen.
+        return '';
+    }, []);
 
     const handleMenuIconClick = () => {
         if (window.innerWidth < 1024) {
