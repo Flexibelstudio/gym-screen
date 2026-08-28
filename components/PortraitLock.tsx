@@ -13,31 +13,41 @@ import React, { useEffect, useState } from 'react';
  * fönstrets proportioner. Ett uppfällt tangentbord gör annars en liten telefon
  * bredare än den är hög, och rutan hade dykt upp mitt i att någon skriver.
  */
+/** Bara telefoner. Surfplattor och datorer ska aldrig få rutan. */
+const isPhoneScreen = (): boolean => {
+    if (typeof window === 'undefined') return false;
+    const shortestSide = Math.min(window.screen.width, window.screen.height);
+    return shortestSide <= 500;
+};
+
+/**
+ * Två oberoende mätningar, och det räcker att en av dem säger liggande.
+ *
+ * screen.orientation.angle är den exakta, men den saknas i äldre webbläsare och
+ * har varit opålitlig i hemskärmsläge på iOS. Därför finns även måttet på
+ * fönstret: i liggande läge är en telefon bredare än 500 pixlar. Ett uppfällt
+ * tangentbord i stående läge gör visserligen fönstret lägre än det är brett,
+ * men bredden är då kvar under 500 — så den fällan undviks.
+ */
 const readIsLandscape = (): boolean => {
     if (typeof window === 'undefined') return false;
 
     const angle = (window.screen as any)?.orientation?.angle;
-    if (typeof angle === 'number') return angle === 90 || angle === 270;
+    if (angle === 90 || angle === 270) return true;
 
-    // Äldre iOS: window.orientation finns kvar när screen.orientation saknas.
     const legacy = (window as any).orientation;
-    if (typeof legacy === 'number') return legacy === 90 || legacy === -90;
+    if (legacy === 90 || legacy === -90) return true;
+
+    if (window.innerWidth > window.innerHeight && window.innerWidth > 500) return true;
 
     return false;
-};
-
-/** Bara telefoner. Surfplattor och datorer ska aldrig få rutan. */
-const isPhone = (): boolean => {
-    if (typeof window === 'undefined') return false;
-    const shortestSide = Math.min(window.screen.width, window.screen.height);
-    return shortestSide <= 500;
 };
 
 export const PortraitLock: React.FC = () => {
     const [showPrompt, setShowPrompt] = useState(false);
 
     useEffect(() => {
-        const update = () => setShowPrompt(isPhone() && readIsLandscape());
+        const update = () => setShowPrompt(isPhoneScreen() && readIsLandscape());
         update();
 
         const orientation = (window.screen as any)?.orientation;
