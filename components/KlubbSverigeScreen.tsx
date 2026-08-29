@@ -40,7 +40,6 @@ export const KlubbSverigeScreen: React.FC = () => {
     const [name, setName] = useState('');
     const [email, setEmail] = useState('');
     const [phone, setPhone] = useState('');
-    const [screens, setScreens] = useState('');
     const [message, setMessage] = useState('');
     const [code, setCode] = useState(campaignCode);
 
@@ -56,7 +55,6 @@ export const KlubbSverigeScreen: React.FC = () => {
         setIsSending(true);
         setError(null);
         try {
-            const parsedScreens = parseInt(screens, 10);
             const ok = await createLead({
                 name: name.trim(),
                 email: email.trim(),
@@ -66,7 +64,6 @@ export const KlubbSverigeScreen: React.FC = () => {
                 source: 'klubbsverige',
                 campaignCode: code.trim() || undefined,
                 memberVerified: false,
-                screensInterested: Number.isFinite(parsedScreens) && parsedScreens > 0 ? parsedScreens : undefined,
             } as any);
             if (ok) {
                 setIsSent(true);
@@ -150,15 +147,9 @@ export const KlubbSverigeScreen: React.FC = () => {
                         <input type="email" value={email} onChange={e => setEmail(e.target.value)} required className={fieldClass} />
                     </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <div>
-                            <label className={labelClass}>Telefon *</label>
-                            <input type="tel" value={phone} onChange={e => setPhone(e.target.value)} required className={fieldClass} />
-                        </div>
-                        <div>
-                            <label className={labelClass}>Antal skärmar</label>
-                            <input type="number" min="1" value={screens} onChange={e => setScreens(e.target.value)} placeholder="t.ex. 2" className={fieldClass} />
-                        </div>
+                    <div>
+                        <label className={labelClass}>Telefon *</label>
+                        <input type="tel" value={phone} onChange={e => setPhone(e.target.value)} required className={fieldClass} />
                     </div>
 
                     <div>
