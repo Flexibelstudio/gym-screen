@@ -180,8 +180,12 @@ const ConfettiRain = () => {
  * den råkade tappas bort: sol med solglasögon och ett leende.
  */
 const SummerMascot = () => (
-    <div className="fixed bottom-0 left-4 w-40 h-40 pointer-events-none z-[2000]">
-        <svg viewBox="0 0 200 200" className="w-full h-full drop-shadow-xl">
+    <div className="fixed bottom-0 left-0 w-40 h-40 pointer-events-none z-[2000]">
+        {/* Ritningen sitter i nedre högra hörnet av sin egen ruta. Med hela
+            0 0 200 200 hamnade solen därför en bra bit in på sidan och såg ut
+            att sväva. Vi beskär till motivet, så att rutan är solen — då
+            hamnar den i skärmens hörn där den ska vara. */}
+        <svg viewBox="64 64 134 134" className="w-full h-full drop-shadow-xl">
             {/* Sun Body */}
             <circle cx="150" cy="150" r="40" fill="#fbbf24" />
             {/* Rays */}
