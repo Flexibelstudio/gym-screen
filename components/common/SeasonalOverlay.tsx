@@ -180,7 +180,7 @@ const ConfettiRain = () => {
  * den råkade tappas bort: sol med solglasögon och ett leende.
  */
 const SummerMascot = () => (
-    <div className="fixed bottom-0 left-0 w-40 h-40 pointer-events-none z-[2000]">
+    <div className="fixed bottom-0 left-0 w-24 h-24 pointer-events-none z-[2000]">
         {/* Ritningen sitter i nedre högra hörnet av sin egen ruta. Med hela
             0 0 200 200 hamnade solen därför en bra bit in på sidan och såg ut
             att sväva. Vi beskär till motivet, så att rutan är solen — då
