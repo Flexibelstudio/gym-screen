@@ -116,7 +116,12 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onClose, onRegisterGym
             const kod = String(err?.code || '');
             console.error('Inloggning misslyckades:', kod, err?.message, err);
 
-            if (kod.includes('wrong-password') || kod.includes('user-not-found') || kod.includes('invalid-credential')) {
+            // Firebase har bytt kod för det här felet över tid, och skickar numera
+            // invalid-login-credentials. Den fastnade inte i mitt första filter och
+            // hamnade i den intetsägande grenen längst ner.
+            if (kod.includes('wrong-password') || kod.includes('user-not-found')
+                || kod.includes('invalid-credential') || kod.includes('invalid-login-credentials')
+                || kod.includes('invalid-email')) {
                 setError('Fel e-post eller lösenord.');
             } else if (kod.includes('unauthorized-domain')) {
                 setError(`Adressen ${window.location.hostname} är inte godkänd för inloggning. Kontakta support.`);
