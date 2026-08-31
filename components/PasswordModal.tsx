@@ -71,12 +71,14 @@ export const PasswordModal: React.FC<PasswordModalProps> = ({ onClose, onSuccess
         const serverMsg = String(err?.message || '');
         const signedIn = !!auth?.currentUser;
         console.error('Coachkod nekad. Inloggad användare:', auth?.currentUser?.uid || 'ingen', '| serverns text:', serverMsg);
-        if (serverMsg.includes('App Check')) {
-          setError('Säkerhetskontrollen (App Check) släppte inte igenom den här skärmen. Kontakta support.');
-        } else if (!signedIn) {
+        if (!signedIn) {
           setError('Du måste vara inloggad för att låsa upp. Logga in igen och försök på nytt.');
         } else {
-          setError('Skärmen är inloggad men blockerades av säkerhetskontrollen (App Check). Kontakta support så öppnar vi upp domänen.');
+          // App Check spärrar inte längre det här anropet. Blir det ändå
+          // unauthenticated med en inloggad användare är det inloggningen som
+          // hunnit gå ut, inte en säkerhetskontroll — och då hjälper det att
+          // logga in igen, inte att kontakta support.
+          setError('Inloggningen verkar ha gått ut. Ladda om skärmen och försök igen.');
         }
       } else {
         setError(err?.message || 'Kunde inte verifiera koden. Försök igen.');

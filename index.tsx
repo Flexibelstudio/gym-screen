@@ -8,11 +8,14 @@ import { AuthProvider } from './context/AuthContext';
 import { WorkoutProvider } from './context/WorkoutContext';
 import { ErrorBoundary } from './components/common/ErrorBoundary';
 import { ConfirmProvider } from './components/ConfirmContext';
+import { startAppUpdateWatcher } from './utils/appUpdate';
 
 const rootElement = document.getElementById('root');
 if (!rootElement) {
   throw new Error("Could not find root element to mount to");
 }
+
+startAppUpdateWatcher();
 
 const root = ReactDOM.createRoot(rootElement);
 root.render(

@@ -65,16 +65,22 @@ const privateAuthRef = (organizationId) =>
 /**
  * verifyCoachUnlockCode — in: { organizationId, code }, ut: { ok: boolean }
  *
- * Kräver inloggning + medlemskap i organisationen. App Check i produktion.
+ * Kräver inloggning + medlemskap i organisationen.
  * Takt: 10/användare/timme + 30/organisation/timme.
  * Misslyckade försök loggas med uid, orgId och tid.
  * Ingen kod konfigurerad => failed-precondition (aldrig tyst reserv).
+ *
+ * INGEN App Check här, till skillnad från de andra två. Skärmarna i lokalerna
+ * är gamla pekskärmar som ibland inte får igenom sitt App Check-intyg, och då
+ * stod coachen låst ute mitt i ett pass. Skyddet finns kvar där det räknas:
+ * anropet kräver inloggning, medlemskap i rätt organisation, klarar högst tio
+ * försök i timmen per användare och trettio per gym, och själva koden lämnar
+ * aldrig servern. Att låsa ute betalande kunder är ett värre fel än det App
+ * Check skyddar mot här.
  */
-const verifyCoachUnlockCode = onCall({ ...COACH_FN, minInstances: 1 }, async (request) => {
-  if (process.env.NODE_ENV === "production" && request.app == undefined) {
-    throw new HttpsError("unauthenticated", "Ogiltig App Check.");
-  }
-
+const verifyCoachUnlockCode = onCall(
+  { region: COACH_FN.region, enforceAppCheck: false, minInstances: 1 },
+  async (request) => {
   const data = request.data || {};
   const organizationId = data.organizationId;
   const code = data.code;
@@ -120,7 +126,8 @@ const verifyCoachUnlockCode = onCall({ ...COACH_FN, minInstances: 1 }, async (re
   }
 
   return { ok };
-});
+  }
+);
 
 /**
  * setCoachUnlockCode — in: { organizationId, code }, ut: { ok: true }
