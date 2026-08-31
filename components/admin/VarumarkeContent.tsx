@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { Organization } from '../../types';
 import { InputField, ImageUploaderForBanner } from './AdminShared';
 import { httpsCallable } from 'firebase/functions';
-import { functions } from '../../services/firebaseService';
+import { functionsEurope } from '../../services/firebaseService';
 
 interface VarumarkeContentProps {
     organization: Organization;
@@ -30,7 +30,7 @@ export const VarumarkeContent: React.FC<VarumarkeContentProps> = ({
         const fetchCode = async () => {
             setIsLoadingCode(true);
             try {
-                const getCode = httpsCallable<{ organizationId: string }, { code: string | null }>(functions, 'getCoachUnlockCode');
+                const getCode = httpsCallable<{ organizationId: string }, { code: string | null }>(functionsEurope, 'getCoachUnlockCode');
                 const res = await getCode({ organizationId: organization.id });
                 if (!cancelled) {
                     setCurrentCoachCode(res.data?.code ?? null);
@@ -88,7 +88,7 @@ export const VarumarkeContent: React.FC<VarumarkeContentProps> = ({
         setIsSavingCode(true);
         setCodeStatus(null);
         try {
-            const setCode = httpsCallable<{ organizationId: string; code: string }, { ok: boolean }>(functions, 'setCoachUnlockCode');
+            const setCode = httpsCallable<{ organizationId: string; code: string }, { ok: boolean }>(functionsEurope, 'setCoachUnlockCode');
             await setCode({ organizationId: organization.id, code: newCoachCode });
             setCurrentCoachCode(newCoachCode);
             setCodeStatus({ ok: true, text: 'Coachkoden är bytt. Den nya koden gäller direkt på alla skärmar.' });

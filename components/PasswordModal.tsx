@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { httpsCallable } from 'firebase/functions';
-import { auth, functions } from '../services/firebaseService';
+import { auth, functionsEurope } from '../services/firebaseService';
 import { motion } from 'framer-motion';
 import { CloseIcon, LockClosedIcon, EyeIcon, EyeOffIcon } from './icons';
 
@@ -39,7 +39,7 @@ export const PasswordModal: React.FC<PasswordModalProps> = ({ onClose, onSuccess
 
     try {
       const verify = httpsCallable<{ organizationId: string; code: string }, { ok: boolean }>(
-        functions, 'verifyCoachUnlockCode'
+        functionsEurope, 'verifyCoachUnlockCode'
       );
       const res = await verify({ organizationId, code: password });
 

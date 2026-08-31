@@ -78,6 +78,13 @@ export let storage: FirebaseStorage | null = null;
 export let messaging: Messaging | null = null;
 export let appCheck: any = null;
 export let functions: any = null;
+/**
+ * Coachkoden ligger i europe-west1, granne med databasen, för att slippa resan
+ * över Atlanten mitt i ett pass. Övriga funktioner står kvar i us-central1 —
+ * två av dem har fasta webbadresser som Stripe och en extern integration pekar
+ * på. Därför två anslutningar.
+ */
+export let functionsEurope: any = null;
 
 if (!isOffline) {
     try {
@@ -109,6 +116,7 @@ if (!isOffline) {
 
         storage = getStorage(app);
         functions = getFunctions(app, 'us-central1');
+        functionsEurope = getFunctions(app, 'europe-west1');
         
         // Messaging is only supported in browsers that support the required APIs
         if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {

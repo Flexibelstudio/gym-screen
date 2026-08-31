@@ -46,6 +46,19 @@ const checkRateLimit = async (docId, max, message) => {
   }
 };
 
+/**
+ * Coachkoden körs i Europa, granne med databasen. Resten av funktionerna ligger
+ * kvar i us-central1 — två av dem har fasta webbadresser som Stripe och en
+ * extern integration pekar på, och de får inte byta adress.
+ *
+ * Kodrutan används mitt i ett pass, av någon som står och väntar. Därför hålls
+ * en instans varm: kallstarten var den värsta väntan.
+ */
+const COACH_FN = {
+  region: "europe-west1",
+  enforceAppCheck: process.env.NODE_ENV === "production"
+};
+
 const privateAuthRef = (organizationId) =>
   db.collection("organizations").doc(organizationId).collection("private").doc("auth");
 
@@ -57,9 +70,7 @@ const privateAuthRef = (organizationId) =>
  * Misslyckade försök loggas med uid, orgId och tid.
  * Ingen kod konfigurerad => failed-precondition (aldrig tyst reserv).
  */
-const verifyCoachUnlockCode = onCall({
-  enforceAppCheck: process.env.NODE_ENV === "production"
-}, async (request) => {
+const verifyCoachUnlockCode = onCall({ ...COACH_FN, minInstances: 1 }, async (request) => {
   if (process.env.NODE_ENV === "production" && request.app == undefined) {
     throw new HttpsError("unauthenticated", "Ogiltig App Check.");
   }
@@ -77,14 +88,19 @@ const verifyCoachUnlockCode = onCall({
     throw new HttpsError("permission-denied", "Du tillhör inte den här organisationen.");
   }
 
-  await checkRateLimit(
-    `coachverify_${caller.uid}`, 10,
-    "För många försök. Vänta en stund och försök igen."
-  );
-  await checkRateLimit(
-    `coachverify_org_${organizationId}`, 30,
-    "För många försök för den här organisationen just nu. Försök igen om en stund."
-  );
+  // Båda taktkontrollerna samtidigt i stället för efter varandra. De är
+  // oberoende av varandra, och seriellt kostade de två väntor i rad medan
+  // coachen står och tittar på rutan.
+  await Promise.all([
+    checkRateLimit(
+      `coachverify_${caller.uid}`, 10,
+      "För många försök. Vänta en stund och försök igen."
+    ),
+    checkRateLimit(
+      `coachverify_org_${organizationId}`, 30,
+      "För många försök för den här organisationen just nu. Försök igen om en stund."
+    )
+  ]);
 
   const authDoc = await privateAuthRef(organizationId).get();
   const stored = authDoc.exists ? authDoc.data().coachUnlockCode : undefined;
@@ -112,9 +128,7 @@ const verifyCoachUnlockCode = onCall({
  * Kräver org-admin (eller systemägare). 4–12 tecken, inga komplexitetskrav.
  * Returnerar aldrig koden, loggar aldrig koden.
  */
-const setCoachUnlockCode = onCall({
-  enforceAppCheck: process.env.NODE_ENV === "production"
-}, async (request) => {
+const setCoachUnlockCode = onCall(COACH_FN, async (request) => {
   if (process.env.NODE_ENV === "production" && request.app == undefined) {
     throw new HttpsError("unauthenticated", "Ogiltig App Check.");
   }
@@ -154,9 +168,7 @@ const setCoachUnlockCode = onCall({
  * Används av adminvyn (Varumärke) så att admin ser gymmets kod precis som förut.
  * null betyder att ingen kod är konfigurerad ännu.
  */
-const getCoachUnlockCode = onCall({
-  enforceAppCheck: process.env.NODE_ENV === "production"
-}, async (request) => {
+const getCoachUnlockCode = onCall(COACH_FN, async (request) => {
   if (process.env.NODE_ENV === "production" && request.app == undefined) {
     throw new HttpsError("unauthenticated", "Ogiltig App Check.");
   }

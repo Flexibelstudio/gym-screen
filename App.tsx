@@ -18,7 +18,6 @@ import { createOrganization, updateOrganization, updateOrganizationLogos, update
 import { Toast } from './components/ui/ToastNotification';
 
 // --- Custom Hooks ---
-import { useMinSplashTime } from './hooks/app/useMinSplashTime';
 import { usePushToast } from './hooks/app/usePushToast';
 import { useOnlineStatus } from './hooks/app/useOnlineStatus';
 import { useTheme } from './hooks/app/useTheme';
@@ -100,7 +99,6 @@ const App: React.FC = () => {
   const [sessionRole, setSessionRole] = useState<UserRole>(role);
   const [showLogin, setShowLogin] = useState(false);
   const [showRegisterGym, setShowRegisterGym] = useState(false); 
-  const minSplashTimeElapsed = useMinSplashTime();
   const [customPrograms, setCustomPrograms] = useState<Workout[]>([]);
 
   useEffect(() => {
@@ -199,6 +197,15 @@ const App: React.FC = () => {
   const showPaywall = currentUser && !isStudioMode && !hasActiveSubscription && !showWelcomePaywall;
   const showPendingCoach = currentUser && !isStudioMode && userData?.status === 'pending_coach';
   const isGlobalLoading = authLoading || studioLoading;
+
+  // Tar hämtningen orimligt lång tid har något hängt sig. Då ska skärmen säga
+  // det i klartext i stället för att stå vit i all evighet.
+  const [loadingStalled, setLoadingStalled] = useState(false);
+  useEffect(() => {
+    if (!isGlobalLoading) { setLoadingStalled(false); return; }
+    const timer = window.setTimeout(() => setLoadingStalled(true), 10000);
+    return () => window.clearTimeout(timer);
+  }, [isGlobalLoading]);
   
   const isOrgMismatch = useMemo(() => {
       if (!currentUser || !userData?.organizationId || !selectedOrganization) return false;
@@ -875,9 +882,31 @@ const App: React.FC = () => {
 
   const isAnyModalOpen = !!(mobileLogData || mobileViewData || isSearchWorkoutOpen || isScannerOpen || activeDiploma);
   
-  const showSplashScreen = isGlobalLoading || !minSplashTimeElapsed;
+  // Ingen påtvingad väntan. Splashen visas så länge det faktiskt laddar, inte
+  // en sekund längre — skärmen i studion ska upp så fort den kan.
+  const showSplashScreen = isGlobalLoading;
 
   if (showSplashScreen) {
+    if (loadingStalled) {
+        // Utan den här rutan blev en hängande hämtning en vit vägg med logga
+        // som bara gick att ta sig ur genom att ladda om skärmen manuellt.
+        return (
+            <div className="min-h-screen bg-white dark:bg-black flex flex-col items-center justify-center p-8 text-center">
+                <img src="/favicon.png" alt="SmartStudio" className="w-24 h-24 rounded-3xl shadow-lg mb-6 opacity-60" />
+                <p className="text-lg font-black text-gray-900 dark:text-white">Kunde inte nå servern</p>
+                <p className="mt-2 text-sm text-gray-500 dark:text-gray-400 max-w-xs">
+                    Kontrollera att skärmen har internet. Den försöker igen när du trycker nedan.
+                </p>
+                <button
+                    onClick={() => window.location.reload()}
+                    className="mt-6 px-6 py-3 rounded-2xl bg-primary text-white font-black active:scale-95 transition-transform"
+                >
+                    Försök igen
+                </button>
+            </div>
+        );
+    }
+
     return (
         <div className="min-h-screen bg-white dark:bg-black flex flex-col items-center justify-center p-8 text-center">
             <motion.img 

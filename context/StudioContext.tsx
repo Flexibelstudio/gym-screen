@@ -43,6 +43,12 @@ interface StudioContextType {
 const StudioContext = createContext<StudioContextType | undefined>(undefined);
 
 const LOCAL_STORAGE_ORG_KEY = 'ny-screen-selected-org';
+/**
+ * Hela organisationen sparad på skärmen i studion. Utan den står skärmen vit
+ * med loggan tills servern svarat, och på svajig wifi kunde det ta evigheter.
+ * Nu visar den det den hade sist, direkt, och hämtar färskt i bakgrunden.
+ */
+const STUDIO_ORG_CACHE_KEY = 'smartstudio-skarm-org-cache';
 const getLocalStorageStudioKey = (uid: string) => `ny-screen-selected-studio_${uid}`;
 const PENDING_STUDIO_KEY = 'ny-screen-pending-studio-id';
 
@@ -71,6 +77,23 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
             if (authLoading) return;
             
             setStudioLoading(true);
+
+            // Skärmen får något att visa omedelbart. Hämtningen nedan fortsätter
+            // och skriver över med färsk data så fort den kommit fram.
+            if (isStudioMode && !isImpersonating) {
+                const cachedOrg = safeJsonParse(localStorage.getItem(STUDIO_ORG_CACHE_KEY));
+                if (cachedOrg?.id) {
+                    setSelectedOrganization(cachedOrg);
+                    setAllStudios(cachedOrg.studios || []);
+                    if (currentUser) {
+                        const storedStudio = safeJsonParse(localStorage.getItem(getLocalStorageStudioKey(currentUser.uid)));
+                        const match = (cachedOrg.studios || []).find((st: any) => st.id === storedStudio?.id);
+                        if (match) setSelectedStudio(match);
+                    }
+                    setStudioLoading(false);
+                }
+            }
+
             try {
                 let fetchedOrgs: Organization[] = [];
                 let orgToUse: Organization | null = null;
@@ -116,6 +139,12 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
                         if (org) {
                             fetchedOrgs = [org];
                             orgToUse = org;
+                            try {
+                                localStorage.setItem(STUDIO_ORG_CACHE_KEY, JSON.stringify(org));
+                            } catch (e) {
+                                // Fullt lagringsutrymme ska aldrig stoppa uppstarten.
+                                console.warn('Kunde inte spara organisationen lokalt', e);
+                            }
                         } else {
                             console.warn("Kunde inte ladda organisationen från cache/nätverk. Kanske tillfälligt fel.");
                             // VI TAR INTE BORT NYCKELN DIREKT. Det kan vara tillfälligt nätverksfel eller permission-cache-bugg.
