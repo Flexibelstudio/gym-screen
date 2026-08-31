@@ -147,9 +147,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }, []);
 
     const handleSignIn = useCallback(async (email: string, password: string) => {
-        setAuthLoading(true);
         sessionStorage.removeItem(MANUAL_SIGNOUT_FLAG);
-        try { await signIn(email, password); } catch (e) { setAuthLoading(false); throw e; }
+
+        // Vi tänder INTE laddningsläget innan försöket. Gjorde vi det byttes hela
+        // vyn ut mot splashen med loggan, inloggningsrutan revs, och när försöket
+        // misslyckades byggdes den upp på nytt — tom. Felmeddelandet som just
+        // skrivits försvann med den. Det är därför inloggningen alltid sett ut att
+        // ladda om sig utan att säga någonting.
+        //
+        // Först när inloggningen faktiskt gick igenom tänder vi splashen, medan
+        // användarens uppgifter hämtas.
+        await signIn(email, password);
+        setAuthLoading(true);
     }, []);
     
     const handleSignInAsStudio = useCallback(async () => {
