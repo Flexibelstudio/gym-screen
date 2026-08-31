@@ -109,9 +109,28 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onClose, onRegisterGym
         try {
             await signIn(email, password);
             if (onClose) onClose();
-        } catch (err) {
-            setError('Inloggningen misslyckades. Kontrollera e-post och lösenord.');
-            console.error(err);
+        } catch (err: any) {
+            // Förut sa rutan samma mening oavsett vad som gick fel. På skärmen i
+            // studion, dit man inte kan koppla en konsol, blev varje misslyckad
+            // inloggning därmed en gissningslek. Nu säger den vad som hände.
+            const kod = String(err?.code || '');
+            console.error('Inloggning misslyckades:', kod, err?.message, err);
+
+            if (kod.includes('wrong-password') || kod.includes('user-not-found') || kod.includes('invalid-credential')) {
+                setError('Fel e-post eller lösenord.');
+            } else if (kod.includes('unauthorized-domain')) {
+                setError(`Adressen ${window.location.hostname} är inte godkänd för inloggning. Kontakta support.`);
+            } else if (kod.includes('too-many-requests')) {
+                setError('För många försök. Vänta en stund och prova igen.');
+            } else if (kod.includes('network-request-failed')) {
+                setError('Ingen kontakt med servern. Kontrollera att enheten har internet.');
+            } else if (kod.includes('user-disabled')) {
+                setError('Kontot är avstängt. Kontakta support.');
+            } else if (kod.includes('web-storage-unsupported') || kod.includes('operation-not-supported')) {
+                setError('Webbläsaren tillåter inte att inloggningen sparas. Slå på cookies och webbplatsdata för den här adressen.');
+            } else {
+                setError(`Inloggningen misslyckades${kod ? ` (${kod})` : ''}. Visa den här texten för support.`);
+            }
         } finally {
             setLoading(false);
         }
