@@ -259,9 +259,11 @@ const GymThermometerMascot = ({ isStudioMode = false }: { isStudioMode?: boolean
     // bråkdel av en sekund under en övergång — pekar webbläsaren på fel element
     // och klippningen faller bort. Då ritas vätskan som den rektangel den är,
     // och kulan blir fyrkantig. Ett eget id per instans löser det.
-    const clipUid = React.useId().replace(/:/g, '');
-    const largeClipId = `glass-inner-large-${clipUid}`;
-    const smallClipId = `glass-inner-small-${clipUid}`;
+    // Vätskan hade formen av en rektangel som klipptes mot en osynlig mall i
+    // termometerns form. Misslyckades klippningen — vilket den gör i flera äldre
+    // pekskärmar — syntes rektangeln rakt av, och kulan blev fyrkantig. Nu ritas
+    // vätskan som termometern själv, och nivån styrs av var färgen tar slut i
+    // övertoningen. Ingen mall som kan svika.
 
     const { selectedOrganization, selectedStudio, studioConfig } = useStudio();
     const { userData } = useAuth();
@@ -515,13 +517,13 @@ const GymThermometerMascot = ({ isStudioMode = false }: { isStudioMode?: boolean
                             <feGaussianBlur stdDeviation="5" result="blur" />
                             <feComposite in="SourceGraphic" in2="blur" operator="over" />
                         </filter>
-                        <linearGradient id={`liquid-grad-large-${color.replace('#', '')}`} x1="0%" y1="0%" x2="0%" y2="100%">
-                            <stop offset="0%" stopColor={color} />
-                            <stop offset="100%" stopColor={color === '#ef4444' ? '#991b1b' : color === '#f97316' ? '#c2410c' : color === '#eab308' ? '#a16207' : '#1e40af'} />
+                        <linearGradient id={`liquid-grad-large-${color.replace('#', '')}`} gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="0" y2="160">
+                            {/* Två stopp på exakt samma höjd ger en knivskarp yta.
+                                Ovanför den är färgen genomskinlig, under är den fylld. */}
+                            <stop offset={currentY / 160} stopColor={color} stopOpacity="0" />
+                            <stop offset={currentY / 160} stopColor={color} stopOpacity="1" />
+                            <stop offset="1" stopColor={color === '#ef4444' ? '#991b1b' : color === '#f97316' ? '#c2410c' : color === '#eab308' ? '#a16207' : '#1e40af'} />
                         </linearGradient>
-                        <clipPath id={largeClipId}>
-                            <path d="M 12,14 L 12,112 A 22,22 0 1,0 28,112 L 28,14 A 8,8 0 0,0 12,14 Z" />
-                        </clipPath>
                     </defs>
 
                     <path 
@@ -538,17 +540,11 @@ const GymThermometerMascot = ({ isStudioMode = false }: { isStudioMode?: boolean
                         strokeWidth="1.5"
                     />
 
-                    <g clipPath={`url(#${largeClipId})`}>
-                        <rect 
-                            x="-10" 
-                            y={currentY} 
-                            width="60" 
-                            height={160 - currentY} 
-                            fill={`url(#liquid-grad-large-${color.replace('#', '')})`} 
-                            className="transition-all duration-1000 ease-out"
-                        />
-                        <rect x="18" y="10" width="1" height="130" fill="white" opacity="0.15" />
-                    </g>
+                    <path
+                        d="M 12,14 L 12,112 A 22,22 0 1,0 28,112 L 28,14 A 8,8 0 0,0 12,14 Z"
+                        fill={`url(#liquid-grad-large-${color.replace('#', '')})`}
+                    />
+                    <rect x="18" y="16" width="1" height="120" fill="white" opacity="0.15" />
 
                     <path 
                         d="M 12.5,15 L 12.5,110" 
@@ -600,13 +596,13 @@ const GymThermometerMascot = ({ isStudioMode = false }: { isStudioMode?: boolean
                         <feGaussianBlur stdDeviation="4" result="blur" />
                         <feComposite in="SourceGraphic" in2="blur" operator="over" />
                     </filter>
-                    <linearGradient id={`liquid-grad-small-${color.replace('#', '')}`} x1="0%" y1="0%" x2="0%" y2="100%">
-                        <stop offset="0%" stopColor={color} />
-                        <stop offset="100%" stopColor={color === '#ef4444' ? '#991b1b' : color === '#f97316' ? '#c2410c' : color === '#eab308' ? '#a16207' : '#1e40af'} />
+                    <linearGradient id={`liquid-grad-small-${color.replace('#', '')}`} gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="0" y2="160">
+                        {/* Två stopp på exakt samma höjd ger en knivskarp yta.
+                            Ovanför den är färgen genomskinlig, under är den fylld. */}
+                        <stop offset={currentY / 160} stopColor={color} stopOpacity="0" />
+                        <stop offset={currentY / 160} stopColor={color} stopOpacity="1" />
+                        <stop offset="1" stopColor={color === '#ef4444' ? '#991b1b' : color === '#f97316' ? '#c2410c' : color === '#eab308' ? '#a16207' : '#1e40af'} />
                     </linearGradient>
-                    <clipPath id={smallClipId}>
-                        <path d="M 12,14 L 12,112 A 22,22 0 1,0 28,112 L 28,14 A 8,8 0 0,0 12,14 Z" />
-                    </clipPath>
                 </defs>
 
                 <path 
@@ -623,17 +619,11 @@ const GymThermometerMascot = ({ isStudioMode = false }: { isStudioMode?: boolean
                     strokeWidth="1.5"
                 />
 
-                <g clipPath={`url(#${smallClipId})`}>
-                    <rect 
-                        x="-10" 
-                        y={currentY} 
-                        width="60" 
-                        height={160 - currentY} 
-                        fill={`url(#liquid-grad-small-${color.replace('#', '')})`} 
-                        className="transition-all duration-1000 ease-out"
-                    />
-                    <rect x="18" y="10" width="1" height="130" fill="white" opacity="0.1" />
-                </g>
+                <path
+                    d="M 12,14 L 12,112 A 22,22 0 1,0 28,112 L 28,14 A 8,8 0 0,0 12,14 Z"
+                    fill={`url(#liquid-grad-small-${color.replace('#', '')})`}
+                />
+                <rect x="18" y="16" width="1" height="120" fill="white" opacity="0.1" />
 
                 <path 
                     d="M 12.5,15 L 12.5,110" 
