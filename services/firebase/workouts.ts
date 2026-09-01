@@ -1,3 +1,4 @@
+import { bokforTid } from '../../utils/tidtagning';
 import { 
   collection, doc, getDoc, getDocs, setDoc, getDocsFromServer, updateDoc, deleteDoc, query, where, orderBy, onSnapshot, writeBatch, serverTimestamp, deleteField 
 } from 'firebase/firestore';
@@ -195,10 +196,12 @@ export const saveWorkout = async (w: Workout): Promise<Workout> => {
         // fast passet redan ar pa vag in — den vantan ska ingen sitta i.
         // Svarar servern snabbt (dator, mobil) marks ingen skillnad alls,
         // och ett riktigt fel (t.ex. nekad behorighet) kastas som vanligt.
+        const skrivstart = Date.now();
         const skrivning = setDoc(doc(db, 'workouts', workoutToSave.id), payload, { merge: true });
+        skrivning.then(() => bokforTid('spara-kvitto', Date.now() - skrivstart), () => bokforTid('spara-kvitto FEL', Date.now() - skrivstart));
         const utfall = await Promise.race([
             skrivning.then(() => 'ok' as const, (fel) => { console.error('saveWorkout skrivfel', fel); return 'fel' as const; }),
-            new Promise<'vantar'>((res) => setTimeout(() => res('vantar'), 2500))
+            new Promise<'vantar'>((res) => setTimeout(() => res('vantar'), 1000))
         ]);
         if (utfall === 'fel') {
             throw new Error('Passet kunde inte sparas.');

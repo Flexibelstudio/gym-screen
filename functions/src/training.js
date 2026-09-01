@@ -1299,6 +1299,9 @@ const flexGeminiProxy = onCall({
   secrets: ["GEMINI_API_KEY"],
   timeoutSeconds: 300,
   memory: "1GiB",
+  // En instans halls alltid varm — annars somnar funktionen mellan varven
+  // och forsta AI-anropet betalar 5-15 sekunders uppvackning.
+  minInstances: 1,
   // App Check slapps igenom har: skarmarnas gamla webblasare klarar aldrig
   // aktighetsprovet och stoppades darfor fran att skapa pass. Inloggning
   // kravs fortfarande, och taktbegransningen nedan haller missbruk borta.

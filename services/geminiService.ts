@@ -1,4 +1,5 @@
 import { Type } from "@google/genai"; 
+import { bokforTid } from '../utils/tidtagning';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import { getApp } from 'firebase/app';
 import { Workout, WorkoutBlock, Exercise, TimerMode, TimerSettings, BankExercise, SuggestedExercise, CustomCategoryWithPrompt, WorkoutLog, MemberGoals, WorkoutDiploma } from '../types';
@@ -29,8 +30,15 @@ export interface MemberProgressAnalysis {
 const callGeminiProxy = async (model: string, contents: any, config?: any) => {
     const functions = getFunctions(getApp(), 'us-central1');
     const flexGeminiProxy = httpsCallable<any, any>(functions, 'flexGeminiProxy');
-    const response = await flexGeminiProxy({ model, contents, config });
-    return response.data;
+    const start = Date.now();
+    try {
+        const response = await flexGeminiProxy({ model, contents, config });
+        bokforTid('ai-anrop ' + model, Date.now() - start);
+        return response.data;
+    } catch (fel) {
+        bokforTid('ai-anrop FEL ' + model, Date.now() - start);
+        throw fel;
+    }
 };
 
 // --- BILD-KOMPRESSOR ---
