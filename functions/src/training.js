@@ -1299,12 +1299,11 @@ const flexGeminiProxy = onCall({
   secrets: ["GEMINI_API_KEY"],
   timeoutSeconds: 300,
   memory: "1GiB",
-  enforceAppCheck: process.env.NODE_ENV === 'production'
+  // App Check slapps igenom har: skarmarnas gamla webblasare klarar aldrig
+  // aktighetsprovet och stoppades darfor fran att skapa pass. Inloggning
+  // kravs fortfarande, och taktbegransningen nedan haller missbruk borta.
+  enforceAppCheck: false
 }, async (request) => {
-  if (process.env.NODE_ENV === 'production' && request.app == undefined) {
-      throw new HttpsError("unauthenticated", "Ogiltig App Check.");
-  }
-
   if (!request.auth) {
     throw new HttpsError("unauthenticated", "Du måste vara inloggad för att använda AI-funktioner.");
   }
