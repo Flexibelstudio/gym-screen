@@ -727,7 +727,12 @@ export const SeasonalOverlay: React.FC<SeasonalOverlayProps> = React.memo(({ pag
     const isChallengeActive = useMemo(() => {
         const hasTheme = !!configToUse?.enableSummerChallenge;
         if (!hasTheme) return false;
-        
+
+        // En avpublicerad utmaning ska aldrig synas — samma regel som
+        // instrumentpanelen redan foljer. Termometern lyssnade bara pa
+        // datumen och missade av/pa-knappen helt.
+        if (globalChallenge && globalChallenge.isPublished !== true) return false;
+
         const currentTimestamp = Date.now();
         const start = configToUse.summerChallengeStartDate;
         const end = configToUse.summerChallengeEndDate;
@@ -736,7 +741,7 @@ export const SeasonalOverlay: React.FC<SeasonalOverlayProps> = React.memo(({ pag
         const isEnded = !!end && currentTimestamp > end;
         
         return isStarted && !isEnded;
-    }, [configToUse]);
+    }, [configToUse, globalChallenge]);
 
     // Om en utmaning pågår (t.ex. Sommar-Sisu), ska säsongstemat pausas och döljas för att prioritera träningstermometern
     const activeTheme = isChallengeActive ? 'none' : theme;
