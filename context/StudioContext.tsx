@@ -80,8 +80,8 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
             // Skärmen får något att visa omedelbart. Hämtningen nedan fortsätter
             // och skriver över med färsk data så fort den kommit fram.
+            const cachedOrg = isStudioMode ? safeJsonParse(localStorage.getItem(STUDIO_ORG_CACHE_KEY)) : null;
             if (isStudioMode) {
-                const cachedOrg = safeJsonParse(localStorage.getItem(STUDIO_ORG_CACHE_KEY));
                 if (cachedOrg?.id) {
                     try { (window as any).__bootmark?.('gym fran lokalt forrad'); } catch { /* inget */ }
                     setSelectedOrganization(cachedOrg);
@@ -204,6 +204,11 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
                             }
                         }
                     }
+                } else if (cachedOrg?.id) {
+                    // Inget farskt kunde hamtas an — inloggningen avgors
+                    // fortfarande i bakgrunden. Gymmet fran forradet star
+                    // redan pa skarmen: ror det inte. Nar profilen kommit
+                    // kors detta varv om och skriver over med farsk data.
                 } else {
                     // Ingen organisation hittades att auto-ladda. 
                     setSelectedOrganization(null);
