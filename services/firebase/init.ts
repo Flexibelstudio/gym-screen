@@ -1,6 +1,8 @@
 import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
 import { 
   getAuth, 
+  initializeAuth,
+  browserLocalPersistence,
   signInWithEmailAndPassword, 
   signInAnonymously, 
   signOut as firebaseSignOut, 
@@ -102,7 +104,17 @@ if (!isOffline) {
             });
         }
         
-        auth = getAuth(app);
+        // Gamla pekskärmar: bibliotekets vanliga sessionslager (webbläsarens
+        // databas) hänger sig i ~25 sekunder vid varje start på de här
+        // enheterna — starttidslinjen visade tystnad mellan "js igång" och
+        // inloggningens besked, exakt det gapet. Det enkla lagret fungerar
+        // blixtsnabbt där, och reservinloggningen lägger redan sessionen i det.
+        // Alla andra enheter kör precis som förut.
+        let arGammalSkarm = false;
+        try { arGammalSkarm = localStorage.getItem('smartstudio-reservinloggning') === '1'; } catch { /* då inte */ }
+        auth = arGammalSkarm
+            ? initializeAuth(app, { persistence: browserLocalPersistence })
+            : getAuth(app);
         
         try {
             if (isNewApp) {
