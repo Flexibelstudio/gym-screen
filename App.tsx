@@ -296,15 +296,33 @@ const App: React.FC = () => {
   // omladdning väntar och gör den när skärmen lämnat passvyn.
   const pendingSwReloadRef = useRef(false);
   const isWorkoutPageRef = useRef(false);
+  const aktuellSidaRef = useRef<Page | null>(null);
+  const senasteRorelseRef = useRef(Date.now());
 
   useEffect(() => {
     isWorkoutPageRef.current = page === Page.Timer || page === Page.RepsOnly;
-    if (!isWorkoutPageRef.current && pendingSwReloadRef.current) {
-      pendingSwReloadRef.current = false;
-      console.log('Passvyn stängd — genomför uppskjuten omladdning för ny version.');
-      window.location.reload();
-    }
+    aktuellSidaRef.current = page;
   }, [page]);
+
+  // Vakten: den vantande versionen laddas in forst nar skarmen star pa
+  // startsidan och ingen har rort den pa tva minuter. Aldrig annars.
+  useEffect(() => {
+    const rorde = () => { senasteRorelseRef.current = Date.now(); };
+    window.addEventListener('pointerdown', rorde, true);
+    window.addEventListener('keydown', rorde, true);
+    const vakt = window.setInterval(() => {
+      if (!pendingSwReloadRef.current) return;
+      if (aktuellSidaRef.current !== Page.Home) return;
+      if (Date.now() - senasteRorelseRef.current < 2 * 60 * 1000) return;
+      pendingSwReloadRef.current = false;
+      window.location.reload();
+    }, 30 * 1000);
+    return () => {
+      window.removeEventListener('pointerdown', rorde, true);
+      window.removeEventListener('keydown', rorde, true);
+      window.clearInterval(vakt);
+    };
+  }, []);
 
   useEffect(() => {
     if (typeof window === 'undefined' || !('serviceWorker' in navigator)) return;
@@ -323,16 +341,12 @@ const App: React.FC = () => {
           console.log('Initial Service Worker claimed the client. Skipping reload because there was no prior controller.');
           return;
       }
-      // Står ett pass på skärmen skjuter vi upp omladdningen. Ett släpp mitt under
-      // en klass får inte starta om en pågående timer.
-      if (isWorkoutPageRef.current) {
-        pendingSwReloadRef.current = true;
-        console.log('Ny version klar, men ett pass visas — omladdningen skjuts upp.');
-        return;
-      }
+      // Vi laddar ALDRIG om mitt i anvandning — det rycker undan mattan for
+      // den som star vid skarmen. Nya versionen markeras och laddas in forst
+      // nar skarmen statt oanvand pa startsidan en stund (se vakten nedan).
       refreshing = true;
-      console.log('New Service Worker activated! Reloading page to load the latest code...');
-      window.location.reload();
+      pendingSwReloadRef.current = true;
+      console.log('Ny version klar - laddas in vid nasta lugna stund pa startsidan.');
     };
 
     navigator.serviceWorker.addEventListener('controllerchange', handleControllerChange);
