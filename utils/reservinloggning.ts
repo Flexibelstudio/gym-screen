@@ -100,5 +100,15 @@ export const reservLoggaIn = async (
     // nästa gång, i stället för att först vänta ut det trasiga försöket.
     try { localStorage.setItem('smartstudio-reservinloggning', '1'); } catch { /* spelar ingen roll */ }
 
+    // Stod enheten i skarmvyn fore utloggningen? Da ska den rakt tillbaka
+    // dit — det ar sa en skarm ar tankt att sta. (Samma nyckel som
+    // AuthContext anvander: 'ny-screen-impersonation'.)
+    try {
+        const minne = localStorage.getItem('smartstudio-skarmvy-minne');
+        if (minne && !localStorage.getItem('ny-screen-impersonation')) {
+            localStorage.setItem('ny-screen-impersonation', minne);
+        }
+    } catch { /* inget */ }
+
     return 'ok';
 };

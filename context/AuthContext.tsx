@@ -194,6 +194,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         // Sätt flaggan i sessionStorage (försvinner när fliken stängs, men bryter loopen nu)
         sessionStorage.setItem(MANUAL_SIGNOUT_FLAG, 'true');
         
+        // Kom ihag att den har enheten stod i skarmvyn, sa att nasta
+        // inloggning kan ga rakt tillbaka dit i stallet for till adminvyn.
+        try {
+            const aktuell = localStorage.getItem(IMPERSONATION_KEY);
+            if (aktuell) localStorage.setItem('smartstudio-skarmvy-minne', aktuell);
+        } catch { /* inget */ }
         localStorage.removeItem(IMPERSONATION_KEY);
         setImpersonationState(null);
         setSimulatedRole(null);
