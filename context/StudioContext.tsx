@@ -80,7 +80,7 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
             // Skärmen får något att visa omedelbart. Hämtningen nedan fortsätter
             // och skriver över med färsk data så fort den kommit fram.
-            if (isStudioMode && !isImpersonating) {
+            if (isStudioMode) {
                 const cachedOrg = safeJsonParse(localStorage.getItem(STUDIO_ORG_CACHE_KEY));
                 if (cachedOrg?.id) {
                     setSelectedOrganization(cachedOrg);
@@ -162,6 +162,15 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
                 if (orgToUse) {
                     setSelectedOrganization(orgToUse);
                     setAllStudios(orgToUse.studios);
+
+                    // Alla skärmlägen sparar sitt gym lokalt — även skärmar som
+                    // står inloggade med ett riktigt konto, vilket är så de
+                    // flesta är uppsatta. Förut fylldes förrådet bara i det
+                    // anonyma läget, och då fick de flesta skärmar aldrig
+                    // nyttan av det.
+                    if (isStudioMode) {
+                        try { localStorage.setItem(STUDIO_ORG_CACHE_KEY, JSON.stringify(orgToUse)); } catch (e) { /* fullt förråd stoppar inget */ }
+                    }
 
                     if (isStudioMode && currentUser) {
                         const pendingStudioId = localStorage.getItem(PENDING_STUDIO_KEY);

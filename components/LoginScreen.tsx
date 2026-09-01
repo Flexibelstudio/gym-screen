@@ -34,7 +34,12 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onClose, onRegisterGym
     const [showPrivacy, setShowPrivacy] = useState(false);
     
     // Login state
-    const [email, setEmail] = useState('');
+    // Skärmar har ingen lösenordshanterare som fyller i åt en. Adressen är
+    // ofarlig att spara lokalt, och att slippa skriva den varje gång är halva
+    // inloggningen på en pekskärm.
+    const [email, setEmail] = useState(() => {
+        try { return localStorage.getItem('smartstudio-senaste-epost') || ''; } catch { return ''; }
+    });
     const [password, setPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -114,13 +119,18 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onClose, onRegisterGym
                 const apiKeyDirekt = (auth as any)?.config?.apiKey || '';
                 if (apiKeyDirekt) {
                     const direkt = await reservLoggaIn(apiKeyDirekt, email, password);
-                    if (direkt === 'ok') { window.location.reload(); return; }
+                    if (direkt === 'ok') {
+                        try { localStorage.setItem('smartstudio-senaste-epost', email.trim()); } catch { /* strunt samma */ }
+                        window.location.reload();
+                        return;
+                    }
                     if (direkt === 'fel-uppgifter') { setError('Fel e-post eller lösenord.'); return; }
                     // Annars: prova den vanliga vägen nedan.
                 }
             }
 
             await signIn(email, password);
+            try { localStorage.setItem('smartstudio-senaste-epost', email.trim()); } catch { /* strunt samma */ }
             if (onClose) onClose();
         } catch (err: any) {
             // Förut sa rutan samma mening oavsett vad som gick fel. På skärmen i
@@ -150,6 +160,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onClose, onRegisterGym
                 const reserv = apiKey ? await reservLoggaIn(apiKey, email, password) : 'misslyckades';
                 if (reserv === 'ok') {
                     setError(null);
+                    try { localStorage.setItem('smartstudio-senaste-epost', email.trim()); } catch { /* strunt samma */ }
                     window.location.reload();
                     return;
                 }

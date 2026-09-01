@@ -145,15 +145,17 @@ export const PasswordModal: React.FC<PasswordModalProps> = ({ onClose, onSuccess
             </motion.p>
           )}
 
-          <div className="mt-10 flex flex-col sm:flex-row gap-3 w-full">
+          {/* Lås upp får hela raden för sig själv. Tre knappar på en rad blev
+              en hoptryckt gröt på skärmen i studion. */}
+          <div className="mt-10 flex flex-col gap-3 w-full">
             <button 
               type="submit" 
               disabled={isChecking}
-              className="flex-[2] bg-primary hover:brightness-110 text-white font-black py-4 rounded-2xl shadow-xl shadow-primary/20 transition-all transform active:scale-95 text-lg uppercase tracking-widest disabled:opacity-60 disabled:cursor-not-allowed"
+              className="w-full bg-primary hover:brightness-110 text-white font-black py-4 rounded-2xl shadow-xl shadow-primary/20 transition-all transform active:scale-95 text-lg uppercase tracking-widest disabled:opacity-60 disabled:cursor-not-allowed"
             >
               {isChecking ? 'Kontrollerar…' : 'Lås upp'}
             </button>
-            <div className="flex flex-1 gap-3">
+            <div className="flex gap-3">
               <button 
                 type="button" 
                 onClick={onClose} 
