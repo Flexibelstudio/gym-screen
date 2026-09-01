@@ -100,7 +100,6 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
                 // 1. Hantera Roll-baserad laddning
                 if (userData?.role === 'systemowner') {
-                    fetchedOrgs = await getOrganizations();
                     // Systemägare: prioritera redan vald org (från state eller localStorage) framför profil-ID
                     const storedOrgJSON = localStorage.getItem(LOCAL_STORAGE_ORG_KEY);
                     const storedOrgData = safeJsonParse(storedOrgJSON);
@@ -116,6 +115,15 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
                     if (!orgToUse && userData?.organizationId) {
                         orgToUse = await getOrganizationById(userData.organizationId);
                     }
+
+                    // Hela org-listan behövs bara i väljaren, inte för att komma
+                    // igång. Att vänta in den höll skärmen på laddningssidan i
+                    // onödan — nu hämtas den i bakgrunden och fylls på när den
+                    // kommer.
+                    fetchedOrgs = orgToUse ? [orgToUse] : [];
+                    getOrganizations()
+                        .then(orgs => { if (orgs && orgs.length) setAllOrganizations(orgs); })
+                        .catch(() => { /* väljaren får klara sig med den valda */ });
                 } else if (userData?.organizationId) {
                     const org = await getOrganizationById(userData.organizationId);
                     if (org) {

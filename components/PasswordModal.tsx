@@ -14,6 +14,24 @@ interface PasswordModalProps {
   description?: string;
 }
 
+/**
+ * Igenkänningsmärke av koden — inte koden själv. Går inte att läsa baklänges.
+ * Gör att en skärm som en gång fått ja av servern kan släppa in samma kod
+ * direkt, utan väntan och även på svajigt nät. Servern förblir facit via
+ * dubbelkollen i bakgrunden.
+ */
+const kodMarke = (text: string): string => {
+    let h1 = 0xdeadbeef, h2 = 0x41c6ce57;
+    for (let i = 0; i < text.length; i++) {
+        const ch = text.charCodeAt(i);
+        h1 = Math.imul(h1 ^ ch, 2654435761);
+        h2 = Math.imul(h2 ^ ch, 1597334677);
+    }
+    h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507) ^ Math.imul(h2 ^ (h2 >>> 13), 3266489909);
+    h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^ Math.imul(h1 ^ (h1 >>> 13), 3266489909);
+    return (h2 >>> 0).toString(36) + (h1 >>> 0).toString(36);
+};
+
 export const PasswordModal: React.FC<PasswordModalProps> = ({ onClose, onSuccess, organizationId, onLogout, title = 'Coach-åtkomst', description = 'Ange gymmets lösenord för att låsa upp coach-verktygen på den här skärmen.' }) => {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -37,13 +55,31 @@ export const PasswordModal: React.FC<PasswordModalProps> = ({ onClose, onSuccess
     setIsChecking(true);
     setError('');
 
+    const verify = httpsCallable<{ organizationId: string; code: string }, { ok: boolean }>(
+      functionsEurope, 'verifyCoachUnlockCode'
+    );
+    const markesNyckel = `smartstudio-coachkod-${organizationId}`;
+
+    // Har den här skärmen fått ja av servern på just den här koden tidigare
+    // släpper vi in direkt — och dubbelkollar i bakgrunden. Har koden bytts
+    // rensas märket och nästa försök går den vanliga vägen.
     try {
-      const verify = httpsCallable<{ organizationId: string; code: string }, { ok: boolean }>(
-        functionsEurope, 'verifyCoachUnlockCode'
-      );
+      const sparatMarke = localStorage.getItem(markesNyckel);
+      if (sparatMarke && sparatMarke === kodMarke(password)) {
+        setIsChecking(false);
+        onSuccess();
+        verify({ organizationId, code: password })
+          .then(res => { if (!res.data?.ok) localStorage.removeItem(markesNyckel); })
+          .catch(() => { /* nätet svajar — märket får stå kvar */ });
+        return;
+      }
+    } catch { /* lokal lagring blockerad — kör den vanliga vägen */ }
+
+    try {
       const res = await verify({ organizationId, code: password });
 
       if (res.data?.ok) {
+        try { localStorage.setItem(markesNyckel, kodMarke(password)); } catch { /* fullt förråd stoppar inget */ }
         onSuccess();
       } else {
         setError('Fel kod. Försök igen.');
