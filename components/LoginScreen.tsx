@@ -1,5 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { auth } from '../services/firebaseService';
+import { reservLoggaIn } from '../utils/reservinloggning';
 import { registerMemberWithCode, getInviteCodeInfo, InviteCodeDetails } from '../services/firebaseService';
 import { resizeImage } from '../utils/imageUtils';
 import { CloseIcon, EyeIcon, EyeOffIcon } from './icons';
@@ -127,10 +129,24 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onClose, onRegisterGym
             } else if (kod.includes('too-many-requests')) {
                 setError('För många försök. Vänta en stund och prova igen.');
             } else if (kod.includes('network-request-failed')) {
-                // Skärmen i studion får det här felet trots att internet fungerar.
-                // Då är frågan VAR det tar stopp. Vi provar själva att nå Googles
-                // inloggningsserver och skriver ut resultatet — så blir enheten
-                // sin egen felsökare, utan att någon behöver koppla in en konsol.
+                // På gamla pekskärmar godkänner Googles server inloggningen men
+                // biblioteket välter i efterbearbetningen och stämplar det som
+                // nätverksfel. Reservvägen loggar in själv och lägger sessionen
+                // där appen sparar dem — sedan räcker en omladdning.
+                setError('Försöker igen på reservvägen…');
+                const apiKey = (auth as any)?.config?.apiKey || '';
+                const reserv = apiKey ? await reservLoggaIn(apiKey, email, password) : 'misslyckades';
+                if (reserv === 'ok') {
+                    setError(null);
+                    window.location.reload();
+                    return;
+                }
+                if (reserv === 'fel-uppgifter') {
+                    setError('Fel e-post eller lösenord.');
+                    return;
+                }
+
+                // Reservvägen gick inte heller — då felsöker skärmen sig själv.
                 setError('Ingen kontakt med inloggningsservern. Undersöker varför…');
                 try {
                     const start = Date.now();
