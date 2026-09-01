@@ -128,7 +128,21 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onClose, onRegisterGym
             } else if (kod.includes('too-many-requests')) {
                 setError('För många försök. Vänta en stund och prova igen.');
             } else if (kod.includes('network-request-failed')) {
-                setError('Ingen kontakt med servern. Kontrollera att enheten har internet.');
+                // Skärmen i studion får det här felet trots att internet fungerar.
+                // Då är frågan VAR det tar stopp. Vi provar själva att nå Googles
+                // inloggningsserver och skriver ut resultatet — så blir enheten
+                // sin egen felsökare, utan att någon behöver koppla in en konsol.
+                setError('Ingen kontakt med inloggningsservern. Undersöker varför…');
+                try {
+                    const start = Date.now();
+                    const svar = await fetch(
+                        'https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=diagnos',
+                        { method: 'POST', body: '{}' }
+                    );
+                    setError(`Googles server svarar (${svar.status} på ${Date.now() - start} ms), men själva inloggningsanropet kom inte fram. Prova igen — händer det varje gång, visa den här texten för support.`);
+                } catch {
+                    setError('Enheten blockerar anrop till Googles inloggningsserver (googleapis.com). Kontrollera om webbläsaren har en annonsblockerare eller om nätverket i lokalen filtrerar trafik.');
+                }
             } else if (kod.includes('user-disabled')) {
                 setError('Kontot är avstängt. Kontakta support.');
             } else if (kod.includes('web-storage-unsupported') || kod.includes('operation-not-supported')) {
