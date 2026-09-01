@@ -190,7 +190,20 @@ export const saveWorkout = async (w: Workout): Promise<Workout> => {
         if (workoutToSave.expiresAt === undefined) {
             payload.expiresAt = deleteField();
         }
-        await setDoc(doc(db, 'workouts', workoutToSave.id), payload, { merge: true });
+        // Skrivningen startar direkt, men vi vantar hogst ett par sekunder pa
+        // serverns kvitto. Pa gamla skarmar kan kvittot droja en halv minut
+        // fast passet redan ar pa vag in — den vantan ska ingen sitta i.
+        // Svarar servern snabbt (dator, mobil) marks ingen skillnad alls,
+        // och ett riktigt fel (t.ex. nekad behorighet) kastas som vanligt.
+        const skrivning = setDoc(doc(db, 'workouts', workoutToSave.id), payload, { merge: true });
+        const utfall = await Promise.race([
+            skrivning.then(() => 'ok' as const, (fel) => { console.error('saveWorkout skrivfel', fel); return 'fel' as const; }),
+            new Promise<'vantar'>((res) => setTimeout(() => res('vantar'), 2500))
+        ]);
+        if (utfall === 'fel') {
+            throw new Error('Passet kunde inte sparas.');
+        }
+        // 'vantar': skrivningen fortsatter i bakgrunden — slapp anvandaren vidare.
         return workoutToSave;
     } catch (e) { 
         console.error("saveWorkout failed", e); 
