@@ -17,16 +17,43 @@
         if (!window.fetch) return;
         var vanlig = window.fetch.bind(window);
         window.__enkelInloggningsvag = true;
-        window.fetch = function (input, init) {
+        window.__inloggningslogg = [];
+        function bokfor(rad) {
           try {
-            var url = typeof input === 'string' ? input : (input && input.url) || '';
-            if (url.indexOf('identitytoolkit.googleapis.com') !== -1) {
+            window.__inloggningslogg.push(rad);
+            if (window.__inloggningslogg.length > 6) window.__inloggningslogg.shift();
+          } catch (e) {}
+        }
+        function delAv(url) {
+          try { return url.split('?')[0].split('/').slice(-1)[0].slice(0, 40); } catch (e) { return '?'; }
+        }
+        window.fetch = function (input, init) {
+          var url = '';
+          try { url = typeof input === 'string' ? input : (input && input.url) || ''; } catch (e) {}
+          var arGoogle = url.indexOf('googleapis.com') !== -1;
+          var arInloggning = url.indexOf('identitytoolkit.googleapis.com') !== -1;
+          var start = Date.now();
+          var p;
+          try {
+            if (arInloggning) {
               var method = (init && init.method) || (input && input.method) || 'GET';
               var body = init ? init.body : undefined;
-              return body === undefined ? vanlig(url, { method: method }) : vanlig(url, { method: method, body: body });
+              p = body === undefined ? vanlig(url, { method: method }) : vanlig(url, { method: method, body: body });
+            } else {
+              p = vanlig(input, init);
             }
-          } catch (e) { /* faller tillbaka på vanlig väg */ }
-          return vanlig(input, init);
+          } catch (e) {
+            if (arGoogle) bokfor(delAv(url) + ' KAST:' + String(e).slice(0, 60) + ' ' + (Date.now() - start) + 'ms');
+            throw e;
+          }
+          if (arGoogle && p && p.then) {
+            p.then(function (r) {
+              bokfor(delAv(url) + ' ' + r.status + ' ' + (Date.now() - start) + 'ms');
+            }, function (e) {
+              bokfor(delAv(url) + ' FEL:' + String(e).slice(0, 60) + ' ' + (Date.now() - start) + 'ms');
+            });
+          }
+          return p;
         };
       })();
     </script>

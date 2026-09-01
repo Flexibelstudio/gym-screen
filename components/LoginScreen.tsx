@@ -140,7 +140,8 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onClose, onRegisterGym
                         { method: 'POST', body: '{}' }
                     );
                     const enkelVag = (window as any).__enkelInloggningsvag ? 'på' : 'AV';
-                    setError(`Googles server svarar (${svar.status} på ${Date.now() - start} ms), men själva inloggningsanropet kom inte fram. [enkel väg: ${enkelVag} · online: ${String(navigator.onLine)} · ${navigator.userAgent.slice(0, 70)}] Visa den här texten för support.`);
+                    const logg = ((window as any).__inloggningslogg || []).join(' | ') || 'tom';
+                    setError(`Googles server svarar (${svar.status} på ${Date.now() - start} ms), men själva inloggningsanropet kom inte fram. [enkel väg: ${enkelVag} · online: ${String(navigator.onLine)}] Anropslogg: ${logg}. Visa den här texten för support.`);
                 } catch {
                     setError('Enheten blockerar anrop till Googles inloggningsserver (googleapis.com). Kontrollera om webbläsaren har en annonsblockerare eller om nätverket i lokalen filtrerar trafik.');
                 }
