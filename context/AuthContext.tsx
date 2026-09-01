@@ -61,6 +61,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             return;
         }
 
+        // Gamla skarmar: vanta inte pa inloggningsbiblioteket — det kan tystna i
+        // 25 sekunder pa skarmens webblasare innan det sager till. Sessionen
+        // ligger redan sparad lokalt sedan forra inloggningen, sa vi litar pa
+        // den direkt och later biblioteket komma ikapp i bakgrunden.
+        try {
+            const arGammalSkarm = localStorage.getItem('smartstudio-reservinloggning') === '1';
+            const harSkarmvy = !!localStorage.getItem(IMPERSONATION_KEY);
+            if (arGammalSkarm && harSkarmvy) {
+                const nyckel = Object.keys(localStorage).find(k => k.startsWith('firebase:authUser:'));
+                const sparad = nyckel ? JSON.parse(localStorage.getItem(nyckel) || 'null') : null;
+                if (sparad && sparad.uid) {
+                    setCurrentUser({ uid: sparad.uid, email: sparad.email || null, isAnonymous: false });
+                    setAuthLoading(false);
+                    bootmark('inloggning fran lokalt forrad');
+                }
+            }
+        } catch { /* hellre vanta pa biblioteket an att krascha har */ }
+
         let unsubscribeDoc: (() => void) | null = null;
 
         const unsubscribeAuth = onAuthChange(async (user) => {
