@@ -71,7 +71,7 @@ const App: React.FC = () => {
     selectedOrganization, selectOrganization, allOrganizations, setAllOrganizations,
     studioConfig, studioLoading
   } = useStudio();
-  const { role, userData, isStudioMode, signOut, isImpersonating, startImpersonation, stopImpersonation, showTerms, acceptTerms, currentUser, authLoading, clearDeviceProvisioning } = useAuth();
+  const { role, userData, isStudioMode, signOut, isImpersonating, startImpersonation, stopImpersonation, showTerms, acceptTerms, currentUser, authLoading, clearDeviceProvisioning, profilBesked } = useAuth();
   const { workouts, activeWorkout, setActiveWorkout, saveWorkout, deleteWorkout } = useWorkout();
   
   // --- DOMAIN ROUTING LOGIC ---
@@ -1029,6 +1029,7 @@ const App: React.FC = () => {
             <img src="/favicon.png" alt="SmartStudio" className="w-20 h-20 mb-6 rounded-2xl shadow-sm" />
             <h2 className="text-xl font-bold text-gray-900 dark:text-white">Förbereder ditt konto...</h2>
             <p className="text-gray-500 mt-2">Detta tar bara några sekunder.</p>
+            {profilBesked && (<p className="text-gray-400 dark:text-gray-500 text-xs mt-3 max-w-xs break-words">{profilBesked}</p>)}
             <div className="flex flex-col gap-4 mt-8">
                 <button onClick={() => signOut()} className="text-primary font-bold hover:underline">Logga ut och försök igen</button>
                 <button 

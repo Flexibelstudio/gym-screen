@@ -10,6 +10,7 @@ interface AuthContextType {
     role: UserRole;
     isStudioMode: boolean;
     authLoading: boolean;
+    profilBesked: string | null;
     signIn: (email: string, password: string) => Promise<void>;
     signInAsStudio: () => Promise<void>;
     signOut: () => Promise<void>;
@@ -35,6 +36,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const [currentUser, setCurrentUser] = useState<any | null>(null);
     const [userData, setUserData] = useState<UserData | null>(null);
     const [authLoading, setAuthLoading] = useState(true);
+    const [profilBesked, setProfilBesked] = useState<string | null>(null);
 
     // Bokför i starttidslinjen — kostar inget, syns bara när starten är seg.
     const bootmark = (namn: string) => { try { (window as any).__bootmark?.(namn); } catch { /* inget */ } };
@@ -95,6 +97,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 if (!user.isAnonymous && db) {
                     const timeoutId = setTimeout(() => {
                         if (authLoading) setAuthLoading(false);
+                        setProfilBesked(besked => besked || 'Databasen har inte svarat annu - forsoker fortfarande...');
                     }, 5000);
 
                     unsubscribeDoc = onSnapshot(doc(db, 'users', user.uid), (snap) => {
@@ -131,12 +134,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                                     console.error("Kunde inte normalisera profil för äldre konto:", err);
                                 });
                             }
+                            setProfilBesked(null);
                         } else {
                             setUserData(null);
+                            setProfilBesked('Profil saknas i databasen for ' + (user.email || 'kontot') + ' (id ' + String(user.uid).slice(0, 6) + ')');
                         }
                         setAuthLoading(false);
                     }, (err) => {
                         console.error("Firestore error:", err);
+                        setProfilBesked('Databasen nekade lasningen: ' + ((err && (err.code || err.message)) || 'okant fel'));
                         clearTimeout(timeoutId);
                         setAuthLoading(false);
                     });
@@ -278,13 +284,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const isImpersonating = !!impersonationState && !!currentUser;
 
     const value = useMemo(() => ({
-        currentUser, userData, role, isStudioMode, authLoading,
+        currentUser, userData, role, isStudioMode, authLoading, profilBesked,
         signIn: handleSignIn, signInAsStudio: handleSignInAsStudio, signOut: handleSignOut,
         clearDeviceProvisioning, reauthenticate, sendPasswordResetEmail: handleSendPasswordResetEmail,
         isImpersonating, startImpersonation, stopImpersonation,
         showTerms, acceptTerms,
         switchSimulatedUser
-    }), [currentUser, userData, role, isStudioMode, authLoading, handleSignIn, handleSignInAsStudio, handleSignOut, clearDeviceProvisioning, reauthenticate, handleSendPasswordResetEmail, isImpersonating, startImpersonation, stopImpersonation, showTerms, acceptTerms, switchSimulatedUser]);
+    }), [currentUser, userData, role, isStudioMode, authLoading, profilBesked, handleSignIn, handleSignInAsStudio, handleSignOut, clearDeviceProvisioning, reauthenticate, handleSendPasswordResetEmail, isImpersonating, startImpersonation, stopImpersonation, showTerms, acceptTerms, switchSimulatedUser]);
 
     return (
         <AuthContext.Provider value={value}>
