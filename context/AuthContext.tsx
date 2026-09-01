@@ -100,7 +100,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                         setProfilBesked(besked => besked || 'Databasen har inte svarat annu - forsoker fortfarande...');
                     }, 5000);
 
-                    unsubscribeDoc = onSnapshot(doc(db, 'users', user.uid), (snap) => {
+                    unsubscribeDoc = onSnapshot(doc(db, 'users', user.uid), { includeMetadataChanges: true }, (snap) => {
                         clearTimeout(timeoutId);
                         bootmark('profil hamtad');
                         if (snap.exists()) {
@@ -137,7 +137,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                             setProfilBesked(null);
                         } else {
                             setUserData(null);
-                            setProfilBesked('Profil saknas i databasen for ' + (user.email || 'kontot') + ' (id ' + String(user.uid).slice(0, 6) + ')');
+                            if (snap.metadata && snap.metadata.fromCache) {
+                                // Svaret kom fran mobilens eget minne, inte fran servern.
+                                // Da vet vi inget om profilen annu - pasta inget.
+                                setProfilBesked('Servern har inte svarat annu - vantar pa kontakt...');
+                            } else {
+                                setProfilBesked('Profil saknas i databasen for ' + (user.email || 'kontot') + ' (id ' + String(user.uid).slice(0, 6) + ')');
+                            }
                         }
                         setAuthLoading(false);
                     }, (err) => {

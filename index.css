@@ -549,3 +549,28 @@ html.enkel-grafik [role="button"]:active {
 .animate-lugn-puls {
     animation: lugn-puls 1.6s ease-in-out infinite;
 }
+
+
+/* Tillbaka-snurran: visas av handleBack i samma ogonblick man trycker,
+   doljs igen sa fort nasta sida ar pa plats. Ligger utanfor React med
+   flit - den maste kunna malas aven medan appen ar upptagen med bytet. */
+#tillbaka-snurra {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.25);
+}
+.tillbaka-snurra-ring {
+    width: 44px;
+    height: 44px;
+    border: 4px solid rgba(255, 255, 255, 0.35);
+    border-top-color: #ffffff;
+    border-radius: 9999px;
+    animation: tillbaka-snurr 0.8s linear infinite;
+}
+@keyframes tillbaka-snurr {
+    to { transform: rotate(360deg); }
+}
