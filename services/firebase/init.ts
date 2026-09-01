@@ -38,6 +38,7 @@ import {
   Firestore,
   runTransaction,
   initializeFirestore,
+  memoryLocalCache,
   persistentLocalCache,
   persistentMultipleTabManager
 } from 'firebase/firestore';
@@ -117,7 +118,17 @@ if (!isOffline) {
             : getAuth(app);
         
         try {
-            if (isNewApp) {
+            if (isNewApp && arGammalSkarm) {
+                // Gamla skarmar: strommen som databasen helst pratar genom
+                // fungerar inte i den har webblasaren — varje skrivning fick
+                // vanta ut misslyckade forsok innan den gick fram. Ta den
+                // gammaldags vagen direkt, och hall lagret i minnet i stallet
+                // for i webblasarens databas som hanger sig.
+                db = initializeFirestore(app, {
+                    localCache: memoryLocalCache(),
+                    experimentalForceLongPolling: true
+                });
+            } else if (isNewApp) {
                 db = initializeFirestore(app, {
                     localCache: persistentLocalCache({tabManager: persistentMultipleTabManager()})
                 });
