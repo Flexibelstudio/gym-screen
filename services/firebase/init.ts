@@ -63,36 +63,8 @@ export const listenToForegroundMessages = (callback: (payload: any) => void) => 
     });
 };
 
-// --- SAMSUNG-SKÄRMARNAS INLOGGNING ---
-//
-// Inloggningsanropet skickas normalt med rubriker som tvingar webbläsaren att
-// ställa en teknisk förhandsfråga till servern innan själva anropet går iväg.
-// Webbläsaren i Samsung Flip fumlar bort den förhandsfrågan — den hänger tills
-// den ger upp, och inloggningen dör med ett nätverksfel trots att servern nås
-// utmärkt. Bevisat på plats: ett anrop UTAN förhandsfråga gick fram på 362 ms
-// från samma skärm som inloggningen misslyckades på.
-//
-// Därför skalar vi av rubrikerna på just inloggningsanropen, på just Tizen
-// (Samsungs system). Googles server accepterar formatet. Alla andra webbläsare
-// och alla andra anrop lämnas helt orörda.
-const arTizen = typeof navigator !== 'undefined' && navigator.userAgent.includes('Tizen');
-if (arTizen && typeof window !== 'undefined' && window.fetch) {
-    const vanligFetch = window.fetch.bind(window);
-    window.fetch = ((input: any, init?: any) => {
-        try {
-            const url = typeof input === 'string' ? input : (input && input.url) || '';
-            if (url.includes('identitytoolkit.googleapis.com')) {
-                const method = (init && init.method) || (typeof input !== 'string' && input && input.method) || 'GET';
-                const body = init ? init.body : undefined;
-                return vanligFetch(url, body === undefined ? { method } : { method, body });
-            }
-        } catch (e) {
-            // Går något snett här ska inloggningen falla tillbaka på det vanliga
-            // sättet, aldrig bli sämre än förut.
-        }
-        return vanligFetch(input, init);
-    }) as typeof window.fetch;
-}
+// Inloggningens enkla väg (förbi CORS-förhandsfrågan som vissa pekskärmar
+// hänger sig på) installeras i index.html, före all annan kod. Se skölden där.
 
 // --- INITIALISERING ---
 const hasFirebaseConfig = !!(

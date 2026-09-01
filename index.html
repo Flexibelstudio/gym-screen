@@ -3,6 +3,33 @@
 <html lang="sv">
   <head>
     <meta charset="UTF-8" />
+    <script>
+      /* INLOGGNINGENS ENKLA VÄG.
+         Anropen till Googles inloggningsserver skickas normalt med rubriker som
+         tvingar webbläsaren att ställa en förhandsfråga (CORS preflight) först.
+         Webbläsaren i vissa pekskärmar hänger sig på den — inloggningen dör med
+         nätverksfel fast servern nås utmärkt. Här skalas rubrikerna av så att
+         anropet går i enkel form utan förhandsfråga. Verifierat mot servern:
+         den läser och besvarar anropen precis likadant.
+         Ligger här, först av allt, så att ingen annan kod hinner greppa
+         nätverksvägen innan förenklingen är på plats. */
+      (function () {
+        if (!window.fetch) return;
+        var vanlig = window.fetch.bind(window);
+        window.__enkelInloggningsvag = true;
+        window.fetch = function (input, init) {
+          try {
+            var url = typeof input === 'string' ? input : (input && input.url) || '';
+            if (url.indexOf('identitytoolkit.googleapis.com') !== -1) {
+              var method = (init && init.method) || (input && input.method) || 'GET';
+              var body = init ? init.body : undefined;
+              return body === undefined ? vanlig(url, { method: method }) : vanlig(url, { method: method, body: body });
+            }
+          } catch (e) { /* faller tillbaka på vanlig väg */ }
+          return vanlig(input, init);
+        };
+      })();
+    </script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>SmartStudio</title>
     <link rel="icon" type="image/png" href="/favicon.png">

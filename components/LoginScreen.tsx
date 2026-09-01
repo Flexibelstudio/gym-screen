@@ -139,7 +139,8 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onClose, onRegisterGym
                         'https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=diagnos',
                         { method: 'POST', body: '{}' }
                     );
-                    setError(`Googles server svarar (${svar.status} på ${Date.now() - start} ms), men själva inloggningsanropet kom inte fram. Prova igen — händer det varje gång, visa den här texten för support.`);
+                    const enkelVag = (window as any).__enkelInloggningsvag ? 'på' : 'AV';
+                    setError(`Googles server svarar (${svar.status} på ${Date.now() - start} ms), men själva inloggningsanropet kom inte fram. [enkel väg: ${enkelVag} · online: ${String(navigator.onLine)} · ${navigator.userAgent.slice(0, 70)}] Visa den här texten för support.`);
                 } catch {
                     setError('Enheten blockerar anrop till Googles inloggningsserver (googleapis.com). Kontrollera om webbläsaren har en annonsblockerare eller om nätverket i lokalen filtrerar trafik.');
                 }
