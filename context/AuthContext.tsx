@@ -35,6 +35,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const [currentUser, setCurrentUser] = useState<any | null>(null);
     const [userData, setUserData] = useState<UserData | null>(null);
     const [authLoading, setAuthLoading] = useState(true);
+
+    // Bokför i starttidslinjen — kostar inget, syns bara när starten är seg.
+    const bootmark = (namn: string) => { try { (window as any).__bootmark?.(namn); } catch { /* inget */ } };
     const [showTerms, setShowTerms] = useState(false);
     
     const [simulatedRole, setSimulatedRole] = useState<UserRole | null>(null);
@@ -54,6 +57,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             setCurrentUser({ uid: MOCK_SYSTEM_OWNER.uid, isAnonymous: false });
             setUserData(MOCK_SYSTEM_OWNER);
             setAuthLoading(false);
+            bootmark('inloggning avgjord (offline)');
             return;
         }
 
@@ -66,6 +70,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             }
 
             if (user) {
+                bootmark('inloggning avgjord');
                 // Om vi lyckas logga in, rensa utloggningsflaggan
                 sessionStorage.removeItem(MANUAL_SIGNOUT_FLAG);
                 setCurrentUser(user);
@@ -76,6 +81,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
                     unsubscribeDoc = onSnapshot(doc(db, 'users', user.uid), (snap) => {
                         clearTimeout(timeoutId);
+                        bootmark('profil hamtad');
                         if (snap.exists()) {
                             const docData = snap.data();
                             const data = { uid: user.uid, ...docData } as UserData;

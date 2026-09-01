@@ -203,10 +203,13 @@ const App: React.FC = () => {
   // högt med flit: sidan är en nödutgång för dött nät, inte en anhalt — en
   // seg men levande start ska få bli klar bakom loggan utan att avbrytas.
   const [loadingStalled, setLoadingStalled] = useState(false);
+  const [visaTidslinje, setVisaTidslinje] = useState(false);
   useEffect(() => {
-    if (!isGlobalLoading) { setLoadingStalled(false); return; }
+    if (!isGlobalLoading) { setLoadingStalled(false); setVisaTidslinje(false); return; }
     const timer = window.setTimeout(() => setLoadingStalled(true), 25000);
-    return () => window.clearTimeout(timer);
+    // Drar starten ut på tiden visas tidslinjen — då pekar den sega länken ut sig själv.
+    const tidslinjeTimer = window.setTimeout(() => setVisaTidslinje(true), 6000);
+    return () => { window.clearTimeout(timer); window.clearTimeout(tidslinjeTimer); };
   }, [isGlobalLoading]);
   
   const isOrgMismatch = useMemo(() => {
@@ -916,6 +919,11 @@ const App: React.FC = () => {
                 alt="SmartStudio"
                 className="w-32 h-32 rounded-3xl shadow-lg animate-lugn-puls"
             />
+            {visaTidslinje && (
+                <p className="mt-6 text-xs text-gray-400 max-w-md">
+                    {(((window as any).__bootlogg || []) as string[]).join(' · ') || 'startar…'}
+                </p>
+            )}
         </div>
     );
   }

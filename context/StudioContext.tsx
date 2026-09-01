@@ -83,6 +83,7 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
             if (isStudioMode) {
                 const cachedOrg = safeJsonParse(localStorage.getItem(STUDIO_ORG_CACHE_KEY));
                 if (cachedOrg?.id) {
+                    try { (window as any).__bootmark?.('gym fran lokalt forrad'); } catch { /* inget */ }
                     setSelectedOrganization(cachedOrg);
                     setAllStudios(cachedOrg.studios || []);
                     if (currentUser) {
@@ -213,6 +214,7 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
             } catch (error) {
                 console.error("Failed to load initial data", error);
             } finally {
+                try { (window as any).__bootmark?.('gym klart fran servern'); } catch { /* inget */ }
                 setStudioLoading(false);
             }
         };

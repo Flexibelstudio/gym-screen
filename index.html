@@ -17,6 +17,14 @@
          grafik. De märker sig själva, och CSS:en och animationerna anpassar
          sig — suddiga glasytor och glidande övergångar är det som gör att
          tillbaka-klick känns sega på dem. */
+      /* Starttidslinjen. Varje steg i uppstarten bokför sig här, räknat från
+         första millisekunden. Visas under laddningsloggan när starten är seg,
+         så att den långsamma länken pekar ut sig själv. */
+      window.__starttid = Date.now();
+      window.__bootlogg = [];
+      window.__bootmark = function (namn) {
+        try { window.__bootlogg.push(namn + ' ' + (Date.now() - window.__starttid) + 'ms'); } catch (e) {}
+      };
       try {
         if (localStorage.getItem('smartstudio-reservinloggning') === '1') {
           document.documentElement.className += ' enkel-grafik';
