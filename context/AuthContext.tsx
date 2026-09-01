@@ -210,9 +210,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setImpersonationState(null);
         setSimulatedRole(null);
         setSimulatedStudioMode(null);
-        await firebaseSignOut();
+        // Tom skarmen forst, ring servern sen — annars hinner mellansidan
+        // "Forbereder ditt konto" blinka forbi medan utloggningen pagar.
         setCurrentUser(null);
         setUserData(null);
+        await firebaseSignOut();
     }, []);
 
     const clearDeviceProvisioning = useCallback(() => {

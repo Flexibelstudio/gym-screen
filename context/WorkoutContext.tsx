@@ -3,6 +3,7 @@ import { workoutReducer, initialState, WorkoutAction, WorkoutState } from './wor
 import { useStudio } from './StudioContext';
 import { subscribeToWorkoutsForOrganization, saveWorkout as firebaseSaveWorkout, deleteWorkout as firebaseDeleteWorkout } from '../services/firebaseService';
 import { Workout } from '../types';
+import { lasPanel, sparaPanel } from '../utils/panelforrad';
 
 interface WorkoutContextType extends WorkoutState {
     dispatch: React.Dispatch<WorkoutAction>;
@@ -20,6 +21,14 @@ export const WorkoutProvider: React.FC<{ children: ReactNode }> = ({ children })
     useEffect(() => {
         if (selectedOrganization) {
             dispatch({ type: 'LOAD_WORKOUTS_START' });
+
+            // Visa de senast kanda passen direkt — kategorierna star aldrig
+            // tomma i vantan pa servern. Farska pass skriver over strax.
+            const forradsNyckel = `smartstudio-pass-${selectedOrganization.id}`;
+            const sparade = lasPanel<Workout[]>(forradsNyckel);
+            if (sparade && sparade.length) {
+                dispatch({ type: 'LOAD_WORKOUTS_SUCCESS', payload: sparade });
+            }
             const unsubscribe = subscribeToWorkoutsForOrganization(
                 selectedOrganization.id,
                 async (workouts) => {
@@ -41,8 +50,10 @@ export const WorkoutProvider: React.FC<{ children: ReactNode }> = ({ children })
                         await Promise.all(expiredDrafts.map(w => firebaseDeleteWorkout(w.id)));
                         const validWorkouts = workouts.filter(w => !expiredDrafts.find(ed => ed.id === w.id));
                         dispatch({ type: 'LOAD_WORKOUTS_SUCCESS', payload: validWorkouts });
+                        sparaPanel(forradsNyckel, validWorkouts);
                     } else {
                         dispatch({ type: 'LOAD_WORKOUTS_SUCCESS', payload: workouts });
+                        sparaPanel(forradsNyckel, workouts);
                     }
                 },
                 (error) => {
