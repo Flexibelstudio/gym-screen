@@ -13,14 +13,13 @@ interface LoginScreenProps {
 }
 
 const BrandMark: React.FC = () => (
-    <div className="flex items-center justify-center gap-2.5 mb-5">
+    <div className="flex items-center justify-center mb-5">
         <img
             src="/favicon.png"
             alt="SmartStudio"
-            className="w-10 h-10 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700"
+            className="w-16 h-16 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700"
             referrerPolicy="no-referrer"
         />
-        <span className="text-lg font-black text-gray-900 dark:text-white uppercase tracking-tight">SmartStudio</span>
     </div>
 );
 
@@ -141,7 +140,28 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onClose, onRegisterGym
                     );
                     const enkelVag = (window as any).__enkelInloggningsvag ? 'på' : 'AV';
                     const logg = ((window as any).__inloggningslogg || []).join(' | ') || 'tom';
-                    setError(`Googles server svarar (${svar.status} på ${Date.now() - start} ms), men själva inloggningsanropet kom inte fram. [enkel väg: ${enkelVag} · online: ${String(navigator.onLine)}] Anropslogg: ${logg}. Visa den här texten för support.`);
+                    // Loggen visade att inloggningsbiblioteket dör INNAN det når
+                    // nätet. Då saknar webbläsaren någon modern funktion som
+                    // biblioteket tar för given. Vi kollar de troliga och skriver
+                    // ut vilka som fattas — det pekar ut exakt vad som ska lagas.
+                    const w = window as any;
+                    const saknas = [
+                        ['fetch', typeof w.fetch === 'function'],
+                        ['Headers', typeof w.Headers === 'function'],
+                        ['AbortController', typeof w.AbortController === 'function'],
+                        ['structuredClone', typeof w.structuredClone === 'function'],
+                        ['randomUUID', !!(w.crypto && typeof w.crypto.randomUUID === 'function')],
+                        ['fromEntries', typeof Object.fromEntries === 'function'],
+                        ['allSettled', typeof (Promise as any).allSettled === 'function'],
+                        ['replaceAll', typeof (String.prototype as any).replaceAll === 'function'],
+                        ['at', typeof (Array.prototype as any).at === 'function'],
+                        ['queueMicrotask', typeof w.queueMicrotask === 'function'],
+                        ['BroadcastChannel', typeof w.BroadcastChannel === 'function'],
+                        ['TextEncoder', typeof w.TextEncoder === 'function'],
+                        ['indexedDB', !!w.indexedDB],
+                        ['globalThis', typeof globalThis !== 'undefined'],
+                    ].filter(([, finns]) => !finns).map(([namn]) => namn).join(',') || 'inget';
+                    setError(`Googles server svarar (${svar.status} på ${Date.now() - start} ms), men själva inloggningsanropet kom inte fram. [enkel väg: ${enkelVag}] Anropslogg: ${logg}. Saknas: ${saknas}. Visa den här texten för support.`);
                 } catch {
                     setError('Enheten blockerar anrop till Googles inloggningsserver (googleapis.com). Kontrollera om webbläsaren har en annonsblockerare eller om nätverket i lokalen filtrerar trafik.');
                 }
