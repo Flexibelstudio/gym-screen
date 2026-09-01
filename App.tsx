@@ -206,7 +206,14 @@ const App: React.FC = () => {
   const [tidslinje, setTidslinje] = useState('');
   useEffect(() => {
     if (!isGlobalLoading) { setLoadingStalled(false); setTidslinje(''); return; }
-    const timer = window.setTimeout(() => setLoadingStalled(true), 25000);
+    // Serversidan är ingen anhalt. Den visas bara om webbläsaren själv säger
+    // att nätet är nere — annars får loggan stå kvar och pulsa tills det är
+    // klart. Efter en hel minut visas den oavsett, som absolut sista utväg,
+    // så att en död skärm aldrig blir en vit vägg.
+    const timer = window.setTimeout(() => {
+        if (typeof navigator !== 'undefined' && navigator.onLine === false) setLoadingStalled(true);
+    }, 25000);
+    const sistaUtvag = window.setTimeout(() => setLoadingStalled(true), 60000);
     // Drar starten ut på tiden visas tidslinjen — levande, uppdaterad varje
     // sekund, så att även det som händer sent kommer med. Första versionen
     // frös vid sex sekunder och missade allt därefter.
@@ -214,10 +221,13 @@ const App: React.FC = () => {
     const tick = window.setInterval(() => {
       if (Date.now() - start < 6000) return;
       const rader = (((window as any).__bootlogg || []) as string[]).join(' · ');
+      // De senaste nätverksanropen följer med — så syns det om biblioteket
+      // ens rör nätet under sin tystnad, eller hänger helt lokalt.
+      const anrop = (((window as any).__inloggningslogg || []) as string[]).slice(-3).join(' | ');
       const sek = Math.round((Date.now() - ((window as any).__starttid || start)) / 1000);
-      setTidslinje(`${sek}s — ${rader || 'inga steg klara ännu'}`);
+      setTidslinje(`${sek}s — ${rader || 'inga steg klara ännu'}${anrop ? ` — nät: ${anrop}` : ' — nät: tyst'}`);
     }, 1000);
-    return () => { window.clearTimeout(timer); window.clearInterval(tick); };
+    return () => { window.clearTimeout(timer); window.clearTimeout(sistaUtvag); window.clearInterval(tick); };
   }, [isGlobalLoading]);
   
   const isOrgMismatch = useMemo(() => {
