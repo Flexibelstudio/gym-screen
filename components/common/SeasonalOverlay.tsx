@@ -736,11 +736,13 @@ export const SeasonalOverlay: React.FC<SeasonalOverlayProps> = React.memo(({ pag
         const currentTimestamp = Date.now();
         const start = configToUse.summerChallengeStartDate;
         const end = configToUse.summerChallengeEndDate;
-        
-        const isStarted = !start || currentTimestamp >= start;
-        const isEnded = !!end && currentTimestamp > end;
-        
-        return isStarted && !isEnded;
+
+        // Utan bada datumen finns ingen pagaende utmaning. Forut raknades
+        // "inga datum" som "pagar for evigt" — det var darfor termometern
+        // kunde sta kvar pa skarmar som inte fatt kontakt med servern.
+        if (!start || !end) return false;
+
+        return currentTimestamp >= start && currentTimestamp <= end;
     }, [configToUse, globalChallenge]);
 
     // Om en utmaning pågår (t.ex. Sommar-Sisu), ska säsongstemat pausas och döljas för att prioritera träningstermometern
