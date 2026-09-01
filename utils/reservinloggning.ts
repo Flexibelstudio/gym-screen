@@ -96,5 +96,9 @@ export const reservLoggaIn = async (
         } catch { klar(); }
     });
 
+    // Kom ihåg att den här enheten behöver reservvägen. Då tas den direkt
+    // nästa gång, i stället för att först vänta ut det trasiga försöket.
+    try { localStorage.setItem('smartstudio-reservinloggning', '1'); } catch { /* spelar ingen roll */ }
+
     return 'ok';
 };

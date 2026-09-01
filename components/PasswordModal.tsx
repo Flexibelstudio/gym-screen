@@ -161,7 +161,10 @@ export const PasswordModal: React.FC<PasswordModalProps> = ({ onClose, onSuccess
               >
                 Avbryt
               </button>
-              {failedAttempts > 0 && onLogout && (
+              {/* Alltid synlig. Förut krävdes ett misslyckat försök innan den
+                  dök upp, och gick något annat fel kom den aldrig — då stod man
+                  på skärmen utan väg ut. */}
+              {onLogout && (
                 <button
                   type="button"
                   onClick={() => {

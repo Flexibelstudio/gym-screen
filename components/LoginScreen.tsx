@@ -108,6 +108,18 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onClose, onRegisterGym
         setError(null);
         setLoading(true);
         try {
+            // Enheter där reservvägen behövts en gång går den direkt. Annars
+            // står man och väntar ut det trasiga försöket vid varje inloggning.
+            if (localStorage.getItem('smartstudio-reservinloggning') === '1') {
+                const apiKeyDirekt = (auth as any)?.config?.apiKey || '';
+                if (apiKeyDirekt) {
+                    const direkt = await reservLoggaIn(apiKeyDirekt, email, password);
+                    if (direkt === 'ok') { window.location.reload(); return; }
+                    if (direkt === 'fel-uppgifter') { setError('Fel e-post eller lösenord.'); return; }
+                    // Annars: prova den vanliga vägen nedan.
+                }
+            }
+
             await signIn(email, password);
             if (onClose) onClose();
         } catch (err: any) {

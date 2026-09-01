@@ -1,4 +1,3 @@
-
 import React, { useMemo, useState, useEffect } from 'react';
 import { useStudio } from '../../context/StudioContext';
 import { useAuth } from '../../context/AuthContext';
