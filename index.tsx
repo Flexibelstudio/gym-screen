@@ -16,6 +16,8 @@ if (!rootElement) {
   throw new Error("Could not find root element to mount to");
 }
 
+try { (window as any).__bootmark?.('js igång'); } catch { /* inget */ }
+
 startAppUpdateWatcher();
 
 // Gamla skärmar hoppar över glidande övergångar — allt visas direkt i stället.

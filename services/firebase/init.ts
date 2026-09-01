@@ -120,6 +120,7 @@ if (!isOffline) {
         storage = getStorage(app);
         functions = getFunctions(app, 'us-central1');
         functionsEurope = getFunctions(app, 'europe-west1');
+        try { (window as any).__bootmark?.('firebase klar'); } catch { /* inget */ }
         
         // Messaging is only supported in browsers that support the required APIs
         if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {

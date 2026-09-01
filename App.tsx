@@ -203,13 +203,21 @@ const App: React.FC = () => {
   // högt med flit: sidan är en nödutgång för dött nät, inte en anhalt — en
   // seg men levande start ska få bli klar bakom loggan utan att avbrytas.
   const [loadingStalled, setLoadingStalled] = useState(false);
-  const [visaTidslinje, setVisaTidslinje] = useState(false);
+  const [tidslinje, setTidslinje] = useState('');
   useEffect(() => {
-    if (!isGlobalLoading) { setLoadingStalled(false); setVisaTidslinje(false); return; }
+    if (!isGlobalLoading) { setLoadingStalled(false); setTidslinje(''); return; }
     const timer = window.setTimeout(() => setLoadingStalled(true), 25000);
-    // Drar starten ut på tiden visas tidslinjen — då pekar den sega länken ut sig själv.
-    const tidslinjeTimer = window.setTimeout(() => setVisaTidslinje(true), 6000);
-    return () => { window.clearTimeout(timer); window.clearTimeout(tidslinjeTimer); };
+    // Drar starten ut på tiden visas tidslinjen — levande, uppdaterad varje
+    // sekund, så att även det som händer sent kommer med. Första versionen
+    // frös vid sex sekunder och missade allt därefter.
+    const start = Date.now();
+    const tick = window.setInterval(() => {
+      if (Date.now() - start < 6000) return;
+      const rader = (((window as any).__bootlogg || []) as string[]).join(' · ');
+      const sek = Math.round((Date.now() - ((window as any).__starttid || start)) / 1000);
+      setTidslinje(`${sek}s — ${rader || 'inga steg klara ännu'}`);
+    }, 1000);
+    return () => { window.clearTimeout(timer); window.clearInterval(tick); };
   }, [isGlobalLoading]);
   
   const isOrgMismatch = useMemo(() => {
@@ -919,9 +927,9 @@ const App: React.FC = () => {
                 alt="SmartStudio"
                 className="w-32 h-32 rounded-3xl shadow-lg animate-lugn-puls"
             />
-            {visaTidslinje && (
+            {tidslinje && (
                 <p className="mt-6 text-xs text-gray-400 max-w-md">
-                    {(((window as any).__bootlogg || []) as string[]).join(' · ') || 'startar…'}
+                    {tidslinje}
                 </p>
             )}
         </div>
