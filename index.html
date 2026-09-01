@@ -73,6 +73,45 @@
           return p;
         };
       })();
+
+      // Gamla skarmar: fornya intradesbiljetten sjalva, innan appen vaknar.
+      // Biljetten haller en timme. Ar den gammal nar nagot ska sparas eller
+      // hamtas forsoker inloggningsbiblioteket fornya den pa sin egen vag —
+      // som inte fungerar i den har webblasaren och forst efter ~30 sekunder
+      // ger med sig. Det ar den vantan som legat bakom allt segt. Har fornyas
+      // biljetten i stallet direkt vid start, pa den enkla vag som bevisligen
+      // fungerar, och laggs tillbaka innan biblioteket hunnit lasa den.
+      (function () {
+        try {
+          if (localStorage.getItem('smartstudio-reservinloggning') !== '1') return;
+          var nyckel = null;
+          for (var i = 0; i < localStorage.length; i++) {
+            var k = localStorage.key(i);
+            if (k && k.indexOf('firebase:authUser:') === 0) { nyckel = k; break; }
+          }
+          if (!nyckel) return;
+          var session = JSON.parse(localStorage.getItem(nyckel));
+          var st = session && session.stsTokenManager;
+          if (!st || !st.refreshToken) return;
+          // Fortfarande minst en halvtimme kvar? Da ar allt redan snabbt.
+          if (st.expirationTime && (st.expirationTime - Date.now()) > 30 * 60 * 1000) return;
+          var apiKey = session.apiKey || nyckel.split(':')[2];
+          fetch('https://securetoken.googleapis.com/v1/token?key=' + encodeURIComponent(apiKey), {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: 'grant_type=refresh_token&refresh_token=' + encodeURIComponent(st.refreshToken)
+          }).then(function (svar) {
+            return svar.ok ? svar.json() : null;
+          }).then(function (data) {
+            if (!data || !data.access_token) return;
+            st.accessToken = data.access_token;
+            st.refreshToken = data.refresh_token || st.refreshToken;
+            st.expirationTime = Date.now() + (parseInt(data.expires_in || '3600', 10) * 1000);
+            localStorage.setItem(nyckel, JSON.stringify(session));
+            if (window.__bootmark) window.__bootmark('biljett fornyad');
+          }).catch(function () { /* da far biblioteket forsoka sjalv, som forut */ });
+        } catch (e) { /* inget far stoppa uppstarten */ }
+      })();
     </script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>SmartStudio</title>
