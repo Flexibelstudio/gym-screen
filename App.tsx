@@ -199,11 +199,13 @@ const App: React.FC = () => {
   const isGlobalLoading = authLoading || studioLoading;
 
   // Tar hämtningen orimligt lång tid har något hängt sig. Då ska skärmen säga
-  // det i klartext i stället för att stå vit i all evighet.
+  // det i klartext i stället för att stå vit i all evighet. Gränsen är satt
+  // högt med flit: sidan är en nödutgång för dött nät, inte en anhalt — en
+  // seg men levande start ska få bli klar bakom loggan utan att avbrytas.
   const [loadingStalled, setLoadingStalled] = useState(false);
   useEffect(() => {
     if (!isGlobalLoading) { setLoadingStalled(false); return; }
-    const timer = window.setTimeout(() => setLoadingStalled(true), 10000);
+    const timer = window.setTimeout(() => setLoadingStalled(true), 25000);
     return () => window.clearTimeout(timer);
   }, [isGlobalLoading]);
   
@@ -909,13 +911,10 @@ const App: React.FC = () => {
 
     return (
         <div className="min-h-screen bg-white dark:bg-black flex flex-col items-center justify-center p-8 text-center">
-            <motion.img 
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ duration: 0.5 }}
-                src="/favicon.png" 
-                alt="SmartStudio" 
-                className="w-32 h-32 rounded-3xl shadow-lg" 
+            <img
+                src="/favicon.png"
+                alt="SmartStudio"
+                className="w-32 h-32 rounded-3xl shadow-lg animate-lugn-puls"
             />
         </div>
     );

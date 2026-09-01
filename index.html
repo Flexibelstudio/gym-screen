@@ -13,6 +13,15 @@
          den läser och besvarar anropen precis likadant.
          Ligger här, först av allt, så att ingen annan kod hinner greppa
          nätverksvägen innan förenklingen är på plats. */
+      /* Skärmar som behövt reservinloggningen är gamla webbläsare med svag
+         grafik. De märker sig själva, och CSS:en och animationerna anpassar
+         sig — suddiga glasytor och glidande övergångar är det som gör att
+         tillbaka-klick känns sega på dem. */
+      try {
+        if (localStorage.getItem('smartstudio-reservinloggning') === '1') {
+          document.documentElement.className += ' enkel-grafik';
+        }
+      } catch (e) {}
       (function () {
         if (!window.fetch) return;
         var vanlig = window.fetch.bind(window);

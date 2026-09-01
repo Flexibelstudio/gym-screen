@@ -507,3 +507,30 @@ html:not(.dark).studio-mode .bg-white\/60 {
 .studio-mode .fixed.inset-0.bg-black\/40 {
   background-color: rgba(0, 0, 0, 0.65) !important;
 }
+
+/* ==========================================================================
+   ENKEL GRAFIK — gamla pekskärmar
+
+   Suddiga glasytor (backdrop-filter) räknas om för varje bildruta och är det
+   dyraste en gammal grafikmotor kan ombes göra. På skärmar som märkt sig
+   själva som äldre stängs de av — ytorna blir täckande i stället för frostade,
+   och navigeringen slutar kännas trögflytande.
+   ========================================================================== */
+
+html.enkel-grafik *,
+html.enkel-grafik *::before,
+html.enkel-grafik *::after {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+}
+
+/* Splashloggan andas medan appen laddar — så syns det att inget har fastnat.
+   Ren CSS med flit: den ska pulsera även på gamla skärmar där de tyngre
+   animationerna är avstängda. En ensam mjuk puls kostar inget. */
+@keyframes lugn-puls {
+    0%, 100% { transform: scale(1); opacity: 1; }
+    50% { transform: scale(1.06); opacity: 0.72; }
+}
+.animate-lugn-puls {
+    animation: lugn-puls 1.6s ease-in-out infinite;
+}
