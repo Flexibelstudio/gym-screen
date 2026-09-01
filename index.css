@@ -524,6 +524,21 @@ html.enkel-grafik *::after {
     -webkit-backdrop-filter: none !important;
 }
 
+/* Gamla pekskärmar väntar annars ca 300 ms efter varje tryck (för att se om
+   det blir en dubbeltryckning) — det är den pausen som får en att undra om
+   trycket ens togs emot. Bort med den, och ge varje tryck ett omedelbart
+   kvitto: knappen dämpas direkt under fingret. */
+html.enkel-grafik * {
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+}
+html.enkel-grafik button:active,
+html.enkel-grafik a:active,
+html.enkel-grafik [role="button"]:active {
+    opacity: 0.55 !important;
+    transform: scale(0.97);
+}
+
 /* Splashloggan andas medan appen laddar — så syns det att inget har fastnat.
    Ren CSS med flit: den ska pulsera även på gamla skärmar där de tyngre
    animationerna är avstängda. En ensam mjuk puls kostar inget. */
