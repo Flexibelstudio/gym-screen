@@ -298,6 +298,7 @@ const App: React.FC = () => {
   const isWorkoutPageRef = useRef(false);
   const aktuellSidaRef = useRef<Page | null>(null);
   const senasteRorelseRef = useRef(Date.now());
+  const [nyVersionVantar, setNyVersionVantar] = useState(false);
 
   useEffect(() => {
     isWorkoutPageRef.current = page === Page.Timer || page === Page.RepsOnly;
@@ -346,6 +347,7 @@ const App: React.FC = () => {
       // nar skarmen statt oanvand pa startsidan en stund (se vakten nedan).
       refreshing = true;
       pendingSwReloadRef.current = true;
+      setNyVersionVantar(true);
       console.log('Ny version klar - laddas in vid nasta lugna stund pa startsidan.');
     };
 
@@ -1039,6 +1041,18 @@ const App: React.FC = () => {
       );
   }
 
+  // Diskret rad nar en ny version vantar mitt i anvandning. Anvandaren valjer
+  // sjalv nar — vi tvingar aldrig. Doljs i timervyerna dar den bara stor.
+  const nyVersionRad = (nyVersionVantar && page !== Page.Timer && page !== Page.RepsOnly) ? (
+    <button
+      type="button"
+      onClick={() => window.location.reload()}
+      className="fixed bottom-4 left-1/2 -translate-x-1/2 z-[9000] px-4 py-2 rounded-full bg-gray-900/90 text-white text-xs font-bold shadow-lg backdrop-blur-sm hover:bg-gray-900 transition-colors"
+    >
+      Ny version finns — tryck för att ladda om
+    </button>
+  ) : null;
+
   if (currentUser && !userData && !isStudioMode && !authLoading) {
     return (
         <div className="min-h-screen bg-white dark:bg-black flex flex-col items-center justify-center p-8 text-center">
@@ -1082,6 +1096,7 @@ const App: React.FC = () => {
 
   return (
     <div id="app-root-container" className={`${showUserBackground ? 'bg-transparent' : 'bg-white dark:bg-black'} text-gray-800 dark:text-gray-200 font-sans flex flex-col ${isStudioMode && page === Page.Home ? 'h-screen overflow-hidden' : 'min-h-screen'} ${paddingClass}`}>
+        {nyVersionRad}
         {showUserBackground && (
             <div id="user-background-layer" className="fixed inset-0 z-[-1]">
                 <img src={userData.backgroundImageUrl} alt="Background" className="w-full h-full object-cover" />

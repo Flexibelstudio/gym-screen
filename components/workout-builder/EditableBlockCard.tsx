@@ -96,9 +96,16 @@ const ExerciseItem: React.FC<ExerciseItemProps> = ({ exercise, onUpdate, onRemov
             .slice(0, 15); // Visa max 15 för prestanda
     }, [searchQuery, exerciseBank, isSearchVisible]);
 
+    // Bekraftelsen av det man skrivit maste ga att na bade fran "lamna rutan"
+    // och fran "klick utanfor" — de tva hanterarna tavlar om att kora forst, och
+    // vilken som vinner skiljer sig mellan webblasare. Ref:en pekar alltid pa
+    // senaste versionen av funktionen, sa bada ser samma aktuella lage.
+    const bekraftaSkrivetRef = useRef<() => void>(() => { /* satts nedan */ });
+
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
             if (searchContainerRef.current && !searchContainerRef.current.contains(event.target as Node)) {
+                bekraftaSkrivetRef.current();
                 setIsSearchVisible(false);
                 setIsReplacing(false);
             }
@@ -115,6 +122,29 @@ const ExerciseItem: React.FC<ExerciseItemProps> = ({ exercise, onUpdate, onRemov
         // Manuell skrivning kopplar loss raden helt: ad-hoc, ingen banklänk, ingen loggning
         onUpdate(exercise.id, { name: newName, isFromBank: false, loggingEnabled: false, originalBankId: null });
     };
+
+    const bekraftaSkrivet = () => {
+        // Namnet man skrivit galler nar man lamnar rutan:
+        // 1) Finns exakt det namnet i banken kopplas raden till den bankovningen.
+        // 2) Annars blir det en egen ovning med det nya namnet (bankkopplade
+        //    rader kopplas loss). Forut aterstalldes lasta rader till det gamla.
+        const skrivet = (isGlobal && isReplacing ? searchQuery : exercise.name).trim();
+        const normalisera = (s: string) => s.trim().toLowerCase();
+        const traff = skrivet
+            ? exerciseBank.find(b => normalisera(b.name) === normalisera(skrivet))
+            : undefined;
+        if (traff && traff.id !== exercise.originalBankId) {
+            handleSelectExercise(traff);
+            return;
+        }
+        if (isGlobal && isReplacing) {
+            if (skrivet && skrivet !== exercise.name) {
+                onUpdate(exercise.id, { name: skrivet, isFromBank: false, loggingEnabled: false, originalBankId: null });
+            }
+            setIsReplacing(false);
+        }
+    };
+    bekraftaSkrivetRef.current = bekraftaSkrivet;
 
     const handleSelectExercise = (bankExercise: BankExercise) => {
         onUpdate(exercise.id, {
@@ -345,29 +375,7 @@ const ExerciseItem: React.FC<ExerciseItemProps> = ({ exercise, onUpdate, onRemov
                                     setSearchQuery(exercise.name);
                                 }
                             }}
-                            onBlur={() => {
-                                // Namnet man skrivit galler nar man lamnar rutan:
-                                // 1) Finns exakt det namnet i banken kopplas raden till den
-                                //    bankovningen — som om man klickat pa den.
-                                // 2) Annars blir det en egen ovning med det nya namnet
-                                //    (bankkopplade rader kopplas loss). Forut aterstalldes
-                                //    lasta rader till det gamla namnet.
-                                const skrivet = (isGlobal && isReplacing ? searchQuery : exercise.name).trim();
-                                const normalisera = (s: string) => s.trim().toLowerCase();
-                                const traff = skrivet
-                                    ? exerciseBank.find(b => normalisera(b.name) === normalisera(skrivet))
-                                    : undefined;
-                                if (traff && traff.id !== exercise.originalBankId) {
-                                    handleSelectExercise(traff);
-                                    return;
-                                }
-                                if (isGlobal && isReplacing) {
-                                    if (skrivet && skrivet !== exercise.name) {
-                                        onUpdate(exercise.id, { name: skrivet, isFromBank: false, loggingEnabled: false, originalBankId: null });
-                                    }
-                                    setIsReplacing(false);
-                                }
-                            }}
+                            onBlur={() => bekraftaSkrivetRef.current()}
                             onKeyDown={(e) => {
                                 if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
                             }}
