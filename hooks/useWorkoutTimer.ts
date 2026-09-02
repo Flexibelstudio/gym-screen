@@ -22,7 +22,10 @@ export const getAudioContext = (): AudioContext | null => {
 // forstarkare och en limiter som haller toppen i schack, sa att det kan
 // spelas markbart hogre utan att spraka. Volymfaktorn satts per skarm
 // (Skarmar > Installningar) sa att tva olika skarmar kan jamnas ut.
-const GRUNDFORSTARKNING = 2.2;
+// 1.9 lyfter grundljuden (0.4-0.5) till strax under full styrka (0.75-0.95).
+// Mer an sa gar inte att fa ur en webblasare - taket ar alltid enhetens egen
+// hogtalarvolym. Limitern nedan ar bara ett sakerhetsnat mot sprak vid 200 %.
+const GRUNDFORSTARKNING = 1.9;
 let volymFaktor = 1;
 let masterGain: GainNode | null = null;
 let masterCtx: AudioContext | null = null;
@@ -41,9 +44,9 @@ const masterOut = (ctx: AudioContext): AudioNode => {
         const gain = ctx.createGain();
         gain.gain.value = GRUNDFORSTARKNING * volymFaktor;
         const limiter = ctx.createDynamicsCompressor();
-        limiter.threshold.value = -6;
-        limiter.knee.value = 4;
-        limiter.ratio.value = 20;
+        limiter.threshold.value = -1;
+        limiter.knee.value = 1;
+        limiter.ratio.value = 12;
         limiter.attack.value = 0.002;
         limiter.release.value = 0.12;
         gain.connect(limiter);
