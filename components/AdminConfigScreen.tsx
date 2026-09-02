@@ -426,23 +426,7 @@ export const StudioConfigModal: React.FC<StudioConfigModalProps> = ({ isOpen, on
                             )}
                         </div>
 
-                        <div className="pt-4 border-t border-gray-200 dark:border-gray-800">
-                            {renderToggle('checkInImageEnabled', "Visa QR-kod på skärm", "Visar en QR-kod på displayen så medlemmar snabbt kan logga sitt pass.")}
-
-                            {(overrides.checkInImageEnabled ?? effectiveConfig.checkInImageEnabled) && (
-                                <div className="mt-4 ml-14 animate-fade-in">
-                                    <ImageUploader
-                                        label="Ladda upp QR-kod"
-                                        imageUrl={overrides.checkInImageUrl ?? effectiveConfig.checkInImageUrl ?? null}
-                                        onImageChange={(url) => handleConfigChange('checkInImageUrl', url)}
-                                        isSaving={isSaving}
-                                        organizationId={organization.id}
-                                        studioId={studio.id}
-                                    />
-                                    <p className="text-xs text-gray-500 mt-2">Denna bild sparas specifikt för denna studio.</p>
-                                </div>
-                            )}
-                        </div>
+                        {/* 'Visa QR-kod pa skarm' togs bort 2026-09-02: ingenting i appen laste av installningen langre. */}
                     </div>
                 );
         }

@@ -549,6 +549,7 @@ const EventEditor: React.FC<{
     const [membersLoading, setMembersLoading] = useState(false);
     const [memberSearch, setMemberSearch] = useState('');
     const [selectedMemberIds, setSelectedMemberIds] = useState<string[]>([]);
+    const [memberDivisions, setMemberDivisions] = useState<Record<string, string>>({});
     const [memberDivision, setMemberDivision] = useState('Singel Herr');
 
     useEffect(() => {
@@ -636,12 +637,13 @@ const EventEditor: React.FC<{
                 id: `p-${Date.now()}-${nya.length}`,
                 name: namn,
                 email: epost || undefined,
-                division: memberDivision,
+                division: memberDivisions[id] || memberDivision,
                 startNumber: nasta++
             });
         }
         if (nya.length > 0) setParticipants([...participants, ...nya]);
         setSelectedMemberIds([]);
+        setMemberDivisions({});
         setMemberSearch('');
     };
 
@@ -732,7 +734,11 @@ const EventEditor: React.FC<{
                 restOfLine = line.substring(colonIndex + 1).trim();
             }
 
-            const parts = restOfLine.split(/[\t;,]|\s-\s/).map(p => p.trim());
+            const rawParts = restOfLine.split(/[\t;,]|\s-\s/).map(p => p.trim());
+            // Star en klass med pa raden (t.ex. "Singel Dam") plockas den ut och
+            // galler for just den raden — annars galler klassen i valjaren.
+            const radensKlass = rawParts.find(p => divisions.some(d => d.toLowerCase() === p.toLowerCase()));
+            const parts = rawParts.filter(p => p !== radensKlass);
             const emails = parts.filter(p => emailRegex.test(p));
             const nonEmails = parts.filter(p => !emailRegex.test(p) && p !== '');
 
@@ -754,8 +760,10 @@ const EventEditor: React.FC<{
             const email = emails[0] || undefined;
             const partnerEmail = emails[1] || undefined;
             
-            let division = importDivision;
-            if ((partnerName || teamName) && division.startsWith('Singel')) {
+            let division = radensKlass
+                ? (divisions.find(d => d.toLowerCase() === radensKlass.toLowerCase()) || importDivision)
+                : importDivision;
+            if (!radensKlass && (partnerName || teamName) && division.startsWith('Singel')) {
                 division = 'Dubbel Mix';
             }
 
@@ -1200,6 +1208,19 @@ const EventEditor: React.FC<{
                                                                     <span className="text-xs text-gray-500 block truncate">{m.email}</span>
                                                                 </span>
                                                                 {redanMed && <span className="text-[10px] font-bold uppercase text-gray-400">I startlistan</span>}
+                                                                {vald && (
+                                                                    <select
+                                                                        value={memberDivisions[mid] || memberDivision}
+                                                                        onClick={e => e.stopPropagation()}
+                                                                        onChange={e => setMemberDivisions(prev => ({ ...prev, [mid]: e.target.value }))}
+                                                                        className="text-xs bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md px-2 py-1 text-gray-900 dark:text-white outline-none shrink-0"
+                                                                        title="Klass for den har deltagaren"
+                                                                    >
+                                                                        {divisions.map(d => (
+                                                                            <option key={d} value={d}>{d}</option>
+                                                                        ))}
+                                                                    </select>
+                                                                )}
                                                             </label>
                                                         );
                                                     })}
@@ -1310,7 +1331,7 @@ const EventEditor: React.FC<{
                                             </select>
                                         </div>
                                         <p className="text-xs text-gray-500">
-                                            Klistra in rader. Vi letar automatiskt upp namn, lagnamn och e-post. En rad blir en startande (Singel, Par-lag eller Lag med Lagnamn). <br />
+                                            Klistra in rader. Vi letar automatiskt upp namn, lagnamn och e-post. En rad blir en startande (Singel, Par-lag eller Lag med Lagnamn). Skriv med klassen på raden (t.ex. <span className="font-mono">Singel Dam</span>) så gäller den för just den raden — annars klassen i väljaren ovan. <br />
                                             <span className="font-bold font-mono text-[10px] block mt-1 text-emerald-600 dark:text-emerald-400">Exempel med lagnamn: Team Blixten: Karin - karin@exempel.se - Johan - johan@exempel.se</span>
                                             <span className="font-bold font-mono text-[10px] block text-emerald-600 dark:text-emerald-400">Exempel med lagnamn: Team Blixten - Karin - karin@exempel.se - Johan - johan@exempel.se</span>
                                             <span className="font-bold">Singel:</span> <code className="bg-gray-100 dark:bg-gray-900 p-0.5 rounded text-red-500">Karin Larsson - karin@exempel.se</code> <br />
