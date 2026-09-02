@@ -346,14 +346,24 @@ const ExerciseItem: React.FC<ExerciseItemProps> = ({ exercise, onUpdate, onRemov
                                 }
                             }}
                             onBlur={() => {
-                                // Skrev man ett eget namn i en bankkopplad rad och lamnade
-                                // rutan utan att valja ur banken, ska namnet galla — raden
-                                // kopplas loss och blir en egen ovning, precis som nar man
-                                // skriver i en rad som inte ar kopplad. Forut aterstalldes den.
+                                // Namnet man skrivit galler nar man lamnar rutan:
+                                // 1) Finns exakt det namnet i banken kopplas raden till den
+                                //    bankovningen — som om man klickat pa den.
+                                // 2) Annars blir det en egen ovning med det nya namnet
+                                //    (bankkopplade rader kopplas loss). Forut aterstalldes
+                                //    lasta rader till det gamla namnet.
+                                const skrivet = (isGlobal && isReplacing ? searchQuery : exercise.name).trim();
+                                const normalisera = (s: string) => s.trim().toLowerCase();
+                                const traff = skrivet
+                                    ? exerciseBank.find(b => normalisera(b.name) === normalisera(skrivet))
+                                    : undefined;
+                                if (traff && traff.id !== exercise.originalBankId) {
+                                    handleSelectExercise(traff);
+                                    return;
+                                }
                                 if (isGlobal && isReplacing) {
-                                    const eget = searchQuery.trim();
-                                    if (eget && eget !== exercise.name) {
-                                        onUpdate(exercise.id, { name: eget, isFromBank: false, loggingEnabled: false, originalBankId: null });
+                                    if (skrivet && skrivet !== exercise.name) {
+                                        onUpdate(exercise.id, { name: skrivet, isFromBank: false, loggingEnabled: false, originalBankId: null });
                                     }
                                     setIsReplacing(false);
                                 }
