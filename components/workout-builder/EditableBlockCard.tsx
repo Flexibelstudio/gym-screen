@@ -345,6 +345,22 @@ const ExerciseItem: React.FC<ExerciseItemProps> = ({ exercise, onUpdate, onRemov
                                     setSearchQuery(exercise.name);
                                 }
                             }}
+                            onBlur={() => {
+                                // Skrev man ett eget namn i en bankkopplad rad och lamnade
+                                // rutan utan att valja ur banken, ska namnet galla — raden
+                                // kopplas loss och blir en egen ovning, precis som nar man
+                                // skriver i en rad som inte ar kopplad. Forut aterstalldes den.
+                                if (isGlobal && isReplacing) {
+                                    const eget = searchQuery.trim();
+                                    if (eget && eget !== exercise.name) {
+                                        onUpdate(exercise.id, { name: eget, isFromBank: false, loggingEnabled: false, originalBankId: null });
+                                    }
+                                    setIsReplacing(false);
+                                }
+                            }}
+                            onKeyDown={(e) => {
+                                if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
+                            }}
                             placeholder={isGlobal && isReplacing ? "Sök en annan övning…" : (isGlobal ? exercise.name : "Sök eller skriv övningsnamn")}
                             className={`appearance-none w-full border border-gray-300 dark:border-gray-600 rounded-lg p-2 focus:ring-2 focus:ring-primary focus:outline-none transition-all font-semibold placeholder-gray-400 dark:placeholder-gray-500 pr-8 ${
                                 isGlobal && !isReplacing
