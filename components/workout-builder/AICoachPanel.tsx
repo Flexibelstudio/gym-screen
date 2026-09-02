@@ -168,13 +168,54 @@ export const AICoachSidebar: React.FC<{
             // Save the current state before applying AI changes if it modified the workout
             const previousState = response.updatedWorkout ? JSON.parse(JSON.stringify(workout)) : undefined;
 
+            // AI:n skriver om HELA passet nar den svarar, och tappar da
+            // markningar den inte kanner till: superset, loggas, kopplingen
+            // till ovningsbanken. Darfor: block vars innehall AI:n inte rort
+            // behalls exakt som de var, och i andrade block far AI:n byta
+            // namn, reps och beskrivning — aldrig markningarna.
+            const normalisera = (s: any) => String(s || '').trim().toLowerCase();
+            const skyddaMetadata = (fran: any) => {
+                if (!fran || !Array.isArray(fran.blocks)) return fran;
+                const blocks = fran.blocks.map((aiBlock: any, i: number) => {
+                    const origBlock = (workout.blocks || []).find(b => b.id === aiBlock.id) || (workout.blocks || [])[i];
+                    if (!origBlock) return aiBlock;
+                    const exercises = (aiBlock.exercises || []).map((aiEx: any) => {
+                        const origEx = (origBlock.exercises || []).find(e => e.id === aiEx.id)
+                            || (origBlock.exercises || []).find(e => normalisera(e.name) === normalisera(aiEx.name));
+                        if (!origEx) return aiEx;
+                        return {
+                            ...aiEx,
+                            id: origEx.id,
+                            loggingEnabled: origEx.loggingEnabled,
+                            trackingFields: origEx.trackingFields,
+                            isFromBank: origEx.isFromBank,
+                            originalBankId: origEx.originalBankId,
+                            groupId: origEx.groupId,
+                            groupColor: origEx.groupColor,
+                            side: aiEx.side !== undefined ? aiEx.side : origEx.side,
+                            imageUrl: origEx.imageUrl || aiEx.imageUrl,
+                        };
+                    });
+                    const sammaInnehall = Array.isArray(origBlock.exercises)
+                        && exercises.length === origBlock.exercises.length
+                        && exercises.every((ex: any, j: number) =>
+                            normalisera(ex.name) === normalisera(origBlock.exercises[j].name)
+                            && String(ex.reps || '') === String(origBlock.exercises[j].reps || ''));
+                    if (sammaInnehall && normalisera(aiBlock.title || origBlock.title) === normalisera(origBlock.title)) {
+                        return origBlock;
+                    }
+                    return { ...origBlock, ...aiBlock, id: origBlock.id, exercises };
+                });
+                return { ...fran, blocks };
+            };
+
             if (response.updatedWorkout) {
                 // AI:ns svar får bara ändra passets INNEHÅLL. Identitet och metadata
                 // (id, org, kategori, publiceringsläge) ägs av byggaren — tidigare
                 // ersattes hela objektet och vald kategori försvann när AI:n byggt klart.
                 onUpdateWorkout({
                     ...workout,
-                    ...response.updatedWorkout,
+                    ...skyddaMetadata(response.updatedWorkout),
                     id: workout.id,
                     organizationId: workout.organizationId,
                     category: workout.category,
