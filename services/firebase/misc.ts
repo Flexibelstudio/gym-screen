@@ -635,6 +635,16 @@ export const getLeads = async (): Promise<Lead[]> => {
     }
 };
 
+export const deleteLead = async (id: string): Promise<void> => {
+    if (isOffline || !db || !id) return;
+    try {
+        await deleteDoc(doc(db, 'leads', id));
+    } catch (error) {
+        console.error("Error deleting lead:", error);
+        throw error;
+    }
+};
+
 export const updateLeadStatus = async (id: string, status: Lead['status']): Promise<void> => {
     if (isOffline || !db) return;
     try {
