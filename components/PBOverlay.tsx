@@ -295,7 +295,7 @@ export const PBOverlay: React.FC<PBOverlayProps> = React.memo(({ isGrattisOpen }
                             <span className="text-xs font-bold text-gray-500">
                               st
                             </span>
-                            {record.diff > 0 && (
+                            {record.diff > 0 && !(record as any).isFirst && (
                               <span className="ml-2 text-[11px] font-black text-green-600 bg-green-100 dark:bg-green-900/40 px-2 py-0.5 rounded-full tabular-nums">
                                 +{record.diff} st
                               </span>
@@ -314,7 +314,7 @@ export const PBOverlay: React.FC<PBOverlayProps> = React.memo(({ isGrattisOpen }
                             <span className="text-xs font-bold text-gray-500">
                               kg
                             </span>
-                            {record.diff > 0 && (
+                            {record.diff > 0 && !(record as any).isFirst && (
                               <span className="ml-2 text-[11px] font-black text-green-600 bg-green-100 dark:bg-green-900/40 px-2 py-0.5 rounded-full tabular-nums">
                                 +{record.diff} kg
                               </span>

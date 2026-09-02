@@ -7,14 +7,14 @@ import { getOrganizationById } from './organizations';
 import { getGlobalSummerChallenge } from './misc';
 import { WorkoutLog, PersonalBest, WorkoutResult, MemberGoals, Workout, StudioEvent } from '../../types';
 
-export const saveWorkoutLog = async (logData: any): Promise<{ log: any, newRecords: { exerciseName: string, weight: number, diff: number, reps?: number, calculated1RM?: number }[] }> => {
+export const saveWorkoutLog = async (logData: any): Promise<{ log: any, newRecords: { exerciseName: string, weight: number, diff: number, reps?: number, calculated1RM?: number, isFirst?: boolean }[] }> => {
     if (isOffline || !db || !logData.organizationId) {
         return { log: logData, newRecords: [] };
     }
     
     const newLogRef = doc(collection(db, 'workoutLogs'));
     const newLog = { id: newLogRef.id, ...logData };
-    const newRecords: { exerciseName: string; weight: number; diff: number; reps?: number; calculated1RM?: number }[] = [];
+    const newRecords: { exerciseName: string; weight: number; diff: number; reps?: number; calculated1RM?: number; isFirst?: boolean }[] = [];
 
     if (logData.workoutId && logData.workoutId !== 'manual' && !logData.benchmarkId) {
         try {
@@ -214,13 +214,18 @@ export const saveWorkoutLog = async (logData: any): Promise<{ log: any, newRecor
                         // For pure reps exercises, diff can just be the difference in reps.
                         // Or if 1RM exists, the difference in 1RM.
                         let computedDiff = 0;
-                        if (bestSet.oneRm > 0 && existingPB && existingPB.calculated1RM) {
+                        const isFirst = !existingPB;
+                        if (isFirst) {
+                            // Forsta gangen: det finns inget att jamfora med, sa "diffen"
+                            // ar sjalva resultatet (vikt, annars reps). Forut blev det +0.
+                            computedDiff = bestSet.weight > 0 ? bestSet.weight : bestSet.reps;
+                        } else if (bestSet.oneRm > 0 && existingPB.calculated1RM) {
                             computedDiff = parseFloat((bestSet.oneRm - existingPB.calculated1RM).toFixed(2));
-                        } else if (bestSet.weight === 0 && existingPB && existingPB.weight === 0) {
+                        } else if (bestSet.weight === 0 && existingPB.weight === 0) {
                             computedDiff = bestSet.reps - (existingPB.reps || 0);
-                        } else if (bestSet.weight > 0 && (!existingPB || existingPB.weight === 0)) {
+                        } else if (bestSet.weight > 0 && existingPB.weight === 0) {
                             computedDiff = bestSet.weight;
-                        } else if (existingPB && bestSet.weight > existingPB.weight) {
+                        } else if (bestSet.weight > existingPB.weight) {
                             computedDiff = bestSet.weight - existingPB.weight;
                         }
 
@@ -229,7 +234,8 @@ export const saveWorkoutLog = async (logData: any): Promise<{ log: any, newRecor
                             weight: bestSet.weight, 
                             reps: bestSet.reps,
                             calculated1RM: bestSet.oneRm,
-                            diff: computedDiff
+                            diff: computedDiff,
+                            isFirst
                         });
                     }
                 }

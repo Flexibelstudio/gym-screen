@@ -413,6 +413,7 @@ export interface StartGroup {
 export interface PBRecord {
     exerciseName: string; // Synced with firebaseService
     diff: number;
+    isFirst?: boolean; // Forsta gangen ovningen loggas: diff ar da sjalva varde, inte en forbattring
     weight?: number; // Optional current weight
     reps?: number;
     calculated1RM?: number;
