@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useStudio } from '../../context/StudioContext';
 import { createPortal } from 'react-dom';
 import { Organization, HyroxRace, StartGroup, RaceParticipant, HyroxRaceResult } from '../../types';
 import { getPastRaces, saveRace, deleteRace } from '../../services/firebaseService';
@@ -1665,6 +1666,7 @@ const EventEditor: React.FC<{
 };
 
 export const EventsContent: React.FC<EventsContentProps> = ({ organization }) => {
+    const { studioConfig } = useStudio();
     const [events, setEvents] = useState<HyroxRace[]>([]);
     const [loading, setLoading] = useState(true);
     const [view, setView] = useState<'list' | 'create' | 'edit'>('list');
@@ -1819,6 +1821,16 @@ export const EventsContent: React.FC<EventsContentProps> = ({ organization }) =>
     if (view === 'list') {
         return (
             <div className="space-y-6 animate-fade-in">
+                {!studioConfig?.enableHyrox && (
+                    <div className="flex items-start gap-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800/50 text-amber-900 dark:text-amber-200 rounded-xl px-4 py-3 text-sm">
+                        <span className="text-lg leading-none">⚠️</span>
+                        <p>
+                            <span className="font-bold">Event & Tävlingar visas inte på skärmen än.</span>{' '}
+                            Du kan skapa och förbereda event här, men för att de ska synas på studioskärmen behöver du slå på
+                            <span className="font-bold"> "Visa Event & Tävlingar"</span> under <span className="font-bold">Inställningar</span>.
+                        </p>
+                    </div>
+                )}
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                     <div>
                         <h2 className="text-2xl font-black text-gray-900 dark:text-white uppercase tracking-tight">Event & Tävlingar</h2>
@@ -2214,7 +2226,7 @@ export const EventsContent: React.FC<EventsContentProps> = ({ organization }) =>
                                 animate={{ opacity: 1, scale: 1, y: 0 }}
                                 exit={{ opacity: 0, scale: 0.95, y: 15 }}
                                 transition={{ type: "spring", duration: 0.4 }}
-                                className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-[2rem] shadow-2xl overflow-hidden w-full max-w-lg relative z-10 p-8 text-gray-900 dark:text-white"
+                                className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-[2rem] shadow-2xl w-full max-w-lg relative z-10 p-8 text-gray-900 dark:text-white max-h-[calc(100vh-2rem)] overflow-y-auto"
                             >
                                 <button
                                     onClick={() => setShowDemoSuccessModal(false)}
