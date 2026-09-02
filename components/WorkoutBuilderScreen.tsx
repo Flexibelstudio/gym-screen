@@ -903,23 +903,7 @@ export const WorkoutBuilderScreen: React.FC<WorkoutBuilderScreenProps> = ({ init
                       isTextarea
                   />
                   
-                  {isAdminView && (
-                      <div className="bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800 rounded-lg p-4">
-                          <label className="text-xs font-black text-purple-600 dark:text-purple-400 uppercase tracking-wider mb-1 block flex items-center gap-2">
-                              <SparklesIcon className="w-4 h-4" /> Instruktion till medlemmen
-                          </label>
-                          <p className="text-sm text-purple-800/70 dark:text-purple-300/70 mb-3">
-                              Visas för medlemmen före passet. Används inte för att räkna fram vikter.
-                          </p>
-                          <textarea
-                              value={workout.aiProgressionPrompt || ''}
-                              onChange={e => handleUpdateWorkoutDetail('aiProgressionPrompt', e.target.value)}
-                              placeholder="Din instruktion till medlemmen..."
-                              className="w-full bg-white dark:bg-gray-800 border border-purple-200 dark:border-purple-700 rounded-md p-3 text-base text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-purple-500 resize-y"
-                              rows={3}
-                          />
-                      </div>
-                  )}
+                  {/* Rutan 'Instruktion till medlemmen' togs bort 2026-09-02 - overflodig i redigeringen. Faltet aiProgressionPrompt finns kvar i datan. */}
                   
                   {sessionRole !== 'member' && (
                     <div className="pt-4 border-t border-gray-200 dark:border-gray-700 grid grid-cols-1 md:grid-cols-2 gap-6">
