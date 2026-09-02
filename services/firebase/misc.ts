@@ -1,3 +1,4 @@
+import { lasPanel, sparaPanel } from '../../utils/panelforrad';
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 import { collection, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, query, where, orderBy, limit, onSnapshot, serverTimestamp, startAfter, QueryDocumentSnapshot, DocumentData } from 'firebase/firestore';
 import { db, storage, isOffline, sanitizeData, getLeaderboardDocId } from './init';
@@ -250,13 +251,22 @@ export const listenToCoachNotes = (orgId: string, onUpdate: (notes: CoachNote[])
         onUpdate([]);
         return () => {};
     }
+
+    // Visa de senast kanda anteckningarna direkt — samma knep som for
+    // gymflodet och passen. Servern skriver over sa fort den svarat.
+    const forradsNyckel = `smartstudio-anteckningar-${orgId}`;
+    const sparade = lasPanel<CoachNote[]>(forradsNyckel);
+    if (sparade && sparade.length) onUpdate(sparade);
+
     const q = query(
         collection(db, 'coachNotes'),
         where('organizationId', '==', orgId),
         orderBy('createdAt', 'desc')
     );
     return onSnapshot(q, (snap) => {
-        onUpdate(snap.docs.map(d => d.data() as CoachNote));
+        const notes = snap.docs.map(d => d.data() as CoachNote);
+        onUpdate(notes);
+        sparaPanel(forradsNyckel, notes.slice(0, 100));
     }, (err) => console.error("listenToCoachNotes failed", err));
 };
 
