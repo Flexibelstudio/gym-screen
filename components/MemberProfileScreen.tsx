@@ -173,6 +173,17 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
         return () => clearInterval(timer);
     }, []);
 
+    // Gar det att ga med over huvud taget? Bara nar utmaningen ar publicerad
+    // och inte redan har tagit slut. Forut fragade appen "vill du anta
+    // utmaningen?" en manad efter att den var over.
+    const canJoinChallenge = useMemo(() => {
+        if (!isSummerThemeActive) return false;
+        if (globalChallenge && globalChallenge.isPublished !== true) return false;
+        const end = configToUse?.summerChallengeEndDate;
+        if (end && currentTimestamp > end) return false;
+        return true;
+    }, [isSummerThemeActive, globalChallenge, configToUse?.summerChallengeEndDate, currentTimestamp]);
+
     const isChallengeStarted = useMemo(() => {
         if (!isSummerThemeActive) return false;
         if (!configToUse?.summerChallengeStartDate) return true; // Default to true if not set
@@ -1363,7 +1374,7 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                 <div className="space-y-3 sm:space-y-5 animate-fade-in">
                     
                     {/* Sommar-Sisu aktivering (Card 1) */}
-                    {isSummerThemeActive && isChallengeLoaded && !isUserJoined && !dismissedSummerChallenge && (
+                    {canJoinChallenge && isChallengeLoaded && !isUserJoined && !dismissedSummerChallenge && (
                         <div className="relative overflow-hidden bg-gradient-to-br from-orange-500 via-amber-400 to-yellow-100 dark:from-orange-600 dark:via-amber-500 dark:to-yellow-200 text-amber-950 border-none rounded-[2rem] p-6 sm:p-8 shadow-[0_12px_40px_rgba(249,115,22,0.18)] text-left animate-fade-in">
                             {/* Spinning animated sun */}
                             <div className="absolute -right-8 -top-8 w-36 h-36 text-white/25 pointer-events-none select-none">
@@ -2173,7 +2184,7 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                     )}
 
                     {/* Compact, slim bottom-placed join card if user clicked "Kanske senare" */}
-                    {isSummerThemeActive && isChallengeLoaded && !isUserJoined && dismissedSummerChallenge && (
+                    {canJoinChallenge && isChallengeLoaded && !isUserJoined && dismissedSummerChallenge && (
                         <div className="relative overflow-hidden bg-gradient-to-br from-orange-500 via-amber-400 to-yellow-100 dark:from-orange-600 dark:via-amber-500 dark:to-yellow-200 text-amber-950 border-none rounded-[2rem] p-5 shadow-[0_12px_40px_rgba(249,115,22,0.18)] text-left animate-fade-in mb-3.5">
                             {/* Sun rays backdrop */}
                             <div className="absolute top-[-40px] right-[-40px] w-64 h-64 bg-white/10 rounded-full blur-[50px] pointer-events-none"></div>
