@@ -17,6 +17,45 @@ export const getAudioContext = (): AudioContext | null => {
   return audioContext;
 };
 
+// --- Master-utgang: forstarkning + limiter ---
+// Ljuden gick forut rakt ut pa halv styrka. Nu passerar allt en gemensam
+// forstarkare och en limiter som haller toppen i schack, sa att det kan
+// spelas markbart hogre utan att spraka. Volymfaktorn satts per skarm
+// (Skarmar > Installningar) sa att tva olika skarmar kan jamnas ut.
+const GRUNDFORSTARKNING = 2.2;
+let volymFaktor = 1;
+let masterGain: GainNode | null = null;
+let masterCtx: AudioContext | null = null;
+
+export const setTimerVolume = (faktor: number | undefined) => {
+    const f = typeof faktor === 'number' && isFinite(faktor) ? Math.min(2, Math.max(0.2, faktor)) : 1;
+    volymFaktor = f;
+    if (masterGain && masterCtx) {
+        try { masterGain.gain.setValueAtTime(GRUNDFORSTARKNING * volymFaktor, masterCtx.currentTime); } catch { /* inget */ }
+    }
+};
+
+const masterOut = (ctx: AudioContext): AudioNode => {
+    if (masterGain && masterCtx === ctx) return masterGain;
+    try {
+        const gain = ctx.createGain();
+        gain.gain.value = GRUNDFORSTARKNING * volymFaktor;
+        const limiter = ctx.createDynamicsCompressor();
+        limiter.threshold.value = -6;
+        limiter.knee.value = 4;
+        limiter.ratio.value = 20;
+        limiter.attack.value = 0.002;
+        limiter.release.value = 0.12;
+        gain.connect(limiter);
+        limiter.connect(ctx.destination);
+        masterGain = gain;
+        masterCtx = ctx;
+        return gain;
+    } catch {
+        return ctx.destination;
+    }
+};
+
 /* --- SOUND SYNTHESIS FUNCTIONS --- */
 
 const playTone = (ctx: AudioContext, freq: number, type: OscillatorType, startTime: number, duration: number, vol: number = 0.5) => {
@@ -27,7 +66,7 @@ const playTone = (ctx: AudioContext, freq: number, type: OscillatorType, startTi
     gain.gain.setValueAtTime(vol, startTime);
     gain.gain.exponentialRampToValueAtTime(0.001, startTime + duration);
     osc.connect(gain);
-    gain.connect(ctx.destination);
+    gain.connect(masterOut(ctx));
     osc.start(startTime);
     osc.stop(startTime + duration);
 };
@@ -49,7 +88,7 @@ const playBellStrike = (ctx: AudioContext, startTime: number) => {
     gain.gain.linearRampToValueAtTime(i === 0 ? 0.5 : 0.2, startTime + 0.01);
     gain.gain.exponentialRampToValueAtTime(0.0001, startTime + duration);
     osc.connect(gain);
-    gain.connect(ctx.destination);
+    gain.connect(masterOut(ctx));
     osc.start(startTime);
     osc.stop(startTime + duration);
   });
@@ -80,7 +119,7 @@ const playAirHorn = (ctx: AudioContext, startTime: number) => {
 
         osc.connect(filter);
         filter.connect(gain);
-        gain.connect(ctx.destination);
+        gain.connect(masterOut(ctx));
         
         osc.start(startTime);
         osc.stop(startTime + duration);
@@ -103,7 +142,7 @@ const playDigitalBeep = (ctx: AudioContext, startTime: number) => {
     gain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.15); // Snabb release
 
     osc.connect(gain);
-    gain.connect(ctx.destination);
+    gain.connect(masterOut(ctx));
     osc.start(startTime);
     osc.stop(startTime + 0.15);
 };
@@ -128,7 +167,7 @@ const playGong = (ctx: AudioContext, startTime: number) => {
         gain.gain.exponentialRampToValueAtTime(0.001, startTime + duration / (i === 0 ? 1 : 1.5)); // Higher partials decay faster
 
         osc.connect(gain);
-        gain.connect(ctx.destination);
+        gain.connect(masterOut(ctx));
         osc.start(startTime);
         osc.stop(startTime + duration);
     });
@@ -206,7 +245,7 @@ export const playTada = () => {
         }
         
         osc.connect(gain);
-        gain.connect(ctx.destination);
+        gain.connect(masterOut(ctx));
     });
 };
 

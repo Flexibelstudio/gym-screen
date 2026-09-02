@@ -1,4 +1,5 @@
 
+import { setTimerVolume } from '../hooks/useWorkoutTimer';
 import React, { createContext, useState, useContext, useEffect, useMemo, useCallback } from 'react';
 import { Studio, Organization, StudioConfig } from '../types';
 import { getOrganizations, getOrganizationById, listenToOrganizationChanges } from '../services/firebaseService';
@@ -295,6 +296,11 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }, [currentUser]);
 
     const studioConfig = useMemo(() => getEffectiveConfig(selectedStudio, selectedOrganization), [selectedStudio, selectedOrganization]);
+
+    // Timerljudets volym foljer skarmens installning.
+    useEffect(() => {
+        setTimerVolume(studioConfig?.timerVolume);
+    }, [studioConfig?.timerVolume]);
 
     const value = useMemo(() => ({
         selectedOrganization,

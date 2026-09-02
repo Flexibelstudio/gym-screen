@@ -373,6 +373,40 @@ export const StudioConfigModal: React.FC<StudioConfigModalProps> = ({ isOpen, on
                         </div>
 
                         <div className="pt-4 border-t border-gray-200 dark:border-gray-800">
+                            <div className="p-3 rounded-lg">
+                                <div className="flex items-center justify-between gap-4">
+                                    <div>
+                                        <p className="text-sm font-semibold text-gray-900 dark:text-white">Timerljudets volym</p>
+                                        <p className="text-xs text-gray-500 mt-1">Justera per skärm så att två skärmar låter lika högt. 100 % är standard.</p>
+                                    </div>
+                                    <span className="text-sm font-bold tabular-nums text-gray-900 dark:text-white w-14 text-right">
+                                        {Math.round(((overrides.timerVolume ?? globalConfig.timerVolume ?? 1) as number) * 100)} %
+                                    </span>
+                                </div>
+                                <input
+                                    type="range"
+                                    min={20}
+                                    max={200}
+                                    step={10}
+                                    value={Math.round(((overrides.timerVolume ?? globalConfig.timerVolume ?? 1) as number) * 100)}
+                                    onChange={(e) => {
+                                        const f = parseInt(e.target.value, 10) / 100;
+                                        setOverrides(prev => ({ ...prev, timerVolume: f }));
+                                    }}
+                                    className="w-full mt-3 accent-primary"
+                                />
+                                {overrides.timerVolume !== undefined && (
+                                    <button
+                                        onClick={() => setOverrides(prev => { const n = { ...prev }; delete n.timerVolume; return n; })}
+                                        className="text-xs text-primary hover:underline mt-1"
+                                    >
+                                        Återställ till standard
+                                    </button>
+                                )}
+                            </div>
+                        </div>
+
+                        <div className="pt-4 border-t border-gray-200 dark:border-gray-800">
                             {renderToggle('enableScreensaver', "Skärmsläckare", "Visa logotyp vid inaktivitet.")}
                             
                             {effectiveConfig.enableScreensaver && (

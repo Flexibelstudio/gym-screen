@@ -216,6 +216,7 @@ export type ThemeOption = 'none' | 'auto' | 'winter' | 'christmas' | 'newyear' |
 export type TimerSoundProfile = 'airhorn' | 'digital' | 'boxing' | 'gong';
 
 export interface StudioConfig {
+  timerVolume?: number; // 0.2-2.0, 1 = standard. Satts per skarm under Skarmar > Installningar.
   enableScreensaver?: boolean;
   screensaverTimeoutMinutes?: number;
   enableExerciseBank?: boolean;
