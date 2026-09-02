@@ -163,7 +163,7 @@ Om användaren frågar om något tekniskt fel, be dem ladda om sidan eller konta
             contents.push({ role: 'user', parts: [{ text: userInput }] });
 
             const result = await flexGeminiProxy({
-                model: 'gemini-3-flash-preview',
+                model: 'gemini-3.5-flash-lite',
                 contents,
                 config: {
                     systemInstruction: systemKnowledge

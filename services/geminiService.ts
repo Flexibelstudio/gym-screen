@@ -6,11 +6,14 @@ import { Workout, WorkoutBlock, Exercise, TimerMode, TimerSettings, BankExercise
 import { getExerciseBank } from './firebaseService';
 import * as Prompts from '../data/aiPrompts';
 
-// MODELLER
-const TEXT_MODEL = 'gemini-3-flash-preview'; 
-const VISION_MODEL = 'gemini-3-flash-preview';
-const IMAGE_GEN_MODEL = 'gemini-2.5-flash-image';
-const PRO_MODEL = 'gemini-3-pro-preview';
+// MODELLER (sedda over september 2026 mot Googles modellista)
+// - Text och bildtolkning: stabila 3.6 Flash, Googles ersattare for 3-flash-preview.
+// - Sma snabba jobb: 3.5 Flash-Lite, snabbast och billigast.
+// - Bildgenerering: 3.1 Flash Image ("Nano Banana 2") — 2.5-flash-image stangs 2 okt 2026.
+const TEXT_MODEL = 'gemini-3.6-flash';
+const VISION_MODEL = 'gemini-3.6-flash';
+const QUICK_MODEL = 'gemini-3.5-flash-lite';
+const IMAGE_GEN_MODEL = 'gemini-3.1-flash-image';
 
 // TYPER
 
@@ -459,7 +462,7 @@ export async function parseWorkoutFromYoutube(url: string): Promise<Workout> {
 }
 
 export async function generateExerciseDescription(name: string): Promise<string> {
-    const data = await callGeminiProxy(TEXT_MODEL, [{ role: 'user', parts: [{ text: Prompts.EXERCISE_DESCRIPTION_PROMPT(name) }] }], { systemInstruction: Prompts.SYSTEM_COACH_CONTEXT });
+    const data = await callGeminiProxy(QUICK_MODEL, [{ role: 'user', parts: [{ text: Prompts.EXERCISE_DESCRIPTION_PROMPT(name) }] }], { systemInstruction: Prompts.SYSTEM_COACH_CONTEXT });
     return data.text.trim();
 }
 
@@ -469,7 +472,7 @@ export async function generateExerciseSuggestions(prompt: string): Promise<Parti
 }
 
 export async function enhancePageWithAI(content: string): Promise<string> {
-    const data = await callGeminiProxy(TEXT_MODEL, [{ role: 'user', parts: [{ text: `Förbättra och strukturera följande text med markdown på svenska:\n${content}` }] }]);
+    const data = await callGeminiProxy(QUICK_MODEL, [{ role: 'user', parts: [{ text: `Förbättra och strukturera följande text med markdown på svenska:\n${content}` }] }]);
     return data.text.trim();
 }
 
