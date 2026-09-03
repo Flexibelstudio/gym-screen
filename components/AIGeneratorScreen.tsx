@@ -32,13 +32,16 @@ interface AIGeneratorScreenProps {
     workouts?: Workout[];
     workoutsLoading?: boolean;
     initialExpandedCategory?: string | null;
+    // Programlage: ingen passtyp, resultatet blir ett program for utvalda medlemmar.
+    programMode?: boolean;
 }
 
 export const AIGeneratorScreen: React.FC<AIGeneratorScreenProps> = ({ 
     onWorkoutGenerated,
     initialMode = 'generate',
     workouts = [],
-    studioConfig
+    studioConfig,
+    programMode = false
 }) => {
     const { selectedOrganization } = useStudio();
     
@@ -105,6 +108,7 @@ export const AIGeneratorScreen: React.FC<AIGeneratorScreenProps> = ({
 
     // Select first category by default if available
     useEffect(() => {
+        if (programMode) return; // program har ingen passtyp
         if (studioConfig?.customCategories && studioConfig.customCategories.length > 0 && !selectedCategory) {
             setSelectedCategory(studioConfig.customCategories[0]);
         }
@@ -182,7 +186,10 @@ export const AIGeneratorScreen: React.FC<AIGeneratorScreenProps> = ({
             if (activeTab === 'generate') {
                 // Kombinera kategorins prompt med användarens tillägg
                 let finalPrompt = prompt;
-                if (selectedCategory) {
+                if (programMode) {
+                    if (!prompt.trim()) throw new Error("Beskriv programmet — t.ex. mål, antal pass per vecka, utrustning.");
+                    finalPrompt = `Skapa ett individuellt träningsprogram för en enskild medlem. Coachens beskrivning: "${prompt}"`;
+                } else if (selectedCategory) {
                     finalPrompt = `Skapa ett pass av typen "${selectedCategory.name}". 
                     Grundinstruktion för denna typ: "${selectedCategory.prompt}".
                     Användarens specifika önskemål/tillägg: "${prompt}"`;
@@ -340,7 +347,7 @@ export const AIGeneratorScreen: React.FC<AIGeneratorScreenProps> = ({
                 )}
                 
                 {/* CATEGORY SELECTOR (Only in generate mode) */}
-                {activeTab === 'generate' && studioConfig?.customCategories && (
+                {activeTab === 'generate' && !programMode && studioConfig?.customCategories && (
                     <div className="mb-6">
                         <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-3">
                             Välj passtyp:
@@ -482,7 +489,7 @@ export const AIGeneratorScreen: React.FC<AIGeneratorScreenProps> = ({
                 <div className="mt-6 flex justify-between items-center">
                     {activeTab === 'generate' ? (
                         <div className="text-xs text-gray-500 italic hidden sm:block">
-                            AI:n använder din valda kategori som grund.
+                            {programMode ? 'Programmet får ingen passtyp — det byggs för de medlemmar du väljer.' : 'AI:n använder din valda kategori som grund.'}
                         </div>
                     ) : activeTab === 'youtube' ? (
                          <div className="text-xs text-gray-500 italic hidden sm:block">
@@ -495,14 +502,14 @@ export const AIGeneratorScreen: React.FC<AIGeneratorScreenProps> = ({
                     <div className="flex gap-3 w-full sm:w-auto">
                         <button
                             onClick={handleAction}
-                            disabled={isProcessing || (activeTab === 'generate' && !selectedCategory && !prompt.trim()) || (activeTab === 'parse' && !prompt.trim() && !selectedImage) || (activeTab === 'youtube' && !youtubeUrl.trim())}
+                            disabled={isProcessing || (activeTab === 'generate' && (programMode ? !prompt.trim() : (!selectedCategory && !prompt.trim()))) || (activeTab === 'parse' && !prompt.trim() && !selectedImage) || (activeTab === 'youtube' && !youtubeUrl.trim())}
                             className={`
                                 ${activeTab === 'generate' ? 'bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500' : activeTab === 'youtube' ? 'bg-gradient-to-r from-red-600 to-red-800 hover:from-red-500 hover:to-red-700' : 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500'}
                                 text-white font-bold py-3 px-6 sm:px-8 rounded-xl shadow-lg transition-all transform active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 flex-grow sm:flex-grow-0 justify-center
                             `}
                         >
                             {activeTab === 'generate' ? <SparklesIcon className="w-5 h-5" /> : activeTab === 'youtube' ? <VideoIcon className="w-5 h-5" /> : <DocumentTextIcon className="w-5 h-5" />}
-                            {activeTab === 'generate' ? 'Skapa Pass med AI' : activeTab === 'youtube' ? 'Analysera Video' : (selectedImage ? 'Tolka Bild' : 'Tolka Text')}
+                            {activeTab === 'generate' ? (programMode ? 'Skapa program med AI' : 'Skapa Pass med AI') : activeTab === 'youtube' ? 'Analysera Video' : (selectedImage ? 'Tolka Bild' : 'Tolka Text')}
                         </button>
                     </div>
                 </div>

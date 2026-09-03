@@ -11,6 +11,7 @@ import { ManageBenchmarksModal, FeatureInfoModal } from './AdminModals';
 import { updateOrganizationBenchmarks, updateOrganizationWorkoutFolders, resolveAndCreateExercises, updateGlobalConfig, listenToGlobalSummerChallenge, listenToMembers, listenToCommunityLogs, listenToCommunityLogsByLocations, getOrganizationLogsSince, getSmartScreenPricing } from '../../services/firebaseService';
 import { WorkoutPresentationModal } from '../WorkoutDetailScreen';
 import { ProgramsContent } from './ProgramsContent';
+import { newProgramFrom } from '../../services/firebaseService';
 import { useAuth } from '../../context/AuthContext';
 
 // ... (Types and Interfaces remain same)
@@ -767,6 +768,9 @@ const manageWorkoutsMemory: {
     searchTerm: ''
 };
 
+// Program-fliken lanserades 2026-09-03; NY-markningen visas i 30 dagar darefter.
+const PROGRAM_LANSERAT = new Date('2026-09-03T00:00:00').getTime();
+
 const ManageWorkoutsView: React.FC<{
     workouts: Workout[];
     locations?: { id: string; name: string }[];
@@ -787,7 +791,8 @@ const ManageWorkoutsView: React.FC<{
     members?: { uid: string; firstName?: string; lastName?: string; email?: string }[];
     onAssignToMember?: (workout: Workout, member: { uid: string; name: string } | null) => Promise<void>;
     onRateWorkout?: (workout: Workout, rating: number | null) => Promise<void>;
-}> = ({ workouts, locations, organization, onEdit, onDelete, onDuplicate, onTogglePublish, onCopyToLibrary, onMoveToLibrary, onMoveToOtherPass, onBack, onCreateNew, onCreateWithAI, onManageBenchmarks, onSaveFolders, onMoveToFolder, members, onAssignToMember, onRateWorkout }) => {
+    onCreateProgramWithAI?: () => void;
+}> = ({ workouts, locations, organization, onEdit, onDelete, onDuplicate, onTogglePublish, onCopyToLibrary, onMoveToLibrary, onMoveToOtherPass, onBack, onCreateNew, onCreateWithAI, onManageBenchmarks, onSaveFolders, onMoveToFolder, members, onAssignToMember, onRateWorkout, onCreateProgramWithAI }) => {
 
     const { currentUser } = useAuth();
     const myUid = currentUser?.uid || null;
@@ -1136,6 +1141,9 @@ const ManageWorkoutsView: React.FC<{
                     }`}
                 >
                     Program
+                    {Date.now() < PROGRAM_LANSERAT + 30 * 24 * 60 * 60 * 1000 && (
+                        <span className="ml-2 px-1.5 py-0.5 rounded-md bg-primary text-white text-[9px] font-black tracking-widest align-middle">NY</span>
+                    )}
                 </button>
             </div>
 
@@ -1145,6 +1153,7 @@ const ManageWorkoutsView: React.FC<{
                     organization={organization}
                     members={(members || []).map(m => ({ uid: m.uid, firstName: m.firstName, lastName: m.lastName, email: m.email }))}
                     onEdit={onEdit}
+                    onCreateWithAI={onCreateProgramWithAI}
                 />
             )}
 
@@ -2142,6 +2151,14 @@ const PassProgramContent: React.FC<DashboardContentProps & {
         return () => unsub();
     }, [organization?.id]);
 
+    // Programlage: AI-generatorn utan passtyp; resultatet blir ett program.
+    const [programLage, setProgramLage] = useState(false);
+    const handleCreateProgramWithAI = () => {
+        setProgramLage(true);
+        setAiGeneratorInitialTab('generate');
+        setSubView('ai');
+    };
+
     const handleNavigate = async (mode: 'create' | 'generate' | 'parse' | 'manage') => {
         if (mode === 'create') {
             setWorkoutToEdit(null);
@@ -2156,7 +2173,14 @@ const PassProgramContent: React.FC<DashboardContentProps & {
     };
 
     const handleWorkoutGenerated = (workout: Workout) => {
-        setWorkoutToEdit(workout);
+        if (programLage) {
+            // Programmet far eget id (program-...) och egen kategori — AI-passets slangs.
+            const { category: _bort, isPublished: _bort2, id: _bort3, ...rest } = workout as any;
+            setWorkoutToEdit(newProgramFrom(organization.id, rest));
+            setProgramLage(false);
+        } else {
+            setWorkoutToEdit(workout);
+        }
         setIsNewDraft(true);
         setSubView('builder');
     };
@@ -2246,10 +2270,11 @@ const PassProgramContent: React.FC<DashboardContentProps & {
     if (subView === 'ai') {
         return (
             <div className="animate-fade-in">
-                <button onClick={() => setSubView('manage')} className="mb-6 flex items-center gap-2 text-gray-500 hover:text-primary transition-colors font-medium">
-                    <span>&larr;</span> Tillbaka till passlistan
+                <button onClick={() => { setProgramLage(false); setSubView('manage'); }} className="mb-6 flex items-center gap-2 text-gray-500 hover:text-primary transition-colors font-medium">
+                    <span>&larr;</span> {programLage ? 'Tillbaka till programmen' : 'Tillbaka till passlistan'}
                 </button>
                 <AIGeneratorScreen
+                    programMode={programLage}
                     onWorkoutGenerated={handleWorkoutGenerated}
                     onEditWorkout={handleEditWorkout}
                     onDeleteWorkout={onDeleteWorkout}
@@ -2301,6 +2326,7 @@ const PassProgramContent: React.FC<DashboardContentProps & {
                     onBack={onReturnToHub}
                     onCreateNew={() => handleNavigate('create')}
                     onCreateWithAI={() => handleNavigate('generate')}
+                    onCreateProgramWithAI={handleCreateProgramWithAI}
                     onManageBenchmarks={() => setShowBenchmarkModal(true)}
                     onSaveFolders={handleSaveFolders}
                     onMoveToFolder={handleMoveToFolder}

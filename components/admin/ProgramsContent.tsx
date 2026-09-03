@@ -16,7 +16,8 @@ export const ProgramsContent: React.FC<{
     organization: Organization;
     members: MedlemRad[];
     onEdit: (workout: Workout) => void;
-}> = ({ organization, members, onEdit }) => {
+    onCreateWithAI?: () => void;
+}> = ({ organization, members, onEdit, onCreateWithAI }) => {
     const confirm = useConfirm();
     const [program, setProgram] = useState<Program[]>([]);
     const [laddar, setLaddar] = useState(true);
@@ -86,12 +87,22 @@ export const ProgramsContent: React.FC<{
                     <h3 className="text-xl font-black text-gray-900 dark:text-white">Program</h3>
                     <p className="text-sm text-gray-500 dark:text-gray-400">Pass byggda för utvalda medlemmar. Syns under "Mina program" i medlemsappen hos dem som står med.</p>
                 </div>
-                <button
-                    onClick={() => onEdit(newProgramFrom(organization.id))}
-                    className="bg-primary text-white font-bold py-2.5 px-5 rounded-xl flex items-center gap-2 hover:brightness-105 transition-colors text-sm"
-                >
-                    <PlusIcon className="w-4 h-4" /> Skapa program
-                </button>
+                <div className="flex flex-col sm:flex-row gap-2">
+                    {onCreateWithAI && (
+                        <button
+                            onClick={onCreateWithAI}
+                            className="bg-gradient-to-r from-purple-600 to-pink-600 text-white font-bold py-2.5 px-5 rounded-xl flex items-center gap-2 hover:from-purple-500 hover:to-pink-500 transition-colors text-sm"
+                        >
+                            ✨ Skapa program med AI
+                        </button>
+                    )}
+                    <button
+                        onClick={() => onEdit(newProgramFrom(organization.id))}
+                        className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-800 dark:text-white font-bold py-2.5 px-5 rounded-xl flex items-center gap-2 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors text-sm"
+                    >
+                        <PlusIcon className="w-4 h-4" /> Bygg manuellt
+                    </button>
+                </div>
             </div>
 
             {laddar ? (
