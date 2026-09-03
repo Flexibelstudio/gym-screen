@@ -888,7 +888,7 @@ export const WorkoutBuilderScreen: React.FC<WorkoutBuilderScreenProps> = ({ init
                               isTitle
                           />
                       </div>
-                      <button 
+                      {!arProgram && (<button 
                           type="button"
                           onClick={() => setShowStudioPreview(prev => !prev)}
                           className={`py-2.5 px-4 rounded-xl text-sm font-bold transition-colors flex items-center gap-2 border self-start sm:self-auto shrink-0 ${
@@ -898,7 +898,7 @@ export const WorkoutBuilderScreen: React.FC<WorkoutBuilderScreenProps> = ({ init
                           }`}
                       >
                           Så blir det på skärmen
-                      </button>
+                      </button>)}
                   </div>
                   <EditableField 
                       label="Tips från Coachen"
