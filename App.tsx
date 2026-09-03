@@ -1272,7 +1272,8 @@ const App: React.FC = () => {
                     
                     handleMemberProfileRequest: handleMemberProfileRequest,
                     handleEditProfileRequest: handleEditProfileRequest,
-                    handleLogWorkoutRequest: handleLogWorkoutRequest
+                    handleLogWorkoutRequest: handleLogWorkoutRequest,
+                    handleSelectWorkout: handleSelectWorkout
                 }}
               />
             )}

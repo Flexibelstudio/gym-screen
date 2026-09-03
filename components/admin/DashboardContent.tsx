@@ -10,6 +10,7 @@ import { deepCopyAndPrepareAsNew, getWorkoutStatusInfo, getWorkoutVisibilityIssu
 import { ManageBenchmarksModal, FeatureInfoModal } from './AdminModals';
 import { updateOrganizationBenchmarks, updateOrganizationWorkoutFolders, resolveAndCreateExercises, updateGlobalConfig, listenToGlobalSummerChallenge, listenToMembers, listenToCommunityLogs, listenToCommunityLogsByLocations, getOrganizationLogsSince, getSmartScreenPricing } from '../../services/firebaseService';
 import { WorkoutPresentationModal } from '../WorkoutDetailScreen';
+import { ProgramsContent } from './ProgramsContent';
 import { useAuth } from '../../context/AuthContext';
 
 // ... (Types and Interfaces remain same)
@@ -757,7 +758,7 @@ type ManageWorkoutsSort = { key: 'title' | 'category' | 'createdAt' | 'createdBy
 const manageWorkoutsMemory: {
     sortConfig: ManageWorkoutsSort;
     activeFolder: string;
-    activeTab: 'official' | 'drafts';
+    activeTab: 'official' | 'drafts' | 'program';
     searchTerm: string;
 } = {
     sortConfig: { key: 'createdAt', direction: 'none' },
@@ -829,7 +830,7 @@ const ManageWorkoutsView: React.FC<{
     const folderIdsWithin = (id: string) => [id, ...childrenOf(id).map(c => c.id)];
     const categories = organization?.globalConfig?.customCategories || [];
     
-    const [activeTab, setActiveTab] = useState<'official' | 'drafts'>(manageWorkoutsMemory.activeTab);
+    const [activeTab, setActiveTab] = useState<'official' | 'drafts' | 'program'>(manageWorkoutsMemory.activeTab);
     const [searchTerm, setSearchTerm] = useState(manageWorkoutsMemory.searchTerm);
     const [currentPage, setCurrentPage] = useState(1);
     const [previewWorkout, setPreviewWorkout] = useState<Workout | null>(null);
@@ -1126,9 +1127,28 @@ const ManageWorkoutsView: React.FC<{
                 >
                     Medlemsutkast
                 </button>
+                <button
+                    onClick={() => setActiveTab('program')}
+                    className={`px-6 py-2.5 rounded-xl text-sm font-black uppercase tracking-widest transition-all ${
+                        activeTab === 'program' 
+                        ? 'bg-white dark:bg-gray-700 text-primary shadow-md' 
+                        : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
+                    }`}
+                >
+                    Program
+                </button>
             </div>
 
-            <div className="bg-white dark:bg-gray-800 rounded-[2.5rem] shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden flex flex-col">
+            {/* PROGRAM — pass for utvalda medlemmar. Egen lista, egen samling; gymmets pass rors inte. */}
+            {activeTab === 'program' && organization && (
+                <ProgramsContent
+                    organization={organization}
+                    members={(members || []).map(m => ({ uid: m.uid, firstName: m.firstName, lastName: m.lastName, email: m.email }))}
+                    onEdit={onEdit}
+                />
+            )}
+
+            <div className={`bg-white dark:bg-gray-800 rounded-[2.5rem] shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden flex flex-col ${activeTab === 'program' ? 'hidden' : ''}`}>
                 <div className="flex-grow min-h-0 grid grid-cols-1 lg:grid-cols-[240px_minmax(0,1fr)] gap-6">
                 {/* MAPPAR — ren adminordning, påverkar inte medlemsvyn */}
                 <aside className="hidden lg:flex bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 flex-col min-h-0 overflow-y-auto">
@@ -1504,15 +1524,7 @@ const ManageWorkoutsView: React.FC<{
                                         <button onClick={() => onEdit(workout)} className="p-2 text-gray-400 rounded-lg" title="Redigera">
                                             <PencilIcon className="w-5 h-5" />
                                         </button>
-                                        {onAssignToMember && (
-                                            <button
-                                                onClick={() => { setAssignFor(workout); setAssignSearch(''); }}
-                                                className={`p-2 rounded-lg ${workout.assignedToUid ? 'text-primary' : 'text-gray-400'}`}
-                                                title="Tilldela en medlem"
-                                            >
-                                                <span className="text-base leading-none">👤</span>
-                                            </button>
-                                        )}
+                                        {/* Tilldela-knappen ar ersatt av fliken Program. Gamla tilldelningar syns fortfarande under mappen Tilldelade pass. */}
                                         <button onClick={() => setDeleteConfirmWorkoutId(workout.id)} className="p-2 text-gray-400 rounded-lg" title="Radera">
                                             <TrashIcon className="w-5 h-5" />
                                         </button>
@@ -1803,15 +1815,7 @@ const ManageWorkoutsView: React.FC<{
                                                 >
                                                     <PencilIcon className="w-4 h-4" />
                                                 </button>
-                                                {onAssignToMember && (
-                                                    <button
-                                                        onClick={() => { setAssignFor(workout); setAssignSearch(''); }}
-                                                        className={`p-2 rounded-lg transition-colors ${workout.assignedToUid ? 'text-primary bg-primary/10' : 'text-gray-400 hover:text-primary hover:bg-primary/10'}`}
-                                                        title={workout.assignedToName ? `Tilldelat: ${workout.assignedToName}` : 'Tilldela en medlem'}
-                                                    >
-                                                        <span className="text-base leading-none">👤</span>
-                                                    </button>
-                                                )}
+                                                {/* Tilldela-knappen ar ersatt av fliken Program. */}
                                                 {onMoveToFolder && (
                                                     <div className="relative">
                                                         <button

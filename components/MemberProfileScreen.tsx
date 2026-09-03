@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { deleteField } from 'firebase/firestore';
-import { WorkoutLog, UserData, MemberGoals, Page, UserRole, WorkoutDiploma, StudioConfig, PersonalBest } from '../types';
-import { listenToMemberLogs, listenToPersonalBests, updateUserGoals, updateUserProfile, uploadImage, updateWorkoutLog, deleteWorkoutLog, auth, getPastRaces, toggleWorkoutLogLike, calculateBodyWeightHistory, recalculatePersonalBestsForExercises } from '../services/firebaseService';
+import { WorkoutLog, UserData, MemberGoals, Page, UserRole, WorkoutDiploma, StudioConfig, PersonalBest, Program } from '../types';
+import { subscribeToMyPrograms, listenToMemberLogs, listenToPersonalBests, updateUserGoals, updateUserProfile, uploadImage, updateWorkoutLog, deleteWorkoutLog, auth, getPastRaces, toggleWorkoutLogLike, calculateBodyWeightHistory, recalculatePersonalBestsForExercises } from '../services/firebaseService';
 import { getAgeFromBirthDate, findLift1RM, getStrengthScore } from '../utils/fitnessBenchmarks';
 import { buildRowingScoreHistory } from '../utils/memberProgress';
 import { calculateMonthlyStats, MonthlyWrappedModal } from './MonthlyWrapped';
@@ -67,6 +67,14 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
     const [justSavedGoalMsg, setJustSavedGoalMsg] = useState('');
     const [isEditingNextGoal, setIsEditingNextGoal] = useState(false);
     const [globalChallenge, setGlobalChallenge] = useState<any>(null);
+
+    // MINA PROGRAM — pass som coachen byggt for just den har medlemmen.
+    const [minaProgram, setMinaProgram] = useState<Program[]>([]);
+    useEffect(() => {
+        if (!userData?.uid) return;
+        const avsluta = subscribeToMyPrograms(userData.uid, setMinaProgram);
+        return () => avsluta();
+    }, [userData?.uid]);
     const [isChallengeLoaded, setIsChallengeLoaded] = useState(false);
     const [dismissedSummerChallenge, setDismissedSummerChallenge] = useState(false);
     const [isSummerDiplomaOpen, setIsSummerDiplomaOpen] = useState(false);
@@ -1373,6 +1381,42 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
             {activeTab === 'overview' && (
                 <div className="space-y-3 sm:space-y-5 animate-fade-in">
                     
+                    {/* MINA PROGRAM — egen rad, bara nar det finns nagot att visa */}
+                    {minaProgram.length > 0 && (
+                        <div className="bg-white dark:bg-gray-800 rounded-[2rem] p-5 sm:p-6 border border-gray-100 dark:border-gray-700 shadow-sm animate-fade-in">
+                            <div className="flex items-center justify-between mb-3">
+                                <h3 className="text-sm font-black uppercase tracking-widest text-gray-900 dark:text-white flex items-center gap-2">
+                                    <DumbbellIcon className="w-4 h-4 text-primary" /> Mina program
+                                </h3>
+                                <span className="text-xs text-gray-500">{minaProgram.length} st</span>
+                            </div>
+                            <div className="space-y-2">
+                                {minaProgram.map(p => (
+                                    <div key={p.id} className="flex items-center gap-2 px-3 py-2.5 rounded-xl bg-gray-50 dark:bg-gray-900/60">
+                                        <button
+                                            onClick={() => functions?.handleSelectWorkout?.(p, 'view')}
+                                            className="flex-1 min-w-0 flex items-center justify-between gap-3 text-left"
+                                        >
+                                            <span className="min-w-0">
+                                                <span className="font-bold text-gray-900 dark:text-white block truncate">{p.title || 'Program'}</span>
+                                                <span className="text-xs text-gray-500 block">
+                                                    {(p.blocks || []).length} block · {(p.blocks || []).reduce((s, b) => s + (b.exercises || []).length, 0)} övningar
+                                                </span>
+                                            </span>
+                                            <ChevronRightIcon className="w-4 h-4 text-gray-400 shrink-0" />
+                                        </button>
+                                        <button
+                                            onClick={() => functions?.handleSelectWorkout?.(p, 'log')}
+                                            className="shrink-0 px-3 py-1.5 rounded-lg bg-primary text-white text-xs font-bold hover:brightness-105"
+                                        >
+                                            Logga
+                                        </button>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
                     {/* Sommar-Sisu aktivering (Card 1) */}
                     {canJoinChallenge && isChallengeLoaded && !isUserJoined && !dismissedSummerChallenge && (
                         <div className="relative overflow-hidden bg-gradient-to-br from-orange-500 via-amber-400 to-yellow-100 dark:from-orange-600 dark:via-amber-500 dark:to-yellow-200 text-amber-950 border-none rounded-[2rem] p-6 sm:p-8 shadow-[0_12px_40px_rgba(249,115,22,0.18)] text-left animate-fade-in">

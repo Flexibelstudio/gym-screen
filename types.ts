@@ -148,6 +148,17 @@ export interface WorkoutBlock {
   customProgression?: { incrementKg: number; atReps: number; maxRir: number; requireAllSets: boolean };
 }
 
+// Ett PROGRAM ar ett pass byggt for utvalda medlemmar. Det lever i sin egen
+// samling (programs) och ror aldrig gymmets vanliga pass. Inuti ar det ett
+// helt vanligt Workout, sa byggare, timer och loggning fungerar som forut.
+export interface Program extends Workout {
+  isProgram: true;
+  memberIds: string[];
+  memberNames?: Record<string, string>;
+  createdByUid?: string;
+  updatedAt?: number;
+}
+
 export interface Workout {
   id: string;
   title: string;
