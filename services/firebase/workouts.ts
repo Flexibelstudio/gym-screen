@@ -1,6 +1,6 @@
 import { bokforTid } from '../../utils/tidtagning';
 import { 
-  collection, doc, getDoc, getDocs, setDoc, getDocsFromServer, updateDoc, deleteDoc, query, where, orderBy, onSnapshot, writeBatch, serverTimestamp, deleteField 
+  collection, doc, getDoc, getDocs, setDoc, getDocsFromServer, updateDoc, deleteDoc, query, where, orderBy, limit, onSnapshot, writeBatch, serverTimestamp, deleteField, getCountFromServer 
 } from 'firebase/firestore';
 import { db, isOffline, sanitizeData, normalizeString, auth } from './init';
 import { getOrganizationExerciseBank } from './exercises';
@@ -188,6 +188,9 @@ export const saveWorkout = async (w: Workout): Promise<Workout> => {
         }
 
         const payload: Record<string, any> = sanitizeData(workoutToSave);
+        // Andringsstampel: skarmarna fragar "finns nagot nyare an det jag har?"
+        // och den fragan behover ett falt som flyttas vid varje sparning.
+        payload.updatedAt = Date.now();
         if (workoutToSave.expiresAt === undefined) {
             payload.expiresAt = deleteField();
         }
@@ -251,7 +254,7 @@ export const backfillWorkoutsPublishAt = async (
             const batch = writeBatch(db);
             batchChunk.forEach(item => {
                 const ref = doc(db, 'workouts', item.id);
-                batch.update(ref, { publishAt: item.publishAt });
+                batch.update(ref, { publishAt: item.publishAt, updatedAt: Date.now() });
             });
             await batch.commit();
             updatedCount += batchChunk.length;
@@ -266,6 +269,23 @@ export const backfillWorkoutsPublishAt = async (
         console.error("backfillWorkoutsPublishAt error:", e);
         throw e;
     }
+};
+
+/**
+ * Farskhetskoll for skarmarna. Lyssnaren mot databasen kan do tyst pa gamla
+ * webblasare, och da star skarmen med gamla pass tills nagon laddar om.
+ * Den har fragan kostar tva lasningar och svarar: har nagot pass andrats
+ * (updatedAt nyare an det senaste vi sett) eller har antalet andrats
+ * (nytt/raderat pass)? Da startas lyssnaren om och hamtar allt farskt.
+ */
+export const harPassenAndrats = async (orgId: string, senastKand: number, antalKant: number): Promise<boolean> => {
+    if (isOffline || !db || !orgId) return false;
+    const bas = collection(db, 'workouts');
+    const [nyare, antal] = await Promise.all([
+        getDocsFromServer(query(bas, where('organizationId', '==', orgId), where('updatedAt', '>', senastKand), limit(1))),
+        getCountFromServer(query(bas, where('organizationId', '==', orgId)))
+    ]);
+    return !nyare.empty || antal.data().count !== antalKant;
 };
 
 export const deleteWorkout = async (id: string) => {
