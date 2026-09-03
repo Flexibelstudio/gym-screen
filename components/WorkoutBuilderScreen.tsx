@@ -33,7 +33,7 @@ import {
 } from '@dnd-kit/core';
 import { snapCenterToCursor } from '@dnd-kit/modifiers';
 import { arrayMove, sortableKeyboardCoordinates } from '@dnd-kit/sortable';
-import { sanitizeWorkoutWithBank, getDefaultLoggingForBlockTag, getWorkoutVisibilityIssues, OTHER_CATEGORY, PT_CATEGORY } from '../utils/workoutUtils';
+import { sanitizeWorkoutWithBank, getDefaultLoggingForBlockTag, getWorkoutVisibilityIssues, OTHER_CATEGORY } from '../utils/workoutUtils';
 
 const createNewWorkout = (): Workout => ({
   id: `workout-${Date.now()}`,
@@ -933,16 +933,6 @@ export const WorkoutBuilderScreen: React.FC<WorkoutBuilderScreenProps> = ({ init
                                     className={`px-3 py-1.5 text-sm font-semibold rounded-md transition-colors border ${workout.category === OTHER_CATEGORY ? 'bg-amber-500 text-gray-900 border-amber-500' : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 border-dashed border-gray-400 dark:border-gray-500 hover:bg-gray-300 dark:hover:bg-gray-600'}`}
                                 >
                                     {OTHER_CATEGORY}
-                                </button>
-                                {/* PT-pass är en reserverad kategori: passet syns varken på
-                                    skärmen eller i gymmets utbud — bara för den medlem det
-                                    tilldelas i Hantera Pass. */}
-                                <button
-                                    onClick={() => handleUpdateWorkoutDetail('category', PT_CATEGORY)}
-                                    title="Passet byggs åt en enskild medlem. Det syns ingenstans förrän du tilldelat det i Hantera Pass."
-                                    className={`px-3 py-1.5 text-sm font-semibold rounded-md transition-colors border ${workout.category === PT_CATEGORY ? 'bg-primary text-white border-primary' : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 border-dashed border-gray-400 dark:border-gray-500 hover:bg-gray-300 dark:hover:bg-gray-600'}`}
-                                >
-                                    {PT_CATEGORY}
                                 </button>
                             </div>
                             <div className="mt-4">

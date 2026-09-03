@@ -3,7 +3,6 @@ import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { SparklesIcon, DumbbellIcon, DocumentTextIcon, CloseIcon, VideoIcon, InformationCircleIcon } from './icons';
-import { PT_CATEGORY } from '../utils/workoutUtils';
 import { generateWorkout, parseWorkoutFromText, parseWorkoutFromImage, parseWorkoutFromYoutube } from '../services/geminiService';
 import { resolveAndCreateExercises, getOrganizationExerciseBank, listenToCoachNotes } from '../services/firebaseService';
 import { Workout, WorkoutBlock, Exercise, StudioConfig, CustomCategoryWithPrompt, CoachNote } from '../types';
@@ -369,20 +368,6 @@ export const AIGeneratorScreen: React.FC<AIGeneratorScreenProps> = ({
                                     {cat.name}
                                 </button>
                             ))}
-                            {/* PT-pass: reserverad kategori som syns först när passet
-                                tilldelats en medlem i Hantera Pass. */}
-                            <button
-                                onClick={() => setSelectedCategory(selectedCategory?.id === '__pt__' ? null : { id: '__pt__', name: PT_CATEGORY, prompt: 'Bygg ett individuellt anpassat pass för en enskild person.' } as any)}
-                                title="Passet byggs åt en enskild medlem och syns ingenstans förrän du tilldelat det."
-                                className={`
-                                    py-3 px-4 rounded-xl font-bold text-sm transition-all shadow-sm border border-dashed
-                                    ${selectedCategory?.id === '__pt__'
-                                        ? 'bg-primary text-white border-primary ring-2 ring-primary ring-offset-2 ring-offset-white dark:ring-offset-gray-900'
-                                        : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-400 dark:border-gray-500 hover:bg-gray-200 dark:hover:bg-gray-700'}
-                                `}
-                            >
-                                {PT_CATEGORY}
-                            </button>
                         </div>
                     </div>
                 )}

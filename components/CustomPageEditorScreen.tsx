@@ -186,6 +186,29 @@ export const CustomPageEditorScreen: React.FC<CustomPageEditorScreenProps & { se
         }, 0);
     };
 
+    // Lank: t.ex. till ett dokument eller en PDF i Google Drive. Namnet ar det
+    // som syns pa sidan, adressen ar dit man kommer. Oppnas alltid i ny flik.
+    const [lankRuta, setLankRuta] = useState<{ namn: string; adress: string } | null>(null);
+    const oppnaLankRuta = () => {
+        const textarea = textAreaRef.current;
+        const markerat = textarea ? tabs[activeTabIndex].content.substring(textarea.selectionStart, textarea.selectionEnd) : '';
+        setLankRuta({ namn: markerat, adress: '' });
+    };
+    const laggInLank = () => {
+        if (!lankRuta) return;
+        let adress = lankRuta.adress.trim();
+        if (!adress) return;
+        if (!/^https?:\/\//i.test(adress)) adress = 'https://' + adress;
+        const namn = lankRuta.namn.trim() || adress;
+        const textarea = textAreaRef.current;
+        const text = tabs[activeTabIndex].content;
+        const start = textarea ? textarea.selectionStart : text.length;
+        const end = textarea ? textarea.selectionEnd : text.length;
+        const nyText = text.substring(0, start) + `[${namn}](${adress})` + text.substring(end);
+        handleUpdateActiveTab('content', nyText);
+        setLankRuta(null);
+    };
+
     const isSavable = useMemo(() => {
         return title.trim() !== '' && tabs.length > 0 && tabs.every(t => t.title.trim() !== '');
     }, [title, tabs]);
@@ -278,9 +301,47 @@ export const CustomPageEditorScreen: React.FC<CustomPageEditorScreenProps & { se
                         <div className="w-px h-4 bg-gray-300 dark:bg-gray-700 mx-1"></div>
                         <ToolButton onClick={() => insertText('* ')} label="Lista" icon={<span>• List</span>} />
                         <ToolButton onClick={() => insertText('> ')} label="Citat" icon={<span>“ Quote</span>} />
+                        <div className="w-px h-4 bg-gray-300 dark:bg-gray-700 mx-1"></div>
+                        <ToolButton onClick={oppnaLankRuta} label="Länk (dokument, PDF, webbsida)" icon={<span>🔗 Länk</span>} />
                         
                         <div className="flex-grow"></div>
                         
+                        {lankRuta && (
+                            <div className="fixed inset-0 z-[3000] flex items-center justify-center p-4">
+                                <div className="absolute inset-0 bg-black/50" onClick={() => setLankRuta(null)} />
+                                <div className="relative z-10 w-full max-w-md bg-white dark:bg-gray-900 rounded-2xl shadow-2xl border border-gray-200 dark:border-gray-800 p-5 space-y-3">
+                                    <h4 className="font-black text-gray-900 dark:text-white">Lägg in länk</h4>
+                                    <p className="text-xs text-gray-500">Till exempel ett dokument eller en PDF i Google Drive. Länken öppnas i en ny flik.</p>
+                                    <div>
+                                        <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">Namn som visas</label>
+                                        <input
+                                            type="text"
+                                            value={lankRuta.namn}
+                                            onChange={e => setLankRuta({ ...lankRuta, namn: e.target.value })}
+                                            placeholder="T.ex. Medlemsvillkor (PDF)"
+                                            className="w-full text-sm bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-gray-900 dark:text-white focus:ring-1 focus:ring-primary outline-none"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">Adress</label>
+                                        <input
+                                            type="url"
+                                            value={lankRuta.adress}
+                                            onChange={e => setLankRuta({ ...lankRuta, adress: e.target.value })}
+                                            onKeyDown={e => { if (e.key === 'Enter') laggInLank(); }}
+                                            placeholder="https://docs.google.com/…"
+                                            className="w-full text-sm bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-gray-900 dark:text-white focus:ring-1 focus:ring-primary outline-none"
+                                            autoFocus
+                                        />
+                                    </div>
+                                    <div className="flex justify-end gap-2 pt-1">
+                                        <button onClick={() => setLankRuta(null)} className="px-4 py-2 rounded-lg text-sm font-bold text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800">Avbryt</button>
+                                        <button onClick={laggInLank} disabled={!lankRuta.adress.trim()} className="px-4 py-2 rounded-lg text-sm font-bold bg-primary text-white disabled:opacity-40">Lägg in</button>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
                         <button
                             onClick={handleEnhanceWithAI}
                             disabled={isProcessing}

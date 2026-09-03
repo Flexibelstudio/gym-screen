@@ -6,7 +6,7 @@ import { DumbbellIcon, BuildingIcon, UsersIcon, SpeakerphoneIcon, SparklesIcon, 
 import { motion, AnimatePresence } from 'framer-motion';
 import { AIGeneratorScreen } from '../AIGeneratorScreen';
 import { WorkoutBuilderScreen } from '../WorkoutBuilderScreen';
-import { deepCopyAndPrepareAsNew, getWorkoutStatusInfo, getWorkoutVisibilityIssues, isWorkoutLoggable, OTHER_CATEGORY, PT_CATEGORY } from '../../utils/workoutUtils';
+import { deepCopyAndPrepareAsNew, getWorkoutStatusInfo, getWorkoutVisibilityIssues, isWorkoutLoggable, OTHER_CATEGORY } from '../../utils/workoutUtils';
 import { ManageBenchmarksModal, FeatureInfoModal } from './AdminModals';
 import { updateOrganizationBenchmarks, updateOrganizationWorkoutFolders, resolveAndCreateExercises, updateGlobalConfig, listenToGlobalSummerChallenge, listenToMembers, listenToCommunityLogs, listenToCommunityLogsByLocations, getOrganizationLogsSince, getSmartScreenPricing } from '../../services/firebaseService';
 import { WorkoutPresentationModal } from '../WorkoutDetailScreen';
@@ -858,7 +858,7 @@ const ManageWorkoutsView: React.FC<{
 
         // Tilldelade pass hör till en enskild medlem och ska inte blandas in i
         // gymmets vanliga utbud — de har en egen mapp.
-        if (activeFolder === 'all') return base.filter(w => !w.assignedToUid && w.category !== PT_CATEGORY);
+        if (activeFolder === 'all') return base.filter(w => !w.assignedToUid);
         if (activeFolder === 'favorites') {
             return [...base]
                 .filter(w => (w.runCount || 0) > 0)
@@ -888,7 +888,7 @@ const ManageWorkoutsView: React.FC<{
     ), [workouts, activeTab]);
 
     const countFor = (key: string) => {
-        if (key === 'all') return tabScopedWorkouts.filter(w => !w.assignedToUid && w.category !== PT_CATEGORY).length;
+        if (key === 'all') return tabScopedWorkouts.filter(w => !w.assignedToUid).length;
         if (key === 'favorites') return Math.min(FAVORITES_COUNT, tabScopedWorkouts.filter(w => (w.runCount || 0) > 0).length);
         if (key === 'assigned') return tabScopedWorkouts.filter(w => !!w.assignedToUid).length;
         if (key === 'benchmarks') return tabScopedWorkouts.filter(w => !!w.benchmarkId).length;
@@ -914,7 +914,6 @@ const ManageWorkoutsView: React.FC<{
         categories.forEach(cat => {
             opts.push({ value: 'cat:' + cat.name, label: `📁 ${cat.name} (${countFor('cat:' + cat.name)})` });
         });
-        opts.push({ value: 'cat:' + PT_CATEGORY, label: `📁 ${PT_CATEGORY} (${countFor('cat:' + PT_CATEGORY)})` });
         topFolders.forEach(folder => {
             opts.push({ value: 'folder:' + folder.id, label: `🗂️ ${folder.name} (${countFor('folder:' + folder.id)})` });
             childrenOf(folder.id).forEach(child => {
@@ -1190,15 +1189,6 @@ const ManageWorkoutsView: React.FC<{
                                     <span className="text-xs opacity-70 flex-shrink-0">{countFor('cat:' + cat.name)}</span>
                                 </button>
                             ))}
-                            {/* PT-pass är en reserverad kategori — den finns inte bland
-                                gymmets egna, men hör hemma här i listan. */}
-                            <button
-                                onClick={() => { setActiveFolder('cat:' + PT_CATEGORY); setCurrentPage(1); }}
-                                className={`w-full flex items-center justify-between gap-2 px-3 py-2 rounded-xl text-sm font-bold transition-colors ${activeFolder === 'cat:' + PT_CATEGORY ? 'bg-primary/10 text-primary' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'}`}
-                            >
-                                <span className="flex items-center gap-2 truncate"><span>📁</span> <span className="truncate">{PT_CATEGORY}</span></span>
-                                <span className="text-xs opacity-70 flex-shrink-0">{countFor('cat:' + PT_CATEGORY)}</span>
-                            </button>
                         </div>
                     )}
 
