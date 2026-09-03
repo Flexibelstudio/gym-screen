@@ -35,9 +35,9 @@ export type DokumentIPopup = { namn: string; adress: string; inbaddad: string };
 
 /** Rutan som visar ett Google-dokument / en PDF ovanpa appen. */
 export const DokumentPopup: React.FC<{ dokument: DokumentIPopup; onClose: () => void }> = ({ dokument, onClose }) => (
-    <div className="fixed inset-0 z-[4000] flex items-center justify-center p-3 sm:p-6">
+    <div className="fixed inset-0 z-[4000] flex items-center justify-center p-1.5 sm:p-3">
         <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose} />
-        <div className="relative z-10 w-full max-w-5xl h-full max-h-[calc(100vh-1.5rem)] bg-white dark:bg-gray-900 rounded-2xl shadow-2xl overflow-hidden flex flex-col">
+        <div className="relative z-10 w-full h-full bg-white dark:bg-gray-900 rounded-2xl shadow-2xl overflow-hidden flex flex-col">
             <div className="flex items-center justify-between gap-3 px-4 py-2.5 border-b border-gray-200 dark:border-gray-800">
                 <span className="font-bold text-gray-900 dark:text-white truncate">{dokument.namn}</span>
                 <div className="flex items-center gap-2 shrink-0">

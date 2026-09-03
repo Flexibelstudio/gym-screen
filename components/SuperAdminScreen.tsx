@@ -1,4 +1,5 @@
 
+import { NyMarke, NYHETER } from '../utils/nyheter';
 import React, { useState, useEffect, useMemo } from 'react';
 import { StudioConfig, Studio, Organization, CustomPage, UserData, UserRole, InfoCarousel, DisplayWindow, Workout, CompanyDetails } from '../types';
 import { HomeIcon, DocumentTextIcon, SpeakerphoneIcon, UsersIcon, DumbbellIcon, BriefcaseIcon, BuildingIcon, SettingsIcon, ChartBarIcon, CopyIcon, CloseIcon, SparklesIcon, HistoryIcon, QrCodeIcon, FlagIcon, ChevronLeftIcon, MapIcon } from './icons';
@@ -429,7 +430,13 @@ export const SuperAdminScreen: React.FC<SuperAdminScreenProps> = (props) => {
                         aria-selected={activeTab === item.id}
                     >
                         <item.icon className={`w-6 h-6 flex-shrink-0 transition-colors ${activeTab === item.id ? 'text-primary' : 'text-gray-400 group-hover:text-gray-600 dark:group-hover:text-gray-300'}`} />
-                        {(!isSidebarCollapsed || isMobile) && <span className="whitespace-nowrap overflow-hidden text-base">{item.label}</span>}
+                        {(!isSidebarCollapsed || isMobile) && (
+                            <span className="whitespace-nowrap overflow-hidden text-base">
+                                {item.label}
+                                {item.id === 'pass-program' && <NyMarke nar={NYHETER.program} />}
+                                {item.id === 'infosidor' && <NyMarke nar={NYHETER.infosidorLankar} />}
+                            </span>
+                        )}
                     </button>
                 );
             })}

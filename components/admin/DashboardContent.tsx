@@ -11,6 +11,7 @@ import { ManageBenchmarksModal, FeatureInfoModal } from './AdminModals';
 import { updateOrganizationBenchmarks, updateOrganizationWorkoutFolders, resolveAndCreateExercises, updateGlobalConfig, listenToGlobalSummerChallenge, listenToMembers, listenToCommunityLogs, listenToCommunityLogsByLocations, getOrganizationLogsSince, getSmartScreenPricing } from '../../services/firebaseService';
 import { WorkoutPresentationModal } from '../WorkoutDetailScreen';
 import { ProgramsContent } from './ProgramsContent';
+import { NyMarke, NYHETER } from '../../utils/nyheter';
 import { newProgramFrom } from '../../services/firebaseService';
 import { useAuth } from '../../context/AuthContext';
 
@@ -768,9 +769,6 @@ const manageWorkoutsMemory: {
     searchTerm: ''
 };
 
-// Program-fliken lanserades 2026-09-03; NY-markningen visas i 30 dagar darefter.
-const PROGRAM_LANSERAT = new Date('2026-09-03T00:00:00').getTime();
-
 const ManageWorkoutsView: React.FC<{
     workouts: Workout[];
     locations?: { id: string; name: string }[];
@@ -1141,9 +1139,7 @@ const ManageWorkoutsView: React.FC<{
                     }`}
                 >
                     Program
-                    {Date.now() < PROGRAM_LANSERAT + 30 * 24 * 60 * 60 * 1000 && (
-                        <span className="ml-2 px-1.5 py-0.5 rounded-md bg-primary text-white text-[9px] font-black tracking-widest align-middle">NY</span>
-                    )}
+                    <NyMarke nar={NYHETER.program} />
                 </button>
             </div>
 

@@ -220,6 +220,10 @@ const buildExerciseForBlock = (
 export const WorkoutBuilderScreen: React.FC<WorkoutBuilderScreenProps> = ({ initialWorkout, onSave, onCancel, focusedBlockId: initialFocusedBlockId, studioConfig, sessionRole, isNewDraft = false, organization, isAdminView = false, setCustomBackHandler }) => {
   const { selectedOrganization } = useStudio();
   const { userData } = useAuth();
+  // Program (pass for utvalda medlemmar): ingen passkategori, ingen
+  // publicering, inga orter, inga skarmtimer-val — det visas aldrig pa skarmen.
+  const arProgram = !!(initialWorkout as any)?.isProgram;
+
   const [workout, setWorkout] = useState<Workout>(() => {
       const w: Workout = initialWorkout ? JSON.parse(JSON.stringify(initialWorkout)) : createNewWorkout();
       // Nya utkast som kommer in med kategorin redan satt (AI-flödet) ärver kategorins
@@ -907,7 +911,7 @@ export const WorkoutBuilderScreen: React.FC<WorkoutBuilderScreenProps> = ({ init
                   
                   {sessionRole !== 'member' && (
                     <div className="pt-4 border-t border-gray-200 dark:border-gray-700 grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div>
+                        {!arProgram && (<div>
                             <label className="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">Passkategori</label>
                             <div className="flex flex-wrap gap-2">
                                 {studioConfig.customCategories.map(cat => (
@@ -959,10 +963,10 @@ export const WorkoutBuilderScreen: React.FC<WorkoutBuilderScreenProps> = ({ init
                                     <span className="text-xs text-gray-400">Planerad tid för passet</span>
                                 </div>
                             </div>
-                        </div>
+                        </div>)}
                         
                         <div className="space-y-6">
-                            <div className="space-y-4">
+                            {!arProgram && (<div className="space-y-4">
                                 <h4 className="text-sm font-bold uppercase tracking-wider text-gray-400">Publicering — var och när passet syns</h4>
                                 <div className="space-y-3">
                                     <ToggleSwitch 
@@ -1125,7 +1129,7 @@ export const WorkoutBuilderScreen: React.FC<WorkoutBuilderScreenProps> = ({ init
                                         );
                                     })()}
                                 </div>
-                            </div>
+                            </div>)}
 
                             <div className="space-y-4 pt-4 border-t border-gray-200 dark:border-gray-700">
                                 <h4 className="text-sm font-bold uppercase tracking-wider text-gray-400">Under passet</h4>
@@ -1188,6 +1192,7 @@ export const WorkoutBuilderScreen: React.FC<WorkoutBuilderScreenProps> = ({ init
                   return (
                     <div key={block.id} ref={el => { editorRefs.current[`block-${block.id}`] = el; }}>
                         <EditableBlockCard 
+                          isProgram={arProgram}
                           block={block}
                           index={index}
                           totalBlocks={workout.blocks.length}

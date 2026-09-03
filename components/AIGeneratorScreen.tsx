@@ -293,7 +293,9 @@ export const AIGeneratorScreen: React.FC<AIGeneratorScreenProps> = ({
                 </h2>
                 <p className="text-gray-600 dark:text-gray-400 text-lg">
                     {activeTab === 'generate' 
-                        ? 'Välj en passtyp och lägg till egna önskemål för att skräddarsy resultatet.' 
+                        ? (programMode
+                            ? 'Beskriv programmet — mål, antal pass per vecka, utrustning, nivå — så bygger AI:n det åt medlemmen.'
+                            : 'Välj en passtyp och lägg till egna önskemål för att skräddarsy resultatet.') 
                         : activeTab === 'youtube'
                         ? 'Klistra in en YouTube-länk så analyserar jag videons struktur och övningar.'
                         : 'Klistra in text eller ladda upp en bild på ett pass så digitaliserar jag det.'}

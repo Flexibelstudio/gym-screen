@@ -575,6 +575,7 @@ const ExerciseItem: React.FC<ExerciseItemProps> = ({ exercise, onUpdate, onRemov
 };
 
 interface EditableBlockCardProps {
+    isProgram?: boolean; // Program: inga skarmtimer-val (visas aldrig pa skarmen)
     block: WorkoutBlock;
     index: number;
     totalBlocks: number;
@@ -597,7 +598,8 @@ interface EditableBlockCardProps {
 export const EditableBlockCard: React.FC<EditableBlockCardProps> = ({ 
     block, index, totalBlocks, onUpdate, onRemove, onEditSettings, 
     isDraggable, workoutTitle, workoutBlocksCount, editorRefs, exerciseBank, 
-    organizationId, onMoveExercise, onMoveBlock, onExerciseSavedToBank, enableWorkoutLogging, onShowToast 
+    organizationId, onMoveExercise, onMoveBlock, onExerciseSavedToBank, enableWorkoutLogging, onShowToast,
+    isProgram = false
 }) => {
     
     const { setNodeRef: setDroppableRef, isOver } = useDroppable({
@@ -991,7 +993,7 @@ export const EditableBlockCard: React.FC<EditableBlockCardProps> = ({
                 isTextarea
             />
             
-            <div className="my-4 flex flex-col gap-3">
+            {!isProgram && (<div className="my-4 flex flex-col gap-3">
                 <ToggleSwitch
                     label="Visa beskrivning i timern"
                     checked={!!block.showDescriptionInTimer}
@@ -1064,15 +1066,15 @@ export const EditableBlockCard: React.FC<EditableBlockCardProps> = ({
                         )}
                     </div>
                 )}
-            </div>
+            </div>)}
 
-            <div className="bg-primary/5 dark:bg-primary/10 p-5 rounded-3xl flex justify-between items-center border border-primary/20">
+            {!isProgram && (<div className="bg-primary/5 dark:bg-primary/10 p-5 rounded-3xl flex justify-between items-center border border-primary/20">
                 <div>
                     <p className="text-[10px] font-black text-primary/60 uppercase tracking-widest mb-1">Vald Timer</p>
                     <p className="text-lg font-black text-gray-900 dark:text-white uppercase tracking-tight">{settingsText}</p>
                 </div>
                 <button onClick={onEditSettings} className="bg-primary text-white font-black text-[10px] uppercase tracking-widest px-6 py-3 rounded-xl shadow-lg shadow-primary/20 active:scale-95 transition-all">Anpassa klockan</button>
-            </div>
+            </div>)}
 
             <div className="flex flex-col pt-4">
                 <div className="flex justify-between items-center px-1 mb-4">

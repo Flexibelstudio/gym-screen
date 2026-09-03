@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { Organization, CustomPage } from '../../types';
 import { DocumentTextIcon, LinkIcon } from '../icons';
 import { DokumentPopup, oppnaLank, DokumentIPopup } from '../CustomContentScreen';
+import { NyMarke, NYHETER } from '../../utils/nyheter';
 
 interface InfosidorContentProps {
     organization: Organization;
@@ -92,6 +93,7 @@ export const InfosidorContent: React.FC<InfosidorContentProps> = ({ organization
                             className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-800 dark:text-white font-bold py-3 px-6 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-all flex items-center gap-2"
                         >
                             <LinkIcon className="w-5 h-5" /> Lägg till länk
+                            <NyMarke nar={NYHETER.infosidorLankar} className="ml-0" />
                         </button>
                     )}
                     <button 
