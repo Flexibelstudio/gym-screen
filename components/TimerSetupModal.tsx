@@ -210,7 +210,7 @@ export const TimerSetupModal: React.FC<TimerSetupModalProps> = ({ isOpen, onClos
         newSettings.rounds = 1;
         break;
       case TimerMode.Stopwatch:
-        newSettings.workTime = 3600; // Default to 1 hour, it counts up anyway
+        newSettings.workTime = 86400; // 24 h - stoppuret raknar uppat och stannar bara pa stopp
         newSettings.restTime = 0;
         newSettings.rounds = 1;
         break;

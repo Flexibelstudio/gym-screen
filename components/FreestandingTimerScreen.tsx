@@ -309,7 +309,7 @@ export const FreestandingTimerScreen: React.FC<FreestandingTimerScreenProps> = (
                 exercises = [{ id: 'ex-emom-work', name: 'Ny minut' }];
                 break;
             case TimerMode.Stopwatch:
-                settings = { ...settings, workTime: 3600, restTime: 0, rounds: 1 }; 
+                settings = { ...settings, workTime: 86400, restTime: 0, rounds: 1 }; // 24 h - stoppuret stannar bara pa stopp
                 title = `Stoppur`;
                 exercises = [{ id: 'ex-dummy', name: 'Tid' }];
                 break;

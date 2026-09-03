@@ -322,8 +322,9 @@ export const calculateBlockDuration = (settings: TimerSettings, exercisesCount: 
             return totalWork + totalRest;
         case TimerMode.AMRAP:
         case TimerMode.TimeCap:
-        case TimerMode.Stopwatch:
             return workTime || 86400;
+        case TimerMode.Stopwatch:
+            return 86400;
         case TimerMode.EMOM:
             return rounds * 60;
         default:
@@ -421,7 +422,11 @@ export const useWorkoutTimer = (block: WorkoutBlock | null, soundProfile: TimerS
   const startNextInterval = useCallback(() => {
     if (!block) return;
     const { restTime, mode } = block.settings;
-    const workTime = mode === TimerMode.Stopwatch ? (block.settings.workTime || 86400) : (block.settings.workTime || 0);
+    // Stoppuret raknar uppat och ska bara stanna nar nagon trycker stopp.
+    // Forut lag 3600 s sparat som "arbetstid" och klockan dog vid 00:59:59
+    // mitt i ett lopp. Nu: alltid 24 timmar, oavsett vad som rakar vara sparat.
+    const STOPPUR_TAK = 86400;
+    const workTime = mode === TimerMode.Stopwatch ? STOPPUR_TAK : (block.settings.workTime || 0);
 
     if (mode === TimerMode.Custom) {
         if (!currentSegment) {
@@ -578,7 +583,7 @@ export const useWorkoutTimer = (block: WorkoutBlock | null, soundProfile: TimerS
         } else {
              setStatus(TimerStatus.Running);
              const workTime = block.settings.mode === TimerMode.Stopwatch 
-                 ? (block.settings.workTime || 86400) 
+                 ? 86400 
                  : (block.settings.workTime || 60);
              setCurrentTime(workTime);
              setCurrentPhaseDuration(workTime);
