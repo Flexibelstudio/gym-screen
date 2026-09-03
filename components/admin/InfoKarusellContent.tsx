@@ -84,8 +84,6 @@ const InfoMessageEditor: React.FC<{
                 <h2 className="text-xl font-bold text-gray-900 dark:text-white">{initialMessage.internalTitle === 'Nytt meddelande' ? 'Skapa nytt meddelande' : 'Redigera meddelande'}</h2>
              </div>
             
-            <InputField label="Intern titel (endast för dig)" value={formData.internalTitle} onChange={val => handleInputChange('internalTitle', val)} required placeholder="t.ex. Sommarkampanj 2025"/>
-
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <SelectField label="Layout" value={formData.layout} onChange={val => handleInputChange('layout', val)}>
                     <option value="text-only">Endast text</option>
@@ -136,7 +134,7 @@ const InfoMessageEditor: React.FC<{
             )}
             
             <div className="space-y-4">
-                <InputField label="Rubrik" placeholder="Rubrik som visas på skärmen" value={formData.headline} onChange={val => handleInputChange('headline', val)} />
+                <InputField label="Rubrik" placeholder="Rubrik som visas på skärmen (blir också namnet i listan)" value={formData.headline} onChange={val => handleInputChange('headline', val)} required />
                 <TextareaField label="Brödtext" placeholder="Meddelandetexten..." value={formData.body} onChange={val => handleInputChange('body', val)} rows={3} />
                 <InputField label="Visningstid (sekunder)" type="number" value={String(formData.durationSeconds)} onChange={val => handleInputChange('durationSeconds', Number(val))} />
             </div>
@@ -167,7 +165,7 @@ const InfoMessageEditor: React.FC<{
             
              <div className="flex justify-end gap-3 pt-6 border-t border-gray-100 dark:border-gray-700">
                 <button onClick={onCancel} className="bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-800 dark:text-white font-bold py-3 px-6 rounded-xl transition-colors">Avbryt</button>
-                <button onClick={() => onSave(formData)} className="bg-primary hover:brightness-95 text-white font-bold py-3 px-8 rounded-xl shadow-md transition-transform active:scale-95">Spara</button>
+                <button onClick={() => onSave({ ...formData, internalTitle: (formData.headline || '').trim() || (formData.body || '').split('\n')[0].trim().slice(0, 60) || 'Meddelande' })} className="bg-primary hover:brightness-95 text-white font-bold py-3 px-8 rounded-xl shadow-md transition-transform active:scale-95">Spara</button>
             </div>
         </div>
     );

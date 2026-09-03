@@ -96,6 +96,16 @@ export const SuperAdminScreen: React.FC<SuperAdminScreenProps> = (props) => {
     const { selectOrganization, studioLoading } = useStudio();
     const { userData } = useAuth();
     const [activeTab, setActiveTab] = useState<AdminTab>((initialTab as AdminTab) || 'dashboard');
+
+    // Ny flik = borja hogst upp. Adminens innehall scrollar i sin egen ruta,
+    // inte i fonstret, sa window.scrollTo racker inte har.
+    useEffect(() => {
+        try {
+            const ruta = document.getElementById('admin-scroll-container');
+            if (ruta) ruta.scrollTop = 0;
+            window.scrollTo(0, 0);
+        } catch { /* inget */ }
+    }, [activeTab]);
     const [isSidebarCollapsed, setSidebarCollapsed] = useState(false); 
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const [posterToPrint, setPosterToPrint] = useState<'member' | 'coach' | null>(null);
