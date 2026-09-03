@@ -12,7 +12,7 @@ interface MarkdownRendererProps {
 // Dokument och PDF:er i Google Drive gar att visa inuti appen via Googles
 // forhandsgranskningsadress. Vanliga webbsidor vagrar ofta att visas inuti
 // andra sidor (deras eget skydd), sa de oppnas i ny flik i stallet.
-const inbaddningsAdress = (url: string): string | null => {
+export const inbaddningsAdress = (url: string): string | null => {
     try {
         const u = new URL(url);
         const host = u.hostname.replace(/^www\./, '');
@@ -31,25 +31,40 @@ const inbaddningsAdress = (url: string): string | null => {
     }
 };
 
+export type DokumentIPopup = { namn: string; adress: string; inbaddad: string };
+
+/** Rutan som visar ett Google-dokument / en PDF ovanpa appen. */
+export const DokumentPopup: React.FC<{ dokument: DokumentIPopup; onClose: () => void }> = ({ dokument, onClose }) => (
+    <div className="fixed inset-0 z-[4000] flex items-center justify-center p-3 sm:p-6">
+        <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose} />
+        <div className="relative z-10 w-full max-w-5xl h-full max-h-[calc(100vh-1.5rem)] bg-white dark:bg-gray-900 rounded-2xl shadow-2xl overflow-hidden flex flex-col">
+            <div className="flex items-center justify-between gap-3 px-4 py-2.5 border-b border-gray-200 dark:border-gray-800">
+                <span className="font-bold text-gray-900 dark:text-white truncate">{dokument.namn}</span>
+                <div className="flex items-center gap-2 shrink-0">
+                    <a href={dokument.adress} target="_blank" rel="noopener noreferrer" className="text-xs font-bold text-primary hover:underline">Öppna i ny flik</a>
+                    <button onClick={onClose} className="w-8 h-8 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500 hover:text-gray-900 dark:hover:text-white text-lg leading-none" aria-label="Stäng">×</button>
+                </div>
+            </div>
+            <iframe src={dokument.inbaddad} title={dokument.namn} className="flex-1 w-full bg-white" allow="autoplay" />
+        </div>
+    </div>
+);
+
+/** Oppnar en lank pa ratt satt: Google-dokument/PDF i popup (via callback), annat i ny flik. */
+export const oppnaLank = (url: string, namn: string, visaPopup: (d: DokumentIPopup) => void) => {
+    const inbaddad = inbaddningsAdress(url);
+    if (inbaddad) {
+        visaPopup({ namn, adress: url, inbaddad });
+    } else {
+        window.open(url, '_blank', 'noopener,noreferrer');
+    }
+};
+
 export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content, className }) => {
-    const [dokument, setDokument] = useState<{ namn: string; adress: string; inbaddad: string } | null>(null);
+    const [dokument, setDokument] = useState<DokumentIPopup | null>(null);
     return (
         <div className={className}>
-            {dokument && (
-                <div className="fixed inset-0 z-[4000] flex items-center justify-center p-3 sm:p-6">
-                    <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={() => setDokument(null)} />
-                    <div className="relative z-10 w-full max-w-5xl h-full max-h-[calc(100vh-1.5rem)] bg-white dark:bg-gray-900 rounded-2xl shadow-2xl overflow-hidden flex flex-col">
-                        <div className="flex items-center justify-between gap-3 px-4 py-2.5 border-b border-gray-200 dark:border-gray-800">
-                            <span className="font-bold text-gray-900 dark:text-white truncate">{dokument.namn}</span>
-                            <div className="flex items-center gap-2 shrink-0">
-                                <a href={dokument.adress} target="_blank" rel="noopener noreferrer" className="text-xs font-bold text-primary hover:underline">Öppna i ny flik</a>
-                                <button onClick={() => setDokument(null)} className="w-8 h-8 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500 hover:text-gray-900 dark:hover:text-white text-lg leading-none" aria-label="Stäng">×</button>
-                            </div>
-                        </div>
-                        <iframe src={dokument.inbaddad} title={dokument.namn} className="flex-1 w-full bg-white" allow="autoplay" />
-                    </div>
-                </div>
-            )}
+            {dokument && <DokumentPopup dokument={dokument} onClose={() => setDokument(null)} />}
             <Markdown
                 components={{
                     h1: ({node, ...props}) => <h1 className="text-4xl font-black text-gray-900 dark:text-white mb-6 mt-2" {...props} />,

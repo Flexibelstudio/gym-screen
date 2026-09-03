@@ -320,6 +320,7 @@ export interface CustomPage {
   id: string;
   title: string;
   tabs: CustomPageTab[];
+  linkUrl?: string; // Satt = kortet ar en lank (dokument/PDF/webbsida), ingen egen sida
 }
 
 export interface InfoMessage {

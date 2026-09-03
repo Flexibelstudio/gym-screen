@@ -1,4 +1,5 @@
 
+import { DokumentPopup, oppnaLank, DokumentIPopup } from './CustomContentScreen';
 
 import React, { useState } from 'react';
 import { Page, CustomPage, UserRole } from '../types';
@@ -72,6 +73,8 @@ const CoachCard: React.FC<{
 );
 
 export const CoachScreen: React.FC<CoachScreenProps> = ({ role, navigateTo, onSelectCustomPage, isImpersonating, onReturnToAdmin, onAdminLogin, onMemberProfileRequest }) => {
+  // Lankkort pa infosidorna: Google-dokument och PDF visas i en ruta ovanpa appen.
+  const [dokumentPopup, setDokumentPopup] = useState<DokumentIPopup | null>(null);
   const { selectedStudio, selectedOrganization } = useStudio();
   const { isStudioMode, signOut, clearDeviceProvisioning } = useAuth();
   const [showLockedModal, setShowLockedModal] = useState(false);
@@ -138,8 +141,8 @@ export const CoachScreen: React.FC<CoachScreenProps> = ({ role, navigateTo, onSe
   (selectedOrganization?.customPages || []).forEach(page => {
       items.push({
           title: page.title,
-          subTitle: 'Information & Guider',
-          action: () => onSelectCustomPage(page),
+          subTitle: page.linkUrl ? 'Dokument & länkar' : 'Information & Guider',
+          action: () => page.linkUrl ? oppnaLank(page.linkUrl, page.title, setDokumentPopup) : onSelectCustomPage(page),
           icon: <DocumentTextIcon className="w-8 h-8" />,
           gradient: 'bg-primary bg-gradient-to-br from-white/20 via-transparent to-black/30'
       });
@@ -147,6 +150,7 @@ export const CoachScreen: React.FC<CoachScreenProps> = ({ role, navigateTo, onSe
 
   return (
     <div className="w-full max-w-6xl mx-auto px-4 py-12">
+      {dokumentPopup && <DokumentPopup dokument={dokumentPopup} onClose={() => setDokumentPopup(null)} />}
       <div className="text-center mb-16">
           <h1 className="text-5xl md:text-6xl font-black text-gray-900 dark:text-white tracking-tight mb-6">
               För Coacher & Personal
