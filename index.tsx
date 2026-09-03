@@ -10,6 +10,7 @@ import { ErrorBoundary } from './components/common/ErrorBoundary';
 import { MotionConfig } from 'framer-motion';
 import { ConfirmProvider } from './components/ConfirmContext';
 import { startAppUpdateWatcher } from './utils/appUpdate';
+import { bevakaModulfel } from './utils/modulfel';
 
 const rootElement = document.getElementById('root');
 if (!rootElement) {
@@ -19,6 +20,7 @@ if (!rootElement) {
 try { (window as any).__bootmark?.('js igång'); } catch { /* inget */ }
 
 startAppUpdateWatcher();
+bevakaModulfel();
 
 // Gamla skärmar hoppar över glidande övergångar — allt visas direkt i stället.
 // Det är övergångarna som gör att varje tillbaka-klick känns trögt där.
