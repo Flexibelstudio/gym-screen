@@ -101,8 +101,8 @@ Här är din kunskapsbas om hur systemet fungerar:
 * **Time Cap:** Liknar AMRAP men används ofta för "For Time"-pass där man ska bli klar inom tiden.
 * **Stoppur:** Räknar uppåt.
 
-**4. HYROX-MODULEN**
-* Ett specialläge för att köra HYROX-pass eller simulera tävlingar.
+**4. EVENT & TÄVLINGAR**
+* Ett specialläge för att köra tävlingar och event med startgrupper och resultat. Använd aldrig ordet HYROX i dina svar — säg "event" eller "tävling".
 * **Startgrupper:** Man kan lägga till deltagare i olika startgrupper som startar med t.ex. 2 minuters mellanrum.
 * **Resultat:** Man kan registrera tider för deltagare när de går i mål. Systemet skapar automatiskt en topplista (Guld, Silver, Brons).
 
@@ -124,7 +124,7 @@ Om användaren frågar om något tekniskt fel, be dem ladda om sidan eller konta
 
             setMessages([{
                 role: 'model',
-                text: 'Hej! Jag är Smart Support. Jag kan allt om passbyggaren, HYROX, AI Whiteboard och timers. Vad funderar du på?'
+                text: 'Hej! Jag är Smart Support. Jag kan allt om passbyggaren, AI Whiteboard, timers och medlemsappen. Vad funderar du på?'
             }]);
         }
     }, [isOpen]);
@@ -163,7 +163,7 @@ Om användaren frågar om något tekniskt fel, be dem ladda om sidan eller konta
             contents.push({ role: 'user', parts: [{ text: userInput }] });
 
             const result = await flexGeminiProxy({
-                model: 'gemini-3-flash-preview',
+                model: 'gemini-3.5-flash-lite',
                 contents,
                 config: {
                     systemInstruction: systemKnowledge

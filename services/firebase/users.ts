@@ -95,7 +95,24 @@ export const confirmPasswordReset = (code: string, newPassword: string): Promise
 export const reauthenticateUser = async (user: User, password: string) => {
   if (isOffline || !auth || !user.email) return;
   const credential = EmailAuthProvider.credential(user.email, password);
-  return await reauthenticateWithCredential(user, credential);
+  try {
+    return await reauthenticateWithCredential(user, credential);
+  } catch (err: any) {
+    // Gamla pekskärmar: biblioteket välter EFTER att servern godkänt lösenordet
+    // och stämplar det som nätverksfel — och rutan sa då "fel lösenord" till
+    // någon som just loggat in med exakt det lösenordet. Vi frågar servern
+    // direkt i stället: svarar den ja är lösenordet rätt, och det är det enda
+    // omautentiseringen finns till för att veta.
+    if (!String(err?.code || '').includes('network-request-failed')) throw err;
+    const apiKey = (auth as any)?.config?.apiKey || '';
+    if (!apiKey) throw err;
+    const svar = await fetch(
+      `https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${apiKey}`,
+      { method: 'POST', body: JSON.stringify({ email: user.email, password, returnSecureToken: true }) }
+    );
+    if (svar.ok) return; // Lösenordet stämmer — släpp igenom.
+    throw err;
+  }
 };
 
 export const updateUserTermsAccepted = async (uid: string) => {

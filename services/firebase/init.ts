@@ -1,6 +1,8 @@
 import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
 import { 
   getAuth, 
+  initializeAuth,
+  browserLocalPersistence,
   signInWithEmailAndPassword, 
   signInAnonymously, 
   signOut as firebaseSignOut, 
@@ -36,6 +38,7 @@ import {
   Firestore,
   runTransaction,
   initializeFirestore,
+  memoryLocalCache,
   persistentLocalCache,
   persistentMultipleTabManager
 } from 'firebase/firestore';
@@ -63,6 +66,9 @@ export const listenToForegroundMessages = (callback: (payload: any) => void) => 
     });
 };
 
+// Inloggningens enkla väg (förbi CORS-förhandsfrågan som vissa pekskärmar
+// hänger sig på) installeras i index.html, före all annan kod. Se skölden där.
+
 // --- INITIALISERING ---
 const hasFirebaseConfig = !!(
     (import.meta as any).env?.VITE_FIREBASE_API_KEY || 
@@ -78,6 +84,13 @@ export let storage: FirebaseStorage | null = null;
 export let messaging: Messaging | null = null;
 export let appCheck: any = null;
 export let functions: any = null;
+/**
+ * Coachkoden ligger i europe-west1, granne med databasen, för att slippa resan
+ * över Atlanten mitt i ett pass. Övriga funktioner står kvar i us-central1 —
+ * två av dem har fasta webbadresser som Stripe och en extern integration pekar
+ * på. Därför två anslutningar.
+ */
+export let functionsEurope: any = null;
 
 if (!isOffline) {
     try {
@@ -92,10 +105,30 @@ if (!isOffline) {
             });
         }
         
-        auth = getAuth(app);
+        // Gamla pekskärmar: bibliotekets vanliga sessionslager (webbläsarens
+        // databas) hänger sig i ~25 sekunder vid varje start på de här
+        // enheterna — starttidslinjen visade tystnad mellan "js igång" och
+        // inloggningens besked, exakt det gapet. Det enkla lagret fungerar
+        // blixtsnabbt där, och reservinloggningen lägger redan sessionen i det.
+        // Alla andra enheter kör precis som förut.
+        let arGammalSkarm = false;
+        try { arGammalSkarm = localStorage.getItem('smartstudio-reservinloggning') === '1'; } catch { /* då inte */ }
+        auth = arGammalSkarm
+            ? initializeAuth(app, { persistence: browserLocalPersistence })
+            : getAuth(app);
         
         try {
-            if (isNewApp) {
+            if (isNewApp && arGammalSkarm) {
+                // Gamla skarmar: strommen som databasen helst pratar genom
+                // fungerar inte i den har webblasaren — varje skrivning fick
+                // vanta ut misslyckade forsok innan den gick fram. Ta den
+                // gammaldags vagen direkt, och hall lagret i minnet i stallet
+                // for i webblasarens databas som hanger sig.
+                db = initializeFirestore(app, {
+                    localCache: memoryLocalCache(),
+                    experimentalForceLongPolling: true
+                });
+            } else if (isNewApp) {
                 db = initializeFirestore(app, {
                     localCache: persistentLocalCache({tabManager: persistentMultipleTabManager()})
                 });
@@ -109,6 +142,8 @@ if (!isOffline) {
 
         storage = getStorage(app);
         functions = getFunctions(app, 'us-central1');
+        functionsEurope = getFunctions(app, 'europe-west1');
+        try { (window as any).__bootmark?.('firebase klar'); } catch { /* inget */ }
         
         // Messaging is only supported in browsers that support the required APIs
         if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {

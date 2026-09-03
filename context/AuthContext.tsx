@@ -10,6 +10,7 @@ interface AuthContextType {
     role: UserRole;
     isStudioMode: boolean;
     authLoading: boolean;
+    profilBesked: string | null;
     signIn: (email: string, password: string) => Promise<void>;
     signInAsStudio: () => Promise<void>;
     signOut: () => Promise<void>;
@@ -35,6 +36,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const [currentUser, setCurrentUser] = useState<any | null>(null);
     const [userData, setUserData] = useState<UserData | null>(null);
     const [authLoading, setAuthLoading] = useState(true);
+    const [profilBesked, setProfilBesked] = useState<string | null>(null);
+
+    // Bokför i starttidslinjen — kostar inget, syns bara när starten är seg.
+    const bootmark = (namn: string) => { try { (window as any).__bootmark?.(namn); } catch { /* inget */ } };
     const [showTerms, setShowTerms] = useState(false);
     
     const [simulatedRole, setSimulatedRole] = useState<UserRole | null>(null);
@@ -54,8 +59,27 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             setCurrentUser({ uid: MOCK_SYSTEM_OWNER.uid, isAnonymous: false });
             setUserData(MOCK_SYSTEM_OWNER);
             setAuthLoading(false);
+            bootmark('inloggning avgjord (offline)');
             return;
         }
+
+        // Gamla skarmar: vanta inte pa inloggningsbiblioteket — det kan tystna i
+        // 25 sekunder pa skarmens webblasare innan det sager till. Sessionen
+        // ligger redan sparad lokalt sedan forra inloggningen, sa vi litar pa
+        // den direkt och later biblioteket komma ikapp i bakgrunden.
+        try {
+            const arGammalSkarm = localStorage.getItem('smartstudio-reservinloggning') === '1';
+            const harSkarmvy = !!localStorage.getItem(IMPERSONATION_KEY);
+            if (arGammalSkarm && harSkarmvy) {
+                const nyckel = Object.keys(localStorage).find(k => k.startsWith('firebase:authUser:'));
+                const sparad = nyckel ? JSON.parse(localStorage.getItem(nyckel) || 'null') : null;
+                if (sparad && sparad.uid) {
+                    setCurrentUser({ uid: sparad.uid, email: sparad.email || null, isAnonymous: false });
+                    setAuthLoading(false);
+                    bootmark('inloggning fran lokalt forrad');
+                }
+            }
+        } catch { /* hellre vanta pa biblioteket an att krascha har */ }
 
         let unsubscribeDoc: (() => void) | null = null;
 
@@ -66,16 +90,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             }
 
             if (user) {
+                bootmark('inloggning avgjord');
                 // Om vi lyckas logga in, rensa utloggningsflaggan
                 sessionStorage.removeItem(MANUAL_SIGNOUT_FLAG);
                 setCurrentUser(user);
                 if (!user.isAnonymous && db) {
                     const timeoutId = setTimeout(() => {
                         if (authLoading) setAuthLoading(false);
+                        setProfilBesked(besked => besked || 'Databasen har inte svarat annu - forsoker fortfarande...');
                     }, 5000);
 
-                    unsubscribeDoc = onSnapshot(doc(db, 'users', user.uid), (snap) => {
+                    unsubscribeDoc = onSnapshot(doc(db, 'users', user.uid), { includeMetadataChanges: true }, (snap) => {
                         clearTimeout(timeoutId);
+                        bootmark('profil hamtad');
                         if (snap.exists()) {
                             const docData = snap.data();
                             const data = { uid: user.uid, ...docData } as UserData;
@@ -107,12 +134,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                                     console.error("Kunde inte normalisera profil för äldre konto:", err);
                                 });
                             }
+                            setProfilBesked(null);
                         } else {
                             setUserData(null);
+                            if (snap.metadata && snap.metadata.fromCache) {
+                                // Svaret kom fran mobilens eget minne, inte fran servern.
+                                // Da vet vi inget om profilen annu - pasta inget.
+                                setProfilBesked('Servern har inte svarat annu - vantar pa kontakt...');
+                            } else {
+                                setProfilBesked('Profil saknas i databasen for ' + (user.email || 'kontot') + ' (id ' + String(user.uid).slice(0, 6) + ')');
+                            }
                         }
                         setAuthLoading(false);
                     }, (err) => {
                         console.error("Firestore error:", err);
+                        setProfilBesked('Databasen nekade lasningen: ' + ((err && (err.code || err.message)) || 'okant fel'));
                         clearTimeout(timeoutId);
                         setAuthLoading(false);
                     });
@@ -147,9 +183,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }, []);
 
     const handleSignIn = useCallback(async (email: string, password: string) => {
-        setAuthLoading(true);
         sessionStorage.removeItem(MANUAL_SIGNOUT_FLAG);
-        try { await signIn(email, password); } catch (e) { setAuthLoading(false); throw e; }
+
+        // Vi tänder INTE laddningsläget innan försöket. Gjorde vi det byttes hela
+        // vyn ut mot splashen med loggan, inloggningsrutan revs, och när försöket
+        // misslyckades byggdes den upp på nytt — tom. Felmeddelandet som just
+        // skrivits försvann med den. Det är därför inloggningen alltid sett ut att
+        // ladda om sig utan att säga någonting.
+        //
+        // Först när inloggningen faktiskt gick igenom tänder vi splashen, medan
+        // användarens uppgifter hämtas.
+        await signIn(email, password);
+        setAuthLoading(true);
     }, []);
     
     const handleSignInAsStudio = useCallback(async () => {
@@ -161,13 +206,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         // Sätt flaggan i sessionStorage (försvinner när fliken stängs, men bryter loopen nu)
         sessionStorage.setItem(MANUAL_SIGNOUT_FLAG, 'true');
         
+        // Kom ihag att den har enheten stod i skarmvyn, sa att nasta
+        // inloggning kan ga rakt tillbaka dit i stallet for till adminvyn.
+        try {
+            const aktuell = localStorage.getItem(IMPERSONATION_KEY);
+            if (aktuell) localStorage.setItem('smartstudio-skarmvy-minne', aktuell);
+        } catch { /* inget */ }
         localStorage.removeItem(IMPERSONATION_KEY);
         setImpersonationState(null);
         setSimulatedRole(null);
         setSimulatedStudioMode(null);
-        await firebaseSignOut();
+        // Tom skarmen forst, ring servern sen — annars hinner mellansidan
+        // "Forbereder ditt konto" blinka forbi medan utloggningen pagar.
         setCurrentUser(null);
         setUserData(null);
+        await firebaseSignOut();
     }, []);
 
     const clearDeviceProvisioning = useCallback(() => {
@@ -239,13 +292,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const isImpersonating = !!impersonationState && !!currentUser;
 
     const value = useMemo(() => ({
-        currentUser, userData, role, isStudioMode, authLoading,
+        currentUser, userData, role, isStudioMode, authLoading, profilBesked,
         signIn: handleSignIn, signInAsStudio: handleSignInAsStudio, signOut: handleSignOut,
         clearDeviceProvisioning, reauthenticate, sendPasswordResetEmail: handleSendPasswordResetEmail,
         isImpersonating, startImpersonation, stopImpersonation,
         showTerms, acceptTerms,
         switchSimulatedUser
-    }), [currentUser, userData, role, isStudioMode, authLoading, handleSignIn, handleSignInAsStudio, handleSignOut, clearDeviceProvisioning, reauthenticate, handleSendPasswordResetEmail, isImpersonating, startImpersonation, stopImpersonation, showTerms, acceptTerms, switchSimulatedUser]);
+    }), [currentUser, userData, role, isStudioMode, authLoading, profilBesked, handleSignIn, handleSignInAsStudio, handleSignOut, clearDeviceProvisioning, reauthenticate, handleSendPasswordResetEmail, isImpersonating, startImpersonation, stopImpersonation, showTerms, acceptTerms, switchSimulatedUser]);
 
     return (
         <AuthContext.Provider value={value}>

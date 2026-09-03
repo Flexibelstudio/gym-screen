@@ -33,7 +33,7 @@ import {
 } from '@dnd-kit/core';
 import { snapCenterToCursor } from '@dnd-kit/modifiers';
 import { arrayMove, sortableKeyboardCoordinates } from '@dnd-kit/sortable';
-import { sanitizeWorkoutWithBank, getDefaultLoggingForBlockTag, getWorkoutVisibilityIssues, OTHER_CATEGORY, PT_CATEGORY } from '../utils/workoutUtils';
+import { sanitizeWorkoutWithBank, getDefaultLoggingForBlockTag, getWorkoutVisibilityIssues, OTHER_CATEGORY } from '../utils/workoutUtils';
 
 const createNewWorkout = (): Workout => ({
   id: `workout-${Date.now()}`,
@@ -220,6 +220,10 @@ const buildExerciseForBlock = (
 export const WorkoutBuilderScreen: React.FC<WorkoutBuilderScreenProps> = ({ initialWorkout, onSave, onCancel, focusedBlockId: initialFocusedBlockId, studioConfig, sessionRole, isNewDraft = false, organization, isAdminView = false, setCustomBackHandler }) => {
   const { selectedOrganization } = useStudio();
   const { userData } = useAuth();
+  // Program (pass for utvalda medlemmar): ingen passkategori, ingen
+  // publicering, inga orter, inga skarmtimer-val — det visas aldrig pa skarmen.
+  const arProgram = !!(initialWorkout as any)?.isProgram;
+
   const [workout, setWorkout] = useState<Workout>(() => {
       const w: Workout = initialWorkout ? JSON.parse(JSON.stringify(initialWorkout)) : createNewWorkout();
       // Nya utkast som kommer in med kategorin redan satt (AI-flödet) ärver kategorins
@@ -884,7 +888,7 @@ export const WorkoutBuilderScreen: React.FC<WorkoutBuilderScreenProps> = ({ init
                               isTitle
                           />
                       </div>
-                      <button 
+                      {!arProgram && (<button 
                           type="button"
                           onClick={() => setShowStudioPreview(prev => !prev)}
                           className={`py-2.5 px-4 rounded-xl text-sm font-bold transition-colors flex items-center gap-2 border self-start sm:self-auto shrink-0 ${
@@ -894,7 +898,7 @@ export const WorkoutBuilderScreen: React.FC<WorkoutBuilderScreenProps> = ({ init
                           }`}
                       >
                           Så blir det på skärmen
-                      </button>
+                      </button>)}
                   </div>
                   <EditableField 
                       label="Tips från Coachen"
@@ -903,27 +907,11 @@ export const WorkoutBuilderScreen: React.FC<WorkoutBuilderScreenProps> = ({ init
                       isTextarea
                   />
                   
-                  {isAdminView && (
-                      <div className="bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800 rounded-lg p-4">
-                          <label className="text-xs font-black text-purple-600 dark:text-purple-400 uppercase tracking-wider mb-1 block flex items-center gap-2">
-                              <SparklesIcon className="w-4 h-4" /> Instruktion till medlemmen
-                          </label>
-                          <p className="text-sm text-purple-800/70 dark:text-purple-300/70 mb-3">
-                              Visas för medlemmen före passet. Används inte för att räkna fram vikter.
-                          </p>
-                          <textarea
-                              value={workout.aiProgressionPrompt || ''}
-                              onChange={e => handleUpdateWorkoutDetail('aiProgressionPrompt', e.target.value)}
-                              placeholder="Din instruktion till medlemmen..."
-                              className="w-full bg-white dark:bg-gray-800 border border-purple-200 dark:border-purple-700 rounded-md p-3 text-base text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-purple-500 resize-y"
-                              rows={3}
-                          />
-                      </div>
-                  )}
+                  {/* Rutan 'Instruktion till medlemmen' togs bort 2026-09-02 - overflodig i redigeringen. Faltet aiProgressionPrompt finns kvar i datan. */}
                   
                   {sessionRole !== 'member' && (
                     <div className="pt-4 border-t border-gray-200 dark:border-gray-700 grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div>
+                        {!arProgram && (<div>
                             <label className="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">Passkategori</label>
                             <div className="flex flex-wrap gap-2">
                                 {studioConfig.customCategories.map(cat => (
@@ -946,16 +934,6 @@ export const WorkoutBuilderScreen: React.FC<WorkoutBuilderScreenProps> = ({ init
                                 >
                                     {OTHER_CATEGORY}
                                 </button>
-                                {/* PT-pass är en reserverad kategori: passet syns varken på
-                                    skärmen eller i gymmets utbud — bara för den medlem det
-                                    tilldelas i Hantera Pass. */}
-                                <button
-                                    onClick={() => handleUpdateWorkoutDetail('category', PT_CATEGORY)}
-                                    title="Passet byggs åt en enskild medlem. Det syns ingenstans förrän du tilldelat det i Hantera Pass."
-                                    className={`px-3 py-1.5 text-sm font-semibold rounded-md transition-colors border ${workout.category === PT_CATEGORY ? 'bg-primary text-white border-primary' : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 border-dashed border-gray-400 dark:border-gray-500 hover:bg-gray-300 dark:hover:bg-gray-600'}`}
-                                >
-                                    {PT_CATEGORY}
-                                </button>
                             </div>
                             <div className="mt-4">
                                 <label className="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">Passlängd (min)</label>
@@ -975,10 +953,10 @@ export const WorkoutBuilderScreen: React.FC<WorkoutBuilderScreenProps> = ({ init
                                     <span className="text-xs text-gray-400">Planerad tid för passet</span>
                                 </div>
                             </div>
-                        </div>
+                        </div>)}
                         
                         <div className="space-y-6">
-                            <div className="space-y-4">
+                            {!arProgram && (<div className="space-y-4">
                                 <h4 className="text-sm font-bold uppercase tracking-wider text-gray-400">Publicering — var och när passet syns</h4>
                                 <div className="space-y-3">
                                     <ToggleSwitch 
@@ -1141,7 +1119,7 @@ export const WorkoutBuilderScreen: React.FC<WorkoutBuilderScreenProps> = ({ init
                                         );
                                     })()}
                                 </div>
-                            </div>
+                            </div>)}
 
                             <div className="space-y-4 pt-4 border-t border-gray-200 dark:border-gray-700">
                                 <h4 className="text-sm font-bold uppercase tracking-wider text-gray-400">Under passet</h4>
@@ -1204,6 +1182,7 @@ export const WorkoutBuilderScreen: React.FC<WorkoutBuilderScreenProps> = ({ init
                   return (
                     <div key={block.id} ref={el => { editorRefs.current[`block-${block.id}`] = el; }}>
                         <EditableBlockCard 
+                          isProgram={arProgram}
                           block={block}
                           index={index}
                           totalBlocks={workout.blocks.length}

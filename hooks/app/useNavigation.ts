@@ -103,6 +103,22 @@ export const useNavigation = (deps: UseNavigationDeps) => {
     });
   }, []);
 
+  // Dolj tillbaka-snurran sa fort den nya sidan ar pa plats (och som
+  // yttersta skyddsnat efter 6 sekunder, sa att den aldrig fastnar).
+  useEffect(() => {
+    try {
+      const el = document.getElementById('tillbaka-snurra');
+      if (el) el.style.display = 'none';
+    } catch { /* inget */ }
+    const vakt = window.setTimeout(() => {
+      try {
+        const el = document.getElementById('tillbaka-snurra');
+        if (el) el.style.display = 'none';
+      } catch { /* inget */ }
+    }, 6000);
+    return () => window.clearTimeout(vakt);
+  }, [history]);
+
   const [customBackHandlerState, setCustomBackHandlerState] = useState<(() => void) | null>(null);
   const customBackHandlerRef = useRef<(() => void) | null>(null);
 
@@ -119,6 +135,15 @@ export const useNavigation = (deps: UseNavigationDeps) => {
 
     if (history.length <= 1) return;
 
+    // Gamla skarmar bygger nasta vy langsamt. Visa snurran INNAN bytet
+    // paborjas och lat skarmen hinna mala den - annars ser trycket dott ut.
+    let visadeSnurra = false;
+    try {
+      const el = document.getElementById('tillbaka-snurra');
+      if (el) { el.style.display = 'flex'; visadeSnurra = true; }
+    } catch { /* inget */ }
+
+    const bytSida = () => {
     const currentPage = history[history.length - 1];
     const newHistory = history.slice(0, -1);
     const targetPage = newHistory[newHistory.length - 1];
@@ -144,6 +169,13 @@ export const useNavigation = (deps: UseNavigationDeps) => {
     }
 
     setHistory(newHistory);
+    };
+
+    if (visadeSnurra) {
+      window.requestAnimationFrame(() => window.setTimeout(bytSida, 0));
+    } else {
+      bytSida();
+    }
   }, [history, role, isImpersonating, setActiveWorkout, isPickingForLog, isStudioMode, selectedOrganization, selectedStudio, activeWorkout, activeBlock, setSessionRole, setIsPickingForLog, setActiveBlock]);
 
   return {

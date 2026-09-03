@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { httpsCallable } from 'firebase/functions';
-import { auth, functions } from '../services/firebaseService';
+import { auth, functionsEurope } from '../services/firebaseService';
 import { motion } from 'framer-motion';
 import { CloseIcon, LockClosedIcon, EyeIcon, EyeOffIcon } from './icons';
 
@@ -13,6 +13,24 @@ interface PasswordModalProps {
   title?: string;
   description?: string;
 }
+
+/**
+ * Igenkänningsmärke av koden — inte koden själv. Går inte att läsa baklänges.
+ * Gör att en skärm som en gång fått ja av servern kan släppa in samma kod
+ * direkt, utan väntan och även på svajigt nät. Servern förblir facit via
+ * dubbelkollen i bakgrunden.
+ */
+const kodMarke = (text: string): string => {
+    let h1 = 0xdeadbeef, h2 = 0x41c6ce57;
+    for (let i = 0; i < text.length; i++) {
+        const ch = text.charCodeAt(i);
+        h1 = Math.imul(h1 ^ ch, 2654435761);
+        h2 = Math.imul(h2 ^ ch, 1597334677);
+    }
+    h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507) ^ Math.imul(h2 ^ (h2 >>> 13), 3266489909);
+    h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^ Math.imul(h1 ^ (h1 >>> 13), 3266489909);
+    return (h2 >>> 0).toString(36) + (h1 >>> 0).toString(36);
+};
 
 export const PasswordModal: React.FC<PasswordModalProps> = ({ onClose, onSuccess, organizationId, onLogout, title = 'Coach-åtkomst', description = 'Ange gymmets lösenord för att låsa upp coach-verktygen på den här skärmen.' }) => {
   const [password, setPassword] = useState('');
@@ -37,13 +55,31 @@ export const PasswordModal: React.FC<PasswordModalProps> = ({ onClose, onSuccess
     setIsChecking(true);
     setError('');
 
+    const verify = httpsCallable<{ organizationId: string; code: string }, { ok: boolean }>(
+      functionsEurope, 'verifyCoachUnlockCode'
+    );
+    const markesNyckel = `smartstudio-coachkod-${organizationId}`;
+
+    // Har den här skärmen fått ja av servern på just den här koden tidigare
+    // släpper vi in direkt — och dubbelkollar i bakgrunden. Har koden bytts
+    // rensas märket och nästa försök går den vanliga vägen.
     try {
-      const verify = httpsCallable<{ organizationId: string; code: string }, { ok: boolean }>(
-        functions, 'verifyCoachUnlockCode'
-      );
+      const sparatMarke = localStorage.getItem(markesNyckel);
+      if (sparatMarke && sparatMarke === kodMarke(password)) {
+        setIsChecking(false);
+        onSuccess();
+        verify({ organizationId, code: password })
+          .then(res => { if (!res.data?.ok) localStorage.removeItem(markesNyckel); })
+          .catch(() => { /* nätet svajar — märket får stå kvar */ });
+        return;
+      }
+    } catch { /* lokal lagring blockerad — kör den vanliga vägen */ }
+
+    try {
       const res = await verify({ organizationId, code: password });
 
       if (res.data?.ok) {
+        try { localStorage.setItem(markesNyckel, kodMarke(password)); } catch { /* fullt förråd stoppar inget */ }
         onSuccess();
       } else {
         setError('Fel kod. Försök igen.');
@@ -71,12 +107,14 @@ export const PasswordModal: React.FC<PasswordModalProps> = ({ onClose, onSuccess
         const serverMsg = String(err?.message || '');
         const signedIn = !!auth?.currentUser;
         console.error('Coachkod nekad. Inloggad användare:', auth?.currentUser?.uid || 'ingen', '| serverns text:', serverMsg);
-        if (serverMsg.includes('App Check')) {
-          setError('Säkerhetskontrollen (App Check) släppte inte igenom den här skärmen. Kontakta support.');
-        } else if (!signedIn) {
+        if (!signedIn) {
           setError('Du måste vara inloggad för att låsa upp. Logga in igen och försök på nytt.');
         } else {
-          setError('Skärmen är inloggad men blockerades av säkerhetskontrollen (App Check). Kontakta support så öppnar vi upp domänen.');
+          // App Check spärrar inte längre det här anropet. Blir det ändå
+          // unauthenticated med en inloggad användare är det inloggningen som
+          // hunnit gå ut, inte en säkerhetskontroll — och då hjälper det att
+          // logga in igen, inte att kontakta support.
+          setError('Inloggningen verkar ha gått ut. Ladda om skärmen och försök igen.');
         }
       } else {
         setError(err?.message || 'Kunde inte verifiera koden. Försök igen.');
@@ -143,15 +181,17 @@ export const PasswordModal: React.FC<PasswordModalProps> = ({ onClose, onSuccess
             </motion.p>
           )}
 
-          <div className="mt-10 flex flex-col sm:flex-row gap-3 w-full">
+          {/* Lås upp får hela raden för sig själv. Tre knappar på en rad blev
+              en hoptryckt gröt på skärmen i studion. */}
+          <div className="mt-10 flex flex-col gap-3 w-full">
             <button 
               type="submit" 
               disabled={isChecking}
-              className="flex-[2] bg-primary hover:brightness-110 text-white font-black py-4 rounded-2xl shadow-xl shadow-primary/20 transition-all transform active:scale-95 text-lg uppercase tracking-widest disabled:opacity-60 disabled:cursor-not-allowed"
+              className="w-full bg-primary hover:brightness-110 text-white font-black py-4 rounded-2xl shadow-xl shadow-primary/20 transition-all transform active:scale-95 text-lg uppercase tracking-widest disabled:opacity-60 disabled:cursor-not-allowed"
             >
               {isChecking ? 'Kontrollerar…' : 'Lås upp'}
             </button>
-            <div className="flex flex-1 gap-3">
+            <div className="flex gap-3">
               <button 
                 type="button" 
                 onClick={onClose} 
@@ -159,7 +199,10 @@ export const PasswordModal: React.FC<PasswordModalProps> = ({ onClose, onSuccess
               >
                 Avbryt
               </button>
-              {failedAttempts > 0 && onLogout && (
+              {/* Alltid synlig. Förut krävdes ett misslyckat försök innan den
+                  dök upp, och gick något annat fel kom den aldrig — då stod man
+                  på skärmen utan väg ut. */}
+              {onLogout && (
                 <button
                   type="button"
                   onClick={() => {

@@ -132,8 +132,8 @@ const MenuCard: React.FC<{
 
 const AmbientBackground = () => (
     <div className="fixed inset-0 z-[-1] overflow-hidden bg-gray-50 dark:bg-gray-950">
-        <div className="absolute top-0 -left-4 w-96 h-96 bg-primary/10 rounded-full mix-blend-multiply filter blur-[100px] opacity-50 animate-blob"></div>
-        <div className="absolute bottom-0 right-0 w-96 h-96 bg-primary/5 rounded-full mix-blend-multiply filter blur-[100px] opacity-50 animate-blob animation-delay-2000"></div>
+        {/* Inga ljusa fläckar i hörnen. Det enda som får lysa är solen i
+            säsongstemat, och den bara när temat är påslaget. */}
         <div className="absolute inset-0 opacity-10 pointer-events-none" style={{ backgroundImage: "url(\"data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E\")" }}></div>
     </div>
 );
@@ -239,7 +239,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = React.memo(({
     }
     if (studioConfig.enableWorkoutGames) items.push({ title: 'Träningslekar', action: () => navigateTo(Page.WorkoutGamesHub), icon: <SparklesIcon className="w-8 h-8" /> });
     if (studioConfig.enableNotes) items.push({ title: 'AI Whiteboard', action: () => navigateTo(Page.IdeaBoard), icon: <PencilIcon className="w-8 h-8" /> });
-    if (studioConfig.enableTimer !== false) items.push({ title: 'Timer', subTitle: 'Intervall', action: () => navigateTo(Page.FreestandingTimer), icon: <TimerIcon /> });
+    if (studioConfig.enableTimer !== false) items.push({ title: 'Timer', action: () => navigateTo(Page.FreestandingTimer), icon: <TimerIcon /> });
     if (studioConfig.enableOtherWorkouts !== false) items.push({ title: 'Övriga pass', action: () => navigateTo(Page.SavedWorkouts), icon: <StarIcon className="w-8 h-8" filled={false} /> });
     return items;
   }, [studioConfig, navigateTo, onSelectPasskategori]);

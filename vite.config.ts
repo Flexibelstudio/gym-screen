@@ -28,6 +28,9 @@ export default defineConfig(({ mode }) => {
             description: 'SmartStudio - Din digitala träningspartner.',
             start_url: '/',
             display: 'standalone',
+            // Installerad på hemskärmen ska appen aldrig vrida sig. Loggen är
+            // byggd stående och bryts i liggande läge.
+            orientation: 'portrait-primary',
             background_color: '#000000',
             theme_color: '#41c53c',
             icons: [
@@ -86,6 +89,7 @@ export default defineConfig(({ mode }) => {
         })
       ],
       define: {
+        '__BYGGTID__': JSON.stringify(new Date().toISOString().slice(0, 16).replace('T', ' ') + ' UTC'),
         'process.env.VITE_FIREBASE_API_KEY': JSON.stringify(process.env.VITE_FIREBASE_API_KEY || env.VITE_FIREBASE_API_KEY || ''),
         'process.env.VITE_FIREBASE_AUTH_DOMAIN': JSON.stringify(process.env.VITE_FIREBASE_AUTH_DOMAIN || env.VITE_FIREBASE_AUTH_DOMAIN || ''),
         'process.env.VITE_FIREBASE_PROJECT_ID': JSON.stringify(process.env.VITE_FIREBASE_PROJECT_ID || env.VITE_FIREBASE_PROJECT_ID || ''),

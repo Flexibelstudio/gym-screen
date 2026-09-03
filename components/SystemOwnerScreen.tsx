@@ -1025,6 +1025,16 @@ const ChallengesTab: React.FC<{
 
 export const SystemOwnerScreen: React.FC<SystemOwnerScreenProps> = ({ allOrganizations, onSelectOrganization, onCreateOrganization, onDeleteOrganization }) => {
     const [activeTab, setActiveTab] = useState<'dashboard' | 'list' | 'challenges' | 'themes' | 'bank' | 'gallery' | 'partners' | 'leads'>('dashboard');
+
+    // Ny flik = borja hogst upp. Adminens innehall scrollar i sin egen ruta,
+    // inte i fonstret, sa window.scrollTo racker inte har.
+    useEffect(() => {
+        try {
+            const ruta = document.getElementById('admin-scroll-container');
+            if (ruta) ruta.scrollTop = 0;
+            window.scrollTo(0, 0);
+        } catch { /* inget */ }
+    }, [activeTab]);
     const [newOrgName, setNewOrgName] = useState('');
     const [isCreating, setIsCreating] = useState(false);
     const [localOrgs, setLocalOrgs] = useState(allOrganizations);

@@ -6,10 +6,13 @@ import { DumbbellIcon, BuildingIcon, UsersIcon, SpeakerphoneIcon, SparklesIcon, 
 import { motion, AnimatePresence } from 'framer-motion';
 import { AIGeneratorScreen } from '../AIGeneratorScreen';
 import { WorkoutBuilderScreen } from '../WorkoutBuilderScreen';
-import { deepCopyAndPrepareAsNew, getWorkoutStatusInfo, getWorkoutVisibilityIssues, isWorkoutLoggable, OTHER_CATEGORY, PT_CATEGORY } from '../../utils/workoutUtils';
+import { deepCopyAndPrepareAsNew, getWorkoutStatusInfo, getWorkoutVisibilityIssues, isWorkoutLoggable, OTHER_CATEGORY } from '../../utils/workoutUtils';
 import { ManageBenchmarksModal, FeatureInfoModal } from './AdminModals';
 import { updateOrganizationBenchmarks, updateOrganizationWorkoutFolders, resolveAndCreateExercises, updateGlobalConfig, listenToGlobalSummerChallenge, listenToMembers, listenToCommunityLogs, listenToCommunityLogsByLocations, getOrganizationLogsSince, getSmartScreenPricing } from '../../services/firebaseService';
 import { WorkoutPresentationModal } from '../WorkoutDetailScreen';
+import { ProgramsContent } from './ProgramsContent';
+import { NyMarke, NYHETER } from '../../utils/nyheter';
+import { newProgramFrom } from '../../services/firebaseService';
 import { useAuth } from '../../context/AuthContext';
 
 // ... (Types and Interfaces remain same)
@@ -757,7 +760,7 @@ type ManageWorkoutsSort = { key: 'title' | 'category' | 'createdAt' | 'createdBy
 const manageWorkoutsMemory: {
     sortConfig: ManageWorkoutsSort;
     activeFolder: string;
-    activeTab: 'official' | 'drafts';
+    activeTab: 'official' | 'drafts' | 'program';
     searchTerm: string;
 } = {
     sortConfig: { key: 'createdAt', direction: 'none' },
@@ -786,7 +789,8 @@ const ManageWorkoutsView: React.FC<{
     members?: { uid: string; firstName?: string; lastName?: string; email?: string }[];
     onAssignToMember?: (workout: Workout, member: { uid: string; name: string } | null) => Promise<void>;
     onRateWorkout?: (workout: Workout, rating: number | null) => Promise<void>;
-}> = ({ workouts, locations, organization, onEdit, onDelete, onDuplicate, onTogglePublish, onCopyToLibrary, onMoveToLibrary, onMoveToOtherPass, onBack, onCreateNew, onCreateWithAI, onManageBenchmarks, onSaveFolders, onMoveToFolder, members, onAssignToMember, onRateWorkout }) => {
+    onCreateProgramWithAI?: () => void;
+}> = ({ workouts, locations, organization, onEdit, onDelete, onDuplicate, onTogglePublish, onCopyToLibrary, onMoveToLibrary, onMoveToOtherPass, onBack, onCreateNew, onCreateWithAI, onManageBenchmarks, onSaveFolders, onMoveToFolder, members, onAssignToMember, onRateWorkout, onCreateProgramWithAI }) => {
 
     const { currentUser } = useAuth();
     const myUid = currentUser?.uid || null;
@@ -829,7 +833,7 @@ const ManageWorkoutsView: React.FC<{
     const folderIdsWithin = (id: string) => [id, ...childrenOf(id).map(c => c.id)];
     const categories = organization?.globalConfig?.customCategories || [];
     
-    const [activeTab, setActiveTab] = useState<'official' | 'drafts'>(manageWorkoutsMemory.activeTab);
+    const [activeTab, setActiveTab] = useState<'official' | 'drafts' | 'program'>(manageWorkoutsMemory.activeTab);
     const [searchTerm, setSearchTerm] = useState(manageWorkoutsMemory.searchTerm);
     const [currentPage, setCurrentPage] = useState(1);
     const [previewWorkout, setPreviewWorkout] = useState<Workout | null>(null);
@@ -854,7 +858,7 @@ const ManageWorkoutsView: React.FC<{
 
         // Tilldelade pass hör till en enskild medlem och ska inte blandas in i
         // gymmets vanliga utbud — de har en egen mapp.
-        if (activeFolder === 'all') return base.filter(w => !w.assignedToUid && w.category !== PT_CATEGORY);
+        if (activeFolder === 'all') return base.filter(w => !w.assignedToUid);
         if (activeFolder === 'favorites') {
             return [...base]
                 .filter(w => (w.runCount || 0) > 0)
@@ -884,7 +888,7 @@ const ManageWorkoutsView: React.FC<{
     ), [workouts, activeTab]);
 
     const countFor = (key: string) => {
-        if (key === 'all') return tabScopedWorkouts.filter(w => !w.assignedToUid && w.category !== PT_CATEGORY).length;
+        if (key === 'all') return tabScopedWorkouts.filter(w => !w.assignedToUid).length;
         if (key === 'favorites') return Math.min(FAVORITES_COUNT, tabScopedWorkouts.filter(w => (w.runCount || 0) > 0).length);
         if (key === 'assigned') return tabScopedWorkouts.filter(w => !!w.assignedToUid).length;
         if (key === 'benchmarks') return tabScopedWorkouts.filter(w => !!w.benchmarkId).length;
@@ -910,7 +914,6 @@ const ManageWorkoutsView: React.FC<{
         categories.forEach(cat => {
             opts.push({ value: 'cat:' + cat.name, label: `📁 ${cat.name} (${countFor('cat:' + cat.name)})` });
         });
-        opts.push({ value: 'cat:' + PT_CATEGORY, label: `📁 ${PT_CATEGORY} (${countFor('cat:' + PT_CATEGORY)})` });
         topFolders.forEach(folder => {
             opts.push({ value: 'folder:' + folder.id, label: `🗂️ ${folder.name} (${countFor('folder:' + folder.id)})` });
             childrenOf(folder.id).forEach(child => {
@@ -1126,9 +1129,30 @@ const ManageWorkoutsView: React.FC<{
                 >
                     Medlemsutkast
                 </button>
+                <button
+                    onClick={() => setActiveTab('program')}
+                    className={`px-6 py-2.5 rounded-xl text-sm font-black uppercase tracking-widest transition-all ${
+                        activeTab === 'program' 
+                        ? 'bg-white dark:bg-gray-700 text-primary shadow-md' 
+                        : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
+                    }`}
+                >
+                    Program
+                    <NyMarke nar={NYHETER.program} />
+                </button>
             </div>
 
-            <div className="bg-white dark:bg-gray-800 rounded-[2.5rem] shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden flex flex-col">
+            {/* PROGRAM — pass for utvalda medlemmar. Egen lista, egen samling; gymmets pass rors inte. */}
+            {activeTab === 'program' && organization && (
+                <ProgramsContent
+                    organization={organization}
+                    members={(members || []).map(m => ({ uid: m.uid, firstName: m.firstName, lastName: m.lastName, email: m.email }))}
+                    onEdit={onEdit}
+                    onCreateWithAI={onCreateProgramWithAI}
+                />
+            )}
+
+            <div className={`bg-white dark:bg-gray-800 rounded-[2.5rem] shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden flex flex-col ${activeTab === 'program' ? 'hidden' : ''}`}>
                 <div className="flex-grow min-h-0 grid grid-cols-1 lg:grid-cols-[240px_minmax(0,1fr)] gap-6">
                 {/* MAPPAR — ren adminordning, påverkar inte medlemsvyn */}
                 <aside className="hidden lg:flex bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 flex-col min-h-0 overflow-y-auto">
@@ -1165,15 +1189,6 @@ const ManageWorkoutsView: React.FC<{
                                     <span className="text-xs opacity-70 flex-shrink-0">{countFor('cat:' + cat.name)}</span>
                                 </button>
                             ))}
-                            {/* PT-pass är en reserverad kategori — den finns inte bland
-                                gymmets egna, men hör hemma här i listan. */}
-                            <button
-                                onClick={() => { setActiveFolder('cat:' + PT_CATEGORY); setCurrentPage(1); }}
-                                className={`w-full flex items-center justify-between gap-2 px-3 py-2 rounded-xl text-sm font-bold transition-colors ${activeFolder === 'cat:' + PT_CATEGORY ? 'bg-primary/10 text-primary' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'}`}
-                            >
-                                <span className="flex items-center gap-2 truncate"><span>📁</span> <span className="truncate">{PT_CATEGORY}</span></span>
-                                <span className="text-xs opacity-70 flex-shrink-0">{countFor('cat:' + PT_CATEGORY)}</span>
-                            </button>
                         </div>
                     )}
 
@@ -1504,15 +1519,7 @@ const ManageWorkoutsView: React.FC<{
                                         <button onClick={() => onEdit(workout)} className="p-2 text-gray-400 rounded-lg" title="Redigera">
                                             <PencilIcon className="w-5 h-5" />
                                         </button>
-                                        {onAssignToMember && (
-                                            <button
-                                                onClick={() => { setAssignFor(workout); setAssignSearch(''); }}
-                                                className={`p-2 rounded-lg ${workout.assignedToUid ? 'text-primary' : 'text-gray-400'}`}
-                                                title="Tilldela en medlem"
-                                            >
-                                                <span className="text-base leading-none">👤</span>
-                                            </button>
-                                        )}
+                                        {/* Tilldela-knappen ar ersatt av fliken Program. Gamla tilldelningar syns fortfarande under mappen Tilldelade pass. */}
                                         <button onClick={() => setDeleteConfirmWorkoutId(workout.id)} className="p-2 text-gray-400 rounded-lg" title="Radera">
                                             <TrashIcon className="w-5 h-5" />
                                         </button>
@@ -1803,15 +1810,7 @@ const ManageWorkoutsView: React.FC<{
                                                 >
                                                     <PencilIcon className="w-4 h-4" />
                                                 </button>
-                                                {onAssignToMember && (
-                                                    <button
-                                                        onClick={() => { setAssignFor(workout); setAssignSearch(''); }}
-                                                        className={`p-2 rounded-lg transition-colors ${workout.assignedToUid ? 'text-primary bg-primary/10' : 'text-gray-400 hover:text-primary hover:bg-primary/10'}`}
-                                                        title={workout.assignedToName ? `Tilldelat: ${workout.assignedToName}` : 'Tilldela en medlem'}
-                                                    >
-                                                        <span className="text-base leading-none">👤</span>
-                                                    </button>
-                                                )}
+                                                {/* Tilldela-knappen ar ersatt av fliken Program. */}
                                                 {onMoveToFolder && (
                                                     <div className="relative">
                                                         <button
@@ -2138,6 +2137,14 @@ const PassProgramContent: React.FC<DashboardContentProps & {
         return () => unsub();
     }, [organization?.id]);
 
+    // Programlage: AI-generatorn utan passtyp; resultatet blir ett program.
+    const [programLage, setProgramLage] = useState(false);
+    const handleCreateProgramWithAI = () => {
+        setProgramLage(true);
+        setAiGeneratorInitialTab('generate');
+        setSubView('ai');
+    };
+
     const handleNavigate = async (mode: 'create' | 'generate' | 'parse' | 'manage') => {
         if (mode === 'create') {
             setWorkoutToEdit(null);
@@ -2152,7 +2159,14 @@ const PassProgramContent: React.FC<DashboardContentProps & {
     };
 
     const handleWorkoutGenerated = (workout: Workout) => {
-        setWorkoutToEdit(workout);
+        if (programLage) {
+            // Programmet far eget id (program-...) och egen kategori — AI-passets slangs.
+            const { category: _bort, isPublished: _bort2, id: _bort3, ...rest } = workout as any;
+            setWorkoutToEdit(newProgramFrom(organization.id, rest));
+            setProgramLage(false);
+        } else {
+            setWorkoutToEdit(workout);
+        }
         setIsNewDraft(true);
         setSubView('builder');
     };
@@ -2242,10 +2256,11 @@ const PassProgramContent: React.FC<DashboardContentProps & {
     if (subView === 'ai') {
         return (
             <div className="animate-fade-in">
-                <button onClick={() => setSubView('manage')} className="mb-6 flex items-center gap-2 text-gray-500 hover:text-primary transition-colors font-medium">
-                    <span>&larr;</span> Tillbaka till passlistan
+                <button onClick={() => { setProgramLage(false); setSubView('manage'); }} className="mb-6 flex items-center gap-2 text-gray-500 hover:text-primary transition-colors font-medium">
+                    <span>&larr;</span> {programLage ? 'Tillbaka till programmen' : 'Tillbaka till passlistan'}
                 </button>
                 <AIGeneratorScreen
+                    programMode={programLage}
                     onWorkoutGenerated={handleWorkoutGenerated}
                     onEditWorkout={handleEditWorkout}
                     onDeleteWorkout={onDeleteWorkout}
@@ -2297,6 +2312,7 @@ const PassProgramContent: React.FC<DashboardContentProps & {
                     onBack={onReturnToHub}
                     onCreateNew={() => handleNavigate('create')}
                     onCreateWithAI={() => handleNavigate('generate')}
+                    onCreateProgramWithAI={handleCreateProgramWithAI}
                     onManageBenchmarks={() => setShowBenchmarkModal(true)}
                     onSaveFolders={handleSaveFolders}
                     onMoveToFolder={handleMoveToFolder}

@@ -1,5 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { auth } from '../services/firebaseService';
+import { reservLoggaIn } from '../utils/reservinloggning';
 import { registerMemberWithCode, getInviteCodeInfo, InviteCodeDetails } from '../services/firebaseService';
 import { resizeImage } from '../utils/imageUtils';
 import { CloseIcon, EyeIcon, EyeOffIcon } from './icons';
@@ -13,14 +15,13 @@ interface LoginScreenProps {
 }
 
 const BrandMark: React.FC = () => (
-    <div className="flex items-center justify-center gap-2.5 mb-5">
+    <div className="flex items-center justify-center mb-5">
         <img
             src="/favicon.png"
             alt="SmartStudio"
-            className="w-10 h-10 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700"
+            className="w-16 h-16 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700"
             referrerPolicy="no-referrer"
         />
-        <span className="text-lg font-black text-gray-900 dark:text-white uppercase tracking-tight">SmartStudio</span>
     </div>
 );
 
@@ -33,7 +34,12 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onClose, onRegisterGym
     const [showPrivacy, setShowPrivacy] = useState(false);
     
     // Login state
-    const [email, setEmail] = useState('');
+    // Skärmar har ingen lösenordshanterare som fyller i åt en. Adressen är
+    // ofarlig att spara lokalt, och att slippa skriva den varje gång är halva
+    // inloggningen på en pekskärm.
+    const [email, setEmail] = useState(() => {
+        try { return localStorage.getItem('smartstudio-senaste-epost') || ''; } catch { return ''; }
+    });
     const [password, setPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -107,11 +113,104 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onClose, onRegisterGym
         setError(null);
         setLoading(true);
         try {
+            // Enheter där reservvägen behövts en gång går den direkt. Annars
+            // står man och väntar ut det trasiga försöket vid varje inloggning.
+            if (localStorage.getItem('smartstudio-reservinloggning') === '1') {
+                const apiKeyDirekt = (auth as any)?.config?.apiKey || '';
+                if (apiKeyDirekt) {
+                    const direkt = await reservLoggaIn(apiKeyDirekt, email, password);
+                    if (direkt === 'ok') {
+                        try { localStorage.setItem('smartstudio-senaste-epost', email.trim()); } catch { /* strunt samma */ }
+                        window.location.reload();
+                        return;
+                    }
+                    if (direkt === 'fel-uppgifter') { setError('Fel e-post eller lösenord.'); return; }
+                    // Annars: prova den vanliga vägen nedan.
+                }
+            }
+
             await signIn(email, password);
+            try { localStorage.setItem('smartstudio-senaste-epost', email.trim()); } catch { /* strunt samma */ }
             if (onClose) onClose();
-        } catch (err) {
-            setError('Inloggningen misslyckades. Kontrollera e-post och lösenord.');
-            console.error(err);
+        } catch (err: any) {
+            // Förut sa rutan samma mening oavsett vad som gick fel. På skärmen i
+            // studion, dit man inte kan koppla en konsol, blev varje misslyckad
+            // inloggning därmed en gissningslek. Nu säger den vad som hände.
+            const kod = String(err?.code || '');
+            console.error('Inloggning misslyckades:', kod, err?.message, err);
+
+            // Firebase har bytt kod för det här felet över tid, och skickar numera
+            // invalid-login-credentials. Den fastnade inte i mitt första filter och
+            // hamnade i den intetsägande grenen längst ner.
+            if (kod.includes('wrong-password') || kod.includes('user-not-found')
+                || kod.includes('invalid-credential') || kod.includes('invalid-login-credentials')
+                || kod.includes('invalid-email')) {
+                setError('Fel e-post eller lösenord.');
+            } else if (kod.includes('unauthorized-domain')) {
+                setError(`Adressen ${window.location.hostname} är inte godkänd för inloggning. Kontakta support.`);
+            } else if (kod.includes('too-many-requests')) {
+                setError('För många försök. Vänta en stund och prova igen.');
+            } else if (kod.includes('network-request-failed')) {
+                // På gamla pekskärmar godkänner Googles server inloggningen men
+                // biblioteket välter i efterbearbetningen och stämplar det som
+                // nätverksfel. Reservvägen loggar in själv och lägger sessionen
+                // där appen sparar dem — sedan räcker en omladdning.
+                setError('Försöker igen på reservvägen…');
+                const apiKey = (auth as any)?.config?.apiKey || '';
+                const reserv = apiKey ? await reservLoggaIn(apiKey, email, password) : 'misslyckades';
+                if (reserv === 'ok') {
+                    setError(null);
+                    try { localStorage.setItem('smartstudio-senaste-epost', email.trim()); } catch { /* strunt samma */ }
+                    window.location.reload();
+                    return;
+                }
+                if (reserv === 'fel-uppgifter') {
+                    setError('Fel e-post eller lösenord.');
+                    return;
+                }
+
+                // Reservvägen gick inte heller — då felsöker skärmen sig själv.
+                setError('Ingen kontakt med inloggningsservern. Undersöker varför…');
+                try {
+                    const start = Date.now();
+                    const svar = await fetch(
+                        'https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=diagnos',
+                        { method: 'POST', body: '{}' }
+                    );
+                    const enkelVag = (window as any).__enkelInloggningsvag ? 'på' : 'AV';
+                    const logg = ((window as any).__inloggningslogg || []).join(' | ') || 'tom';
+                    // Loggen visade att inloggningsbiblioteket dör INNAN det når
+                    // nätet. Då saknar webbläsaren någon modern funktion som
+                    // biblioteket tar för given. Vi kollar de troliga och skriver
+                    // ut vilka som fattas — det pekar ut exakt vad som ska lagas.
+                    const w = window as any;
+                    const saknas = [
+                        ['fetch', typeof w.fetch === 'function'],
+                        ['Headers', typeof w.Headers === 'function'],
+                        ['AbortController', typeof w.AbortController === 'function'],
+                        ['structuredClone', typeof w.structuredClone === 'function'],
+                        ['randomUUID', !!(w.crypto && typeof w.crypto.randomUUID === 'function')],
+                        ['fromEntries', typeof Object.fromEntries === 'function'],
+                        ['allSettled', typeof (Promise as any).allSettled === 'function'],
+                        ['replaceAll', typeof (String.prototype as any).replaceAll === 'function'],
+                        ['at', typeof (Array.prototype as any).at === 'function'],
+                        ['queueMicrotask', typeof w.queueMicrotask === 'function'],
+                        ['BroadcastChannel', typeof w.BroadcastChannel === 'function'],
+                        ['TextEncoder', typeof w.TextEncoder === 'function'],
+                        ['indexedDB', !!w.indexedDB],
+                        ['globalThis', typeof globalThis !== 'undefined'],
+                    ].filter(([, finns]) => !finns).map(([namn]) => namn).join(',') || 'inget';
+                    setError(`Googles server svarar (${svar.status} på ${Date.now() - start} ms), men själva inloggningsanropet kom inte fram. [enkel väg: ${enkelVag}] Anropslogg: ${logg}. Saknas: ${saknas}. Visa den här texten för support.`);
+                } catch {
+                    setError('Enheten blockerar anrop till Googles inloggningsserver (googleapis.com). Kontrollera om webbläsaren har en annonsblockerare eller om nätverket i lokalen filtrerar trafik.');
+                }
+            } else if (kod.includes('user-disabled')) {
+                setError('Kontot är avstängt. Kontakta support.');
+            } else if (kod.includes('web-storage-unsupported') || kod.includes('operation-not-supported')) {
+                setError('Webbläsaren tillåter inte att inloggningen sparas. Slå på cookies och webbplatsdata för den här adressen.');
+            } else {
+                setError(`Inloggningen misslyckades${kod ? ` (${kod})` : ''}. Visa den här texten för support.`);
+            }
         } finally {
             setLoading(false);
         }

@@ -136,7 +136,10 @@ export const WorkoutDiplomaView: React.FC<WorkoutDiplomaViewProps> = ({ diploma,
                                     <div className="space-y-1.5">
                                         {diploma.newPBs?.map((pb, i) => {
                                             let diffText = `+${pb.diff} kg`;
-                                            if (pb.weight === 0 && pb.reps !== undefined) {
+                                            if (pb.isFirst) {
+                                                // Forsta rekordet: visa resultatet, inte en forbattring.
+                                                diffText = (pb.weight || 0) > 0 ? `${pb.weight} kg` : `${pb.reps ?? pb.diff} reps`;
+                                            } else if (pb.weight === 0 && pb.reps !== undefined) {
                                                 diffText = `+${pb.diff} reps`;
                                             } else if (pb.weight === 0 && pb.reps === undefined) {
                                                 // Assuming time PB, diff is in seconds

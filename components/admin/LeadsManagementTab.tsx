@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Lead } from '../../types';
-import { getLeads, updateLeadStatus, updateLeadVerified } from '../../services/firebaseService';
-import { MailIcon, PhoneIcon, CheckCircleIcon, ArchiveIcon } from '../icons';
+import { getLeads, updateLeadStatus, updateLeadVerified, deleteLead } from '../../services/firebaseService';
+import { MailIcon, PhoneIcon, CheckCircleIcon, ArchiveIcon, TrashIcon, RefreshIcon } from '../icons';
+import { useConfirm } from '../ConfirmContext';
 
 export const LeadsManagementTab: React.FC = () => {
     const [leads, setLeads] = useState<Lead[]>([]);
@@ -9,6 +10,10 @@ export const LeadsManagementTab: React.FC = () => {
     // Källfilter. 'all' = allt, annars ett source-värde. Leads utan source är
     // gamla förfrågningar från landningssidan och räknas som 'website'.
     const [sourceFilter, setSourceFilter] = useState<string>('all');
+    // Aktiva (nya + kontaktade) och arkivet visas var for sig. Radering gar
+    // bara fran arkivet — arkivering blir da ett medvetet steg fore radering.
+    const [vy, setVy] = useState<'aktiva' | 'arkiv'>('aktiva');
+    const confirm = useConfirm();
 
     useEffect(() => {
         loadLeads();
@@ -26,14 +31,34 @@ export const LeadsManagementTab: React.FC = () => {
         setLeads(leads.map(lead => lead.id === id ? { ...lead, status: newStatus } : lead));
     };
 
+    const handleDelete = async (lead: Lead) => {
+        const ok = await confirm({
+            title: 'Radera lead?',
+            message: `${lead.gymName || lead.name} tas bort permanent, inklusive kontaktuppgifterna. Det gar inte att angra.`,
+            confirmText: 'Radera',
+            cancelText: 'Avbryt',
+            confirmColor: 'red'
+        });
+        if (!ok) return;
+        try {
+            await deleteLead(lead.id);
+            setLeads(prev => prev.filter(l => l.id !== lead.id));
+        } catch {
+            alert('Kunde inte radera leadet. Forsok igen.');
+        }
+    };
+
     const handleVerifiedChange = async (id: string, verified: boolean) => {
         await updateLeadVerified(id, verified);
         setLeads(leads.map(lead => lead.id === id ? { ...lead, memberVerified: verified } : lead));
     };
 
     const sourceOf = (lead: Lead) => lead.source || 'website';
-    const availableSources = Array.from(new Set(leads.map(sourceOf)));
-    const visibleLeads = sourceFilter === 'all' ? leads : leads.filter(l => sourceOf(l) === sourceFilter);
+    const aktivaLeads = leads.filter(l => l.status !== 'archived');
+    const arkivLeads = leads.filter(l => l.status === 'archived');
+    const vyLeads = vy === 'arkiv' ? arkivLeads : aktivaLeads;
+    const availableSources = Array.from(new Set(vyLeads.map(sourceOf)));
+    const visibleLeads = sourceFilter === 'all' ? vyLeads : vyLeads.filter(l => sourceOf(l) === sourceFilter);
     const sourceLabel = (src: string) => src === 'klubbsverige' ? 'KlubbSverige' : src === 'website' ? 'Landningssidan' : src;
 
     const getStatusBadge = (status: Lead['status']) => {
@@ -59,11 +84,23 @@ export const LeadsManagementTab: React.FC = () => {
                 </button>
             </div>
 
+            <div className="flex items-center gap-2 mb-5 border-b border-gray-200 dark:border-gray-700">
+                {([['aktiva', `Aktiva (${aktivaLeads.length})`], ['arkiv', `Arkiv (${arkivLeads.length})`]] as const).map(([id, namn]) => (
+                    <button
+                        key={id}
+                        onClick={() => { setVy(id); setSourceFilter('all'); }}
+                        className={`px-4 py-2 -mb-px text-sm font-bold border-b-2 transition-colors ${vy === id ? 'border-primary text-gray-900 dark:text-white' : 'border-transparent text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'}`}
+                    >
+                        {namn}
+                    </button>
+                ))}
+            </div>
+
             {isLoading ? (
                 <div className="text-center py-12 text-gray-500">Laddar leads...</div>
-            ) : leads.length === 0 ? (
+            ) : vyLeads.length === 0 ? (
                 <div className="text-center py-12 text-gray-500 bg-gray-50 dark:bg-gray-900/50 rounded-lg border border-dashed border-gray-300 dark:border-gray-700">
-                    Inga förfrågningar ännu.
+                    {vy === 'arkiv' ? 'Arkivet är tomt.' : 'Inga aktiva förfrågningar.'}
                 </div>
             ) : (
                 <div className="space-y-4">
@@ -76,7 +113,7 @@ export const LeadsManagementTab: React.FC = () => {
                                     onClick={() => setSourceFilter(src)}
                                     className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${sourceFilter === src ? 'bg-primary text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300'}`}
                                 >
-                                    {src === 'all' ? `Alla (${leads.length})` : `${sourceLabel(src)} (${leads.filter(l => sourceOf(l) === src).length})`}
+                                    {src === 'all' ? `Alla (${vyLeads.length})` : `${sourceLabel(src)} (${vyLeads.filter(l => sourceOf(l) === src).length})`}
                                 </button>
                             ))}
                         </div>
@@ -151,6 +188,24 @@ export const LeadsManagementTab: React.FC = () => {
                                         >
                                             <ArchiveIcon className="w-4 h-4" /> Arkivera
                                         </button>
+                                    )}
+
+                                    {lead.status === 'archived' && (
+                                        <>
+                                            <button
+                                                onClick={() => handleStatusChange(lead.id, 'contacted')}
+                                                className="flex items-center justify-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300 font-medium rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors text-sm"
+                                                title="Flytta tillbaka till aktiva"
+                                            >
+                                                <RefreshIcon className="w-4 h-4" /> Återställ
+                                            </button>
+                                            <button
+                                                onClick={() => handleDelete(lead)}
+                                                className="flex items-center justify-center gap-2 px-4 py-2 bg-red-50 text-red-700 dark:bg-red-900/20 dark:text-red-400 font-medium rounded-lg hover:bg-red-100 dark:hover:bg-red-900/40 transition-colors text-sm"
+                                            >
+                                                <TrashIcon className="w-4 h-4" /> Radera
+                                            </button>
+                                        </>
                                     )}
                                 </div>
                             </div>

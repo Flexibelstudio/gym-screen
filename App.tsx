@@ -18,7 +18,6 @@ import { createOrganization, updateOrganization, updateOrganizationLogos, update
 import { Toast } from './components/ui/ToastNotification';
 
 // --- Custom Hooks ---
-import { useMinSplashTime } from './hooks/app/useMinSplashTime';
 import { usePushToast } from './hooks/app/usePushToast';
 import { useOnlineStatus } from './hooks/app/useOnlineStatus';
 import { useTheme } from './hooks/app/useTheme';
@@ -66,13 +65,15 @@ import { PWAInstallPrompt } from './components/PWAInstallPrompt';
 import { CoachWorkoutPreviewModal } from './components/CoachWorkoutPreviewModal';
 import { updateUserProfile, fetchCustomPrograms } from './services/firebaseService';
 
+declare const __BYGGTID__: string;
+
 const App: React.FC = () => {
   const { 
     selectedStudio, selectStudio, setAllStudios,
     selectedOrganization, selectOrganization, allOrganizations, setAllOrganizations,
     studioConfig, studioLoading
   } = useStudio();
-  const { role, userData, isStudioMode, signOut, isImpersonating, startImpersonation, stopImpersonation, showTerms, acceptTerms, currentUser, authLoading, clearDeviceProvisioning } = useAuth();
+  const { role, userData, isStudioMode, signOut, isImpersonating, startImpersonation, stopImpersonation, showTerms, acceptTerms, currentUser, authLoading, clearDeviceProvisioning, profilBesked } = useAuth();
   const { workouts, activeWorkout, setActiveWorkout, saveWorkout, deleteWorkout } = useWorkout();
   
   // --- DOMAIN ROUTING LOGIC ---
@@ -100,7 +101,6 @@ const App: React.FC = () => {
   const [sessionRole, setSessionRole] = useState<UserRole>(role);
   const [showLogin, setShowLogin] = useState(false);
   const [showRegisterGym, setShowRegisterGym] = useState(false); 
-  const minSplashTimeElapsed = useMinSplashTime();
   const [customPrograms, setCustomPrograms] = useState<Workout[]>([]);
 
   useEffect(() => {
@@ -199,6 +199,39 @@ const App: React.FC = () => {
   const showPaywall = currentUser && !isStudioMode && !hasActiveSubscription && !showWelcomePaywall;
   const showPendingCoach = currentUser && !isStudioMode && userData?.status === 'pending_coach';
   const isGlobalLoading = authLoading || studioLoading;
+
+  // Tar hämtningen orimligt lång tid har något hängt sig. Då ska skärmen säga
+  // det i klartext i stället för att stå vit i all evighet. Gränsen är satt
+  // högt med flit: sidan är en nödutgång för dött nät, inte en anhalt — en
+  // seg men levande start ska få bli klar bakom loggan utan att avbrytas.
+  const [loadingStalled, setLoadingStalled] = useState(false);
+  const [tidslinje, setTidslinje] = useState('');
+  useEffect(() => {
+    if (!isGlobalLoading) { setLoadingStalled(false); setTidslinje(''); return; }
+    // Serversidan är ingen anhalt. Den visas bara om webbläsaren själv säger
+    // att nätet är nere — annars får loggan stå kvar och pulsa tills det är
+    // klart. Efter en hel minut visas den oavsett, som absolut sista utväg,
+    // så att en död skärm aldrig blir en vit vägg.
+    const timer = window.setTimeout(() => {
+        if (typeof navigator !== 'undefined' && navigator.onLine === false) setLoadingStalled(true);
+    }, 25000);
+    const sistaUtvag = window.setTimeout(() => setLoadingStalled(true), 60000);
+    // Drar starten ut på tiden visas tidslinjen — levande, uppdaterad varje
+    // sekund, så att även det som händer sent kommer med. Första versionen
+    // frös vid sex sekunder och missade allt därefter.
+    const start = Date.now();
+    const tick = window.setInterval(() => {
+      if (Date.now() - start < 6000) return;
+      const rader = (((window as any).__bootlogg || []) as string[]).join(' · ');
+      // De senaste nätverksanropen följer med — så syns det om biblioteket
+      // ens rör nätet under sin tystnad, eller hänger helt lokalt.
+      const anrop = (((window as any).__inloggningslogg || []) as string[]).slice(-3).join(' | ');
+      const sek = Math.round((Date.now() - ((window as any).__starttid || start)) / 1000);
+      const bygge = typeof __BYGGTID__ !== 'undefined' ? __BYGGTID__ : '?';
+      setTidslinje(`bygge ${bygge} — ${sek}s — ${rader || 'inga steg klara ännu'}${anrop ? ` — nät: ${anrop}` : ' — nät: tyst'}`);
+    }, 1000);
+    return () => { window.clearTimeout(timer); window.clearTimeout(sistaUtvag); window.clearInterval(tick); };
+  }, [isGlobalLoading]);
   
   const isOrgMismatch = useMemo(() => {
       if (!currentUser || !userData?.organizationId || !selectedOrganization) return false;
@@ -263,15 +296,34 @@ const App: React.FC = () => {
   // omladdning väntar och gör den när skärmen lämnat passvyn.
   const pendingSwReloadRef = useRef(false);
   const isWorkoutPageRef = useRef(false);
+  const aktuellSidaRef = useRef<Page | null>(null);
+  const senasteRorelseRef = useRef(Date.now());
+  const [nyVersionVantar, setNyVersionVantar] = useState(false);
 
   useEffect(() => {
     isWorkoutPageRef.current = page === Page.Timer || page === Page.RepsOnly;
-    if (!isWorkoutPageRef.current && pendingSwReloadRef.current) {
-      pendingSwReloadRef.current = false;
-      console.log('Passvyn stängd — genomför uppskjuten omladdning för ny version.');
-      window.location.reload();
-    }
+    aktuellSidaRef.current = page;
   }, [page]);
+
+  // Vakten: den vantande versionen laddas in forst nar skarmen star pa
+  // startsidan och ingen har rort den pa tva minuter. Aldrig annars.
+  useEffect(() => {
+    const rorde = () => { senasteRorelseRef.current = Date.now(); };
+    window.addEventListener('pointerdown', rorde, true);
+    window.addEventListener('keydown', rorde, true);
+    const vakt = window.setInterval(() => {
+      if (!pendingSwReloadRef.current) return;
+      if (aktuellSidaRef.current !== Page.Home) return;
+      if (Date.now() - senasteRorelseRef.current < 2 * 60 * 1000) return;
+      pendingSwReloadRef.current = false;
+      window.location.reload();
+    }, 30 * 1000);
+    return () => {
+      window.removeEventListener('pointerdown', rorde, true);
+      window.removeEventListener('keydown', rorde, true);
+      window.clearInterval(vakt);
+    };
+  }, []);
 
   useEffect(() => {
     if (typeof window === 'undefined' || !('serviceWorker' in navigator)) return;
@@ -290,16 +342,13 @@ const App: React.FC = () => {
           console.log('Initial Service Worker claimed the client. Skipping reload because there was no prior controller.');
           return;
       }
-      // Står ett pass på skärmen skjuter vi upp omladdningen. Ett släpp mitt under
-      // en klass får inte starta om en pågående timer.
-      if (isWorkoutPageRef.current) {
-        pendingSwReloadRef.current = true;
-        console.log('Ny version klar, men ett pass visas — omladdningen skjuts upp.');
-        return;
-      }
+      // Vi laddar ALDRIG om mitt i anvandning — det rycker undan mattan for
+      // den som star vid skarmen. Nya versionen markeras och laddas in forst
+      // nar skarmen statt oanvand pa startsidan en stund (se vakten nedan).
       refreshing = true;
-      console.log('New Service Worker activated! Reloading page to load the latest code...');
-      window.location.reload();
+      pendingSwReloadRef.current = true;
+      setNyVersionVantar(true);
+      console.log('Ny version klar - laddas in vid nasta lugna stund pa startsidan.');
     };
 
     navigator.serviceWorker.addEventListener('controllerchange', handleControllerChange);
@@ -875,19 +924,43 @@ const App: React.FC = () => {
 
   const isAnyModalOpen = !!(mobileLogData || mobileViewData || isSearchWorkoutOpen || isScannerOpen || activeDiploma);
   
-  const showSplashScreen = isGlobalLoading || !minSplashTimeElapsed;
+  // Ingen påtvingad väntan. Splashen visas så länge det faktiskt laddar, inte
+  // en sekund längre — skärmen i studion ska upp så fort den kan.
+  const showSplashScreen = isGlobalLoading;
 
   if (showSplashScreen) {
+    if (loadingStalled) {
+        // Utan den här rutan blev en hängande hämtning en vit vägg med logga
+        // som bara gick att ta sig ur genom att ladda om skärmen manuellt.
+        return (
+            <div className="min-h-screen bg-white dark:bg-black flex flex-col items-center justify-center p-8 text-center">
+                <img src="/favicon.png" alt="SmartStudio" className="w-24 h-24 rounded-3xl shadow-lg mb-6 opacity-60" />
+                <p className="text-lg font-black text-gray-900 dark:text-white">Kunde inte nå servern</p>
+                <p className="mt-2 text-sm text-gray-500 dark:text-gray-400 max-w-xs">
+                    Kontrollera att skärmen har internet. Den försöker igen när du trycker nedan.
+                </p>
+                <button
+                    onClick={() => window.location.reload()}
+                    className="mt-6 px-6 py-3 rounded-2xl bg-primary text-white font-black active:scale-95 transition-transform"
+                >
+                    Försök igen
+                </button>
+            </div>
+        );
+    }
+
     return (
         <div className="min-h-screen bg-white dark:bg-black flex flex-col items-center justify-center p-8 text-center">
-            <motion.img 
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ duration: 0.5 }}
-                src="/favicon.png" 
-                alt="SmartStudio" 
-                className="w-32 h-32 rounded-3xl shadow-lg" 
+            <img
+                src="/favicon.png"
+                alt="SmartStudio"
+                className="w-32 h-32 rounded-3xl shadow-lg animate-lugn-puls"
             />
+            {tidslinje && (
+                <p className="mt-6 text-xs text-gray-400 max-w-md">
+                    {tidslinje}
+                </p>
+            )}
         </div>
     );
   }
@@ -968,6 +1041,18 @@ const App: React.FC = () => {
       );
   }
 
+  // Diskret rad nar en ny version vantar mitt i anvandning. Anvandaren valjer
+  // sjalv nar — vi tvingar aldrig. Doljs i timervyerna dar den bara stor.
+  const nyVersionRad = (nyVersionVantar && page !== Page.Timer && page !== Page.RepsOnly) ? (
+    <button
+      type="button"
+      onClick={() => window.location.reload()}
+      className="fixed bottom-4 left-1/2 -translate-x-1/2 z-[9000] px-4 py-2 rounded-full bg-gray-900/90 text-white text-xs font-bold shadow-lg backdrop-blur-sm hover:bg-gray-900 transition-colors"
+    >
+      Ny version finns — tryck för att ladda om
+    </button>
+  ) : null;
+
   if (currentUser && !userData && !isStudioMode && !authLoading) {
     return (
         <div className="min-h-screen bg-white dark:bg-black flex flex-col items-center justify-center p-8 text-center">
@@ -975,6 +1060,7 @@ const App: React.FC = () => {
             <img src="/favicon.png" alt="SmartStudio" className="w-20 h-20 mb-6 rounded-2xl shadow-sm" />
             <h2 className="text-xl font-bold text-gray-900 dark:text-white">Förbereder ditt konto...</h2>
             <p className="text-gray-500 mt-2">Detta tar bara några sekunder.</p>
+            {profilBesked && (<p className="text-gray-400 dark:text-gray-500 text-xs mt-3 max-w-xs break-words">{profilBesked}</p>)}
             <div className="flex flex-col gap-4 mt-8">
                 <button onClick={() => signOut()} className="text-primary font-bold hover:underline">Logga ut och försök igen</button>
                 <button 
@@ -1010,6 +1096,7 @@ const App: React.FC = () => {
 
   return (
     <div id="app-root-container" className={`${showUserBackground ? 'bg-transparent' : 'bg-white dark:bg-black'} text-gray-800 dark:text-gray-200 font-sans flex flex-col ${isStudioMode && page === Page.Home ? 'h-screen overflow-hidden' : 'min-h-screen'} ${paddingClass}`}>
+        {nyVersionRad}
         {showUserBackground && (
             <div id="user-background-layer" className="fixed inset-0 z-[-1]">
                 <img src={userData.backgroundImageUrl} alt="Background" className="w-full h-full object-cover" />
@@ -1185,7 +1272,8 @@ const App: React.FC = () => {
                     
                     handleMemberProfileRequest: handleMemberProfileRequest,
                     handleEditProfileRequest: handleEditProfileRequest,
-                    handleLogWorkoutRequest: handleLogWorkoutRequest
+                    handleLogWorkoutRequest: handleLogWorkoutRequest,
+                    handleSelectWorkout: handleSelectWorkout
                 }}
               />
             )}
@@ -1419,6 +1507,7 @@ const App: React.FC = () => {
        )}
 
        <PWAInstallPrompt />
+
     </div>
   );
 }

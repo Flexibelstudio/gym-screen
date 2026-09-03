@@ -227,6 +227,16 @@ service cloud.firestore {
       allow write: if isSystemOwner();
     }
 
+    // PROGRAM: pass byggda for utvalda medlemmar. Personalen skriver; en
+    // medlem laser bara de program dar hens uid star i memberIds.
+    match /programs/{programId} {
+      allow read: if isStaff(resource.data.organizationId) ||
+                     (isSignedIn() && request.auth.uid in resource.data.memberIds);
+      allow create: if isStaff(request.resource.data.organizationId);
+      allow update: if isStaff(resource.data.organizationId) && isStaff(request.resource.data.organizationId);
+      allow delete: if isStaff(resource.data.organizationId);
+    }
+
     match /leads/{leadId} {
       allow create: if isValidId(leadId) && isValidLead(request.resource.data);
       allow read, update, delete: if isSystemOwner();

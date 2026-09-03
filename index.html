@@ -3,6 +3,116 @@
 <html lang="sv">
   <head>
     <meta charset="UTF-8" />
+    <script>
+      /* INLOGGNINGENS ENKLA VÄG.
+         Anropen till Googles inloggningsserver skickas normalt med rubriker som
+         tvingar webbläsaren att ställa en förhandsfråga (CORS preflight) först.
+         Webbläsaren i vissa pekskärmar hänger sig på den — inloggningen dör med
+         nätverksfel fast servern nås utmärkt. Här skalas rubrikerna av så att
+         anropet går i enkel form utan förhandsfråga. Verifierat mot servern:
+         den läser och besvarar anropen precis likadant.
+         Ligger här, först av allt, så att ingen annan kod hinner greppa
+         nätverksvägen innan förenklingen är på plats. */
+      /* Skärmar som behövt reservinloggningen är gamla webbläsare med svag
+         grafik. De märker sig själva, och CSS:en och animationerna anpassar
+         sig — suddiga glasytor och glidande övergångar är det som gör att
+         tillbaka-klick känns sega på dem. */
+      /* Starttidslinjen. Varje steg i uppstarten bokför sig här, räknat från
+         första millisekunden. Visas under laddningsloggan när starten är seg,
+         så att den långsamma länken pekar ut sig själv. */
+      window.__starttid = Date.now();
+      window.__bootlogg = [];
+      window.__bootmark = function (namn) {
+        try { window.__bootlogg.push(namn + ' ' + (Date.now() - window.__starttid) + 'ms'); } catch (e) {}
+      };
+      try {
+        if (localStorage.getItem('smartstudio-reservinloggning') === '1') {
+          document.documentElement.className += ' enkel-grafik';
+        }
+      } catch (e) {}
+      (function () {
+        if (!window.fetch) return;
+        var vanlig = window.fetch.bind(window);
+        window.__enkelInloggningsvag = true;
+        window.__inloggningslogg = [];
+        function bokfor(rad) {
+          try {
+            window.__inloggningslogg.push(rad);
+            if (window.__inloggningslogg.length > 6) window.__inloggningslogg.shift();
+          } catch (e) {}
+        }
+        function delAv(url) {
+          try { return url.split('?')[0].split('/').slice(-1)[0].slice(0, 40); } catch (e) { return '?'; }
+        }
+        window.fetch = function (input, init) {
+          var url = '';
+          try { url = typeof input === 'string' ? input : (input && input.url) || ''; } catch (e) {}
+          var arGoogle = url.indexOf('googleapis.com') !== -1;
+          var arInloggning = url.indexOf('identitytoolkit.googleapis.com') !== -1;
+          var start = Date.now();
+          var p;
+          try {
+            if (arInloggning) {
+              var method = (init && init.method) || (input && input.method) || 'GET';
+              var body = init ? init.body : undefined;
+              p = body === undefined ? vanlig(url, { method: method }) : vanlig(url, { method: method, body: body });
+            } else {
+              p = vanlig(input, init);
+            }
+          } catch (e) {
+            if (arGoogle) bokfor(delAv(url) + ' KAST:' + String(e).slice(0, 60) + ' ' + (Date.now() - start) + 'ms');
+            throw e;
+          }
+          if (arGoogle && p && p.then) {
+            p.then(function (r) {
+              bokfor(delAv(url) + ' ' + r.status + ' ' + (Date.now() - start) + 'ms');
+            }, function (e) {
+              bokfor(delAv(url) + ' FEL:' + String(e).slice(0, 60) + ' ' + (Date.now() - start) + 'ms');
+            });
+          }
+          return p;
+        };
+      })();
+
+      // Gamla skarmar: fornya intradesbiljetten sjalva, innan appen vaknar.
+      // Biljetten haller en timme. Ar den gammal nar nagot ska sparas eller
+      // hamtas forsoker inloggningsbiblioteket fornya den pa sin egen vag —
+      // som inte fungerar i den har webblasaren och forst efter ~30 sekunder
+      // ger med sig. Det ar den vantan som legat bakom allt segt. Har fornyas
+      // biljetten i stallet direkt vid start, pa den enkla vag som bevisligen
+      // fungerar, och laggs tillbaka innan biblioteket hunnit lasa den.
+      (function () {
+        try {
+          if (localStorage.getItem('smartstudio-reservinloggning') !== '1') return;
+          var nyckel = null;
+          for (var i = 0; i < localStorage.length; i++) {
+            var k = localStorage.key(i);
+            if (k && k.indexOf('firebase:authUser:') === 0) { nyckel = k; break; }
+          }
+          if (!nyckel) return;
+          var session = JSON.parse(localStorage.getItem(nyckel));
+          var st = session && session.stsTokenManager;
+          if (!st || !st.refreshToken) return;
+          // Fortfarande minst en halvtimme kvar? Da ar allt redan snabbt.
+          if (st.expirationTime && (st.expirationTime - Date.now()) > 30 * 60 * 1000) return;
+          var apiKey = session.apiKey || nyckel.split(':')[2];
+          fetch('https://securetoken.googleapis.com/v1/token?key=' + encodeURIComponent(apiKey), {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: 'grant_type=refresh_token&refresh_token=' + encodeURIComponent(st.refreshToken)
+          }).then(function (svar) {
+            return svar.ok ? svar.json() : null;
+          }).then(function (data) {
+            if (!data || !data.access_token) return;
+            st.accessToken = data.access_token;
+            st.refreshToken = data.refresh_token || st.refreshToken;
+            st.expirationTime = Date.now() + (parseInt(data.expires_in || '3600', 10) * 1000);
+            localStorage.setItem(nyckel, JSON.stringify(session));
+            if (window.__bootmark) window.__bootmark('biljett fornyad');
+          }).catch(function () { /* da far biblioteket forsoka sjalv, som forut */ });
+        } catch (e) { /* inget far stoppa uppstarten */ }
+      })();
+    </script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>SmartStudio</title>
     <link rel="icon" type="image/png" href="/favicon.png">
@@ -48,6 +158,7 @@
 </head>
   <body class="bg-white dark:bg-black" style="touch-action: manipulation;">
     <div id="root"></div>
+    <div id="tillbaka-snurra"><div class="tillbaka-snurra-ring"></div></div>
 <script type="module" src="/index.tsx"></script>
 </body>
 </html>

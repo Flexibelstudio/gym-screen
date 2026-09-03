@@ -148,6 +148,17 @@ export interface WorkoutBlock {
   customProgression?: { incrementKg: number; atReps: number; maxRir: number; requireAllSets: boolean };
 }
 
+// Ett PROGRAM ar ett pass byggt for utvalda medlemmar. Det lever i sin egen
+// samling (programs) och ror aldrig gymmets vanliga pass. Inuti ar det ett
+// helt vanligt Workout, sa byggare, timer och loggning fungerar som forut.
+export interface Program extends Workout {
+  isProgram: true;
+  memberIds: string[];
+  memberNames?: Record<string, string>;
+  createdByUid?: string;
+  updatedAt?: number;
+}
+
 export interface Workout {
   id: string;
   title: string;
@@ -216,6 +227,7 @@ export type ThemeOption = 'none' | 'auto' | 'winter' | 'christmas' | 'newyear' |
 export type TimerSoundProfile = 'airhorn' | 'digital' | 'boxing' | 'gong';
 
 export interface StudioConfig {
+  timerVolume?: number; // 0.2-2.0, 1 = standard. Satts per skarm under Skarmar > Installningar.
   enableScreensaver?: boolean;
   screensaverTimeoutMinutes?: number;
   enableExerciseBank?: boolean;
@@ -308,6 +320,7 @@ export interface CustomPage {
   id: string;
   title: string;
   tabs: CustomPageTab[];
+  linkUrl?: string; // Satt = kortet ar en lank (dokument/PDF/webbsida), ingen egen sida
 }
 
 export interface InfoMessage {
@@ -413,6 +426,7 @@ export interface StartGroup {
 export interface PBRecord {
     exerciseName: string; // Synced with firebaseService
     diff: number;
+    isFirst?: boolean; // Forsta gangen ovningen loggas: diff ar da sjalva varde, inte en forbattring
     weight?: number; // Optional current weight
     reps?: number;
     calculated1RM?: number;

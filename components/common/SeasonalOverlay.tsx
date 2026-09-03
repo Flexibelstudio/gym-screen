@@ -1,4 +1,3 @@
-
 import React, { useMemo, useState, useEffect } from 'react';
 import { useStudio } from '../../context/StudioContext';
 import { useAuth } from '../../context/AuthContext';
@@ -175,8 +174,32 @@ const ConfettiRain = () => {
     );
 };
 
-const SummerSun = () => (
-    <div className="fixed top-[-100px] right-[-100px] w-[300px] h-[300px] bg-yellow-400/20 rounded-full blur-[80px] pointer-events-none z-[2000]"></div>
+/**
+ * Sommarsolen, nere i vänstra hörnet. Återställd precis som den såg ut innan
+ * den råkade tappas bort: sol med solglasögon och ett leende.
+ */
+const SummerMascot = () => (
+    <div className="fixed bottom-0 left-0 w-24 h-24 pointer-events-none z-[2000]">
+        {/* Ritningen sitter i nedre högra hörnet av sin egen ruta. Med hela
+            0 0 200 200 hamnade solen därför en bra bit in på sidan och såg ut
+            att sväva. Vi beskär till motivet, så att rutan är solen — då
+            hamnar den i skärmens hörn där den ska vara. */}
+        <svg viewBox="64 64 134 134" className="w-full h-full drop-shadow-xl">
+            {/* Sun Body */}
+            <circle cx="150" cy="150" r="40" fill="#fbbf24" />
+            {/* Rays */}
+            <g stroke="#fbbf24" strokeWidth="8" strokeLinecap="round">
+                <line x1="150" y1="90" x2="150" y2="70" />
+                <line x1="90" y1="150" x2="70" y2="150" />
+                <line x1="110" y1="110" x2="95" y2="95" />
+            </g>
+            {/* Sunglasses */}
+            <path d="M125,145 L175,145 L175,155 Q175,165 165,165 L160,165 Q150,165 150,155 L150,150 L145,150 L145,155 Q145,165 135,165 L130,165 Q120,165 120,155 Z" fill="#1f2937" />
+            <line x1="120" y1="148" x2="110" y2="140" stroke="#1f2937" strokeWidth="2" />
+            {/* Smile */}
+            <path d="M135,175 Q150,185 165,175" stroke="#b45309" strokeWidth="3" fill="none" strokeLinecap="round" />
+        </svg>
+    </div>
 );
 
 // --- Mascot Components ---
@@ -235,9 +258,11 @@ const GymThermometerMascot = ({ isStudioMode = false }: { isStudioMode?: boolean
     // bråkdel av en sekund under en övergång — pekar webbläsaren på fel element
     // och klippningen faller bort. Då ritas vätskan som den rektangel den är,
     // och kulan blir fyrkantig. Ett eget id per instans löser det.
-    const clipUid = React.useId().replace(/:/g, '');
-    const largeClipId = `glass-inner-large-${clipUid}`;
-    const smallClipId = `glass-inner-small-${clipUid}`;
+    // Vätskan hade formen av en rektangel som klipptes mot en osynlig mall i
+    // termometerns form. Misslyckades klippningen — vilket den gör i flera äldre
+    // pekskärmar — syntes rektangeln rakt av, och kulan blev fyrkantig. Nu ritas
+    // vätskan som termometern själv, och nivån styrs av var färgen tar slut i
+    // övertoningen. Ingen mall som kan svika.
 
     const { selectedOrganization, selectedStudio, studioConfig } = useStudio();
     const { userData } = useAuth();
@@ -491,13 +516,13 @@ const GymThermometerMascot = ({ isStudioMode = false }: { isStudioMode?: boolean
                             <feGaussianBlur stdDeviation="5" result="blur" />
                             <feComposite in="SourceGraphic" in2="blur" operator="over" />
                         </filter>
-                        <linearGradient id={`liquid-grad-large-${color.replace('#', '')}`} x1="0%" y1="0%" x2="0%" y2="100%">
-                            <stop offset="0%" stopColor={color} />
-                            <stop offset="100%" stopColor={color === '#ef4444' ? '#991b1b' : color === '#f97316' ? '#c2410c' : color === '#eab308' ? '#a16207' : '#1e40af'} />
+                        <linearGradient id={`liquid-grad-large-${color.replace('#', '')}`} gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="0" y2="160">
+                            {/* Två stopp på exakt samma höjd ger en knivskarp yta.
+                                Ovanför den är färgen genomskinlig, under är den fylld. */}
+                            <stop offset={currentY / 160} stopColor={color} stopOpacity="0" />
+                            <stop offset={currentY / 160} stopColor={color} stopOpacity="1" />
+                            <stop offset="1" stopColor={color === '#ef4444' ? '#991b1b' : color === '#f97316' ? '#c2410c' : color === '#eab308' ? '#a16207' : '#1e40af'} />
                         </linearGradient>
-                        <clipPath id={largeClipId}>
-                            <path d="M 12,14 L 12,112 A 22,22 0 1,0 28,112 L 28,14 A 8,8 0 0,0 12,14 Z" />
-                        </clipPath>
                     </defs>
 
                     <path 
@@ -514,17 +539,11 @@ const GymThermometerMascot = ({ isStudioMode = false }: { isStudioMode?: boolean
                         strokeWidth="1.5"
                     />
 
-                    <g clipPath={`url(#${largeClipId})`}>
-                        <rect 
-                            x="-10" 
-                            y={currentY} 
-                            width="60" 
-                            height={160 - currentY} 
-                            fill={`url(#liquid-grad-large-${color.replace('#', '')})`} 
-                            className="transition-all duration-1000 ease-out"
-                        />
-                        <rect x="18" y="10" width="1" height="130" fill="white" opacity="0.15" />
-                    </g>
+                    <path
+                        d="M 12,14 L 12,112 A 22,22 0 1,0 28,112 L 28,14 A 8,8 0 0,0 12,14 Z"
+                        fill={`url(#liquid-grad-large-${color.replace('#', '')})`}
+                    />
+                    <rect x="18" y="16" width="1" height="120" fill="white" opacity="0.15" />
 
                     <path 
                         d="M 12.5,15 L 12.5,110" 
@@ -576,13 +595,13 @@ const GymThermometerMascot = ({ isStudioMode = false }: { isStudioMode?: boolean
                         <feGaussianBlur stdDeviation="4" result="blur" />
                         <feComposite in="SourceGraphic" in2="blur" operator="over" />
                     </filter>
-                    <linearGradient id={`liquid-grad-small-${color.replace('#', '')}`} x1="0%" y1="0%" x2="0%" y2="100%">
-                        <stop offset="0%" stopColor={color} />
-                        <stop offset="100%" stopColor={color === '#ef4444' ? '#991b1b' : color === '#f97316' ? '#c2410c' : color === '#eab308' ? '#a16207' : '#1e40af'} />
+                    <linearGradient id={`liquid-grad-small-${color.replace('#', '')}`} gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="0" y2="160">
+                        {/* Två stopp på exakt samma höjd ger en knivskarp yta.
+                            Ovanför den är färgen genomskinlig, under är den fylld. */}
+                        <stop offset={currentY / 160} stopColor={color} stopOpacity="0" />
+                        <stop offset={currentY / 160} stopColor={color} stopOpacity="1" />
+                        <stop offset="1" stopColor={color === '#ef4444' ? '#991b1b' : color === '#f97316' ? '#c2410c' : color === '#eab308' ? '#a16207' : '#1e40af'} />
                     </linearGradient>
-                    <clipPath id={smallClipId}>
-                        <path d="M 12,14 L 12,112 A 22,22 0 1,0 28,112 L 28,14 A 8,8 0 0,0 12,14 Z" />
-                    </clipPath>
                 </defs>
 
                 <path 
@@ -599,17 +618,11 @@ const GymThermometerMascot = ({ isStudioMode = false }: { isStudioMode?: boolean
                     strokeWidth="1.5"
                 />
 
-                <g clipPath={`url(#${smallClipId})`}>
-                    <rect 
-                        x="-10" 
-                        y={currentY} 
-                        width="60" 
-                        height={160 - currentY} 
-                        fill={`url(#liquid-grad-small-${color.replace('#', '')})`} 
-                        className="transition-all duration-1000 ease-out"
-                    />
-                    <rect x="18" y="10" width="1" height="130" fill="white" opacity="0.1" />
-                </g>
+                <path
+                    d="M 12,14 L 12,112 A 22,22 0 1,0 28,112 L 28,14 A 8,8 0 0,0 12,14 Z"
+                    fill={`url(#liquid-grad-small-${color.replace('#', '')})`}
+                />
+                <rect x="18" y="16" width="1" height="120" fill="white" opacity="0.1" />
 
                 <path 
                     d="M 12.5,15 L 12.5,110" 
@@ -672,12 +685,26 @@ export const SeasonalOverlay: React.FC<SeasonalOverlayProps> = React.memo(({ pag
     const theme = useActiveTheme();
     const [globalChallenge, setGlobalChallenge] = useState<any>(null);
 
+    // Utmaningens riktiga datum kommer från servern. Innan de har landat säger
+    // gymmets egen inställning att utmaningen pågår, och termometern hann därför
+    // blinka till för att sedan försvinna när svaret kom och sa att den är slut.
+    // Vi ritar ingenting alls förrän vi vet.
+    const [challengeLoaded, setChallengeLoaded] = useState(false);
+
     useEffect(() => {
         if (isAdminView) return;
+        let settled = false;
+        const settle = () => { if (!settled) { settled = true; setChallengeLoaded(true); } };
+
         const unsubscribe = listenToGlobalSummerChallenge((data) => {
             setGlobalChallenge(data);
+            settle();
         });
-        return () => unsubscribe();
+
+        // Svarar servern inte alls ska overlayen inte bli osynlig för alltid.
+        const fallback = window.setTimeout(settle, 2000);
+
+        return () => { window.clearTimeout(fallback); unsubscribe(); };
     }, [isAdminView]);
 
     const configToUse = useMemo(() => {
@@ -700,21 +727,30 @@ export const SeasonalOverlay: React.FC<SeasonalOverlayProps> = React.memo(({ pag
     const isChallengeActive = useMemo(() => {
         const hasTheme = !!configToUse?.enableSummerChallenge;
         if (!hasTheme) return false;
-        
+
+        // En avpublicerad utmaning ska aldrig synas — samma regel som
+        // instrumentpanelen redan foljer. Termometern lyssnade bara pa
+        // datumen och missade av/pa-knappen helt.
+        if (globalChallenge && globalChallenge.isPublished !== true) return false;
+
         const currentTimestamp = Date.now();
         const start = configToUse.summerChallengeStartDate;
         const end = configToUse.summerChallengeEndDate;
-        
-        const isStarted = !start || currentTimestamp >= start;
-        const isEnded = !!end && currentTimestamp > end;
-        
-        return isStarted && !isEnded;
-    }, [configToUse]);
+
+        // Utan bada datumen finns ingen pagaende utmaning. Forut raknades
+        // "inga datum" som "pagar for evigt" — det var darfor termometern
+        // kunde sta kvar pa skarmar som inte fatt kontakt med servern.
+        if (!start || !end) return false;
+
+        return currentTimestamp >= start && currentTimestamp <= end;
+    }, [configToUse, globalChallenge]);
 
     // Om en utmaning pågår (t.ex. Sommar-Sisu), ska säsongstemat pausas och döljas för att prioritera träningstermometern
     const activeTheme = isChallengeActive ? 'none' : theme;
 
     if (isAdminView) return null;
+
+    if (!challengeLoaded) return null;
 
     if (activeTheme === 'none' && !isChallengeActive) return null;
 
@@ -723,9 +759,9 @@ export const SeasonalOverlay: React.FC<SeasonalOverlayProps> = React.memo(({ pag
             {/* 1. Background Particles */}
             {activeTheme !== 'none' && (activeTheme === 'winter' || activeTheme === 'christmas') && <SnowParticles />}
             {activeTheme === 'halloween' && <FogEffect />}
+            {(activeTheme === 'summer' || activeTheme === 'midsummer') && <SummerMascot />}
             {activeTheme === 'valentines' && <FloatingHearts />}
             {activeTheme === 'newyear' && <ConfettiRain />}
-            {activeTheme !== 'none' && (activeTheme === 'summer' || activeTheme === 'midsummer') && <SummerSun />}
             
             {/* 2. Corner Mascots */}
             {activeTheme === 'christmas' && <ChristmasMascot page={page} />}

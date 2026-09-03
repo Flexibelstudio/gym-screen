@@ -5,7 +5,8 @@ import { useWorkout } from '../context/WorkoutContext';
 import { useStudio } from '../context/StudioContext';
 import { SearchIcon, DumbbellIcon, ClockIcon, TrashIcon, TrophyIcon, CloseIcon, ToggleSwitch, LockIcon } from './icons';
 import { useAuth } from '../context/AuthContext';
-import { fetchCustomPrograms, deleteCustomProgram, getMemberLogs, updateUserProfile } from '../services/firebaseService';
+import { fetchCustomPrograms, deleteCustomProgram, getMemberLogs, updateUserProfile, subscribeToMyPrograms } from '../services/firebaseService';
+import type { Program } from '../types';
 import WorkoutDetailScreen from './WorkoutDetailScreen';
 import { LineChart, Line, XAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import { Modal } from './ui/Modal';
@@ -24,6 +25,14 @@ export const WorkoutListScreen: React.FC<WorkoutListScreenProps> = React.memo(({
     const [searchTerm, setSearchTerm] = useState('');
     const [activeTab, setActiveTab] = useState<'alla' | 'mina'>('alla');
     const [customPrograms, setCustomPrograms] = useState<Workout[]>([]);
+    // Program som coachen byggt for just den har medlemmen. Ligger overst i
+    // listan, precis som tilldelade pass gjorde forut.
+    const [minaProgram, setMinaProgram] = useState<Program[]>([]);
+    useEffect(() => {
+        if (isStudioMode || !currentUser?.uid) { setMinaProgram([]); return; }
+        const avsluta = subscribeToMyPrograms(currentUser.uid, setMinaProgram);
+        return () => avsluta();
+    }, [isStudioMode, currentUser?.uid]);
     const [programToDelete, setProgramToDelete] = useState<Workout | null>(null);
     const [isDeleting, setIsDeleting] = useState(false);
     
@@ -136,12 +145,23 @@ export const WorkoutListScreen: React.FC<WorkoutListScreenProps> = React.memo(({
 
         // Medlemmens personliga pass ligger alltid överst — det är det som är
         // beställt av coachen och det medlemmen ska göra härnäst.
-        return [...result].sort((a, b) => {
+        const sorterat = [...result].sort((a, b) => {
             const aMine = a.assignedToUid ? 1 : 0;
             const bMine = b.assignedToUid ? 1 : 0;
             return bMine - aMine;
         });
-    }, [workouts, customPrograms, selectedCategory, searchTerm, isStudioMode, studioConfig, activeTab]);
+
+        // Programmen allra overst (bara i medlemsappen, aldrig pa skarmen).
+        // De har ingen passkategori, sa de visas nar ingen kategori ar vald.
+        if (!isStudioMode && !selectedCategory && minaProgram.length > 0) {
+            const q = searchTerm.toLowerCase();
+            const programSomMatchar = minaProgram.filter(p =>
+                (p.title || '').toLowerCase().includes(q) || (p.coachTips && (p.coachTips || '').toLowerCase().includes(q))
+            );
+            return [...programSomMatchar, ...sorterat];
+        }
+        return sorterat;
+    }, [workouts, customPrograms, minaProgram, selectedCategory, searchTerm, isStudioMode, studioConfig, activeTab]);
     
     const renderWorkoutCard = (workout: Workout, isLoggable: boolean) => {
         if (isStudioMode) {
@@ -187,16 +207,16 @@ export const WorkoutListScreen: React.FC<WorkoutListScreenProps> = React.memo(({
                 onClick={() => {
                     setSelectedWorkoutHistory(workout);
                 }}
-                className={`cursor-pointer group relative overflow-hidden rounded-2xl p-4 sm:p-5 transition-all bg-white dark:bg-[#0f141e] border-2 shadow-md flex flex-col ${workout.assignedToUid ? 'border-primary dark:border-primary shadow-primary/20' : 'border-gray-200 dark:border-white/10 hover:border-gray-300 dark:hover:border-white/20'}`}
+                className={`cursor-pointer group relative overflow-hidden rounded-2xl p-4 sm:p-5 transition-all bg-white dark:bg-[#0f141e] border-2 shadow-md flex flex-col ${(workout.assignedToUid || (workout as any).isProgram) ? 'border-primary dark:border-primary shadow-primary/20' : 'border-gray-200 dark:border-white/10 hover:border-gray-300 dark:hover:border-white/20'}`}
                 style={{ touchAction: 'manipulation' }}
             >
                 {/* Decorative Background */}
                 <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-full blur-3xl -mr-10 -mt-10 pointer-events-none"></div>
 
                 <div className="relative z-10 flex-grow flex flex-col">
-                    {workout.assignedToUid && (
+                    {(workout.assignedToUid || (workout as any).isProgram) && (
                         <div className="mb-3 self-start bg-primary text-white px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider">
-                            ★ Personligt pass
+                            ★ {(workout as any).isProgram ? 'Ditt program' : 'Personligt pass'}
                         </div>
                     )}
                     <div className="flex justify-between items-start mb-3 w-full">

@@ -17,6 +17,48 @@ export const getAudioContext = (): AudioContext | null => {
   return audioContext;
 };
 
+// --- Master-utgang: forstarkning + limiter ---
+// Ljuden gick forut rakt ut pa halv styrka. Nu passerar allt en gemensam
+// forstarkare och en limiter som haller toppen i schack, sa att det kan
+// spelas markbart hogre utan att spraka. Volymfaktorn satts per skarm
+// (Skarmar > Installningar) sa att tva olika skarmar kan jamnas ut.
+// 1.9 lyfter grundljuden (0.4-0.5) till strax under full styrka (0.75-0.95).
+// Mer an sa gar inte att fa ur en webblasare - taket ar alltid enhetens egen
+// hogtalarvolym. Limitern nedan ar bara ett sakerhetsnat mot sprak vid 200 %.
+const GRUNDFORSTARKNING = 1.9;
+let volymFaktor = 1;
+let masterGain: GainNode | null = null;
+let masterCtx: AudioContext | null = null;
+
+export const setTimerVolume = (faktor: number | undefined) => {
+    const f = typeof faktor === 'number' && isFinite(faktor) ? Math.min(2, Math.max(0.2, faktor)) : 1;
+    volymFaktor = f;
+    if (masterGain && masterCtx) {
+        try { masterGain.gain.setValueAtTime(GRUNDFORSTARKNING * volymFaktor, masterCtx.currentTime); } catch { /* inget */ }
+    }
+};
+
+const masterOut = (ctx: AudioContext): AudioNode => {
+    if (masterGain && masterCtx === ctx) return masterGain;
+    try {
+        const gain = ctx.createGain();
+        gain.gain.value = GRUNDFORSTARKNING * volymFaktor;
+        const limiter = ctx.createDynamicsCompressor();
+        limiter.threshold.value = -1;
+        limiter.knee.value = 1;
+        limiter.ratio.value = 12;
+        limiter.attack.value = 0.002;
+        limiter.release.value = 0.12;
+        gain.connect(limiter);
+        limiter.connect(ctx.destination);
+        masterGain = gain;
+        masterCtx = ctx;
+        return gain;
+    } catch {
+        return ctx.destination;
+    }
+};
+
 /* --- SOUND SYNTHESIS FUNCTIONS --- */
 
 const playTone = (ctx: AudioContext, freq: number, type: OscillatorType, startTime: number, duration: number, vol: number = 0.5) => {
@@ -27,7 +69,7 @@ const playTone = (ctx: AudioContext, freq: number, type: OscillatorType, startTi
     gain.gain.setValueAtTime(vol, startTime);
     gain.gain.exponentialRampToValueAtTime(0.001, startTime + duration);
     osc.connect(gain);
-    gain.connect(ctx.destination);
+    gain.connect(masterOut(ctx));
     osc.start(startTime);
     osc.stop(startTime + duration);
 };
@@ -49,7 +91,7 @@ const playBellStrike = (ctx: AudioContext, startTime: number) => {
     gain.gain.linearRampToValueAtTime(i === 0 ? 0.5 : 0.2, startTime + 0.01);
     gain.gain.exponentialRampToValueAtTime(0.0001, startTime + duration);
     osc.connect(gain);
-    gain.connect(ctx.destination);
+    gain.connect(masterOut(ctx));
     osc.start(startTime);
     osc.stop(startTime + duration);
   });
@@ -80,7 +122,7 @@ const playAirHorn = (ctx: AudioContext, startTime: number) => {
 
         osc.connect(filter);
         filter.connect(gain);
-        gain.connect(ctx.destination);
+        gain.connect(masterOut(ctx));
         
         osc.start(startTime);
         osc.stop(startTime + duration);
@@ -103,7 +145,7 @@ const playDigitalBeep = (ctx: AudioContext, startTime: number) => {
     gain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.15); // Snabb release
 
     osc.connect(gain);
-    gain.connect(ctx.destination);
+    gain.connect(masterOut(ctx));
     osc.start(startTime);
     osc.stop(startTime + 0.15);
 };
@@ -128,7 +170,7 @@ const playGong = (ctx: AudioContext, startTime: number) => {
         gain.gain.exponentialRampToValueAtTime(0.001, startTime + duration / (i === 0 ? 1 : 1.5)); // Higher partials decay faster
 
         osc.connect(gain);
-        gain.connect(ctx.destination);
+        gain.connect(masterOut(ctx));
         osc.start(startTime);
         osc.stop(startTime + duration);
     });
@@ -206,7 +248,7 @@ export const playTada = () => {
         }
         
         osc.connect(gain);
-        gain.connect(ctx.destination);
+        gain.connect(masterOut(ctx));
     });
 };
 
@@ -280,8 +322,9 @@ export const calculateBlockDuration = (settings: TimerSettings, exercisesCount: 
             return totalWork + totalRest;
         case TimerMode.AMRAP:
         case TimerMode.TimeCap:
-        case TimerMode.Stopwatch:
             return workTime || 86400;
+        case TimerMode.Stopwatch:
+            return 86400;
         case TimerMode.EMOM:
             return rounds * 60;
         default:
@@ -379,7 +422,11 @@ export const useWorkoutTimer = (block: WorkoutBlock | null, soundProfile: TimerS
   const startNextInterval = useCallback(() => {
     if (!block) return;
     const { restTime, mode } = block.settings;
-    const workTime = mode === TimerMode.Stopwatch ? (block.settings.workTime || 86400) : (block.settings.workTime || 0);
+    // Stoppuret raknar uppat och ska bara stanna nar nagon trycker stopp.
+    // Forut lag 3600 s sparat som "arbetstid" och klockan dog vid 00:59:59
+    // mitt i ett lopp. Nu: alltid 24 timmar, oavsett vad som rakar vara sparat.
+    const STOPPUR_TAK = 86400;
+    const workTime = mode === TimerMode.Stopwatch ? STOPPUR_TAK : (block.settings.workTime || 0);
 
     if (mode === TimerMode.Custom) {
         if (!currentSegment) {
@@ -536,7 +583,7 @@ export const useWorkoutTimer = (block: WorkoutBlock | null, soundProfile: TimerS
         } else {
              setStatus(TimerStatus.Running);
              const workTime = block.settings.mode === TimerMode.Stopwatch 
-                 ? (block.settings.workTime || 86400) 
+                 ? 86400 
                  : (block.settings.workTime || 60);
              setCurrentTime(workTime);
              setCurrentPhaseDuration(workTime);

@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { StudioEvent } from '../types';
 import { listenToWeeklyPBs } from '../services/firebaseService';
 import { useStudio } from '../context/StudioContext';
+import { lasPanel, sparaPanel } from '../utils/panelforrad';
 import { TrophyIcon, DumbbellIcon } from './icons';
 
 interface WeeklyPBListProps {
@@ -18,7 +19,16 @@ export const WeeklyPBList: React.FC<WeeklyPBListProps> = React.memo(({ onExpand,
 
     useEffect(() => {
         if (!selectedOrganization) return;
-        setIsLoading(true);
+
+        // Visa den senast sparade listan direkt — servern far skriva over sen.
+        const forradsNyckel = `smartstudio-pblista-${selectedOrganization.id}-${selectedStudio?.locationId ?? 'alla'}`;
+        const sparat = lasPanel<StudioEvent[]>(forradsNyckel);
+        if (sparat && sparat.length) {
+            setEvents(sparat);
+            setIsLoading(false);
+        } else {
+            setIsLoading(true);
+        }
         const unsubscribe = listenToWeeklyPBs(selectedOrganization.id, (newEvents) => {
             let filteredEvents = newEvents;
             const resolvedLocationId = selectedStudio?.locationId ?? null;
@@ -31,7 +41,8 @@ export const WeeklyPBList: React.FC<WeeklyPBListProps> = React.memo(({ onExpand,
                 });
             }
 
-            setEvents(filteredEvents.slice(0, 50)); 
+            setEvents(filteredEvents.slice(0, 50));
+            sparaPanel(forradsNyckel, filteredEvents.slice(0, 50));
             setIsLoading(false);
         });
         return () => unsubscribe();

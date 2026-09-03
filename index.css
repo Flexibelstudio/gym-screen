@@ -508,3 +508,69 @@ html:not(.dark).studio-mode .bg-white\/60 {
   background-color: rgba(0, 0, 0, 0.65) !important;
 }
 
+/* ==========================================================================
+   ENKEL GRAFIK — gamla pekskärmar
+
+   Suddiga glasytor (backdrop-filter) räknas om för varje bildruta och är det
+   dyraste en gammal grafikmotor kan ombes göra. På skärmar som märkt sig
+   själva som äldre stängs de av — ytorna blir täckande i stället för frostade,
+   och navigeringen slutar kännas trögflytande.
+   ========================================================================== */
+
+html.enkel-grafik *,
+html.enkel-grafik *::before,
+html.enkel-grafik *::after {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+}
+
+/* Gamla pekskärmar väntar annars ca 300 ms efter varje tryck (för att se om
+   det blir en dubbeltryckning) — det är den pausen som får en att undra om
+   trycket ens togs emot. Bort med den, och ge varje tryck ett omedelbart
+   kvitto: knappen dämpas direkt under fingret. */
+html.enkel-grafik * {
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+}
+html.enkel-grafik button:active,
+html.enkel-grafik a:active,
+html.enkel-grafik [role="button"]:active {
+    opacity: 0.55 !important;
+    transform: scale(0.97);
+}
+
+/* Splashloggan andas medan appen laddar — så syns det att inget har fastnat.
+   Ren CSS med flit: den ska pulsera även på gamla skärmar där de tyngre
+   animationerna är avstängda. En ensam mjuk puls kostar inget. */
+@keyframes lugn-puls {
+    0%, 100% { transform: scale(1); opacity: 1; }
+    50% { transform: scale(1.06); opacity: 0.72; }
+}
+.animate-lugn-puls {
+    animation: lugn-puls 1.6s ease-in-out infinite;
+}
+
+
+/* Tillbaka-snurran: visas av handleBack i samma ogonblick man trycker,
+   doljs igen sa fort nasta sida ar pa plats. Ligger utanfor React med
+   flit - den maste kunna malas aven medan appen ar upptagen med bytet. */
+#tillbaka-snurra {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.25);
+}
+.tillbaka-snurra-ring {
+    width: 44px;
+    height: 44px;
+    border: 4px solid rgba(255, 255, 255, 0.35);
+    border-top-color: #ffffff;
+    border-radius: 9999px;
+    animation: tillbaka-snurr 0.8s linear infinite;
+}
+@keyframes tillbaka-snurr {
+    to { transform: rotate(360deg); }
+}

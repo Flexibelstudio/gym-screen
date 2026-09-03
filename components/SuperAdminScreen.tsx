@@ -1,4 +1,5 @@
 
+import { NyMarke, NYHETER } from '../utils/nyheter';
 import React, { useState, useEffect, useMemo } from 'react';
 import { StudioConfig, Studio, Organization, CustomPage, UserData, UserRole, InfoCarousel, DisplayWindow, Workout, CompanyDetails } from '../types';
 import { HomeIcon, DocumentTextIcon, SpeakerphoneIcon, UsersIcon, DumbbellIcon, BriefcaseIcon, BuildingIcon, SettingsIcon, ChartBarIcon, CopyIcon, CloseIcon, SparklesIcon, HistoryIcon, QrCodeIcon, FlagIcon, ChevronLeftIcon, MapIcon } from './icons';
@@ -95,6 +96,16 @@ export const SuperAdminScreen: React.FC<SuperAdminScreenProps> = (props) => {
     const { selectOrganization, studioLoading } = useStudio();
     const { userData } = useAuth();
     const [activeTab, setActiveTab] = useState<AdminTab>((initialTab as AdminTab) || 'dashboard');
+
+    // Ny flik = borja hogst upp. Adminens innehall scrollar i sin egen ruta,
+    // inte i fonstret, sa window.scrollTo racker inte har.
+    useEffect(() => {
+        try {
+            const ruta = document.getElementById('admin-scroll-container');
+            if (ruta) ruta.scrollTop = 0;
+            window.scrollTo(0, 0);
+        } catch { /* inget */ }
+    }, [activeTab]);
     const [isSidebarCollapsed, setSidebarCollapsed] = useState(false); 
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const [posterToPrint, setPosterToPrint] = useState<'member' | 'coach' | null>(null);
@@ -374,13 +385,11 @@ export const SuperAdminScreen: React.FC<SuperAdminScreenProps> = (props) => {
     }, [userRole]);
     
     const mainContentWrapperClass = useMemo(() => {
-        // Passbyggaren och passlistan behöver hela bredden — listan har många
-        // kolumner och tvingades annars till sidledsscroll även på stora skärmar.
-        if (activeTab === 'pass-program' && (passProgramSubView === 'builder' || passProgramSubView === 'manage')) {
-            return ''; 
-        }
-        return 'max-w-5xl mx-auto';
-    }, [activeTab, passProgramSubView]);
+        // Ingen extra bredbegränsning här. Den yttre ramen håller redan igen på
+        // riktigt breda skärmar; en spärr till innanför den lämnade en tom
+        // högerhalva på varje sida i adminen.
+        return '';
+    }, []);
 
     const handleMenuIconClick = () => {
         if (window.innerWidth < 1024) {
@@ -431,7 +440,13 @@ export const SuperAdminScreen: React.FC<SuperAdminScreenProps> = (props) => {
                         aria-selected={activeTab === item.id}
                     >
                         <item.icon className={`w-6 h-6 flex-shrink-0 transition-colors ${activeTab === item.id ? 'text-primary' : 'text-gray-400 group-hover:text-gray-600 dark:group-hover:text-gray-300'}`} />
-                        {(!isSidebarCollapsed || isMobile) && <span className="whitespace-nowrap overflow-hidden text-base">{item.label}</span>}
+                        {(!isSidebarCollapsed || isMobile) && (
+                            <span className="whitespace-nowrap overflow-hidden text-base">
+                                {item.label}
+                                {item.id === 'pass-program' && <NyMarke nar={NYHETER.program} />}
+                                {item.id === 'infosidor' && <NyMarke nar={NYHETER.infosidorLankar} />}
+                            </span>
+                        )}
                     </button>
                 );
             })}

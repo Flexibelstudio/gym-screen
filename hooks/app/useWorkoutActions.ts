@@ -1,6 +1,7 @@
 import { Page, Workout, WorkoutBlock, Passkategori, UserRole, Organization, StudioConfig } from '../../types';
 import { deepCopyAndPrepareAsNew, isWorkoutVisibleNow, getMemberLocationIds, isWorkoutVisibleForLocations, isWorkoutVisibleOnScreen, getDefaultLoggingForBlockTag, OTHER_CATEGORY } from '../../utils/workoutUtils';
-import { saveCustomProgram, saveAdminActivity, updateCoachNote } from '../../services/firebaseService';
+import { saveCustomProgram, saveAdminActivity, updateCoachNote, saveProgram } from '../../services/firebaseService';
+import type { Program } from '../../types';
 import { useConfirm } from '../../components/ConfirmContext';
 
 export interface UseWorkoutActionsDeps {
@@ -100,6 +101,16 @@ export function useWorkoutActions(deps: UseWorkoutActionsDeps) {
   const handleSaveAndNavigate = async (workout: Workout, startFirstBlock?: boolean) => {
     const isMemberRole = sessionRole === 'member' || isStudioMode;
 
+    // PROGRAM sparas i sin egen samling och ror aldrig gymmets pass.
+    if ((workout as Program).isProgram) {
+      const sparat = await saveProgram(workout as Program);
+      window.dispatchEvent(new Event('programsUpdated'));
+      setActiveWorkout(sparat);
+      setIsEditingNewDraft(false);
+      handleBack();
+      return;
+    }
+
     if (sessionRole === 'member' && !isStudioMode && currentUser?.uid) {
       await saveCustomProgram(currentUser.uid, workout);
       window.dispatchEvent(new Event('customProgramsUpdated'));
@@ -152,6 +163,11 @@ export function useWorkoutActions(deps: UseWorkoutActionsDeps) {
 
   const handleSaveOnly = async (workout: Workout) => {
     const isMemberRole = sessionRole === 'member' || isStudioMode;
+    if ((workout as Program).isProgram) {
+      const sparat = await saveProgram(workout as Program);
+      window.dispatchEvent(new Event('programsUpdated'));
+      return sparat;
+    }
     if (sessionRole === 'member' && !isStudioMode && currentUser?.uid) {
       await saveCustomProgram(currentUser.uid, workout);
       window.dispatchEvent(new Event('customProgramsUpdated'));

@@ -1,4 +1,5 @@
 
+import { setTimerVolume } from '../hooks/useWorkoutTimer';
 import React, { createContext, useState, useContext, useEffect, useMemo, useCallback } from 'react';
 import { Studio, Organization, StudioConfig } from '../types';
 import { getOrganizations, getOrganizationById, listenToOrganizationChanges } from '../services/firebaseService';
@@ -43,6 +44,12 @@ interface StudioContextType {
 const StudioContext = createContext<StudioContextType | undefined>(undefined);
 
 const LOCAL_STORAGE_ORG_KEY = 'ny-screen-selected-org';
+/**
+ * Hela organisationen sparad på skärmen i studion. Utan den står skärmen vit
+ * med loggan tills servern svarat, och på svajig wifi kunde det ta evigheter.
+ * Nu visar den det den hade sist, direkt, och hämtar färskt i bakgrunden.
+ */
+const STUDIO_ORG_CACHE_KEY = 'smartstudio-skarm-org-cache';
 const getLocalStorageStudioKey = (uid: string) => `ny-screen-selected-studio_${uid}`;
 const PENDING_STUDIO_KEY = 'ny-screen-pending-studio-id';
 
@@ -71,13 +78,30 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
             if (authLoading) return;
             
             setStudioLoading(true);
+
+            // Skärmen får något att visa omedelbart. Hämtningen nedan fortsätter
+            // och skriver över med färsk data så fort den kommit fram.
+            const cachedOrg = isStudioMode ? safeJsonParse(localStorage.getItem(STUDIO_ORG_CACHE_KEY)) : null;
+            if (isStudioMode) {
+                if (cachedOrg?.id) {
+                    try { (window as any).__bootmark?.('gym fran lokalt forrad'); } catch { /* inget */ }
+                    setSelectedOrganization(cachedOrg);
+                    setAllStudios(cachedOrg.studios || []);
+                    if (currentUser) {
+                        const storedStudio = safeJsonParse(localStorage.getItem(getLocalStorageStudioKey(currentUser.uid)));
+                        const match = (cachedOrg.studios || []).find((st: any) => st.id === storedStudio?.id);
+                        if (match) setSelectedStudio(match);
+                    }
+                    setStudioLoading(false);
+                }
+            }
+
             try {
                 let fetchedOrgs: Organization[] = [];
                 let orgToUse: Organization | null = null;
 
                 // 1. Hantera Roll-baserad laddning
                 if (userData?.role === 'systemowner') {
-                    fetchedOrgs = await getOrganizations();
                     // Systemägare: prioritera redan vald org (från state eller localStorage) framför profil-ID
                     const storedOrgJSON = localStorage.getItem(LOCAL_STORAGE_ORG_KEY);
                     const storedOrgData = safeJsonParse(storedOrgJSON);
@@ -93,6 +117,15 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
                     if (!orgToUse && userData?.organizationId) {
                         orgToUse = await getOrganizationById(userData.organizationId);
                     }
+
+                    // Hela org-listan behövs bara i väljaren, inte för att komma
+                    // igång. Att vänta in den höll skärmen på laddningssidan i
+                    // onödan — nu hämtas den i bakgrunden och fylls på när den
+                    // kommer.
+                    fetchedOrgs = orgToUse ? [orgToUse] : [];
+                    getOrganizations()
+                        .then(orgs => { if (orgs && orgs.length) setAllOrganizations(orgs); })
+                        .catch(() => { /* väljaren får klara sig med den valda */ });
                 } else if (userData?.organizationId) {
                     const org = await getOrganizationById(userData.organizationId);
                     if (org) {
@@ -116,6 +149,12 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
                         if (org) {
                             fetchedOrgs = [org];
                             orgToUse = org;
+                            try {
+                                localStorage.setItem(STUDIO_ORG_CACHE_KEY, JSON.stringify(org));
+                            } catch (e) {
+                                // Fullt lagringsutrymme ska aldrig stoppa uppstarten.
+                                console.warn('Kunde inte spara organisationen lokalt', e);
+                            }
                         } else {
                             console.warn("Kunde inte ladda organisationen från cache/nätverk. Kanske tillfälligt fel.");
                             // VI TAR INTE BORT NYCKELN DIREKT. Det kan vara tillfälligt nätverksfel eller permission-cache-bugg.
@@ -133,6 +172,15 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
                 if (orgToUse) {
                     setSelectedOrganization(orgToUse);
                     setAllStudios(orgToUse.studios);
+
+                    // Alla skärmlägen sparar sitt gym lokalt — även skärmar som
+                    // står inloggade med ett riktigt konto, vilket är så de
+                    // flesta är uppsatta. Förut fylldes förrådet bara i det
+                    // anonyma läget, och då fick de flesta skärmar aldrig
+                    // nyttan av det.
+                    if (isStudioMode) {
+                        try { localStorage.setItem(STUDIO_ORG_CACHE_KEY, JSON.stringify(orgToUse)); } catch (e) { /* fullt förråd stoppar inget */ }
+                    }
 
                     if (isStudioMode && currentUser) {
                         const pendingStudioId = localStorage.getItem(PENDING_STUDIO_KEY);
@@ -157,6 +205,11 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
                             }
                         }
                     }
+                } else if (cachedOrg?.id) {
+                    // Inget farskt kunde hamtas an — inloggningen avgors
+                    // fortfarande i bakgrunden. Gymmet fran forradet star
+                    // redan pa skarmen: ror det inte. Nar profilen kommit
+                    // kors detta varv om och skriver over med farsk data.
                 } else {
                     // Ingen organisation hittades att auto-ladda. 
                     setSelectedOrganization(null);
@@ -167,6 +220,7 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
             } catch (error) {
                 console.error("Failed to load initial data", error);
             } finally {
+                try { (window as any).__bootmark?.('gym klart fran servern'); } catch { /* inget */ }
                 setStudioLoading(false);
             }
         };
@@ -242,6 +296,11 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }, [currentUser]);
 
     const studioConfig = useMemo(() => getEffectiveConfig(selectedStudio, selectedOrganization), [selectedStudio, selectedOrganization]);
+
+    // Timerljudets volym foljer skarmens installning.
+    useEffect(() => {
+        setTimerVolume(studioConfig?.timerVolume);
+    }, [studioConfig?.timerVolume]);
 
     const value = useMemo(() => ({
         selectedOrganization,

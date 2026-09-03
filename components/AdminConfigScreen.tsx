@@ -373,6 +373,40 @@ export const StudioConfigModal: React.FC<StudioConfigModalProps> = ({ isOpen, on
                         </div>
 
                         <div className="pt-4 border-t border-gray-200 dark:border-gray-800">
+                            <div className="p-3 rounded-lg">
+                                <div className="flex items-center justify-between gap-4">
+                                    <div>
+                                        <p className="text-sm font-semibold text-gray-900 dark:text-white">Timerljudets volym</p>
+                                        <p className="text-xs text-gray-500 mt-1">Justera per skärm så att två skärmar låter lika högt. 100 % är standard.</p>
+                                    </div>
+                                    <span className="text-sm font-bold tabular-nums text-gray-900 dark:text-white w-14 text-right">
+                                        {Math.round(((overrides.timerVolume ?? globalConfig.timerVolume ?? 1) as number) * 100)} %
+                                    </span>
+                                </div>
+                                <input
+                                    type="range"
+                                    min={20}
+                                    max={200}
+                                    step={10}
+                                    value={Math.round(((overrides.timerVolume ?? globalConfig.timerVolume ?? 1) as number) * 100)}
+                                    onChange={(e) => {
+                                        const f = parseInt(e.target.value, 10) / 100;
+                                        setOverrides(prev => ({ ...prev, timerVolume: f }));
+                                    }}
+                                    className="w-full mt-3 accent-primary"
+                                />
+                                {overrides.timerVolume !== undefined && (
+                                    <button
+                                        onClick={() => setOverrides(prev => { const n = { ...prev }; delete n.timerVolume; return n; })}
+                                        className="text-xs text-primary hover:underline mt-1"
+                                    >
+                                        Återställ till standard
+                                    </button>
+                                )}
+                            </div>
+                        </div>
+
+                        <div className="pt-4 border-t border-gray-200 dark:border-gray-800">
                             {renderToggle('enableScreensaver', "Skärmsläckare", "Visa logotyp vid inaktivitet.")}
                             
                             {effectiveConfig.enableScreensaver && (
@@ -392,23 +426,7 @@ export const StudioConfigModal: React.FC<StudioConfigModalProps> = ({ isOpen, on
                             )}
                         </div>
 
-                        <div className="pt-4 border-t border-gray-200 dark:border-gray-800">
-                            {renderToggle('checkInImageEnabled', "Visa QR-kod på skärm", "Visar en QR-kod på displayen så medlemmar snabbt kan logga sitt pass.")}
-
-                            {(overrides.checkInImageEnabled ?? effectiveConfig.checkInImageEnabled) && (
-                                <div className="mt-4 ml-14 animate-fade-in">
-                                    <ImageUploader
-                                        label="Ladda upp QR-kod"
-                                        imageUrl={overrides.checkInImageUrl ?? effectiveConfig.checkInImageUrl ?? null}
-                                        onImageChange={(url) => handleConfigChange('checkInImageUrl', url)}
-                                        isSaving={isSaving}
-                                        organizationId={organization.id}
-                                        studioId={studio.id}
-                                    />
-                                    <p className="text-xs text-gray-500 mt-2">Denna bild sparas specifikt för denna studio.</p>
-                                </div>
-                            )}
-                        </div>
+                        {/* 'Visa QR-kod pa skarm' togs bort 2026-09-02: ingenting i appen laste av installningen langre. */}
                     </div>
                 );
         }

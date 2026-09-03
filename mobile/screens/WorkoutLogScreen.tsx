@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
-import { getMemberLogs, getVisibleWorkoutsForMembers, getWorkoutById, saveWorkoutLog, updateWorkoutLog, getOrganizationExerciseBank, getMemberCustomExercises, addMemberCustomExercise, deleteMemberCustomExercise, updateMemberCustomExercise, listenToPersonalBests } from '../../services/firebaseService';
+import { getProgramById, isProgramId, getMemberLogs, getVisibleWorkoutsForMembers, getWorkoutById, saveWorkoutLog, updateWorkoutLog, getOrganizationExerciseBank, getMemberCustomExercises, addMemberCustomExercise, deleteMemberCustomExercise, updateMemberCustomExercise, listenToPersonalBests } from '../../services/firebaseService';
 import { generateWorkoutDiploma } from '../../services/geminiService';
 import { useAuth } from '../../context/AuthContext'; 
 import { CloseIcon, InformationCircleIcon, PlusIcon, TrashIcon, CalculatorIcon } from '../../components/icons'; 
@@ -650,6 +650,14 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
                 if (!foundWorkout && wId && wId.startsWith('custom-')) {
                      const customPrograms = await fetchCustomPrograms(userId);
                      foundWorkout = customPrograms.find(w => w.id === wId);
+                }
+
+                if (!foundWorkout && wId && isProgramId(wId)) {
+                    // Program byggda av coachen for just den har medlemmen.
+                    const program = await getProgramById(wId);
+                    if (program && program.organizationId === finalOrgId) {
+                        foundWorkout = program;
+                    }
                 }
 
                 if (!foundWorkout && wId) {

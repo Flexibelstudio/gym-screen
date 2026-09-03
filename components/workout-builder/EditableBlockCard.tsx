@@ -96,9 +96,16 @@ const ExerciseItem: React.FC<ExerciseItemProps> = ({ exercise, onUpdate, onRemov
             .slice(0, 15); // Visa max 15 för prestanda
     }, [searchQuery, exerciseBank, isSearchVisible]);
 
+    // Bekraftelsen av det man skrivit maste ga att na bade fran "lamna rutan"
+    // och fran "klick utanfor" — de tva hanterarna tavlar om att kora forst, och
+    // vilken som vinner skiljer sig mellan webblasare. Ref:en pekar alltid pa
+    // senaste versionen av funktionen, sa bada ser samma aktuella lage.
+    const bekraftaSkrivetRef = useRef<() => void>(() => { /* satts nedan */ });
+
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
             if (searchContainerRef.current && !searchContainerRef.current.contains(event.target as Node)) {
+                bekraftaSkrivetRef.current();
                 setIsSearchVisible(false);
                 setIsReplacing(false);
             }
@@ -115,6 +122,29 @@ const ExerciseItem: React.FC<ExerciseItemProps> = ({ exercise, onUpdate, onRemov
         // Manuell skrivning kopplar loss raden helt: ad-hoc, ingen banklänk, ingen loggning
         onUpdate(exercise.id, { name: newName, isFromBank: false, loggingEnabled: false, originalBankId: null });
     };
+
+    const bekraftaSkrivet = () => {
+        // Namnet man skrivit galler nar man lamnar rutan:
+        // 1) Finns exakt det namnet i banken kopplas raden till den bankovningen.
+        // 2) Annars blir det en egen ovning med det nya namnet (bankkopplade
+        //    rader kopplas loss). Forut aterstalldes lasta rader till det gamla.
+        const skrivet = (isGlobal && isReplacing ? searchQuery : exercise.name).trim();
+        const normalisera = (s: string) => s.trim().toLowerCase();
+        const traff = skrivet
+            ? exerciseBank.find(b => normalisera(b.name) === normalisera(skrivet))
+            : undefined;
+        if (traff && traff.id !== exercise.originalBankId) {
+            handleSelectExercise(traff);
+            return;
+        }
+        if (isGlobal && isReplacing) {
+            if (skrivet && skrivet !== exercise.name) {
+                onUpdate(exercise.id, { name: skrivet, isFromBank: false, loggingEnabled: false, originalBankId: null });
+            }
+            setIsReplacing(false);
+        }
+    };
+    bekraftaSkrivetRef.current = bekraftaSkrivet;
 
     const handleSelectExercise = (bankExercise: BankExercise) => {
         onUpdate(exercise.id, {
@@ -345,6 +375,10 @@ const ExerciseItem: React.FC<ExerciseItemProps> = ({ exercise, onUpdate, onRemov
                                     setSearchQuery(exercise.name);
                                 }
                             }}
+                            onBlur={() => bekraftaSkrivetRef.current()}
+                            onKeyDown={(e) => {
+                                if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
+                            }}
                             placeholder={isGlobal && isReplacing ? "Sök en annan övning…" : (isGlobal ? exercise.name : "Sök eller skriv övningsnamn")}
                             className={`appearance-none w-full border border-gray-300 dark:border-gray-600 rounded-lg p-2 focus:ring-2 focus:ring-primary focus:outline-none transition-all font-semibold placeholder-gray-400 dark:placeholder-gray-500 pr-8 ${
                                 isGlobal && !isReplacing
@@ -541,6 +575,7 @@ const ExerciseItem: React.FC<ExerciseItemProps> = ({ exercise, onUpdate, onRemov
 };
 
 interface EditableBlockCardProps {
+    isProgram?: boolean; // Program: inga skarmtimer-val (visas aldrig pa skarmen)
     block: WorkoutBlock;
     index: number;
     totalBlocks: number;
@@ -563,7 +598,8 @@ interface EditableBlockCardProps {
 export const EditableBlockCard: React.FC<EditableBlockCardProps> = ({ 
     block, index, totalBlocks, onUpdate, onRemove, onEditSettings, 
     isDraggable, workoutTitle, workoutBlocksCount, editorRefs, exerciseBank, 
-    organizationId, onMoveExercise, onMoveBlock, onExerciseSavedToBank, enableWorkoutLogging, onShowToast 
+    organizationId, onMoveExercise, onMoveBlock, onExerciseSavedToBank, enableWorkoutLogging, onShowToast,
+    isProgram = false
 }) => {
     
     const { setNodeRef: setDroppableRef, isOver } = useDroppable({
@@ -957,7 +993,7 @@ export const EditableBlockCard: React.FC<EditableBlockCardProps> = ({
                 isTextarea
             />
             
-            <div className="my-4 flex flex-col gap-3">
+            {!isProgram && (<div className="my-4 flex flex-col gap-3">
                 <ToggleSwitch
                     label="Visa beskrivning i timern"
                     checked={!!block.showDescriptionInTimer}
@@ -1030,15 +1066,15 @@ export const EditableBlockCard: React.FC<EditableBlockCardProps> = ({
                         )}
                     </div>
                 )}
-            </div>
+            </div>)}
 
-            <div className="bg-primary/5 dark:bg-primary/10 p-5 rounded-3xl flex justify-between items-center border border-primary/20">
+            {!isProgram && (<div className="bg-primary/5 dark:bg-primary/10 p-5 rounded-3xl flex justify-between items-center border border-primary/20">
                 <div>
                     <p className="text-[10px] font-black text-primary/60 uppercase tracking-widest mb-1">Vald Timer</p>
                     <p className="text-lg font-black text-gray-900 dark:text-white uppercase tracking-tight">{settingsText}</p>
                 </div>
                 <button onClick={onEditSettings} className="bg-primary text-white font-black text-[10px] uppercase tracking-widest px-6 py-3 rounded-xl shadow-lg shadow-primary/20 active:scale-95 transition-all">Anpassa klockan</button>
-            </div>
+            </div>)}
 
             <div className="flex flex-col pt-4">
                 <div className="flex justify-between items-center px-1 mb-4">

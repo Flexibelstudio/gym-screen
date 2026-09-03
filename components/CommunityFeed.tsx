@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { WorkoutLog, StudioEvent } from '../types';
 import { listenToCommunityLogs, listenToCommunityLogsByLocations, listenToFeedEvents } from '../services/firebaseService';
 import { useStudio } from '../context/StudioContext';
+import { lasPanel, sparaPanel } from '../utils/panelforrad';
 import { DumbbellIcon } from './icons';
 
 const getRelativeTime = (timestamp: number) => {
@@ -59,7 +60,16 @@ export const CommunityFeed: React.FC<CommunityFeedProps> = ({ onExpand, isExpand
 
     useEffect(() => {
         if (!selectedOrganization) return;
-        setIsLoading(true);
+
+        // Visa det senast sparade flodet direkt — servern far skriva over sen.
+        const forradsNyckel = `smartstudio-gymflode-${selectedOrganization.id}-${selectedStudio?.locationId ?? 'alla'}`;
+        const sparat = lasPanel<FeedItem[]>(forradsNyckel);
+        if (sparat && sparat.length) {
+            setFeedItems(sparat);
+            setIsLoading(false);
+        } else {
+            setIsLoading(true);
+        }
 
         const resolvedLocationId = selectedStudio?.locationId ?? null;
         const numLocations = selectedOrganization?.locations?.length ?? 0;
@@ -115,6 +125,7 @@ export const CommunityFeed: React.FC<CommunityFeedProps> = ({ onExpand, isExpand
             combined.sort((a, b) => b.date - a.date);
 
             setFeedItems(combined.slice(0, 20));
+            sparaPanel(forradsNyckel, combined.slice(0, 20));
             setIsLoading(false);
         };
 

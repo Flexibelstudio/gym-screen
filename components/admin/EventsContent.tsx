@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
+import { useStudio } from '../../context/StudioContext';
 import { createPortal } from 'react-dom';
 import { Organization, HyroxRace, StartGroup, RaceParticipant, HyroxRaceResult } from '../../types';
-import { getPastRaces, saveRace, deleteRace } from '../../services/firebaseService';
+import { getPastRaces, saveRace, deleteRace, getMembers } from '../../services/firebaseService';
+import type { Member } from '../../types';
 import { PlusIcon, CalendarIcon, UsersIcon, TrashIcon, PencilIcon, SaveIcon, QrCodeIcon, LinkIcon, CopyIcon, CloseIcon, TrophyIcon, CheckIcon, PaperAirplaneIcon, SparklesIcon } from '../icons';
 import { motion, AnimatePresence } from 'framer-motion';
 import QRCode from 'react-qr-code';
@@ -541,7 +543,23 @@ const EventEditor: React.FC<{
         }
     }, [showPrintModal]);
 
-    const [addMethod, setAddMethod] = useState<'manual' | 'import'>('manual');
+    const [addMethod, setAddMethod] = useState<'manual' | 'import' | 'members'>('manual');
+    // Medlemsfliken: gymmets register, sokbart, bocka i och lagg till.
+    const [orgMembers, setOrgMembers] = useState<Member[]>([]);
+    const [membersLoading, setMembersLoading] = useState(false);
+    const [memberSearch, setMemberSearch] = useState('');
+    const [selectedMemberIds, setSelectedMemberIds] = useState<string[]>([]);
+    const [memberDivisions, setMemberDivisions] = useState<Record<string, string>>({});
+    const [memberDivision, setMemberDivision] = useState('Singel Herr');
+
+    useEffect(() => {
+        if (addMethod !== 'members' || orgMembers.length > 0 || !organizationId) return;
+        setMembersLoading(true);
+        getMembers(organizationId)
+            .then(list => setOrgMembers((list || []).filter(m => m.status !== 'inactive')))
+            .catch(() => setOrgMembers([]))
+            .finally(() => setMembersLoading(false));
+    }, [addMethod, organizationId, orgMembers.length]);
     const [manualName, setManualName] = useState('');
     const [manualEmail, setManualEmail] = useState('');
     const [manualDivision, setManualDivision] = useState('Singel Herr');
@@ -602,6 +620,31 @@ const EventEditor: React.FC<{
         setManualTeamName('');
         setManualPartnerName('');
         setManualPartnerEmail('');
+    };
+
+    const handleAddSelectedMembers = () => {
+        if (selectedMemberIds.length === 0) return;
+        const redanMed = new Set(participants.map(p => (p.email || '').toLowerCase()).filter(Boolean));
+        let nasta = Math.max(0, ...participants.map(p => p.startNumber || 0)) + 1;
+        const nya: RaceParticipant[] = [];
+        for (const id of selectedMemberIds) {
+            const m = orgMembers.find(x => x.id === id || x.uid === id);
+            if (!m) continue;
+            const namn = `${m.firstName || ''} ${m.lastName || ''}`.trim() || m.email || 'Medlem';
+            const epost = (m.email || '').trim();
+            if (epost && redanMed.has(epost.toLowerCase())) continue; // redan i startlistan
+            nya.push({
+                id: `p-${Date.now()}-${nya.length}`,
+                name: namn,
+                email: epost || undefined,
+                division: memberDivisions[id] || memberDivision,
+                startNumber: nasta++
+            });
+        }
+        if (nya.length > 0) setParticipants([...participants, ...nya]);
+        setSelectedMemberIds([]);
+        setMemberDivisions({});
+        setMemberSearch('');
     };
 
     const handleStartEditParticipant = (p: RaceParticipant) => {
@@ -691,7 +734,11 @@ const EventEditor: React.FC<{
                 restOfLine = line.substring(colonIndex + 1).trim();
             }
 
-            const parts = restOfLine.split(/[\t;,]|\s-\s/).map(p => p.trim());
+            const rawParts = restOfLine.split(/[\t;,]|\s-\s/).map(p => p.trim());
+            // Star en klass med pa raden (t.ex. "Singel Dam") plockas den ut och
+            // galler for just den raden — annars galler klassen i valjaren.
+            const radensKlass = rawParts.find(p => divisions.some(d => d.toLowerCase() === p.toLowerCase()));
+            const parts = rawParts.filter(p => p !== radensKlass);
             const emails = parts.filter(p => emailRegex.test(p));
             const nonEmails = parts.filter(p => !emailRegex.test(p) && p !== '');
 
@@ -713,8 +760,10 @@ const EventEditor: React.FC<{
             const email = emails[0] || undefined;
             const partnerEmail = emails[1] || undefined;
             
-            let division = importDivision;
-            if ((partnerName || teamName) && division.startsWith('Singel')) {
+            let division = radensKlass
+                ? (divisions.find(d => d.toLowerCase() === radensKlass.toLowerCase()) || importDivision)
+                : importDivision;
+            if (!radensKlass && (partnerName || teamName) && division.startsWith('Singel')) {
                 division = 'Dubbel Mix';
             }
 
@@ -1096,6 +1145,12 @@ const EventEditor: React.FC<{
                                         Lägg till manuellt
                                     </button>
                                     <button
+                                        onClick={() => setAddMethod('members')}
+                                        className={`flex-1 py-2 text-center rounded-lg transition-colors ${addMethod === 'members' ? 'bg-white dark:bg-gray-900 text-gray-900 dark:text-white shadow-sm' : 'text-gray-500 hover:text-gray-900'}`}
+                                    >
+                                        Medlemmar
+                                    </button>
+                                    <button
                                         onClick={() => setAddMethod('import')}
                                         className={`flex-1 py-2 text-center rounded-lg transition-colors ${addMethod === 'import' ? 'bg-white dark:bg-gray-900 text-gray-900 dark:text-white shadow-sm' : 'text-gray-500 hover:text-gray-900'}`}
                                     >
@@ -1103,7 +1158,86 @@ const EventEditor: React.FC<{
                                     </button>
                                 </div>
 
-                                {addMethod === 'manual' ? (
+                                {addMethod === 'members' ? (
+                                    <div className="bg-gray-50 dark:bg-gray-800 border border-gray-100 dark:border-gray-800 rounded-xl p-5 space-y-4">
+                                        <div className="flex justify-between items-center gap-3">
+                                            <h4 className="font-bold text-gray-900 dark:text-white text-sm">Lägg till från medlemsregistret</h4>
+                                            <select
+                                                value={memberDivision}
+                                                onChange={e => setMemberDivision(e.target.value)}
+                                                className="text-xs bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-2 py-1 text-gray-900 dark:text-white outline-none"
+                                            >
+                                                {divisions.map(d => (
+                                                    <option key={d} value={d}>{d}</option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                        <input
+                                            type="text"
+                                            placeholder="Sök namn eller e-post…"
+                                            value={memberSearch}
+                                            onChange={e => setMemberSearch(e.target.value)}
+                                            className="w-full text-sm bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-gray-900 dark:text-white focus:ring-1 focus:ring-primary outline-none"
+                                        />
+                                        {membersLoading ? (
+                                            <p className="text-xs text-gray-500 py-4 text-center">Hämtar medlemmar…</p>
+                                        ) : (
+                                            <div className="max-h-72 overflow-y-auto divide-y divide-gray-100 dark:divide-gray-800 border border-gray-100 dark:border-gray-800 rounded-lg bg-white dark:bg-gray-900">
+                                                {orgMembers
+                                                    .filter(m => {
+                                                        const q = memberSearch.trim().toLowerCase();
+                                                        if (!q) return true;
+                                                        return `${m.firstName || ''} ${m.lastName || ''} ${m.email || ''}`.toLowerCase().includes(q);
+                                                    })
+                                                    .sort((a, b) => `${a.firstName || ''} ${a.lastName || ''}`.localeCompare(`${b.firstName || ''} ${b.lastName || ''}`, 'sv'))
+                                                    .map(m => {
+                                                        const mid = m.id || m.uid;
+                                                        const vald = selectedMemberIds.includes(mid);
+                                                        const redanMed = !!m.email && participants.some(p => (p.email || '').toLowerCase() === m.email!.toLowerCase());
+                                                        return (
+                                                            <label key={mid} className={`flex items-center gap-3 px-3 py-2 text-sm cursor-pointer ${redanMed ? 'opacity-50' : 'hover:bg-gray-50 dark:hover:bg-gray-800'}`}>
+                                                                <input
+                                                                    type="checkbox"
+                                                                    checked={vald}
+                                                                    disabled={redanMed}
+                                                                    onChange={() => setSelectedMemberIds(prev => vald ? prev.filter(x => x !== mid) : [...prev, mid])}
+                                                                    className="w-4 h-4 accent-primary"
+                                                                />
+                                                                <span className="flex-1 min-w-0">
+                                                                    <span className="font-semibold text-gray-900 dark:text-white block truncate">{`${m.firstName || ''} ${m.lastName || ''}`.trim() || m.email}</span>
+                                                                    <span className="text-xs text-gray-500 block truncate">{m.email}</span>
+                                                                </span>
+                                                                {redanMed && <span className="text-[10px] font-bold uppercase text-gray-400">I startlistan</span>}
+                                                                {vald && (
+                                                                    <select
+                                                                        value={memberDivisions[mid] || memberDivision}
+                                                                        onClick={e => e.stopPropagation()}
+                                                                        onChange={e => setMemberDivisions(prev => ({ ...prev, [mid]: e.target.value }))}
+                                                                        className="text-xs bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md px-2 py-1 text-gray-900 dark:text-white outline-none shrink-0"
+                                                                        title="Klass for den har deltagaren"
+                                                                    >
+                                                                        {divisions.map(d => (
+                                                                            <option key={d} value={d}>{d}</option>
+                                                                        ))}
+                                                                    </select>
+                                                                )}
+                                                            </label>
+                                                        );
+                                                    })}
+                                                {orgMembers.length === 0 && (
+                                                    <p className="text-xs text-gray-500 py-4 text-center">Inga medlemmar hittades.</p>
+                                                )}
+                                            </div>
+                                        )}
+                                        <button
+                                            onClick={handleAddSelectedMembers}
+                                            disabled={selectedMemberIds.length === 0}
+                                            className="w-full bg-primary text-white text-sm font-bold py-2 rounded-lg hover:brightness-105 disabled:opacity-40 disabled:cursor-not-allowed"
+                                        >
+                                            {selectedMemberIds.length > 0 ? `Lägg till ${selectedMemberIds.length} deltagare` : 'Bocka i medlemmar att lägga till'}
+                                        </button>
+                                    </div>
+                                ) : addMethod === 'manual' ? (
                                     <div className="bg-gray-50 dark:bg-gray-800 border border-gray-100 dark:border-gray-800 rounded-xl p-5 space-y-4">
                                         <h4 className="font-bold text-gray-900 dark:text-white text-sm">Registrera person eller lag</h4>
                                         <div>
@@ -1197,7 +1331,7 @@ const EventEditor: React.FC<{
                                             </select>
                                         </div>
                                         <p className="text-xs text-gray-500">
-                                            Klistra in rader. Vi letar automatiskt upp namn, lagnamn och e-post. En rad blir en startande (Singel, Par-lag eller Lag med Lagnamn). <br />
+                                            Klistra in rader. Vi letar automatiskt upp namn, lagnamn och e-post. En rad blir en startande (Singel, Par-lag eller Lag med Lagnamn). Skriv med klassen på raden (t.ex. <span className="font-mono">Singel Dam</span>) så gäller den för just den raden — annars klassen i väljaren ovan. <br />
                                             <span className="font-bold font-mono text-[10px] block mt-1 text-emerald-600 dark:text-emerald-400">Exempel med lagnamn: Team Blixten: Karin - karin@exempel.se - Johan - johan@exempel.se</span>
                                             <span className="font-bold font-mono text-[10px] block text-emerald-600 dark:text-emerald-400">Exempel med lagnamn: Team Blixten - Karin - karin@exempel.se - Johan - johan@exempel.se</span>
                                             <span className="font-bold">Singel:</span> <code className="bg-gray-100 dark:bg-gray-900 p-0.5 rounded text-red-500">Karin Larsson - karin@exempel.se</code> <br />
@@ -1442,11 +1576,12 @@ const EventEditor: React.FC<{
                 </div>
             )}
 
-            {event?.id && (
+            {/* Live-lankan ar borttagen: resultatet delas forst nar eventet ar genomfort. */}
+            {event?.id && event?.status === 'completed' && (
                 <div className="border-t border-gray-200 dark:border-gray-800 pt-8 mt-8">
                     <h3 className="text-lg font-black text-gray-900 dark:text-white uppercase tracking-tight flex items-center gap-2 mb-4">
                         <QrCodeIcon className="w-5 h-5 text-indigo-500" />
-                        {event?.status === 'completed' ? 'Dela Resultat & QR-kod' : 'Dela Liveresultat & QR-kod'}
+                        Dela Resultat & QR-kod
                     </h3>
                     <div className="bg-gradient-to-br from-indigo-50/50 via-white to-amber-50/30 dark:from-slate-900/40 dark:via-slate-900/60 dark:to-indigo-950/20 border border-indigo-100 dark:border-slate-800 p-6 rounded-2xl flex flex-col md:flex-row items-center gap-6">
                         <div className="bg-white p-3 rounded-2xl border border-gray-200 dark:border-gray-700 flex-shrink-0 shadow-lg dark:shadow-none share-qr-parent">
@@ -1665,6 +1800,7 @@ const EventEditor: React.FC<{
 };
 
 export const EventsContent: React.FC<EventsContentProps> = ({ organization }) => {
+    const { studioConfig } = useStudio();
     const [events, setEvents] = useState<HyroxRace[]>([]);
     const [loading, setLoading] = useState(true);
     const [view, setView] = useState<'list' | 'create' | 'edit'>('list');
@@ -1819,6 +1955,16 @@ export const EventsContent: React.FC<EventsContentProps> = ({ organization }) =>
     if (view === 'list') {
         return (
             <div className="space-y-6 animate-fade-in">
+                {!studioConfig?.enableHyrox && (
+                    <div className="flex items-start gap-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800/50 text-amber-900 dark:text-amber-200 rounded-xl px-4 py-3 text-sm">
+                        <span className="text-lg leading-none">⚠️</span>
+                        <p>
+                            <span className="font-bold">Event & Tävlingar visas inte på skärmen än.</span>{' '}
+                            Du kan skapa och förbereda event här, men för att de ska synas på studioskärmen behöver du slå på
+                            <span className="font-bold"> "Visa Event & Tävlingar"</span> under <span className="font-bold">Inställningar</span>.
+                        </p>
+                    </div>
+                )}
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                     <div>
                         <h2 className="text-2xl font-black text-gray-900 dark:text-white uppercase tracking-tight">Event & Tävlingar</h2>
@@ -1930,13 +2076,6 @@ export const EventsContent: React.FC<EventsContentProps> = ({ organization }) =>
                                             className="flex-1 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-900 dark:text-white font-bold py-2 rounded-lg transition-colors text-sm"
                                         >
                                             Hantera
-                                        </button>
-                                        <button 
-                                            onClick={() => setShareEvent(event)}
-                                            className="bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/40 dark:hover:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 px-3.5 py-2 rounded-lg font-bold transition-colors flex items-center justify-center"
-                                            title="Visa QR & Dela"
-                                        >
-                                            <QrCodeIcon className="w-4 h-4" />
                                         </button>
                                         <button 
                                             onClick={() => handleDeleteEvent(event.id)}
@@ -2214,7 +2353,7 @@ export const EventsContent: React.FC<EventsContentProps> = ({ organization }) =>
                                 animate={{ opacity: 1, scale: 1, y: 0 }}
                                 exit={{ opacity: 0, scale: 0.95, y: 15 }}
                                 transition={{ type: "spring", duration: 0.4 }}
-                                className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-[2rem] shadow-2xl overflow-hidden w-full max-w-lg relative z-10 p-8 text-gray-900 dark:text-white"
+                                className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-[2rem] shadow-2xl w-full max-w-lg relative z-10 p-8 text-gray-900 dark:text-white max-h-[calc(100vh-2rem)] overflow-y-auto"
                             >
                                 <button
                                     onClick={() => setShowDemoSuccessModal(false)}

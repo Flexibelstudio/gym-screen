@@ -46,24 +46,41 @@ const checkRateLimit = async (docId, max, message) => {
   }
 };
 
+/**
+ * Coachkoden körs i Europa, granne med databasen. Resten av funktionerna ligger
+ * kvar i us-central1 — två av dem har fasta webbadresser som Stripe och en
+ * extern integration pekar på, och de får inte byta adress.
+ *
+ * Kodrutan används mitt i ett pass, av någon som står och väntar. Därför hålls
+ * en instans varm: kallstarten var den värsta väntan.
+ */
+const COACH_FN = {
+  region: "europe-west1",
+  enforceAppCheck: process.env.NODE_ENV === "production"
+};
+
 const privateAuthRef = (organizationId) =>
   db.collection("organizations").doc(organizationId).collection("private").doc("auth");
 
 /**
  * verifyCoachUnlockCode — in: { organizationId, code }, ut: { ok: boolean }
  *
- * Kräver inloggning + medlemskap i organisationen. App Check i produktion.
+ * Kräver inloggning + medlemskap i organisationen.
  * Takt: 10/användare/timme + 30/organisation/timme.
  * Misslyckade försök loggas med uid, orgId och tid.
  * Ingen kod konfigurerad => failed-precondition (aldrig tyst reserv).
+ *
+ * INGEN App Check här, till skillnad från de andra två. Skärmarna i lokalerna
+ * är gamla pekskärmar som ibland inte får igenom sitt App Check-intyg, och då
+ * stod coachen låst ute mitt i ett pass. Skyddet finns kvar där det räknas:
+ * anropet kräver inloggning, medlemskap i rätt organisation, klarar högst tio
+ * försök i timmen per användare och trettio per gym, och själva koden lämnar
+ * aldrig servern. Att låsa ute betalande kunder är ett värre fel än det App
+ * Check skyddar mot här.
  */
-const verifyCoachUnlockCode = onCall({
-  enforceAppCheck: process.env.NODE_ENV === "production"
-}, async (request) => {
-  if (process.env.NODE_ENV === "production" && request.app == undefined) {
-    throw new HttpsError("unauthenticated", "Ogiltig App Check.");
-  }
-
+const verifyCoachUnlockCode = onCall(
+  { region: COACH_FN.region, enforceAppCheck: false, minInstances: 1 },
+  async (request) => {
   const data = request.data || {};
   const organizationId = data.organizationId;
   const code = data.code;
@@ -77,14 +94,19 @@ const verifyCoachUnlockCode = onCall({
     throw new HttpsError("permission-denied", "Du tillhör inte den här organisationen.");
   }
 
-  await checkRateLimit(
-    `coachverify_${caller.uid}`, 10,
-    "För många försök. Vänta en stund och försök igen."
-  );
-  await checkRateLimit(
-    `coachverify_org_${organizationId}`, 30,
-    "För många försök för den här organisationen just nu. Försök igen om en stund."
-  );
+  // Båda taktkontrollerna samtidigt i stället för efter varandra. De är
+  // oberoende av varandra, och seriellt kostade de två väntor i rad medan
+  // coachen står och tittar på rutan.
+  await Promise.all([
+    checkRateLimit(
+      `coachverify_${caller.uid}`, 10,
+      "För många försök. Vänta en stund och försök igen."
+    ),
+    checkRateLimit(
+      `coachverify_org_${organizationId}`, 30,
+      "För många försök för den här organisationen just nu. Försök igen om en stund."
+    )
+  ]);
 
   const authDoc = await privateAuthRef(organizationId).get();
   const stored = authDoc.exists ? authDoc.data().coachUnlockCode : undefined;
@@ -104,7 +126,8 @@ const verifyCoachUnlockCode = onCall({
   }
 
   return { ok };
-});
+  }
+);
 
 /**
  * setCoachUnlockCode — in: { organizationId, code }, ut: { ok: true }
@@ -112,9 +135,7 @@ const verifyCoachUnlockCode = onCall({
  * Kräver org-admin (eller systemägare). 4–12 tecken, inga komplexitetskrav.
  * Returnerar aldrig koden, loggar aldrig koden.
  */
-const setCoachUnlockCode = onCall({
-  enforceAppCheck: process.env.NODE_ENV === "production"
-}, async (request) => {
+const setCoachUnlockCode = onCall(COACH_FN, async (request) => {
   if (process.env.NODE_ENV === "production" && request.app == undefined) {
     throw new HttpsError("unauthenticated", "Ogiltig App Check.");
   }
@@ -154,9 +175,7 @@ const setCoachUnlockCode = onCall({
  * Används av adminvyn (Varumärke) så att admin ser gymmets kod precis som förut.
  * null betyder att ingen kod är konfigurerad ännu.
  */
-const getCoachUnlockCode = onCall({
-  enforceAppCheck: process.env.NODE_ENV === "production"
-}, async (request) => {
+const getCoachUnlockCode = onCall(COACH_FN, async (request) => {
   if (process.env.NODE_ENV === "production" && request.app == undefined) {
     throw new HttpsError("unauthenticated", "Ogiltig App Check.");
   }

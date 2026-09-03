@@ -516,6 +516,15 @@ export const MemberManagementScreen: React.FC<MemberManagementScreenProps> = ({ 
   const [roleFilter, setRoleFilter] = useState<RoleFilter>('all');
   const [locationFilter, setLocationFilter] = useState<string>('all');
   const [currentPage, setCurrentPage] = useState(1);
+  // Inbjudningsrutan ar ihopfalld tills man oppnar den; valet sparas lokalt.
+  const [inbjudanOppen, setInbjudanOppenState] = useState<boolean>(() => {
+      try { return localStorage.getItem('smartstudio-inbjudan-oppen') === '1'; } catch { return false; }
+  });
+  const setInbjudanOppen = (f: (o: boolean) => boolean) => setInbjudanOppenState(o => {
+      const n = f(o);
+      try { localStorage.setItem('smartstudio-inbjudan-oppen', n ? '1' : '0'); } catch { /* inget */ }
+      return n;
+  });
   const [toast, setToast] = useState<{ message: string, visible: boolean }>({ message: '', visible: false });
 
   const [updatingMembers, setUpdatingMembers] = useState<Record<string, boolean>>({});
@@ -768,16 +777,21 @@ export const MemberManagementScreen: React.FC<MemberManagementScreenProps> = ({ 
       {/* Bjud in medlemmar sektion */}
       {selectedOrganization && (
         <div className="bg-gray-50 dark:bg-gray-900/40 border border-gray-200 dark:border-gray-800 rounded-3xl p-6 sm:p-8 space-y-6">
-          <div>
-            <h4 className="text-2xl font-black text-gray-900 dark:text-white uppercase tracking-tight flex items-center gap-3">
-              <QrCodeIcon className="w-7 h-7 text-primary" /> Bjud in medlemmar
-            </h4>
-            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-              Dela registreringslänken eller ladda ner högupplöst QR-kod för utskrift per ort.
-            </p>
-          </div>
+          <button type="button" onClick={() => setInbjudanOppen(o => !o)} className="w-full text-left flex items-center justify-between gap-4">
+            <div>
+              <h4 className="text-2xl font-black text-gray-900 dark:text-white uppercase tracking-tight flex items-center gap-3">
+                <QrCodeIcon className="w-7 h-7 text-primary" /> Bjud in medlemmar
+              </h4>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                Dela registreringslänken eller ladda ner högupplöst QR-kod för utskrift per ort.
+              </p>
+            </div>
+            <span className={`shrink-0 text-gray-400 transition-transform ${inbjudanOppen ? 'rotate-180' : ''}`} aria-hidden="true">
+              <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M6 9l6 6 6-6" /></svg>
+            </span>
+          </button>
 
-          <div className="grid grid-cols-1 gap-4">
+          {inbjudanOppen && <div className="grid grid-cols-1 gap-4">
             {(selectedOrganization.locations && selectedOrganization.locations.length > 0
               ? selectedOrganization.locations
               : [{ id: 'default', name: selectedOrganization.name, inviteCode: selectedOrganization.inviteCode || '' }]
@@ -796,7 +810,7 @@ export const MemberManagementScreen: React.FC<MemberManagementScreenProps> = ({ 
                 />
               );
             })}
-          </div>
+          </div>}
         </div>
       )}
 
