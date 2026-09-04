@@ -1,4 +1,4 @@
-import React, { createContext, useState, useContext, useEffect, useMemo, useCallback } from 'react';
+import React, { createContext, useState, useContext, useEffect, useMemo, useCallback, useRef } from 'react';
 import { onAuthChange, signOut as firebaseSignOut, signIn, signInAsStudio, isOffline, sendPasswordResetEmail, updateUserTermsAccepted, updateUserProfile, db } from '../services/firebaseService';
 import { doc, onSnapshot } from 'firebase/firestore';
 import { UserData, UserRole } from '../types';
@@ -37,6 +37,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const [userData, setUserData] = useState<UserData | null>(null);
     const [authLoading, setAuthLoading] = useState(true);
     const [profilBesked, setProfilBesked] = useState<string | null>(null);
+    // Normaliseringen (lagningen av gamla profiler) far provas EN gang per konto
+    // och sidvisning. Utan sparren blev en nekad skrivning en oandlig runda:
+    // skrivningen rullades tillbaka, det gav en ny profiluppdatering, som
+    // startade normaliseringen igen — menyn blinkade och konsolen fylldes.
+    const normaliseradeRef = useRef<Set<string>>(new Set());
 
     // Bokför i starttidslinjen — kostar inget, syns bara när starten är seg.
     const bootmark = (namn: string) => { try { (window as any).__bootmark?.(namn); } catch { /* inget */ } };
@@ -111,9 +116,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
                             // Automatiskt laga/normalisera äldre konton (som Mikaelas) så att de överensstämmer med nya konton (som Lindas)
                             const updates: Partial<UserData> = {};
-                            if (docData.uid === undefined) {
-                                updates.uid = user.uid;
-                            }
+                            // OBS: uid skrivs aldrig. Reglerna tillater inte att man
+                            // andrar uid pa sig sjalv, och faltet behovs inte i
+                            // databasen — appen satter det fran inloggningen ovan.
                             if (docData.status === undefined) {
                                 updates.status = 'active';
                             }
@@ -128,10 +133,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                                 updates.locationId = null;
                             }
 
-                            if (Object.keys(updates).length > 0) {
+                            if (Object.keys(updates).length > 0 && !normaliseradeRef.current.has(user.uid)) {
+                                normaliseradeRef.current.add(user.uid);
                                 console.log("Normaliserar äldre användarprofil med saknade fält:", updates);
                                 updateUserProfile(user.uid, updates).catch(err => {
-                                    console.error("Kunde inte normalisera profil för äldre konto:", err);
+                                    console.warn("Kunde inte normalisera profil för äldre konto:", err?.code || err?.message);
                                 });
                             }
                             setProfilBesked(null);
